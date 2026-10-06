@@ -47,7 +47,8 @@ four sections:
   formulas, model specifications, conventions, identifying assumptions and
   known limitations. It follows the target trial table of the TARGET
   guideline. It names no code, so a statistician can reimplement the
-  estimators from it. Copy it whole into a protocol, a pre-registered
+  estimators from it. The one exception is 1.8.9, which names the three time
+  columns. Copy it whole into a protocol, a pre-registered
   statistical analysis plan or a methods supplement. The section numbers stay
   valid.
 - **Manuscript methods** (Section 2). Short past-tense text for the methods
@@ -218,7 +219,7 @@ period.
 All intervention person-trials of an enrollment period are enrolled.
 Comparators enter by incidence density sampling from the same enrollment
 period, with a seed stated in the specification. A specification without a
-seed gives a draw that cannot be reproduced. The draw takes the
+seed is refused, so every draw can be reproduced. The draw takes the
 comparator-to-intervention ratio times the number of intervention
 person-trials, rounded to a whole number. Where fewer qualified comparators
 remain, the draw takes all of them.
@@ -429,7 +430,8 @@ censoring by deviation or loss in interval ${j}$.
 $c_{m,j}$ is the calendar period of interval ${j}$. Calendar periods are the
 blocks of calendar time that define the enrollment periods, so each follow-up
 interval lies in exactly one. A trial with several follow-up intervals
-therefore spans several calendar periods.
+therefore spans several calendar periods. Section 1.8.9 states the three time
+axes, and the reason for the time terms of each model.
 
 ### 1.8.1 Treatment weights
 
@@ -483,8 +485,8 @@ That identity makes a four-week row and a one-week row comparable. It matters
 because the last row is clipped at its exact stop, so it can be narrower than
 a whole interval. A logit link carries no such identity.
 
-The follow-up term $s_{a}$ depends on the number of distinct interval starts
-in the data of the arm:
+Both time terms follow the term ladder of 1.8.9. The follow-up term $s_{a}$
+depends on the number of distinct interval starts in the data of the arm:
 
 - 10 or more: a penalised spline;
 - 4 to 9: a natural cubic spline of 3 degrees of freedom;
@@ -492,9 +494,9 @@ in the data of the arm:
 - 1: no term.
 
 A penalised spline asks for 10 basis functions, so it needs 10 distinct
-values. The calendar term $g_{a}$ depends on the number of distinct calendar
-periods in the data of both arms. It is a penalised spline with 10 or more, a
-linear term with 2 to 9, and absent with 1.
+values. The calendar term $g_{a}$ follows the same ladder on the number of
+distinct calendar periods in the data of the arm. Both counts exclude the rows
+of zero width, which hold no person-time.
 
 The confounders carry their updated value in each interval. Time-varying
 confounders, where the data hold them, therefore inform the censoring model.
@@ -514,9 +516,9 @@ SW^{C}_{m,k}
         {\prod_{j=0}^{k-1} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)}.
 $$
 
-Here $\bar{q}_{a}(j)$ is the numerator: a second fit of the same model, which
-keeps the two time terms and drops the confounders. Two rules govern the
-ratio.
+Here $\bar{q}_{a}(j)$ is the numerator: a second fit in the same arm, which
+keeps the follow-up term $s_{a}$ and drops the calendar term and the
+confounders (1.8.9). Two rules govern the ratio.
 
 - The product is lagged. It stops at interval ${k}-1$, so the uncensoring
   probability of a row does not enter its own weight. A censored interval
@@ -525,8 +527,8 @@ ratio.
   that delete the censoring row, and the two conventions are not mixed.
 - The numerator is marginal. Canonical stabilisation (Danaei et al. 2013)
   uses a numerator model conditional on baseline covariates, which then enter
-  the outcome model too. Here the outcome model is covariate-free (1.8.4),
-  so the numerator model carries the two time terms alone. This keeps the
+  the outcome model too. Here the outcome model holds no confounders (1.8.4),
+  so the numerator model carries the follow-up term alone. This keeps the
   marginal estimand consistent. It stabilises less when baseline covariates
   strongly predict censoring.
 
@@ -571,22 +573,22 @@ analysis data:
 $$
 \log \mathrm{E}[Y_{i,m,j}]
   = \beta_{0} + \beta_{1} A_{i,m,0}
-  + \mathrm{ns}(t_{i,m,j}, 3)
-  + f(c_{m,j})
+  + h(u_{m,j})
+  + f(m)
   + \log(\text{person-weeks}_{i,m,j}).
 $$
 
-Here $t_{i,m,j}$ is the stop of the row in weeks from time zero, after
-clipping. $\mathrm{ns}(t, 3)$ is a natural cubic spline of 3 degrees of
-freedom in that stop time. The calendar term ${f}$ reads the calendar period
-of the row. It is a natural cubic spline of 3 degrees of freedom with 5 or
-more distinct calendar periods. It is a linear term with 2 to 4, and absent
-with 1.
+Here $u_{m,j}$ is the start of interval ${j}$ in weeks from time zero, and
+${m}$ is the trial. The person-weeks are the width of the row after clipping.
+Both time terms follow the term ladder of 1.8.9 without the penalised spline.
+Each is a natural cubic spline of 3 degrees of freedom with 4 or more distinct
+values in the analysis data, a factor with 2 or 3, and absent with 1.
 
-The calendar term adjusts for calendar trends, while one treatment
-coefficient is shared across trials (Danaei et al. 2013; Caniglia et al.
-2023). No confounders enter the outcome model, so $\exp(\beta_{1})$ is the
-marginal IRR. The model is fit by weighted quasi-Poisson regression with
+The trial term ${f}$ adjusts for differences between trials, while one
+treatment coefficient is shared across trials (Danaei et al. 2013; Caniglia et
+al. 2023). Section 1.8.9 states why the model reads the trial and the interval
+start, and not the calendar period of the row or the stop of the row. No
+confounders enter the outcome model, so $\exp(\beta_{1})$ is the marginal IRR. The model is fit by weighted quasi-Poisson regression with
 survey-linearised variance (1.8.6).
 
 With rare events in each interval, as is typical in register data, the IRR
@@ -626,8 +628,10 @@ difference is $\hat S_{0}(t) - \hat S_{1}(t)$.
 Standard errors are survey-linearised (a Huber–White sandwich) and clustered
 on the person, not the person-trial. That accounts for the repeated
 person-trials and the repeated intervals of one person (Hernán et al. 2008;
-Danaei et al. 2013; Su et al. 2024). The interval of the IRR is a 95% Wald
-interval on the log scale, $\exp(\hat\beta_{1} \pm 1.96\,\widehat{se})$. Two
+Danaei et al. 2013; Su et al. 2024). The interval of the IRR is a Wald
+interval on the log scale, $\exp(\hat\beta_{1} \pm z\,\widehat{se})$. Here
+${z}$ is the two-sided normal critical value at the study's confidence level,
+95% unless the specification sets another, so ${z}$ is 1.96 at 95%. Two
 caveats apply:
 
 - The variance treats the estimated weights, the single imputation and the
@@ -651,8 +655,7 @@ resamples per arm would ignore that covariance.
 
 The weights keep their estimated values in every replicate: the models of
 1.8.1 and 1.8.2 are not refitted. The level of the interval is the study's
-confidence level, 95% unless the specification sets another. The interval of
-the IRR stays at 95%.
+confidence level, the same level as the interval of the IRR.
 
 At a stop time where either arm has no weighted event up to and including
 that time, the risk difference has no interval. Every replicate that is not
@@ -707,10 +710,278 @@ joint Wald test of the interaction between treatment and the subgroup. Both
 run for both estimands. A level with no events returns no estimate rather than
 an unstable one.
 
-A joint Wald test of the interaction between treatment and a spline of the
-calendar period tests heterogeneity across calendar time. swereg provides that
-test, and the pipeline does not run it. A study that wants it states it in the
+The subgroup IRRs and the effect-modification test hold the time terms of the
+IRR model (1.8.9). A joint Wald test of the interaction between treatment and
+a natural spline of the trial tests heterogeneity across trials. The spline has
+3 degrees of freedom, or one fewer than the number of trials where that is
+smaller. swereg provides that test, and the pipeline does not run it. A study that wants it states it in the
 protocol.
+
+### 1.8.9 Time terms
+
+Every time term of 1.8 reads one of three time axes. Each row of the analysis
+data carries all three. This subsection names them by their columns, because
+the reasons for each model's terms depend on what each column holds.
+
+| Column | Symbol | Meaning |
+|:--|:--|:--|
+| `period_id` | $c_{m,j}$ | The calendar period of the row. |
+| `enrollment_period_id` | ${m}$ | The trial. It is the enrollment period, which ends at time zero, and it is constant within a person-trial. |
+| `tstart` | $u_{m,j}$ | The time since time zero at the start of the interval, in weeks. |
+
+Follow-up interval ${j}$ of trial ${m}$ is interval number ${j}+1$. With an
+enrollment period of ${w}$ weeks, the three axes obey one identity.
+
+$$
+c_{m,j} = m + (j + 1),
+\qquad
+u_{m,j} = j\,w .
+$$
+
+In column terms, `period_id` = `enrollment_period_id` + interval number, and
+the interval number is `tstart` / ${w}$ + 1. Figure A shows the three axes on a
+Lexis diagram.
+
+```{r time-term-setup, include = FALSE}
+tt_theme <- theme_classic(base_size = 11) +
+  theme(
+    axis.line = element_line(colour = "black"),
+    axis.ticks = element_line(colour = "black"),
+    axis.text = element_text(colour = "black"),
+    plot.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+tt_col <- c(
+  "period_id" = "#0072B2",
+  "enrollment_period_id" = "#8a1c1c",
+  "tstart" = "#E69F00",
+  "not in the model" = "grey80"
+)
+```
+
+```{r time-term-lexis, fig.width = 7, fig.height = 5.2, fig.cap = "Figure A. Each line is one person-trial from its time zero, and the black lines are one person in three successive trials. The dashed lines are one calendar period, one trial and one time since time zero."}
+w <- 4
+pt <- data.table(
+  who = c(rep("other person-trials", 2), rep("one person, three successive trials", 3), rep("other person-trials", 3)),
+  enrollment_period_id = c(0, 1, 2, 3, 4, 5, 6, 1),
+  n_intervals = c(6, 4, 1, 1, 5, 3, 4, 7)
+)
+pt[, `:=`(
+  x = enrollment_period_id + 1,
+  xend = enrollment_period_id + 1 + n_intervals,
+  yend = n_intervals * w
+)]
+pt[, who := factor(who, levels = c("one person, three successive trials", "other person-trials"))]
+ggplot(pt) +
+  geom_vline(xintercept = 7, colour = tt_col[["period_id"]], linetype = "dashed") +
+  geom_abline(slope = w, intercept = 0, colour = tt_col[["enrollment_period_id"]], linetype = "dashed") +
+  geom_hline(yintercept = 12, colour = tt_col[["tstart"]], linetype = "dashed") +
+  geom_segment(aes(x = x, y = 0, xend = xend, yend = yend, colour = who, linewidth = who)) +
+  annotate("label", x = 7, y = 27, label = "vertical: one period_id", colour = tt_col[["period_id"]], size = 3.2, hjust = 0) +
+  annotate("label", x = 4.7, y = 20, label = "diagonal: one enrollment_period_id", colour = tt_col[["enrollment_period_id"]], size = 3.2, hjust = 1) +
+  annotate("label", x = 9.3, y = 12, label = "horizontal: one tstart", colour = tt_col[["tstart"]], size = 3.2, vjust = -0.3) +
+  scale_colour_manual(NULL, values = c("black", "grey55")) +
+  scale_linewidth_manual(NULL, values = c(1.3, 0.6)) +
+  scale_x_continuous("Calendar period (period_id)", breaks = 0:12) +
+  scale_y_continuous("Time since time zero (weeks)", breaks = seq(0, 28, 4)) +
+  coord_fixed(ratio = 1 / w, xlim = c(0, 12), ylim = c(0, 28), expand = FALSE) +
+  labs(title = "Three time axes on one Lexis diagram") +
+  tt_theme
+```
+
+The models of 1.8 hold the time terms below. Here flex(${x}$) is the term
+ladder below, and ${n}$ is the number of
+trials.
+
+| Model | Time terms | Other terms | Offset | Family | Engine |
+|:--|:--|:--|:--|:--|:--|
+| Treatment weights (1.8.1) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
+| Censoring denominator (1.8.2) | flex(`tstart`) + flex(`period_id`) | time-updated confounders | log person-weeks | binomial, cloglog link | penalised GAM, or GLM (1.9) |
+| Censoring numerator (1.8.2) | flex(`tstart`) | none | log person-weeks | binomial, cloglog link | as the denominator |
+| IRR and subgroup IRR (1.8.4, 1.8.8) | flex(`tstart`) + flex(`enrollment_period_id`) | arm | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Effect modification (1.8.8) | flex(`tstart`) + flex(`enrollment_period_id`) | arm × factor(subgroup) | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Heterogeneity across trials (1.8.8) | flex(`tstart`) | arm × ns(`enrollment_period_id`, df = min(3, ${n}$ − 1)) | log person-weeks | quasi-Poisson | survey-weighted GLM |
+
+The person-weeks of the offset are the width of the row after clipping (1.8.4).
+
+```{r time-term-models, fig.width = 8, fig.height = 3, fig.cap = "Figure B. Each panel is the Lexis diagram of Figure A. Coloured lines are the two axes that the model holds, and grey lines are the axis it leaves out."}
+w <- 4
+lexis_panel <- function(title, used, x_title = NULL, y_title = NULL, note = NULL) {
+  axis <- c("period_id", "enrollment_period_id", "tstart")
+  role <- ifelse(axis %in% used, axis, "not in the model")
+  names(role) <- axis
+  # One segment layer for the three families of lines, so that every panel
+  # draws the same legend and patchwork can collect it.
+  seg <- rbind(
+    data.table(x = 1:11, y = 0, xend = 1:11, yend = 28, role = role[["period_id"]]),
+    data.table(x = 0, y = seq(4, 24, w), xend = 12, yend = seq(4, 24, w), role = role[["tstart"]]),
+    data.table(x = 0:11, y = 0, xend = 0:11 + 7, yend = 28, role = role[["enrollment_period_id"]])
+  )
+  seg <- seg[order(role != "not in the model")]
+  ggplot(seg) +
+    geom_segment(aes(x = x, y = y, xend = xend, yend = yend, colour = role), linewidth = 0.6, show.legend = TRUE) +
+    scale_colour_manual(NULL, values = tt_col, limits = names(tt_col), guide = guide_legend(nrow = 1)) +
+    {
+      if (is.null(note)) NULL else annotate("label", x = 6, y = 26, label = note, size = 3.2, colour = tt_col[["enrollment_period_id"]])
+    } +
+    scale_x_continuous(x_title, breaks = seq(0, 12, 4)) +
+    scale_y_continuous(y_title, breaks = seq(0, 28, 8)) +
+    coord_fixed(ratio = 1 / w, xlim = c(0, 12), ylim = c(0, 28), expand = FALSE) +
+    labs(title = title) +
+    tt_theme +
+    theme(plot.title = element_text(size = 10))
+}
+patchwork::wrap_plots(
+  # The shared axis titles are drawn once: y on the left panel, x on the middle.
+  lexis_panel("Censoring denominator", c("period_id", "tstart"), y_title = "Weeks since time zero"),
+  lexis_panel("Outcome model", c("enrollment_period_id", "tstart"), x_title = "Calendar period"),
+  lexis_panel("Heterogeneity test", c("enrollment_period_id", "tstart"), note = "treatment × trial"),
+  nrow = 1
+) +
+  patchwork::plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+```
+
+#### At most two axes in each model
+
+The outcome models and the censoring denominator each hold two of the three
+axes. The censoring numerator holds `tstart` only, and the treatment-weight
+model holds no time term. The identity makes the third axis a linear function
+of the other two. This is the age–period–cohort identity of
+Lexis-diagram analysis. A linear term in the third axis therefore adds
+nothing to a model that holds the other two. Only the curvature of the third
+axis can add to the fit, and the data identify that curvature weakly.
+
+A grid of 10 trials and 8 follow-up intervals shows this. Natural cubic
+splines of 3 degrees of freedom in `enrollment_period_id` and `tstart`, with an
+intercept, give a design matrix of rank 7. A linear `period_id` term leaves the
+rank at 7. A natural cubic spline of 3 degrees of freedom in `period_id` raises
+it to 9.
+
+#### Outcome models: the trial and the time since time zero
+
+The outcome models hold the trial and the time since time zero, as the
+sequential trial literature does. Danaei et al. (2013, p. 76) pooled 83 trials
+into one model. That model included "'month at the trial's baseline' (taking
+values from 1 to 83) and month of follow-up in each 'trial'". Each entered as
+a continuous covariate with its squared term. To test heterogeneity, they added "a product
+term between the indicator for therapy initiation and the month of the
+'trial'" (p. 76). The heterogeneity test of 1.8.8 is that test, with a natural
+spline of the trial in place of the linear product term.
+
+Caniglia et al. (2023, author manuscript p. 5) pooled 13 trials and included
+"'trial' (taking values from 1-13 and modeled with restricted cubic splines)".
+Their outcome model is a log-binomial model of a risk at delivery, so it holds
+no follow-up time. TrialEmulation (Su et al. 2024, p. 17) adds `trial_period`
+and `followup_time` to the outcome model by default, each as a linear and a
+quadratic term. There, `trial_period` is the trial index and `followup_time`
+is "the follow-up visit number within trials" (p. 16).
+
+The trial term adjusts for differences in the event rate between trials. One
+treatment coefficient is then shared by every trial.
+
+#### Censoring denominator: the calendar period and the time since time zero
+
+The censoring denominator holds the calendar period of the row and the time
+since time zero. Deviation and loss respond to the time on the protocol, for
+example a stop early in treatment. They also respond to calendar time, for
+example a change in prescribing practice. Such a change acts on every open
+trial in the same calendar period, so the calendar period is its axis.
+
+Danaei et al. (2013, p. 79) used inverse probability weights against the
+selection that the artificial censoring causes. Their model for treatment use
+included "calendar month of follow-up and its squared term". The same model
+also included the baseline calendar year.
+
+#### Censoring numerator: the time since time zero only
+
+The numerator model holds the time since time zero and nothing else. Su et al.
+(2024, p. 6–7, the text after equation 3) state the condition. Covariates
+"conditioned upon in the numerator terms of the stabilised weights must be
+included as covariates in the marginal structural model". The outcome model
+holds the trial and the time since time zero. A spline in `period_id` is not
+in the span of those two terms, as the rank example above shows. A spline or
+factor in `period_id` can fall outside that span, as the rank example shows,
+so the numerator omits it.
+
+By default the numerator fits in each arm, so it also conditions on the arm,
+which the outcome model holds. A numerator that depends only on terms of the
+outcome model leaves the estimand unchanged. The cost of the smaller numerator
+is therefore more variable weights, and not bias.
+
+#### Time read at the start of the interval
+
+Every model with a time-since-entry term reads it at the interval start,
+`tstart`, and not at the interval stop, `tstop`. The last interval of a person-trial is
+cut short at an event or a censoring, so its `tstop` is smaller than a whole
+interval. A flexible term in `tstop` could then fit those last rows apart from
+the other rows, and the last rows hold the events. Under `tstart`, every row of
+interval number ${k}$ sits at $({k} - 1)\,{w}$ weeks.
+
+Danaei et al. (2013, p. 76) index follow-up by month of follow-up.
+TrialEmulation indexes it by `followup_time`, the visit number (Su et al.
+2024, p. 16). Both are interval numbers. The clipped width still enters the
+offset through the person-weeks. Figure C shows two person-trials under both
+readings.
+
+```{r time-term-intervals, fig.width = 7, fig.height = 3.4, fig.cap = "Figure C. Bars are the rows of two person-trials, and the red row ends at an event in week 10. Dots place each row at tstart, and crosses place it at tstop."}
+rows <- data.table(
+  trial = c(rep("person-trial A", 4), rep("person-trial B", 3)),
+  tstart = c(0, 4, 8, 12, 0, 4, 8),
+  tstop = c(4, 8, 12, 16, 4, 8, 10),
+  row = c(rep("whole interval", 6), "event, interval cut short")
+)
+rows[, y := as.numeric(factor(trial, levels = c("person-trial B", "person-trial A")))]
+pts <- rbind(
+  rows[, .(y = y + 0.2, time = tstart, reading = "time read at tstart")],
+  rows[, .(y = y - 0.2, time = tstop, reading = "time read at tstop")]
+)
+ggplot(rows) +
+  geom_vline(xintercept = seq(0, 16, 4), colour = "grey85") +
+  geom_rect(aes(xmin = tstart, xmax = tstop, ymin = y - 0.08, ymax = y + 0.08, fill = row), colour = "black") +
+  geom_point(aes(x = time, y = y, shape = reading), data = pts, size = 2.6) +
+  scale_fill_manual(NULL, values = c("whole interval" = "grey70", "event, interval cut short" = "#8a1c1c")) +
+  scale_shape_manual(NULL, values = c("time read at tstart" = 16, "time read at tstop" = 4)) +
+  scale_x_continuous("Weeks since time zero", breaks = seq(0, 16, 4)) +
+  scale_y_continuous(NULL, breaks = 1:2, labels = c("person-trial B", "person-trial A"), limits = c(0.6, 2.4)) +
+  labs(title = "Where each row sits on the time axis") +
+  tt_theme +
+  theme(legend.box = "vertical")
+```
+
+#### The term ladder
+
+flex(${x}$) depends on the number of distinct values of ${x}$ in the rows the
+model fits.
+
+- 10 or more, in a censoring model fit as a penalised GAM: a penalised spline.
+  It asks for 10 basis functions, mgcv's default, so it needs 10 distinct
+  values.
+- 4 or more otherwise: a natural cubic spline of 3 degrees of freedom. With the
+  intercept it has 4 parameters, so it needs 4 distinct values.
+- 2 or 3: a factor, which needs 2.
+- 1: no term.
+
+The penalised spline fits only inside the GAM engine. Every outcome model and
+the GLM censoring model of 1.9 therefore start the ladder at the natural
+spline. A censoring model counts the distinct values in each stratum it fits,
+by default each arm, after the rows of zero width leave. An outcome model
+counts them in the rows it fits, so a subgroup IRR counts the rows of its
+subgroup level.
+
+#### Column names and stored objects
+
+Earlier releases named the calendar-period column `trial_id`. On a follow-up
+row that column held the calendar period of the row, and not the trial. The
+name hid that the outcome model read the calendar period. swereg now names each
+column by what it holds: `period_id` for the calendar period of a row, and
+`enrollment_period_id` for the trial.
+
+A saved R6 object runs the method bodies it was saved with. A stored
+enrollment or plan from an earlier release would fit the earlier time terms
+with no warning. swereg therefore refuses to read a stored enrollment below
+schema 6 and a stored plan below schema 5. Rebuild the plan with s0, then run
+s1, s2 and s3 again.
 
 ## 1.9 Sensitivity analyses
 
@@ -725,10 +996,9 @@ Where the extreme weights are structural, restrict the eligible population
 rather than truncate harder.
 
 The censoring model can also be refit as a generalised linear model, which
-drops the penalised splines. Its follow-up term is a natural cubic spline of 3
-degrees of freedom with 4 or more distinct interval starts. It is a factor
-with 2 or 3, and absent with 1. Its calendar term is linear with 2 or more calendar
-periods, and absent with 1.
+drops the penalised splines. Each time term of 1.8.2 is then a natural cubic
+spline of 3 degrees of freedom with 4 or more distinct values, a factor with 2
+or 3, and absent with 1. The numerator keeps the follow-up term alone (1.8.9).
 
 ## 1.10 Limitations
 
@@ -860,17 +1130,19 @@ confounder at the recruiting week, the first eligible week of the enrollment
 period with an arm value. For the per-protocol effect, we added stabilised
 inverse probability of censoring weights from discrete-time censoring models,
 fitted separately by arm. These models included the most recent values of
-`[confounders]` and terms for follow-up time and calendar time. Each time term
-was a penalised spline where enough distinct values allowed one, and simpler
-otherwise (Danaei et al. 2013).
+`[confounders]`, the time since time zero and the calendar period of follow-up
+(Danaei et al. 2013). Each time term was a penalised spline where enough
+distinct values allowed one, and simpler otherwise. The numerator models
+included the time since time zero only.
 
 We truncated the weights at the 1st and 99th percentiles (Danaei et al.
 2013). We fitted a weighted quasi-Poisson marginal structural model of the
 event indicator on the assigned arm, with log person-time as the offset. It
-included a natural spline of follow-up time and a term for the calendar
-period. That term was a natural spline with 5 or more calendar periods, and
-linear with 2 to 4. The exponentiated coefficient of the arm estimated the
-marginal IRR, pooled across trials.
+included terms for the trial and for the time since time zero at the start of
+each interval (Danaei et al. 2013; Su et al. 2024). Each was a natural spline
+of 3 degrees of freedom with 4 or more distinct values, and a factor with 2 or
+3. The exponentiated coefficient of the arm estimated the marginal IRR, pooled
+across trials.
 
 With rare events, the IRR approximated the marginal hazard ratio (Thompson
 1977). Individuals contributed several observations within and across trials.
@@ -2024,19 +2296,19 @@ validation evidence.
 | 1.1 | Prevalent-user warning | `tteplan_validate_spec()` warns when no washout covers the enrollment's intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when no skeleton is loaded (`global_max_isoyearweek` supplied). Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
 | 1.2, 1.4 | Arm values and the weekly status | `treatment.implementation`: `variable`, `intervention_value` and `comparator_value`. The pipeline writes `rd_intervention`: `TRUE` at the intervention value, `FALSE` at the comparator value, `NA` otherwise. It also writes `eligible_valid_treatment`, which is `TRUE` where `rd_intervention` is not `NA` |
 | 1.3 | Arm classification, recruiting week | `R/tte_enrollment_periods.R`. Each confounder reaches the panel as `.tte_entry__<v>`, its value at the recruiting week. The panel column `enrollment_period_id` names the trial, and `period_id` names the calendar period of each follow-up interval |
-| 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; `tteplan_read_spec()` stops without it) and `seed` (optional; without it the draw calls `set.seed(NULL)`) come from the YAML spec's `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
+| 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; `tteplan_read_spec()` stops without it) and `seed` (required; `tteplan_read_spec()` stops without it) come from the YAML spec's `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
 | 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` ("Candidate person-trials, before the time-zero checks"), `landmark_observed` ("Not under observation at time zero") and `landmark_event_free` ("Event before time zero"). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
 | 1.4 | Follow-up stop events, event priority | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
 | 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss` and `censor_this_period = 1`. The event-priority rule clears `.deviation_clip` only, never the gap. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `qs2_read()` gives the warning when it reads such an enrollment from a file, and `.tte_gap_record_end()` gives it for a panel that was not read. An enrollment saved before 26.15.0 runs its saved method bodies and the old rules, so it warns on read only |
 | 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
-| 1.8.2 | IPCW censoring model | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. GAM engine `mgcv::bam(..., discrete = TRUE)`; `mgcv::s()` asks for 10 basis functions. Follow-up term: `s(tstart)` with 10 or more distinct starts, `splines::ns(tstart, df = 3)` with 4 to 9, `factor(tstart)` with 2 or 3, none with 1 (`.tte_ipcw_time_term()`). Calendar term: `s(period_id)` with 10 or more distinct `period_id`, `period_id` (linear) with 2 to 9, none with 1 |
+| 1.8.2 | IPCW censoring model | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. GAM engine `mgcv::bam(..., discrete = TRUE)`; `mgcv::s()` asks for 10 basis functions. Denominator `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`: `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1, counted per fitted stratum after zero-width rows leave. `$ipcw_formulas` records both formulas of each stratum |
 | 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |
-| 1.8.4, 1.8.6 | Outcome model and inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `splines::ns(tstop, df = 3)`. Calendar term: `splines::ns(period_id, df = 3)` with 5 or more distinct `period_id` in the analysis data, `period_id` (linear) with 2 to 4, none with 1. The Wald interval uses 1.96 whatever `conf_level` is |
+| 1.8.4, 1.8.6 | Outcome model and inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level` |
 | 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it on every ETT at 500 replicates and seed 1, on `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`) and on `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name |
 | 1.8.7 | Missing data | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan's `impute_fn`, whose default `tteenrollment_impute_confounders()` draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and `tteenrollment_fill_summary()` counts the filled rows |
-| 1.8.8 | Subgroups and heterogeneity | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(period_id, df = min(3, n - 1))`; `$s3_analyze()` does not call it |
-| 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the censoring model as a cloglog GLM: `splines::ns(tstart, df = 3)` with 4 or more distinct starts, `factor(tstart)` with 2 or 3, none with 1, and `period_id` linear with 2 or more distinct values, none with 1 |
+| 1.8.8 | Subgroups and heterogeneity | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it |
+| 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the censoring model as a cloglog GLM, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1 |
 | 1.8 | Pre-specification | YAML spec parsed by `tteplan_read_spec()`; full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()` |
 
 ## 4.2 Where the validation numbers come from

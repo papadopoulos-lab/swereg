@@ -274,6 +274,12 @@ Statement 2 reads **every** column in `design$outcome_vars`, and not the one
 outcome a later step analyses. One enrollment serves several outcomes, so one
 enrolled set has to be event-free for all of them.
 
+Statement 2 reads the weekly history only. The check places each row on the
+weekly calendar by its `isoyearweek`. An annual row of the skeleton, the
+`YYYY-**` row of an ISO year before `isoyear_min`, has no place on that
+calendar. An outcome on an annual row therefore never excludes a person-trial
+at time zero.
+
 Eligibility stays a baseline property.
 `.enrollment_period_baseline_treatment()` assesses it on the enrollment period,
 and no step reads it again at time zero. Reading it there

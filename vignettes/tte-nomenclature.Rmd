@@ -27,6 +27,18 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 | **trial** | After enrollment via `TTEEnrollment$new(..., ratio = )`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`. |
 | **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression. |
 
+# Time axes
+
+Each trial-level row carries three time axes. One is a function of the other two: `period_id` = `enrollment_period_id` + interval number, where the interval number is `tstart / period_width + 1`.
+
+| Term | Meaning |
+|:-----|:--------|
+| **`period_id`** | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it. |
+| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw, the attrition and matching tables, and the outcome models read it. Earlier releases used `trial_id` for the calendar period of a row, and also for the trial in the comparator draw and the attrition tables. |
+| **time since time zero** | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at the clipped `tstop`. |
+
+`vignette("tte-methods")` section 1.8.9 states which axes each model holds, and why.
+
 # Classes
 
 | Class | Role |
