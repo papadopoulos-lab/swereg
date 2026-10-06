@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,7 +52,7 @@
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -103,17 +103,17 @@ related classes). It covers the intention-to-treat (ITT) and the
 per-protocol (PP) estimand. It has four sections:</p>
 <ul>
 <li>
-<strong>Statistical analysis plan</strong> (Section 1). The
-formulas, model specifications, conventions, identifying assumptions and
-known limitations. It does not refer to the code, so a statistician can
-reimplement the estimators from it. Copy it whole into a pre-registered
-SAP, a protocol appendix or a methods supplement. The section numbers
-stay valid.</li>
+<strong>Statistical analysis plan</strong> (Section 1). The values
+each study states, the formulas, model specifications, conventions,
+identifying assumptions and known limitations. It follows the target
+trial table of the TARGET guideline. It names no code, so a statistician
+can reimplement the estimators from it. Copy it whole into a protocol, a
+pre-registered statistical analysis plan or a methods supplement. The
+section numbers stay valid.</li>
 <li>
-<strong>Manuscript methods</strong> (Section 2). Short prose for the
-methods section of a journal article. Replace the
-<code>treatment</code>, <code>outcome</code> and <code>confounder</code>
-placeholders.</li>
+<strong>Manuscript methods</strong> (Section 2). Short past-tense
+text for the methods section of a journal article, in the order of
+Section 1. Replace the placeholders that Section 2 lists.</li>
 <li>
 <strong>Validation evidence</strong> (Section 3). The design of the
 validation battery, the data-generating processes, and tables and
@@ -121,780 +121,985 @@ figures of estimate against truth for every validation cell. The numbers
 are rendered from a saved results file.</li>
 <li>
 <strong>Implementation mapping</strong> (Section 4). The function,
-argument, option and test file behind each SAP step, and notes on
-changes to the estimators.</li>
+argument, option, column and test file behind each step of Section 1,
+and notes on changes to the estimators.</li>
 </ul>
 <p>Section 1 describes what the code computes. Where the implementation
 differs from a standard reference construction, Section 1 states the
-difference and the reason. The implementation follows the
-sequential-trial-emulation literature (Hernán and Robins 2008; Danaei et
-al. 2013; Hernán and Robins 2016; Caniglia et al. 2023; Cashin et
-al. 2025).</p>
+difference and the reason. The implementation follows the sequential
+trial emulation literature (Hernán et al. 2008; Danaei et al. 2013;
+Hernán and Robins 2016; Caniglia et al. 2023; Cashin et al. 2025).</p>
 <hr>
 <div class="section level2">
 <h2 id="statistical-analysis-plan">1. Statistical analysis plan<a class="anchor" aria-label="anchor" href="#statistical-analysis-plan"></a>
 </h2>
-<p>This section specifies the estimators as implemented, in pipeline
-order, without reference to the code. The validation documentation of
-the software reports the simulation evidence for its quantitative
-statements. Notation: individuals
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">i = 1, \ldots, N</annotation></semantics></math>;
-sequential trials indexed by their calendar baseline band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>;
-follow-up bands within a trial
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">j = 0, 1, \ldots, K</annotation></semantics></math>,
-each of fixed width
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
-weeks (four by default). Let
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">A_{i,m,j}</annotation></semantics></math>
-indicate being on the protocol-defined treatment in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(m,j)</annotation></semantics></math>,
-with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">A_{i,m,0}</annotation></semantics></math>
-the assigned baseline arm;
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">L_{i,m,j}</annotation></semantics></math>
-the confounder vector as most recently updated at band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(m,j)</annotation></semantics></math>,
-with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{i,m,0}</annotation></semantics></math>
-its baseline value;
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">Y_{i,m,j}</annotation></semantics></math>
-the outcome indicator; and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">C_{i,m,j}</annotation></semantics></math>
-the indicator of artificial censoring (protocol deviation or loss to
-follow-up) in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(m,j)</annotation></semantics></math>.</p>
+<p>This section specifies the estimators as swereg implements them. It
+names no code, so a statistician can reimplement the estimators from it.
+Sections 1.1 to 1.8 follow the rows of the target trial table in TARGET
+items 6 and 7 (Cashin et al. 2025). Sections 1.9 and 1.10 add the
+sensitivity analyses and the limitations. The validation documentation
+of the software reports the simulation evidence for its quantitative
+statements.</p>
 <div class="section level3">
-<h3 id="sequential-enrollment-new-user-requirement-and-the-comparator-draw">1.1 Sequential enrollment, new-user requirement, and the comparator
-draw<a class="anchor" aria-label="anchor" href="#sequential-enrollment-new-user-requirement-and-the-comparator-draw"></a>
+<h3 id="values-your-protocol-must-state">Values your protocol must state<a class="anchor" aria-label="anchor" href="#values-your-protocol-must-state"></a>
 </h3>
-<p>Calendar time is partitioned into consecutive bands of width
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>;
-each band opens one trial. Arm classification within a band does not use
-every week of that band. It uses the weeks in which the person is
-eligible and on one of the two protocol arms. A person enters the
-intervention arm when at least one of those weeks is on the intervention
-treatment. A person enters the comparator arm when all of those weeks
-are on the comparator treatment. The classification drops the remaining
-weeks first. A week outside the two arms therefore does not prevent a
-comparator classification. A person-band with no such week is ineligible
-for that band.</p>
-<p>Time zero is the <strong>landmark</strong>: the week that closes the
-entry band, at week index
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>b</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>w</mi></mrow><annotation encoding="application/x-tex">(b+1)w</annotation></semantics></math>
-for band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>.
-The entry band therefore contributes no follow-up and no within-band
-immortal time (Caniglia et al. 2023). The band width sets how long a
-newly eligible person waits for the next trial.
-<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> states the timing rules with worked
-examples.</p>
-<p>Eligibility (inclusion windows, exclusion criteria with lifetime or
-fixed-width look-back windows) is assessed in every week of the panel. A
-person can therefore be eligible in some weeks of a band and not in
-others. The design does not impose a new-user rule automatically: the
-incident-user design is produced by a protocol-specified washout
-exclusion on the treatment history, either a finite look-back window
-(e.g. 104 weeks, the Danaei et al. 2013 convention) or the entire
-observable history, for a never-user design. A lifetime washout makes
-each person eligible to initiate in at most one band and removes them
-from later trials; a finite washout additionally allows re-qualification
-after sufficient time off treatment. A protocol without any washout
-exclusion enrols prevalent users as initiators at every band, and
-re-enrols discontinuers as comparators. That is a prevalent-user design,
-and it is rarely the intended estimand. The software warns when no
-washout covers the intervention level. Coverage is containment: every
-week at the intervention level must also hold a level that a washout
-names. A washout on a parent column therefore covers a sub-type arm. A
-washout that names the right column at the wrong level does not. The
-check reads the weekly rows of the first skeleton batch, so it does not
-see a counterexample that lives only in a later batch.</p>
-<p><strong>A worked example of the eligible-week filter.</strong> A
-protocol compares initiators of treatment A with initiators of treatment
-B. One column holds the arm of each week, and it reads <code>A</code>,
-<code>B</code> or missing. Two washout exclusions apply to both arms: no
-prior <code>A</code>, and no prior <code>B</code>. Each one covers the
-whole observable history. One person starts B in week 1 of a four-week
-band, and starts A in week 3 of the same band.</p>
+<p>Each study states the values below in its protocol. Each item names
+the value that swereg uses when the specification is silent, or says
+that there is none.</p>
+<ul>
+<li>The width of each trial’s enrollment period. Default: 4 weeks. The
+same width sets each follow-up interval (1.4).</li>
+<li>The new-user washout window. Default: no washout. swereg then warns
+that no washout covers the intervention (1.1).</li>
+<li>The sampling ratio for comparators. No default: the specification
+states it, for example 2:1, or swereg stops (1.3).</li>
+<li>The analysis horizon and the administrative end of study. No default
+horizon: the specification lists each one. The administrative end
+defaults to the last week in the first batch of the data (1.4).</li>
+<li>The tolerance for each arm. Default: 0 weeks in each arm, so the
+first discordant week is a deviation (1.4).</li>
+<li>The confounders in the treatment weight model and in the censoring
+weight model. No default. One list of confounders serves both models
+(1.8.1, 1.8.2).</li>
+<li>The truncation percentiles. Default: the 1st and 99th percentiles,
+which the pipeline holds fixed (1.8.3).</li>
+<li>Subgroups, and how heterogeneity is tested. Default: no subgroups.
+Each subgroup gets rate ratios within its levels and a Wald test of its
+interaction with treatment (1.8.8).</li>
+<li>Missing data, and how it is handled. Default: the rules of 1.8.7.
+They include a single hot-deck imputation of a missing confounder value
+at entry.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="eligibility-criteria">1.1 Eligibility criteria<a class="anchor" aria-label="anchor" href="#eligibility-criteria"></a>
+</h3>
+<p>TARGET items 6a and 7a.</p>
+<p>Calendar time is cut into consecutive enrollment periods of equal
+width. Each enrollment period opens one trial. Eligibility is assessed
+in every week of the data. A person can therefore be eligible in some
+weeks of an enrollment period and not in others.</p>
+<p>The study states global criteria: a range of ISO years, inclusion
+criteria and exclusion criteria. Each enrollment can add its own age
+range, range of ISO years, inclusion criteria and exclusion criteria.
+These apply after the global criteria. An enrollment takes one age range
+and one range of ISO years at most.</p>
+<p>An enrollment’s range of ISO years limits trial entry week by week.
+An enrollment period that crosses a new year therefore recruits from its
+in-range weeks only. Follow-up continues past the end of the range. The
+range lies inside the global range of ISO years.</p>
+<p>A look-back window counts the calendar ISO weeks before the current
+week, not the data rows. A week with no data row still counts toward the
+window. An annual record covers every ISO week of its year. A lifetime
+window covers every earlier week. The current week is never inside its
+own window.</p>
+<p>One further exclusion window reads every week of the person, after
+baseline as well. It removes a person from every trial because of a
+later event, so eligibility then depends on the future.</p>
+<p>swereg imposes no new-user rule of its own. A washout exclusion on
+the treatment history makes the design a new-user design. Its window is
+a fixed number of weeks, for example 104 weeks as in Danaei et
+al. (2013). For a never-user design, the window is the whole earlier
+history.</p>
+<p>A lifetime washout lets each person start treatment in one enrollment
+period at most. Every later week is then ineligible, so the person
+leaves all later trials. A finite washout expires. It stops excluding
+the person once its window holds no week at the washed-out value.</p>
+<p>A protocol without any washout enrolls prevalent users in the
+intervention arm at every enrollment period. People who stop treatment
+can re-enter as comparators. That is a prevalent-user design, and it is
+rarely the intended estimand.</p>
+<p>swereg warns when no washout covers the intervention. A prevalent
+week is a week at the intervention value after an earlier week of the
+same person at that value. A washout covers the enrollment when it makes
+every prevalent week ineligible. A washout on a parent column can
+therefore cover a sub-type arm, and a washout on the right column at the
+wrong value cannot. The check reads the weekly rows of the first data
+batch only, so it misses a counterexample that exists only in a later
+batch.</p>
+</div>
+<div class="section level3">
+<h3 id="treatment-strategies">1.2 Treatment strategies<a class="anchor" aria-label="anchor" href="#treatment-strategies"></a>
+</h3>
+<p>TARGET items 6b and 7b.</p>
+<p>The protocol compares two strategies, the intervention and the
+comparator. One column of the weekly data holds the treatment of each
+week. The protocol names the value of that column that marks each arm. A
+week that holds neither value is outside both arms.</p>
+<p>Under the per-protocol estimand, a person follows the assigned
+strategy while each week holds the value of the assigned arm. Section
+1.4 states when a departure ends follow-up.</p>
+<p>One value per week cannot record two treatments in the same week. The
+washout exclusions cannot resolve that case either, because each one
+reads earlier weeks only. The protocol decides the rule when it builds
+the column. A week coded as missing drops out of the arm classification,
+and it has further effects under some washouts (1.8.7).</p>
+</div>
+<div class="section level3">
+<h3 id="assignment-procedures">1.3 Assignment procedures<a class="anchor" aria-label="anchor" href="#assignment-procedures"></a>
+</h3>
+<p>TARGET items 6c and 7c.</p>
+<p>Arm classification in an enrollment period reads only the weeks in
+which the person is eligible and holds one of the two arm values. It
+drops every other week first. A person enters the intervention arm when
+at least one of those weeks holds the intervention value. A person
+enters the comparator arm when all of them hold the comparator value. A
+candidate person-trial with no such week is ineligible for that
+trial.</p>
+<p>A week outside both arms therefore does not prevent a comparator
+classification. The recruiting week is the earliest week of the
+enrollment period that is eligible and holds an arm value. The treatment
+weights read each confounder at the recruiting week (1.8.1).</p>
+<p>The worked example below shows the filter. A protocol compares
+intervention A with comparator B. One column holds the treatment of each
+week, and it reads A, B or missing. Two washout exclusions apply to both
+arms: no earlier A, and no earlier B. Each one covers the whole earlier
+history. One person starts B in week 1 of a four-week enrollment period,
+and starts A in week 3.</p>
 <table class="table">
 <thead><tr class="header">
 <th>Week</th>
-<th>Column</th>
+<th>Treatment</th>
 <th>Eligible</th>
 <th>Why</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td>1</td>
-<td><code>B</code></td>
+<td>B</td>
 <td>yes</td>
-<td>no earlier week holds <code>A</code> or <code>B</code>
-</td>
+<td>no earlier week holds A or B</td>
 </tr>
 <tr class="even">
 <td>2</td>
 <td>missing</td>
 <td>no</td>
-<td>week 1 holds <code>B</code>
-</td>
+<td>week 1 holds B</td>
 </tr>
 <tr class="odd">
 <td>3</td>
-<td><code>A</code></td>
+<td>A</td>
 <td>no</td>
-<td>week 1 holds <code>B</code>
-</td>
+<td>week 1 holds B</td>
 </tr>
 <tr class="even">
 <td>4</td>
-<td><code>A</code></td>
+<td>A</td>
 <td>no</td>
-<td>week 1 holds <code>B</code>
-</td>
+<td>week 1 holds B</td>
 </tr>
 </tbody>
 </table>
-<p>The classification keeps week 1 alone. That week is on the
-comparator, so the person enters the comparator arm, and the recruiting
-week is week 1. The two <code>A</code> weeks change neither, because the
-filter already dropped them.</p>
-<p>A look-back window excludes the current week. The week of a first
-initiation therefore stays eligible, and every later week does not.
-Under a lifetime washout on both arms, this assigns each person to the
-treatment that person started first. No separate rule is needed to place
-a person who starts both treatments in one band.</p>
-<p><strong>Two arms in the same week.</strong> A shared exposure column
-holds one value per week. It cannot record that a person is on both
-treatments in the same week. The washout exclusions do not resolve this
-case either, because each one reads earlier weeks only. Decide the rule
-when you build the column. A missing value drops the week from the
-classification, and a person-band with no other in-arm week is then
-ineligible. That choice removes the ambiguous person-bands.</p>
-<p>A person-band reaches the candidate table only when it qualifies at
-its landmark
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
-Two statements must hold: the person is under observation at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>,
-and no occurrence of any enrollment outcome stops at or before
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
-Qualification runs after the arm classification and before the
-comparator draw, so the draw refills the ratio from qualified
-comparators alone.</p>
-<p>Within each band, all intervention person-trials are enrolled.
-Comparators enter by incidence density sampling from the same band, with
-a pre-specified seed. The draw takes the comparator-to-intervention
-ratio, 2:1 by default, times that band’s count of intervention
-person-trials. Where the band holds fewer qualified comparators than
-that, the draw takes all of them. The sampling is stratified by the
-entry band and not by the week, it reads no other variable, and it
-bounds computation. It attaches no comparator to an intervention
-person-trial, so it forms no matched set and no later step conditions on
-one. swereg defers all confounding adjustment to the weights (1.4). Each
-enrolled person-trial is expanded to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
-follow-up bands, the first of which opens at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
-Within each band, outcomes are the within-band maximum and a
-time-updated confounder takes its first-week value. Person-time is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mtext mathvariant="normal">stop</mtext></msub><mo>−</mo><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub></mrow><annotation encoding="application/x-tex">t_{\text{stop}} - t_{\text{start}}</annotation></semantics></math>
-on a half-open interval. The band that reaches a censoring boundary is
-clipped there, so a partially observed band contributes its true
-person-time.</p>
-<p>Each confounder also reaches the panel as
-<code>.tte_entry__&lt;v&gt;</code>. That is its value at the
-<strong>recruiting week</strong>, the earliest week of the entry band
-that is both eligible and in an arm.</p>
+<p>The classification keeps week 1 alone. That week holds the comparator
+value, so the person enters the comparator arm, and the recruiting week
+is week 1. The two A weeks change nothing, because the filter already
+dropped them.</p>
+<p>The current week is outside its own look-back window (1.1). The week
+of a first start therefore stays eligible. Under a lifetime washout on
+both arms, each person enters the arm of the treatment they started
+first. No separate rule is needed for a person who starts both
+treatments in one enrollment period.</p>
+<p>All intervention person-trials of an enrollment period are enrolled.
+Comparators enter by incidence density sampling from the same enrollment
+period, with a seed stated in the specification. A specification without
+a seed gives a draw that cannot be reproduced. The draw takes the
+comparator-to-intervention ratio times the number of intervention
+person-trials, rounded to a whole number. Where fewer qualified
+comparators remain, the draw takes all of them.</p>
+<p>The draw runs after the time-zero checks of 1.4, so it refills the
+ratio from qualified comparators alone. It is stratified by the
+enrollment period, not by the week, and it reads no other variable. It
+attaches no comparator to an intervention person-trial, so it forms no
+matched set, and no later step conditions on one. The weights carry all
+confounding adjustment (1.8.1). The draw bounds computation.</p>
 </div>
 <div class="section level3">
-<h3 id="estimands">1.2 Estimands<a class="anchor" aria-label="anchor" href="#estimands"></a>
+<h3 id="follow-up">1.4 Follow-up<a class="anchor" aria-label="anchor" href="#follow-up"></a>
 </h3>
-<p>Both estimands condition on reaching the landmark. The population is
-the set of person-bands that reach
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
-under observation and free of every enrollment outcome. The target of
-inference is therefore a landmark-survivor estimand. It says nothing
-about people who die or have the outcome inside the entry band (Dafni
-2011).</p>
-<p>There are two estimands. Both are marginal: the weights standardise
-them over the baseline covariate distribution of the enrolled
-trials.</p>
+<p>TARGET items 6d and 7d.</p>
+<p>Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome.</p>
+<p>swereg checks both conditions on each candidate person-trial before
+the comparator draw. The outcome check reads every outcome of the
+enrollment, over the whole earlier history of the person. An outcome in
+the time-zero week is a follow-up event. The enrollment period therefore
+contributes no follow-up and no immortal time (Caniglia et al. 2023).
+Its width sets how long a newly eligible person waits for the next time
+zero.</p>
+<p>Each enrolled person-trial is split into follow-up intervals of the
+same width as the enrollment period. Their number is the horizon divided
+by the width, rounded up. The first interval opens at time zero, and the
+last one is clipped at the horizon. Follow-up time counts weeks from
+time zero.</p>
+<p>For each person-trial, follow-up stops at the first of these events,
+with one exception for the per-protocol estimand:</p>
+<ol style="list-style-type: decimal">
+<li>the first outcome at or after time zero;</li>
+<li>loss of observation: the first week after time zero without
+observation, whether a gap in observation or the end of the record;</li>
+<li>under the per-protocol estimand only, a protocol deviation;</li>
+<li>the administrative end of study;</li>
+<li>the analysis horizon.</li>
+</ol>
+<p>The exception: under the per-protocol estimand, an outcome can fall
+in the same follow-up interval as an earlier deviation. The person-trial
+then exits through the outcome, at its exact week. The row counts as an
+event and not as a censoring, in the censoring model and in the analysis
+data. The opposite convention discards real events and undercounts
+per-protocol outcomes in data with frequent switching.</p>
+<p>The exception never applies to a loss of observation. A gap is a week
+without observation between two observed weeks. It stops follow-up under
+both estimands at the start of its first absent week, and no tolerance
+applies. An outcome in that week or later is never counted, even in the
+same follow-up interval. The row that reaches the gap is clipped there
+and marked as censored by loss of observation.</p>
+<p>Every stop is exact to the week. None is rounded to the edge of a
+follow-up interval. A trial whose time zero falls after the
+administrative end contributes no follow-up.</p>
+<p>Under the per-protocol estimand, deviation is read from the weekly
+records. A week is discordant when it does not hold the value of the
+assigned arm. A week with a missing treatment value and a week outside
+both arms are discordant in both arms.</p>
+<p>Each arm has a tolerance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">{k}</annotation></semantics></math>,
+the number of consecutive discordant weeks it allows. A concordant week
+resets the run. The deviation falls at the right edge of week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">({k}+1)</annotation></semantics></math>
+of a run of consecutive discordant weeks. A tolerance of 0 therefore
+places it at the first discordant week.</p>
+<p>A run that starts before time zero counts only its weeks from time
+zero. An absent week breaks a run. No grace period applies, and the
+pipeline does not clone person-trials. A treatment deviation never stops
+follow-up under the intention-to-treat analogue.</p>
+<p>Rows at and before the stop are kept. The row that reaches the stop
+is clipped at that week, so it holds the person-time before the stop and
+none after it. The outcome sits at its exact week: the row that holds it
+is clipped there and carries the event. Person-time is the stop minus
+the start, in weeks, on a half-open interval. A time-updated confounder
+takes its value in the first week of the interval. The censoring model
+of 1.8.2 fits on the clipped rows.</p>
+</div>
+<div class="section level3">
+<h3 id="outcomes">1.5 Outcomes<a class="anchor" aria-label="anchor" href="#outcomes"></a>
+</h3>
+<p>TARGET items 6e and 7e.</p>
+<p>Each outcome is a weekly indicator in the data, and the protocol
+names the primary one. Every combination of enrollment, outcome and
+horizon is one emulated trial, analysed on its own. Follow-up counts the
+first occurrence of the outcome at or after time zero. An earlier
+occurrence of any outcome of the enrollment excludes the candidate
+person-trial (1.4).</p>
+<p>The risk is cause-specific. Death and the end of observation censor
+follow-up, and no competing-risk model is fitted (1.6).</p>
+</div>
+<div class="section level3">
+<h3 id="causal-contrasts">1.6 Causal contrasts<a class="anchor" aria-label="anchor" href="#causal-contrasts"></a>
+</h3>
+<p>TARGET items 6f and 7f.</p>
+<p>Both estimands condition on reaching time zero under observation and
+free of every enrollment outcome. The target of inference is therefore a
+landmark-survivor estimand. It says nothing about people who die, or
+have an outcome, before time zero (Dafni 2011). Both estimands are
+marginal: the weights standardise them over the baseline confounder
+distribution of the enrolled person-trials.</p>
 <ul>
-<li>
-<em>Intention-to-treat analogue</em>: the contrast of initiating
-versus not initiating at baseline, ignoring subsequent switching.
-Identified under baseline exchangeability given
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{m,0}</annotation></semantics></math>,
-together with the assumptions in 1.9; estimated with the treatment
-weight alone.</li>
-<li>
-<em>Per-protocol</em>: the contrast of sustained treatment versus
-sustained non-treatment. Follow-up is censored at the first deviation
-from the assigned strategy; identified under the additional assumption
-that the censoring model captures all joint determinants of deviation
-and outcome; estimated with the product of treatment and censoring
-weights.</li>
+<li>The intention-to-treat analogue is the effect of the intervention
+versus the comparator strategy as assigned in the enrollment period,
+ignoring later changes of treatment. The treatment weight alone
+estimates it.</li>
+<li>The per-protocol estimand is the effect of sustained intervention
+versus the sustained comparator strategy. Follow-up is censored at a
+deviation, when a run of discordant weeks exceeds the arm’s tolerance
+(1.4). The product of the treatment and censoring weights estimates
+it.</li>
 </ul>
-<p>Each estimand is reported on two scales:</p>
-<ul>
-<li>
-<em>Relative</em>: the marginal incidence rate ratio (IRR) of
-1.7.</li>
-<li>
-<em>Absolute</em>: the risk difference at follow-up band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>−</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>=</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
-\mathrm{RD}(j) = \{1 - S_1(j)\} - \{1 - S_0(j)\} = S_0(j) - S_1(j),
-</annotation></semantics></math> where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">S_a(j)</annotation></semantics></math>
+<p>Each estimand is reported on two scales. The relative scale is the
+marginal incidence rate ratio (IRR) of 1.8.4. The absolute scale is the
+risk difference at follow-up week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>−</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>=</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mathrm{RD}(t) = \{1 - S_{1}(t)\} - \{1 - S_{0}(t)\} = S_{0}(t) - S_{1}(t).
+</annotation></semantics></math></p>
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">S_{a}(t)</annotation></semantics></math>
 is the weighted survival of arm
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
-through band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-(1.7), with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">a = 1</annotation></semantics></math>
-the initiators and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">a = 0</annotation></semantics></math>
-the non-initiators. A protective treatment gives a negative risk
-difference. The risk difference is estimated at every band and reported
-at the end of follow-up. The number needed to treat is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-1/\mathrm{RD}(j)</annotation></semantics></math>.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
+through week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>
+(1.8.5). Arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">{a} = 1</annotation></semantics></math>
+is the intervention and arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">{a} = 0</annotation></semantics></math>
+the comparator. A protective intervention gives a negative risk
+difference. The risk difference is estimated at every distinct stop time
+on the weekly grid, and reported at the end of follow-up.</p>
+<p>The number needed to treat is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-1/\mathrm{RD}(t)</annotation></semantics></math>.
 A positive value is the number needed to treat for benefit (NNTB). A
 negative value is reported by its magnitude as the number needed to
 treat for harm (NNTH) (Altman 1998). A risk difference of exactly zero
-has no number needed to treat.</li>
-</ul>
-<p>The risk is cause-specific. Death and the end of observation censor
-follow-up (1.3), and no competing-risk model is fitted.
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mi>S</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">1 - S_a(j)</annotation></semantics></math>
-is therefore the net risk implied by the cause-specific hazard of the
-outcome. It describes a world without death only under the further
-assumption that removing death would not change that hazard. It is not
-the cumulative incidence with death as a competing risk, and it is at
-least as large as the cumulative incidence computed from the same
-hazards.</p>
-<p><em>Interpretation under non-proportional hazards.</em> The IRR is
-the coefficient of a proportional-rates working model. The marginal rate
-ratio can change over follow-up, for example through depletion of
-susceptibles or an effect that accumulates. The IRR is then a
-person-time-weighted average of the time-varying rate ratio. That
-average can differ from the ratio of the risks at the end of follow-up.
-In simulations with strongly time-varying effects, swereg and
-<code>TrialEmulation</code> estimate the same weighted average. The
-risk-difference curve shows how the effect develops over follow-up.
-Report it beside the IRR when a time-varying effect is of scientific
-interest.</p>
+has no number needed to treat.</p>
+<p>The risk is the net risk implied by the cause-specific hazard of the
+outcome. It describes a world without death only if removing death would
+not change that hazard. It is not the cumulative incidence with death as
+a competing risk. It is at least as large as the cumulative incidence
+computed from the same hazards.</p>
+<p>The IRR is the coefficient of a proportional-rates working model. The
+marginal rate ratio can change over follow-up, for example through
+depletion of susceptible people or an effect that accumulates. The IRR
+is then a person-time-weighted average of the time-varying rate ratio.
+That average can differ from the ratio of the risks at the end of
+follow-up. In the simulations of section 3, swereg and TrialEmulation
+estimate the same weighted average under strongly time-varying
+effects.</p>
+<p>The risk-difference curve shows how the effect develops over
+follow-up. Report it beside the IRR when a time-varying effect is of
+scientific interest.</p>
 </div>
 <div class="section level3">
-<h3 id="follow-up-construction-and-censoring-events">1.3 Follow-up construction and censoring events<a class="anchor" aria-label="anchor" href="#follow-up-construction-and-censoring-events"></a>
+<h3 id="identifying-assumptions">1.7 Identifying assumptions<a class="anchor" aria-label="anchor" href="#identifying-assumptions"></a>
 </h3>
-<p>For each person-trial, follow-up stops at the earliest of: (1) the
-first outcome event; (2) the first protocol deviation (PP only; the ITT
-panel never censors at switching); (3) the person’s end of observed
-data, when that occurs before any planned stop; (4) the pre-specified
-administrative end of study; and (5) the pre-specified analysis
-horizon.</p>
-<p>Every one of the five stops is exact to the week. None is rounded to
-a band boundary.</p>
-<p>Deviation is read from the weekly assessments and not from the band.
-An assessment is discordant when the observed treatment status differs
-from the assigned arm (initiators off treatment; comparators on
-treatment). A missing status is discordant in both arms. Each arm
-carries a tolerance
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
-the number of CONSECUTIVE discordant weeks it allows, and a concordant
-week resets the run. Follow-up stops at the right edge of the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(k+1)</annotation></semantics></math>th
-consecutive discordant week, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">k = 0</annotation></semantics></math>
-stops at the first discordant week. There is no grace period (a
-grace-period design would require cloning, which this pipeline does not
-implement; Hernán and Robins 2016).</p>
-<p>An internal gap in the weekly sequence stops follow-up at the first
-absent week. No tolerance applies there, because loss of observation is
-not discordance.</p>
-<p><em>Event-priority convention.</em> If the first event and the first
-deviation fall in the same band, the person-trial exits through the
-event: the outcome is measured over the interval before within-interval
-censoring is applied, so the band counts as an event, not a censoring,
-in both the censoring model and the analysis data. The alternative
-convention, treating collision bands as censorings, discards real events
-and undercounts the per-protocol outcome in switching-heavy data.</p>
-<p>Rows at and before the stop band are retained. The band that reaches
-the boundary is clipped at that week and kept, so it holds the
-person-time before the boundary and none after it. The analysis panel
-therefore contains only protocol-consistent, at-risk person-time, and
-the censoring model of 1.5 still fits on those clipped rows.</p>
+<p>TARGET items 6g, 7g.i and 7g.ii.</p>
+<p>The intention-to-treat analogue rests on four assumptions:</p>
+<ol style="list-style-type: decimal">
+<li>consistency;</li>
+<li>no unmeasured confounding of assignment, given the confounders at
+the recruiting week;</li>
+<li>positivity of assignment within confounder strata;</li>
+<li>loss to follow-up that is independent of the outcome.</li>
+</ol>
+<p>No censoring weights apply to the intention-to-treat analysis. In the
+simulations of section 3, the estimand holds under independent loss and
+is biased under informative loss, in swereg and TrialEmulation
+alike.</p>
+<p>The per-protocol estimand rests on two further assumptions:</p>
+<ol start="5" style="list-style-type: decimal">
+<li>the censoring model of 1.8.2 captures all common causes of deviation
+or loss and of the outcome, including their time-varying values in the
+data;</li>
+<li>positivity of continued adherence.</li>
+</ol>
+<p>The variables behind assumptions 2 and 5 are the confounders that the
+protocol lists. Assumption 2 reads them at the recruiting week.
+Assumption 5 reads their most recent value in each follow-up interval
+(1.8.7).</p>
+<p>Under strong feedback between treatment and confounders, the
+single-model censoring weights keep residual bias. Time-updated
+censoring covariates remove part of the deviation selection bias,
+relative to covariates frozen at baseline, and not all of it. Section 3
+measures that residual bias. Where feedback is central, g-methods are
+indicated: the parametric g-formula, or g-estimation of structural
+nested models. This pipeline does not implement them.</p>
+<p>Unmeasured prognostic factors that drive adherence or loss violate
+assumption 5, for example a healthy-adherer mechanism. They bias the
+per-protocol estimand in any implementation, and the weight diagnostics
+cannot detect them. The design addresses them, for example through
+negative-control outcomes or sensitivity analyses for unmeasured
+selection.</p>
 </div>
 <div class="section level3">
-<h3 id="baseline-treatment-weights-ipw">1.4 Baseline treatment weights (IPW)<a class="anchor" aria-label="anchor" href="#baseline-treatment-weights-ipw"></a>
+<h3 id="data-analysis">1.8 Data analysis<a class="anchor" aria-label="anchor" href="#data-analysis"></a>
 </h3>
-<p>The baseline row of each person-trial is its landmark row, at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">t_{\text{start}} = 0</annotation></semantics></math>.
-A logistic regression of assignment on the entry-band confounder
-snapshot
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{m,0}</annotation></semantics></math>
-(main effects) is fit there.
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{m,0}</annotation></semantics></math>
-is read at the recruiting week and travels on the panel as
-<code>.tte_entry__&lt;v&gt;</code>. Reading the landmark-band value
-there would adjust for the wrong instant.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>γ</mi><mn>0</mn></msub><mo>+</mo><msup><mi>γ</mi><mi>⊤</mi></msup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+<p>TARGET items 6h and 7h.i.</p>
+<p>The study specification is machine-readable. It states the
+enrollments, the outcomes, the horizons and the subgroups. For each
+estimand, the results report weighted events, person-years and rates.
+They also report the IRR with its interval and p-value, the risk
+difference and the number needed to treat. The attrition counts persons
+and person-trials separately.</p>
+<p>The formulas below index persons by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">{i}</annotation></semantics></math>,
+trials by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math>
+and the follow-up intervals of a trial by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>=</mo><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">{j} = 0, \ldots, {K}-1</annotation></semantics></math>.
+Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">{K}</annotation></semantics></math>
+is the horizon divided by the width of the enrollment period, rounded
+up.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">A_{i,m,0}</annotation></semantics></math>
+is the assigned arm, 1 for the intervention.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">L_{i,m,j}</annotation></semantics></math>
+is the confounder vector as most recently updated in interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">{j}</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{i,m,0}</annotation></semantics></math>
+is its value at the recruiting week.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">Y_{i,m,j}</annotation></semantics></math>
+is the outcome indicator.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">C_{i,m,j}</annotation></semantics></math>
+marks censoring by deviation or loss in interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">{j}</annotation></semantics></math>.</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">c_{m,j}</annotation></semantics></math>
+is the calendar period of interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">{j}</annotation></semantics></math>.
+Calendar periods are the blocks of calendar time that define the
+enrollment periods, so each follow-up interval lies in exactly one. A
+trial with several follow-up intervals therefore spans several calendar
+periods.</p>
+<div class="section level4">
+<h4 id="treatment-weights">1.8.1 Treatment weights<a class="anchor" aria-label="anchor" href="#treatment-weights"></a>
+</h4>
+<p>The baseline row of each person-trial is its first follow-up row, at
+follow-up week 0. A logistic regression of the assigned arm on the
+confounders at the recruiting week, as main effects, is fit there:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>γ</mi><mn>0</mn></msub><mo>+</mo><msup><mi>γ</mi><mi>⊤</mi></msup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \mathrm{logit}\,\mathrm{Pr}(A_{m,0} = 1 \mid L_{m,0})
-  = \gamma_0 + \gamma^\top L_{m,0},
+  = \gamma_{0} + \gamma^\top L_{m,0}.
 </annotation></semantics></math></p>
-<p>and the stabilised weight uses the marginal initiation fraction
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>p</mi><mo accent="true">‾</mo></mover><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\bar{p} = \widehat{\mathrm{Pr}}(A_{m,0}=1)</annotation></semantics></math>
-as numerator:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msup><mi>W</mi><mi>A</mi></msup><mo>=</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mspace width="0.167em"></mspace><mfrac><mover><mi>p</mi><mo accent="true">‾</mo></mover><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover></mfrac><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mfrac><mrow><mn>1</mn><mo>−</mo><mover><mi>p</mi><mo accent="true">‾</mo></mover></mrow><mrow><mn>1</mn><mo>−</mo><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
-SW^A =
+<p>The model reads the value at the recruiting week, because the value
+at time zero would adjust for the wrong instant. One model covers all
+trials of the enrollment, and it holds no term for the trial. The
+stabilised weight uses the marginal fraction of intervention
+person-trials as numerator:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msup><mi>W</mi><mi>A</mi></msup><mo>=</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mspace width="0.167em"></mspace><mfrac><mover><mi>p</mi><mo accent="true">‾</mo></mover><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover></mfrac><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mfrac><mrow><mn>1</mn><mo>−</mo><mover><mi>p</mi><mo accent="true">‾</mo></mover></mrow><mrow><mn>1</mn><mo>−</mo><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mover><mi>p</mi><mo accent="true">‾</mo></mover><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><mover><mrow><mi>p</mi><mi>s</mi></mrow><mo accent="true">̂</mo></mover><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+SW^{A} =
   A_{m,0}\,\frac{\bar{p}}{\widehat{ps}} +
   (1 - A_{m,0})\,\frac{1-\bar{p}}{1-\widehat{ps}},
+\qquad \bar{p} = \widehat{\mathrm{Pr}}(A_{m,0}=1),
 \qquad \widehat{ps} = \widehat{\mathrm{Pr}}(A_{m,0}=1 \mid L_{m,0}).
 </annotation></semantics></math></p>
-<p>The weight is constant across a person-trial’s follow-up rows. The
-model reads the entry-window value of each confounder. A missing
-entry-window value is singly imputed by the plan’s
-<code>impute_fn</code>. The default draws one hot-deck value from the
-observed values, under a fixed seed. Imputation uncertainty is not
-propagated (1.8). The propensity model is main-effects only: if strong
-non-linearity or interactions are suspected, they must be encoded as
-derived confounder variables in the protocol specification.</p>
+<p>The weight is constant across the rows of a person-trial. The
+propensity model holds main effects only. The protocol encodes strong
+non-linearity or interactions as derived confounders.</p>
 </div>
-<div class="section level3">
-<h3 id="per-protocol-censoring-weights-ipcw">1.5 Per-protocol censoring weights (IPCW)<a class="anchor" aria-label="anchor" href="#per-protocol-censoring-weights-ipcw"></a>
-</h3>
-<p>Censoring
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">C_{m,j} = 1</annotation></semantics></math>:
-deviation or loss in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>)
-is modelled on the panel that keeps the censoring-event row. The default
-censoring model, fit separately by assigned arm
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>,
-is a discrete-time complementary log-log generalized additive model with
+<div class="section level4">
+<h4 id="censoring-weights">1.8.2 Censoring weights<a class="anchor" aria-label="anchor" href="#censoring-weights"></a>
+</h4>
+<p>The censoring indicator marks the row at which a deviation or a loss
+of observation stops follow-up. The row of an outcome is never marked as
+censored (1.4). The model fits on the data that keep the censoring row.
+By default it fits separately in each arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>,
+as a discrete-time complementary log-log generalised additive model with
 a person-time offset:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><mtext mathvariant="normal">at risk</mtext><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msubsup><mi>α</mi><mi>a</mi><mi>⊤</mi></msubsup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><mo>log</mo><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><mtext mathvariant="normal">at risk</mtext><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>g</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msubsup><mi>α</mi><mi>a</mi><mi>⊤</mi></msubsup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><mo>log</mo><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \mathrm{cloglog}\,\mathrm{Pr}(C_{m,j} = 1 \mid \text{at risk},\ A_{m,0}=a)
-  = s_a(j) + s_a(m) + \alpha_a^\top L_{m,j} + \log \Delta_{m,j},
+  = s_{a}(u_{m,j}) + g_{a}(c_{m,j}) + \alpha_{a}^\top L_{m,j}
+  + \log \Delta_{m,j}.
 </annotation></semantics></math></p>
-<p>where
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>
+is the start of interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">{j}</annotation></semantics></math>
+in weeks from time zero.
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\Delta_{m,j}</annotation></semantics></math>
-is the width of band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-in weeks, and
+is the width of the row in weeks, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>η</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\eta_{m,j}</annotation></semantics></math>
 is the linear predictor without the offset. The uncensoring probability
 is then
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mo stretchy="false" form="prefix">{</mo><mo>−</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>η</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">q_{m,j} = \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot) = \exp\{-\exp(\eta_{m,j})\Delta_{m,j}\}</annotation></semantics></math>,
-so one linear predictor gives
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>q</mi><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">q(4) = q(1)^4</annotation></semantics></math>.
-A four-week band and a one-week band are comparable under that identity.
-This matters because the terminal band is clipped at its exact boundary,
-and a clipped band is narrower than a whole one. A logit link carries no
-such identity.</p>
-<p>The smooth functions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">s_a(\cdot)</annotation></semantics></math>
-are penalised splines of the band START and of the trial index.
-<code><a href="https://rdrr.io/pkg/mgcv/man/s.html" class="external-link">mgcv::s()</a></code> asks for 10 basis functions, so it needs 10
-distinct values. Below that, the trial index takes a linear term, and
-the band start steps down a ladder:</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mo stretchy="false" form="prefix">{</mo><mo>−</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>η</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">q_{m,j} = \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot) = \exp\{-\exp(\eta_{m,j})\Delta_{m,j}\}</annotation></semantics></math>.
+One linear predictor therefore gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>q</mi><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">{q}(4) = {q}(1)^{4}</annotation></semantics></math>.</p>
+<p>That identity makes a four-week row and a one-week row comparable. It
+matters because the last row is clipped at its exact stop, so it can be
+narrower than a whole interval. A logit link carries no such
+identity.</p>
+<p>The follow-up term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>s</mi><mi>a</mi></msub><annotation encoding="application/x-tex">s_{a}</annotation></semantics></math>
+depends on the number of distinct interval starts in the data of the
+arm:</p>
 <ul>
-<li>4 or more distinct starts: a natural cubic spline of 3 degrees of
-freedom</li>
-<li>2 or 3 distinct starts: a factor</li>
-<li>1 distinct start: no follow-up-time term</li>
+<li>10 or more: a penalised spline;</li>
+<li>4 to 9: a natural cubic spline of 3 degrees of freedom;</li>
+<li>2 or 3: a factor;</li>
+<li>1: no term.</li>
 </ul>
-<p>The confounder columns carry their per-band updated values, so
-time-varying confounders, where available in the source data, inform the
-censoring model. A missing follow-up value is carried forward from the
-last observed value of the same person-trial, seeded from the
-entry-window value. A person-trial with no observed value after entry
-therefore carries its imputed entry value through follow-up.
-<code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> reports the filled rows and
-person-trials per confounder and per enrollment.</p>
+<p>A penalised spline asks for 10 basis functions, so it needs 10
+distinct values. The calendar term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>a</mi></msub><annotation encoding="application/x-tex">g_{a}</annotation></semantics></math>
+depends on the number of distinct calendar periods in the data of both
+arms. It is a penalised spline with 10 or more, a linear term with 2 to
+9, and absent with 1.</p>
+<p>The confounders carry their updated value in each interval.
+Time-varying confounders, where the data hold them, therefore inform the
+censoring model. Section 1.8.7 states how a missing value is filled.</p>
 <p>A stratum with no censored row takes an uncensoring probability of
-exactly 1 on every row, and therefore a weight of 1. A stratum with no
+exactly 1 on every row, and so a weight of 1. A stratum with no
 uncensored row stops the run, and so does a model that cannot be fit.
 swereg substitutes no marginal censoring rate for a model it could not
 fit.</p>
-<p>The stabilised weight for the row in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-is a ratio of cumulative uncensored probabilities through the START of
-band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow><mi>C</mi></msubsup><mo>=</mo><mfrac><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
-SW^C_{m,k}
+<p>The stabilised weight for the row in interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">{k}</annotation></semantics></math>
+is a ratio of cumulative uncensoring probabilities through the start of
+that interval:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow><mi>C</mi></msubsup><mo>=</mo><mfrac><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+SW^{C}_{m,k}
  = \frac{\prod_{j=0}^{k-1} \bar{q}_{a}(j)}
-        {\prod_{j=0}^{k-1} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)},
+        {\prod_{j=0}^{k-1} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)}.
 </annotation></semantics></math></p>
-<p>where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\bar{q}_a(j)</annotation></semantics></math>
-is the numerator: a second fit of the same model, which carries the
-band-start and trial-index terms and drops the confounders.</p>
-<p>Two rules govern that ratio.</p>
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\bar{q}_{a}(j)</annotation></semantics></math>
+is the numerator: a second fit of the same model, which keeps the two
+time terms and drops the confounders. Two rules govern the ratio.</p>
 <ul>
-<li>
-<em>Lagged cumulative product.</em> The product stops at band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k-1</annotation></semantics></math>.
-A censored band stays in the risk set, so band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>’s
-own uncensoring probability MUST NOT enter band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>’s
-own weight. The empty product gives the first band of every person-trial
-a weight of exactly 1. The inclusive product belongs to a panel that
-deletes the censoring row. The two conventions MUST NOT be mixed.</li>
-<li>
-<em>Marginal numerator.</em> Canonical stabilisation (Danaei et
+<li>The product is lagged. It stops at interval
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">{k}-1</annotation></semantics></math>,
+so the uncensoring probability of a row does not enter its own weight. A
+censored interval stays in the risk set. The empty product gives the
+first interval of every person-trial a weight of exactly 1. An inclusive
+product belongs to data that delete the censoring row, and the two
+conventions are not mixed.</li>
+<li>The numerator is marginal. Canonical stabilisation (Danaei et
 al. 2013) uses a numerator model conditional on baseline covariates,
-which then requires those covariates in the outcome model. Here the
-outcome model is covariate-free (marginal MSM, 1.7), so the numerator
-model carries the two time terms alone. This preserves consistency of
-the marginal estimand. It stabilises slightly less aggressively when
-baseline covariates strongly predict censoring.</li>
+which then enter the outcome model too. Here the outcome model is
+covariate-free (1.8.4), so the numerator model carries the two time
+terms alone. This keeps the marginal estimand consistent. It stabilises
+less when baseline covariates strongly predict censoring.</li>
 </ul>
 </div>
-<div class="section level3">
-<h3 id="final-analysis-weights-and-truncation">1.6 Final analysis weights and truncation<a class="anchor" aria-label="anchor" href="#final-analysis-weights-and-truncation"></a>
-</h3>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi></mrow><mi>A</mi></msubsup><mo>×</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow><mi>C</mi></msubsup></mrow><annotation encoding="application/x-tex">
-W_{i,m,j} = SW^A_{i,m} \times SW^C_{i,m,j}
+<div class="section level4">
+<h4 id="truncation">1.8.3 Truncation<a class="anchor" aria-label="anchor" href="#truncation"></a>
+</h4>
+<p>The analysis weight is the product of the two weights for the
+per-protocol estimand, and the treatment weight alone for the
+intention-to-treat analogue:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi></mrow><mi>A</mi></msubsup><mo>×</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow><mi>C</mi></msubsup><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><mtext mathvariant="normal">(per-protocol)</mtext><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi></mrow><mi>A</mi></msubsup><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><mtext mathvariant="normal">(intention-to-treat)</mtext><mi>.</mi></mrow><annotation encoding="application/x-tex">
+W_{i,m,j} = SW^{A}_{i,m} \times SW^{C}_{i,m,j} \;\; \text{(per-protocol)},
+\qquad
+W_{i,m,j} = SW^{A}_{i,m} \;\; \text{(intention-to-treat)}.
 </annotation></semantics></math></p>
-<p>for the per-protocol panel;
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mi>S</mi><msubsup><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi></mrow><mi>A</mi></msubsup></mrow><annotation encoding="application/x-tex">W_{i,m,j} = SW^A_{i,m}</annotation></semantics></math>
-for the ITT panel. Weights are truncated at percentiles (1st/99th by
-default) of the pooled person-band rows: the ITT weight directly, and
-the PP weight as the truncated product. Component-wise truncation is not
-applied, so extreme components can offset; sensitivity analyses may
-truncate components separately. Primary analyses use truncated weights;
-untruncated PP results are exported alongside as a sensitivity
-analysis.</p>
-<p><em>Positivity and the truncation tradeoff.</em> Weight truncation
-trades bias for variance. Clipping the weight tails reduces the variance
-of the estimator. It also under-corrects the confounding or selection
-that the clipped weights carried, and that moves the estimate. Under
-near-violations of treatment positivity it moves the estimate toward the
-null. The shift grows with how strongly measured covariates drive
-censoring.</p>
-<p><em>Why the truncated weight is the primary analysis.</em> The choice
-is pre-specified on simulation evidence. The validation documentation
-reports the simulation study. The scenarios included heavy loss to
-follow-up strongly driven by covariates. In every per-protocol scenario,
-the truncated fit had the smaller sampling spread, its bias stayed
-bounded, and its root-mean-squared error was lower than or about equal
-to that of the untruncated fit. The untruncated fit was less biased on
+<p>Weights are truncated at the 1st and 99th percentiles of the pooled
+rows of all person-trials. The intention-to-treat analysis truncates the
+treatment weight. The per-protocol analysis truncates the product and
+not its components, so extreme components can offset each other. Primary
+analyses use truncated weights. The untruncated per-protocol result is
+reported beside them as a sensitivity analysis (1.9).</p>
+<p>Truncation trades bias for variance. Clipping the weight tails
+reduces the variance of the estimator. It also under-corrects the
+confounding or selection that the clipped weights carried, and that
+moves the estimate. Under near-violations of treatment positivity, it
+moves the estimate toward the null. The shift grows with how strongly
+measured covariates drive censoring.</p>
+<p>The truncated weight is the primary analysis on simulation evidence,
+which section 3 reports. The scenarios included heavy loss to follow-up
+strongly driven by covariates. In every per-protocol scenario, the
+truncated fit had the smaller sampling spread, and its bias stayed
+bounded. Its root-mean-squared error was lower than, or about equal to,
+that of the untruncated fit. The untruncated fit was less biased on
 average when the censoring weights were heavy-tailed. Its sampling
 spread was several times larger, and in some scenarios its bias was
-larger too. The untruncated result is therefore reported as a required
-companion, not as an alternative primary analysis. A material divergence
-between the two estimates means the weights are under stress. It calls
-for three checks: the raw weight distribution, treatment and censoring
-positivity, and sensitivity analyses at looser truncation percentiles.
-When the extreme weights are structural, for example because treatment
-or dropout is near-deterministic within a stratum, restrict the eligible
-population rather than truncate harder.</p>
+larger too.</p>
 </div>
-<div class="section level3">
-<h3 id="outcome-model">1.7 Outcome model<a class="anchor" aria-label="anchor" href="#outcome-model"></a>
-</h3>
-<p>The IRR is estimated by a weighted quasi-Poisson marginal structural
-model on the analysis panel:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mi mathvariant="normal">E</mi><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><msub><mi>β</mi><mn>0</mn></msub><mo>+</mo><msub><mi>β</mi><mn>1</mn></msub><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>+</mo><mrow><mi mathvariant="normal">n</mi><mi mathvariant="normal">s</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mtext mathvariant="normal">person-weeks</mtext><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+<div class="section level4">
+<h4 id="outcome-model">1.8.4 Outcome model<a class="anchor" aria-label="anchor" href="#outcome-model"></a>
+</h4>
+<p>The IRR comes from a weighted quasi-Poisson marginal structural model
+on the analysis data:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mi mathvariant="normal">E</mi><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><msub><mi>β</mi><mn>0</mn></msub><mo>+</mo><msub><mi>β</mi><mn>1</mn></msub><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>+</mo><mrow><mi mathvariant="normal">n</mi><mi mathvariant="normal">s</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>t</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mtext mathvariant="normal">person-weeks</mtext><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \log \mathrm{E}[Y_{i,m,j}]
-  = \beta_0 + \beta_1 A_{i,m,0}
-  + \mathrm{ns}(j, 3)
-  + f(m)
-  + \log(\text{person-weeks}_{i,m,j}),
+  = \beta_{0} + \beta_{1} A_{i,m,0}
+  + \mathrm{ns}(t_{i,m,j}, 3)
+  + f(c_{m,j})
+  + \log(\text{person-weeks}_{i,m,j}).
 </annotation></semantics></math></p>
-<p>fit by weighted quasi-Poisson regression with survey-linearised
-variance.
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">n</mi><mi mathvariant="normal">s</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{ns}(j, 3)</annotation></semantics></math>
-is a natural cubic spline of follow-up band (the discrete-time
-baseline-rate analogue);
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(m)</annotation></semantics></math>
-is a natural spline of the trial index with 3 df (linear when 2–4 bands;
-omitted for a single band), adjusting smoothly for calendar trends while
-sharing one treatment coefficient across trials (Danaei et al. 2013;
-Caniglia et al. 2023). No confounders enter the outcome model:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\beta_1)</annotation></semantics></math>
-is the marginal IRR.</p>
-<p><em>Rate-ratio scale and hazard-ratio interpretation.</em> With
-events rare within each band, as is typical of registry-based
-emulations, the incidence rate ratio from the discrete-time Poisson
-working model approximates the hazard ratio from a proportional-hazards
-model (Thompson 1977), while remaining computationally feasible on
-panels of millions of person-bands where weighted Cox estimation would
-be prohibitive. The quasi-Poisson variance function accommodates
-overdispersion, including that induced by the weights. Descriptive
-weighted event counts, person-years (52.25 weeks/year), and rates per
-100,000 person-years accompany each IRR.</p>
-<p><em>Absolute scale.</em> The survival of arm
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
-is a weighted discrete-time product-limit estimate over the follow-up
-bands:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∏</mo><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mi>j</mi></munderover><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub></mrow><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
-\hat S_a(j) = \prod_{k=0}^{j} \{1 - \hat h_a(k)\},
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>t</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">t_{i,m,j}</annotation></semantics></math>
+is the stop of the row in weeks from time zero, after clipping.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">n</mi><mi mathvariant="normal">s</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{ns}(t, 3)</annotation></semantics></math>
+is a natural cubic spline of 3 degrees of freedom in that stop time. The
+calendar term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">{f}</annotation></semantics></math>
+reads the calendar period of the row. It is a natural cubic spline of 3
+degrees of freedom with 5 or more distinct calendar periods. It is a
+linear term with 2 to 4, and absent with 1.</p>
+<p>The calendar term adjusts for calendar trends, while one treatment
+coefficient is shared across trials (Danaei et al. 2013; Caniglia et al.
+2023). No confounders enter the outcome model, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\beta_{1})</annotation></semantics></math>
+is the marginal IRR. The model is fit by weighted quasi-Poisson
+regression with survey-linearised variance (1.8.6).</p>
+<p>With rare events in each interval, as is typical in register data,
+the IRR approximates the hazard ratio of a proportional-hazards model
+(Thompson 1977). The Poisson working model stays feasible on data with
+millions of person-trial intervals, where weighted Cox regression would
+not. The quasi-Poisson variance function allows for overdispersion,
+including that from the weights. Each IRR comes with weighted event
+counts, person-years at 52.25 weeks per year, and rates per 100,000
+person-years.</p>
+</div>
+<div class="section level4">
+<h4 id="absolute-scale">1.8.5 Absolute scale<a class="anchor" aria-label="anchor" href="#absolute-scale"></a>
+</h4>
+<p>The survival of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
+is a weighted product-limit estimate on the distinct stop times of the
+rows. Every stop is a whole number of weeks, so the estimate moves on a
+weekly grid:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∏</mo><mrow><mi>u</mi><mo>≤</mo><mi>t</mi></mrow></munder><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub></mrow><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\hat S_{a}(t) = \prod_{u \le t} \{1 - \hat h_{a}(u)\},
 \qquad
-\hat h_a(k) = \frac{\sum W_{i,m,k} Y_{i,m,k}}{\sum W_{i,m,k}}.
+\hat h_{a}(u) = \frac{\sum W_{i,m,j} \, Y_{i,m,j}}{\sum W_{i,m,j}}.
 </annotation></semantics></math></p>
 <p>Both sums run over the person-trials of arm
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
-at risk in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>.
-A person-trial is at risk in band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-when its follow-up covers that band, and an event counts in the band in
-which it occurs.
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
-is the analysis weight of 1.6: the truncated treatment weight for the
-intention-to-treat analogue and the truncated product weight for the
-per-protocol estimand. Covariates do not enter the estimator, so the
-weights carry the whole adjustment, as in the IRR model. A band in which
-an arm has nobody at risk leaves that arm’s survival unchanged. The risk
-difference is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_0(j) - \hat S_1(j)</annotation></semantics></math>.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>.
+The numerator holds the events at the stop of their own row. The
+denominator holds the weight of every row at risk at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">{u}</annotation></semantics></math>,
+so the risk set spans the stop time. A row is at risk at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">{u}</annotation></semantics></math>
+when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub><mo>&lt;</mo><mi>u</mi><mo>≤</mo><msub><mi>t</mi><mtext mathvariant="normal">stop</mtext></msub></mrow><annotation encoding="application/x-tex">t_{\text{start}} &lt; u \le t_{\text{stop}}</annotation></semantics></math>.</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">W_{i,m,j}</annotation></semantics></math>
+is the analysis weight of 1.8.3. It is the truncated treatment weight
+for the intention-to-treat analogue and the truncated product weight for
+the per-protocol estimand. Covariates do not enter the estimator, so the
+weights carry the whole adjustment, as in the IRR model. A stop time at
+which an arm has nobody at risk leaves the survival of that arm
+unchanged. The risk difference is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_{0}(t) - \hat S_{1}(t)</annotation></semantics></math>.</p>
 </div>
-<div class="section level3">
-<h3 id="inference">1.8 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
-</h3>
-<p>Standard errors are survey-linearised (Huber–White sandwich) with
-clustering on the person identifier, not the person-trial, accounting
-for repeated person-trials and repeated bands within person (Hernán and
-Robins 2008; Danaei et al. 2013; Su et al. 2024). Confidence intervals
-are Wald on the log scale,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>β</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mo>±</mo><mn>1.96</mn><mspace width="0.167em"></mspace><mover><mrow><mi>s</mi><mi>e</mi></mrow><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\hat\beta_1 \pm 1.96\,\widehat{se})</annotation></semantics></math>.
+<div class="section level4">
+<h4 id="inference">1.8.6 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
+</h4>
+<p>Standard errors are survey-linearised (a Huber–White sandwich) and
+clustered on the person, not the person-trial. That accounts for the
+repeated person-trials and the repeated intervals of one person (Hernán
+et al. 2008; Danaei et al. 2013; Su et al. 2024). The interval of the
+IRR is a 95% Wald interval on the log scale,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>β</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mo>±</mo><mn>1.96</mn><mspace width="0.167em"></mspace><mover><mrow><mi>s</mi><mi>e</mi></mrow><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\hat\beta_{1} \pm 1.96\,\widehat{se})</annotation></semantics></math>.
 Two caveats apply:</p>
 <ul>
-<li>The variance treats the estimated weights, the single imputation by
-the plan’s <code>impute_fn</code> and the carry-forward as fixed. For
-stabilised weights this is usually slightly conservative for the
-treatment coefficient, but it is not exact. A person-level bootstrap of
-the whole pipeline, refitting every model, is the fuller
-alternative.</li>
-<li>In simulation, coverage is near nominal where the assumptions of the
-estimand hold. It is slightly below nominal under confounding with
-independent loss. When an estimand ignores informative loss, coverage
-falls because of bias, not because of the variance estimator.</li>
+<li>The variance treats the estimated weights, the single imputation and
+the carry-forward as fixed. For stabilised weights this is usually
+slightly conservative for the treatment coefficient, but it is not
+exact. A person-level bootstrap of the whole pipeline, with every model
+refitted, is the fuller alternative.</li>
+<li>In the simulations of section 3, coverage is near nominal where the
+assumptions of the estimand hold. It is slightly below nominal under
+confounding with independent loss. When an estimand ignores informative
+loss, coverage falls because of bias, not because of the variance
+estimator.</li>
 </ul>
-<p><em>Risk difference and number needed to treat.</em> The confidence
-interval of the risk difference is a percentile interval from a
-person-level (cluster) bootstrap with 500 replicates and a fixed seed.
+<p>The interval of the risk difference is a percentile interval from a
+person-level (cluster) bootstrap, with 500 replicates and a fixed seed.
 Each replicate draws
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">{N}</annotation></semantics></math>
 persons with replacement, and a drawn person brings all of their
 person-trials. One resample serves both arms. A person can be a
-non-initiator in an early trial and an initiator in a later one, so the
-survival estimates of the two arms are correlated, and separate
-resamples per arm would ignore that covariance. The weights keep their
-estimated values in every replicate: the models of 1.4 and 1.5 are not
-refitted. The interval level is the study’s confidence level, 95% unless
-the study specification sets another.</p>
-<p>At a band where either arm has no weighted event up to and including
-that band, the risk difference has no interval. Every replicate that is
-not missing would then give that arm a risk of exactly zero, and the
-percentiles would reflect the variation of the other arm alone. The
-point estimate is still reported.</p>
+comparator in an early trial and in the intervention arm of a later one.
+The survival estimates of the two arms are then correlated, and separate
+resamples per arm would ignore that covariance.</p>
+<p>The weights keep their estimated values in every replicate: the
+models of 1.8.1 and 1.8.2 are not refitted. The level of the interval is
+the study’s confidence level, 95% unless the specification sets another.
+The interval of the IRR stays at 95%.</p>
+<p>At a stop time where either arm has no weighted event up to and
+including that time, the risk difference has no interval. Every
+replicate that is not missing would then give that arm a risk of exactly
+zero, and the percentiles would reflect the other arm alone. The point
+estimate is still reported.</p>
 <p>The interval of the number needed to treat is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi></mrow></msub><mo>,</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">h</mi><mi mathvariant="normal">i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1/\mathrm{RD}_{\mathrm{lo}}, -1/\mathrm{RD}_{\mathrm{hi}})</annotation></semantics></math>.
 It exists only when the risk-difference interval strictly excludes zero,
 because
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>↦</mo><mo>−</mo><mn>1</mn><mi>/</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">x \mapsto -1/x</annotation></semantics></math>
-is undefined at zero. When the interval includes zero, the number needed
-to treat is not reported. Altman (1998) instead reports such an interval
-as running from an NNTH through infinity to an NNTB; this implementation
-does not. Benefit or harm is decided once, from the sign of the point
-estimate of the risk difference.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>↦</mo><mo>−</mo><mn>1</mn><mi>/</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">{x} \mapsto -1/{x}</annotation></semantics></math>
+is undefined at zero. Otherwise the number needed to treat has no
+interval. Altman (1998) reports such an interval as running from an NNTH
+through infinity to an NNTB, and this implementation does not. The sign
+of the point estimate of the risk difference alone decides benefit or
+harm.</p>
 </div>
-<div class="section level3">
-<h3 id="identifying-assumptions">1.9 Identifying assumptions<a class="anchor" aria-label="anchor" href="#identifying-assumptions"></a>
-</h3>
-<p>For the intention-to-treat analogue: (1) consistency; (2) no
-unmeasured confounding of baseline assignment given the baseline
-confounders at each trial’s baseline; (3) positivity of assignment
-within confounder strata; (4) loss to follow-up independent of the
-outcome. No censoring weights are applied to the ITT panel; simulation
-shows the estimand holds under independent loss and is biased under
-informative loss, in swereg and <code>TrialEmulation</code> alike.</p>
-<p>For the per-protocol estimand, additionally: (5) the censoring model
-(1.5) captures all joint determinants of protocol deviation/loss and the
-outcome, including their time-varying values as materialised in the
-source data; (6) positivity of continued adherence. Under strong
-treatment–confounder feedback the single-model IPCW approach retains
-residual bias: time-updated censoring covariates remove part, not all,
-of the deviation selection bias relative to freezing them at baseline
-(quantified by simulation); where feedback is central, methods designed
-for treatment-confounder feedback (g-methods: the parametric g-formula
-or g-estimation of structural nested models), which this pipeline does
-not implement, are indicated. Similarly, adherence or loss driven by
-unmeasured prognostic factors (for example a healthy-adherer mechanism)
-violates (5), biases the per-protocol estimand in any implementation,
-and is not detectable from weight diagnostics; it must be addressed by
-design, for example through negative-control outcomes or sensitivity
-analyses for unmeasured selection.</p>
-</div>
-<div class="section level3">
-<h3 id="heterogeneity-subgroups-and-small-cells">1.10 Heterogeneity, subgroups, and small cells<a class="anchor" aria-label="anchor" href="#heterogeneity-subgroups-and-small-cells"></a>
-</h3>
-<p>Effect heterogeneity across calendar time is tested by a joint Wald
-test of the treatment × trial-index spline interaction; effect
-modification by pre-specified baseline subgroups by treatment × subgroup
-interaction, with stratified IRRs per level. Zero-event strata return no
-estimate rather than an unstable one. Enrollments and outcomes are
-pre-specified in a machine-readable study specification; results tables
-report weighted events, person-years, rates, IRR, CI, p-value, risk
-difference and number needed to treat per estimand, plus CONSORT-style
-attrition (unique persons and person-trials separately, per Cashin et
-al. 2025).</p>
-</div>
-<div class="section level3">
-<h3 id="known-limitations">1.11 Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations"></a>
-</h3>
+<div class="section level4">
+<h4 id="missing-data">1.8.7 Missing data<a class="anchor" aria-label="anchor" href="#missing-data"></a>
+</h4>
+<p>Each kind of missing value has one rule:</p>
 <ul>
-<li>No grace periods and no cloning; deviation censors at the right edge
-of the first discordant run that exceeds the arm’s tolerance (1.3).</li>
-<li>The estimand conditions on reaching the landmark, so it says nothing
-about people who die or have the outcome inside the entry band
-(1.2).</li>
-<li>Trials still open every
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
-weeks, so a person who becomes eligible mid-band waits for the next
-band.</li>
-<li>The censoring model of 1.5 carries no lagged treatment term, so it
-holds no adherence history.</li>
-<li>No as-treated estimand.</li>
-<li>The absolute risk is cause-specific. Death censors follow-up, and no
-competing-risk cumulative incidence is estimated (1.2).</li>
-<li>The bootstrap for the risk difference holds the weights fixed, so
-its interval does not include the uncertainty of the weight models
-(1.8).</li>
-<li>The plan’s <code>impute_fn</code> singly imputes a missing
-entry-window confounder, and the default draws one hot-deck value. A
-missing follow-up value carries forward. Neither propagates its
-uncertainty into the variance.</li>
-<li>Comparator downsampling (1.1) discards comparator information
-(efficiency, not bias).</li>
-<li>The propensity and censoring models are main-effects (plus smooth
-time) specifications; non-linearities must be pre-encoded as derived
-variables.</li>
+<li>A missing confounder value at the recruiting week is singly imputed.
+The default draws one hot-deck value from the observed values, under a
+fixed seed.</li>
+<li>A missing confounder value during follow-up is carried forward from
+the last observed value of the same person-trial. The carry-forward
+starts from the value at the recruiting week. A person-trial with no
+observed value after entry therefore carries its entry value, imputed or
+not, through follow-up. swereg reports the filled rows and person-trials
+per confounder and per enrollment.</li>
+<li>A missing treatment value during follow-up is discordant in both
+arms (1.4).</li>
+<li>A missing treatment value in the enrollment period drops that week
+from the arm classification (1.3).</li>
+<li>A missing subgroup value removes the row from the analyses of that
+subgroup (1.8.8).</li>
 </ul>
+<p>A missing treatment value also interacts with the washouts. One
+washout rule excludes a week when an earlier week in its window holds
+the washed-out value. Under that rule, a missing week makes every later
+week ineligible while the window holds it. Under a lifetime washout of
+that kind, one missing week removes the person from every later trial.
+The other washout rule excludes a week when an earlier observed week
+holds another value, and it skips missing weeks.</p>
+<p>A week without observation is not a missing value. It is a loss of
+observation, and it stops follow-up under both estimands (1.4). Neither
+the imputation nor the carry-forward propagates its uncertainty into the
+variance (1.8.6).</p>
+</div>
+<div class="section level4">
+<h4 id="heterogeneity-and-subgroups">1.8.8 Heterogeneity and subgroups<a class="anchor" aria-label="anchor" href="#heterogeneity-and-subgroups"></a>
+</h4>
+<p>The protocol names each subgroup as a categorical baseline variable.
+For each subgroup, the pipeline fits rate ratios within each level. It
+also runs a joint Wald test of the interaction between treatment and the
+subgroup. Both run for both estimands. A level with no events returns no
+estimate rather than an unstable one.</p>
+<p>A joint Wald test of the interaction between treatment and a spline
+of the calendar period tests heterogeneity across calendar time. swereg
+provides that test, and the pipeline does not run it. A study that wants
+it states it in the protocol.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="sensitivity-analyses">1.9 Sensitivity analyses<a class="anchor" aria-label="anchor" href="#sensitivity-analyses"></a>
+</h3>
+<p>TARGET item 7h.ii.</p>
+<p>The pipeline reports one sensitivity analysis by default: the
+per-protocol IRR with untruncated weights. It is a required companion of
+the primary analysis, not an alternative primary analysis. A material
+divergence between the two estimates means the weights are under stress.
+It calls for two checks: the raw weight distribution, and the positivity
+of treatment and censoring. Where the extreme weights are structural,
+restrict the eligible population rather than truncate harder.</p>
+<p>The censoring model can also be refit as a generalised linear model,
+which drops the penalised splines. Its follow-up term is a natural cubic
+spline of 3 degrees of freedom with 4 or more distinct interval starts.
+It is a factor with 2 or 3, and absent with 1. Its calendar term is
+linear with 2 or more calendar periods, and absent with 1.</p>
+</div>
+<div class="section level3">
+<h3 id="limitations">1.10 Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
+</h3>
+<p>TARGET item 16 and RECORD item 19.1 (Benchimol et al. 2015).</p>
+<ul>
+<li>No grace periods and no cloning. Deviation censors at the right edge
+of the first discordant run that exceeds the tolerance of the arm
+(1.4).</li>
+<li>The estimand conditions on reaching time zero. It says nothing about
+people who die, or have an outcome, before time zero (1.6).</li>
+<li>Trials open once per enrollment period, so a person who becomes
+eligible inside an enrollment period waits for the next time zero.</li>
+<li>The censoring model carries no lagged treatment term, so it holds no
+adherence history.</li>
+<li>There is no as-treated estimand.</li>
+<li>The absolute risk is cause-specific. Death censors follow-up, and no
+competing-risk cumulative incidence is estimated (1.6).</li>
+<li>The bootstrap for the risk difference holds the weights fixed, so
+its interval leaves out the uncertainty of the weight models
+(1.8.6).</li>
+<li>The single imputation and the carry-forward do not propagate their
+uncertainty into the variance (1.8.7).</li>
+<li>Comparator sampling discards comparator information, which costs
+precision (1.3).</li>
+<li>The propensity model holds main effects only. The censoring model
+holds main effects and time terms, which are smooth only with enough
+distinct values (1.8.2). Non-linearities need derived variables.</li>
+</ul>
+<p>Each study adds its own limitations, such as misclassification and
+unmeasured confounding in the registers.</p>
 <hr>
 </div>
 </div>
 <div class="section level2">
 <h2 id="manuscript-methods">2. Manuscript methods<a class="anchor" aria-label="anchor" href="#manuscript-methods"></a>
 </h2>
-<p>We applied target trial emulation, a framework for analysing
-observational data under explicit protocols that mirror a hypothetical
-randomized trial, to estimate the effect of <code>treatment</code> on
-<code>outcome</code> in the Swedish national health registries (Hernán
-and Robins 2008, 2016; Cashin et al. 2025).</p>
+<p>Replace each placeholder in the text below with the value of the
+study.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Placeholder</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>[intervention]</code></td>
+<td>the intervention treatment</td>
+</tr>
+<tr class="even">
+<td><code>[comparator]</code></td>
+<td>the comparator strategy</td>
+</tr>
+<tr class="odd">
+<td><code>[outcome]</code></td>
+<td>the outcome</td>
+</tr>
+<tr class="even">
+<td><code>[confounders]</code></td>
+<td>the confounders</td>
+</tr>
+<tr class="odd">
+<td><code>[width]</code></td>
+<td>the width of the enrollment period, in weeks</td>
+</tr>
+<tr class="even">
+<td><code>[washout]</code></td>
+<td>the new-user washout window</td>
+</tr>
+<tr class="odd">
+<td><code>[k]</code></td>
+<td>the number of comparators drawn per intervention person-trial, for
+example 2</td>
+</tr>
+<tr class="even">
+<td><code>[horizon]</code></td>
+<td>the analysis horizon</td>
+</tr>
+<tr class="odd">
+<td><code>[end]</code></td>
+<td>the administrative end of study</td>
+</tr>
+<tr class="even">
+<td><code>[tolerance]</code></td>
+<td>the tolerance of each arm, in weeks</td>
+</tr>
+<tr class="odd">
+<td><code>[subgroups]</code></td>
+<td>the pre-specified subgroups</td>
+</tr>
+</tbody>
+</table>
+<p>We emulated a sequence of target trials of
+<code>[intervention]</code> versus <code>[comparator]</code> for
+<code>[outcome]</code> (Hernán et al. 2008; Hernán and Robins 2016;
+Cashin et al. 2025). The data came from the Swedish national health
+registers.</p>
 <div class="section level3">
-<h3 id="sequential-trials-design">Sequential trials design<a class="anchor" aria-label="anchor" href="#sequential-trials-design"></a>
+<h3 id="eligibility-treatment-strategies-and-assignment">Eligibility, treatment strategies and assignment<a class="anchor" aria-label="anchor" href="#eligibility-treatment-strategies-and-assignment"></a>
 </h3>
-<p>Because eligible individuals can initiate treatment at many different
-calendar times, we emulated a sequence of target trials rather than a
-single trial (Hernán et al. 2008; Danaei et al. 2013; Caniglia et
-al. 2023). A new trial opens every <code>period</code> weeks of calendar
-time. At each trial, all eligibility criteria are re-evaluated.
-Assignment uses only the weeks of the enrollment period in which the
-individual is eligible and on one of the two protocol arms. Individuals
-enter as initiators if at least one of those weeks is on the
-intervention treatment. They enter as non-initiators if all of those
-weeks are on the comparator treatment. Individuals with no such week in
-the period are ineligible for that trial. A new-user (washout) criterion
-requires no use of the study treatment within a pre-specified washout
-window before baseline (a fixed window, e.g. two years as in Danaei et
-al. 2013, or the entire observable history for a never-user design), so
-each person initiates in at most one trial while contributing eligible
-person-time as a non-initiator to earlier trials. Time zero for each
-trial was the week that closed its enrollment period. Individuals
-entered only if they reached that week under observation and free of the
-study outcomes. The enrollment period therefore contributed no follow-up
-and no immortal time (Hernán and Robins 2016; Caniglia et al. 2023). To
-bound computation, non-initiators entered by <code>k</code>:1 incidence
-density sampling within each trial. The draw took <code>k</code> times
-that trial’s count of initiators, or every remaining eligible
-non-initiator where fewer remained. It was stratified by the trial’s
-entry band and read no other variable. It attached no non-initiator to
-an initiator, so it formed no matched set, and no later step conditions
-on one. Confounding adjustment for the remaining measured covariates is
-by weighting (below).</p>
+<p>Eligible individuals could start treatment at many calendar times. We
+therefore emulated a sequence of trials rather than a single trial
+(Hernán et al. 2008; Danaei et al. 2013; Caniglia et al. 2023). A new
+trial opened every <code>[width]</code> weeks, and its enrollment period
+lasted <code>[width]</code> weeks. We assessed every eligibility
+criterion in every week. Look-back windows counted calendar weeks, not
+data rows. Each enrollment could add its own criteria to the global
+criteria, including a range of calendar years for trial entry.</p>
+<p>A new-user criterion excluded any week with use of
+<code>[intervention]</code> in the <code>[washout]</code> before it.
+With a lifetime washout, each person started treatment in at most one
+trial. With a finite washout, a person could start again in a later
+trial after <code>[washout]</code> without treatment.</p>
+<p>Assignment used the weeks of the enrollment period in which the
+individual was eligible and held one of the two arm values. Individuals
+entered the intervention arm if at least one of those weeks held
+<code>[intervention]</code>. They entered the comparator arm if all of
+those weeks held <code>[comparator]</code>. Individuals with no such
+week were ineligible for that trial.</p>
+<p>All intervention person-trials were enrolled. To bound computation,
+we drew comparators by <code>[k]</code>:1 incidence density sampling
+within each trial, with a seed stated in the specification. The draw
+took <code>[k]</code> times the number of intervention person-trials of
+that trial, or every remaining comparator where fewer remained. It was
+stratified by the enrollment period and read no other variable. It
+formed no matched sets, and no later step conditioned on one.</p>
 </div>
 <div class="section level3">
-<h3 id="estimands-1">Estimands<a class="anchor" aria-label="anchor" href="#estimands-1"></a>
+<h3 id="follow-up-and-outcomes">Follow-up and outcomes<a class="anchor" aria-label="anchor" href="#follow-up-and-outcomes"></a>
 </h3>
-<p>We report two estimands (Danaei et al. 2013). Both are conditional on
-reaching each trial’s time zero under observation and free of the study
-outcomes. The observational analogue of the intention-to-treat effect
-compares initiators with non-initiators as classified over each trial’s
-enrollment period, ignoring subsequent changes in treatment. The
-per-protocol effect is the effect of sustained treatment versus
-sustained non-treatment. For that estimand, follow-up is artificially
-censored at protocol deviation. Deviation is a run of consecutive
-discordant weeks longer than that arm’s pre-specified tolerance. Both
-are reported as marginal incidence rate ratios (IRRs), with weighted
-event counts and rates per 100,000 person-years by arm. Both are also
-reported on the absolute scale, as the risk difference at the end of
-follow-up and the number needed to treat for benefit (NNTB) or for harm
-(NNTH) (Altman 1998). The risk is cause-specific: death and the end of
-observation censored follow-up, and they were not modelled as competing
-risks.</p>
+<p>Time zero was a landmark: the first week after the enrollment period
+closed. A person entered the trial only if they reached that week under
+observation and free of every enrollment outcome. The enrollment period
+therefore contributed no follow-up and no immortal time (Hernán and
+Robins 2016; Caniglia et al. 2023).</p>
+<p>Follow-up ended at the earliest of <code>[outcome]</code>, loss of
+observation, the administrative end of study at <code>[end]</code> and
+the horizon of <code>[horizon]</code>. Loss of observation was the first
+week after time zero without observation, whether a gap or the end of
+the record. No tolerance applied to it, and an outcome in that week or
+later was not counted. Every stop was exact to the week. The risk was
+cause-specific: death and the end of observation censored follow-up, and
+we did not model them as competing risks.</p>
+<p>Per-protocol follow-up also ended at protocol deviation: a run of
+consecutive weeks off the assigned strategy longer than
+<code>[tolerance]</code> weeks. A missing treatment status counted as a
+week off the strategy. When <code>[outcome]</code> fell in the same
+follow-up interval as an earlier deviation, the person-trial ended with
+the outcome. A deviation did not end intention-to-treat follow-up.</p>
 </div>
 <div class="section level3">
-<h3 id="confounding-and-censoring-adjustment">Confounding and censoring adjustment<a class="anchor" aria-label="anchor" href="#confounding-and-censoring-adjustment"></a>
+<h3 id="causal-contrasts-and-identifying-assumptions">Causal contrasts and identifying assumptions<a class="anchor" aria-label="anchor" href="#causal-contrasts-and-identifying-assumptions"></a>
 </h3>
-<p>Baseline treatment assignment is not random: we adjusted for measured
-baseline confounders (<code>confounders</code>) by stabilised inverse
-probability of treatment weighting, estimated from a logistic model at
-each trial’s baseline (Hernán and Robins 2008). For the per-protocol
-estimand, artificial censoring at protocol deviation is informative
-whenever time-varying factors predict both adherence and the outcome; we
-therefore additionally applied stabilised inverse probability of
-censoring weights from discrete-time censoring models fit separately by
-assigned arm, with a smooth function of follow-up time and the most
-recently updated covariate values (Hernán and Robins 2008; Danaei et
-al. 2013). Weights were truncated at the 1st and 99th percentiles to
-limit the influence of extreme values (Danaei et al. 2013); analyses
-with untruncated weights were pre-specified as a sensitivity analysis,
-with divergence between the two interpreted as an indicator of weight
-instability.</p>
+<p>We estimated two estimands (Danaei et al. 2013). Both conditioned on
+reaching the time zero of each trial under observation and free of the
+study outcomes. The observational analogue of the intention-to-treat
+effect compared the arms as assigned, ignoring later changes in
+treatment. The per-protocol effect compared sustained
+<code>[intervention]</code> with sustained
+<code>[comparator]</code>.</p>
+<p>We reported both estimands as marginal incidence rate ratios (IRRs),
+with weighted event counts and rates per 100,000 person-years by arm. We
+also reported the risk difference at the end of follow-up. Beside it, we
+reported the number needed to treat for benefit (NNTB) or for harm
+(NNTH) (Altman 1998).</p>
+<p>Identification relied on consistency, positivity, and no unmeasured
+confounding of assignment given <code>[confounders]</code>. The
+per-protocol effect also relied on the censoring model capturing the
+common causes of deviation, loss and the outcome.</p>
 </div>
 <div class="section level3">
-<h3 id="outcome-model-and-inference">Outcome model and inference<a class="anchor" aria-label="anchor" href="#outcome-model-and-inference"></a>
+<h3 id="statistical-analysis">Statistical analysis<a class="anchor" aria-label="anchor" href="#statistical-analysis"></a>
 </h3>
-<p>We fit a weighted quasi-Poisson marginal structural model of the
-event indicator on assigned baseline treatment, with log person-time as
-offset and natural splines of follow-up time and of the trial (calendar)
-index. The exponentiated treatment coefficient estimates the marginal
-IRR pooled across sequential trials. It approximates the marginal hazard
-ratio when events are rare (Thompson 1977). Individuals contribute
-repeated observations within and across trials, so confidence intervals
-use cluster-robust (sandwich) standard errors clustered on the person
-(Hernán and Robins 2008; Danaei et al. 2013). Effect heterogeneity
-across calendar time and pre-specified subgroups was assessed by Wald
-tests of the corresponding interaction terms.</p>
+<p>We adjusted for <code>[confounders]</code> by stabilised inverse
+probability of treatment weights from a logistic model (Hernán et
+al. 2008). The model read each confounder at the recruiting week, the
+first eligible week of the enrollment period with an arm value. For the
+per-protocol effect, we added stabilised inverse probability of
+censoring weights from discrete-time censoring models, fitted separately
+by arm. These models included the most recent values of
+<code>[confounders]</code> and terms for follow-up time and calendar
+time. Each time term was a penalised spline where enough distinct values
+allowed one, and simpler otherwise (Danaei et al. 2013).</p>
+<p>We truncated the weights at the 1st and 99th percentiles (Danaei et
+al. 2013). We fitted a weighted quasi-Poisson marginal structural model
+of the event indicator on the assigned arm, with log person-time as the
+offset. It included a natural spline of follow-up time and a term for
+the calendar period. That term was a natural spline with 5 or more
+calendar periods, and linear with 2 to 4. The exponentiated coefficient
+of the arm estimated the marginal IRR, pooled across trials.</p>
+<p>With rare events, the IRR approximated the marginal hazard ratio
+(Thompson 1977). Individuals contributed several observations within and
+across trials. Confidence intervals therefore used survey-linearised
+(sandwich) standard errors clustered on the person (Hernán et al. 2008;
+Danaei et al. 2013).</p>
 <p>For the absolute scale, we estimated the survival of each arm with a
-weighted discrete-time product-limit estimator over follow-up bands,
-using the same weights as the IRR. The risk difference is the difference
+weighted product-limit estimator on the weekly grid of stop times. It
+used the same weights as the IRR. The risk difference was the difference
 between the arms in one minus survival. Its confidence interval, at the
-pre-specified level (95% by default), is the percentile interval of 500
-bootstrap replicates that resampled persons, not person-trials, with one
-resample shared by both arms. The weights were held fixed in the
-bootstrap. No interval was reported at a time by which either arm had no
-weighted event. The number needed to treat is the negative reciprocal of
-the risk difference, so that a positive value means benefit. It was
-reported with its interval only when the interval of the risk difference
-excluded zero.</p>
+pre-specified level, was the percentile interval of 500 bootstrap
+replicates. Each replicate resampled persons, not person-trials, and one
+resample served both arms. The weights were held fixed in the
+bootstrap.</p>
+<p>No interval was reported at a time by which either arm had no
+weighted event. The number needed to treat was the negative reciprocal
+of the risk difference, so a positive value meant benefit. We reported
+its interval only when the interval of the risk difference excluded
+zero.</p>
+<p>A missing confounder value at the recruiting week was singly imputed
+by a hot-deck draw. A missing value during follow-up was carried forward
+within the person-trial. We assessed effect modification by
+<code>[subgroups]</code> with Wald tests of the interaction between
+treatment and subgroup. We also estimated the IRR within each subgroup
+level.</p>
+</div>
+<div class="section level3">
+<h3 id="sensitivity-analyses-1">Sensitivity analyses<a class="anchor" aria-label="anchor" href="#sensitivity-analyses-1"></a>
+</h3>
+<p>We repeated the per-protocol analysis with untruncated weights, as a
+pre-specified sensitivity analysis. We read a divergence between the two
+estimates as a sign of unstable weights.</p>
 </div>
 <div class="section level3">
 <h3 id="software">Software<a class="anchor" aria-label="anchor" href="#software"></a>
 </h3>
-<p>Analyses used R with the <code>swereg</code> package, which
-implements the sequential enrollment, weighting, and estimation pipeline
-described above; censoring-weight models were fit with
-<code>mgcv</code>, and the final weighted regression with cluster-robust
-variance with <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code>. The implementation is
-validated against simulated data with known true effects and against the
-<code>TrialEmulation</code> package (Su et al. 2024); the validation
-suite runs in continuous integration.</p>
+<p>Analyses used R with the swereg package, which provided the
+sequential enrollment, weighting and estimation described above. The
+censoring models were fitted with mgcv, and the weighted outcome
+regression with <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code>. The implementation was
+validated against simulated data with known true effects, and against
+the TrialEmulation package (Su et al. 2024). The validation suite of the
+package ran in continuous integration.</p>
 <hr>
 </div>
 </div>
@@ -932,7 +1137,7 @@ person-time accumulated only while at risk. Loss to follow-up is never
 applied to the truth simulation: loss is a nuisance the estimator must
 be robust to, not part of the estimand. This first-event,
 person-time-at-risk construction matches the estimand targeted by the
-weighted quasi-Poisson model (1.7) exactly; a recurrent-event or
+weighted quasi-Poisson model (1.8.4) exactly; a recurrent-event or
 fixed-denominator construction would target a different quantity.</p>
 <p>Four layers separate concerns, so that a failure localises to a
 pipeline segment:</p>
@@ -940,8 +1145,8 @@ pipeline segment:</p>
 <caption>Table 1. The four layers of the validation battery.</caption>
 <colgroup>
 <col width="8%">
-<col width="41%">
-<col width="49%">
+<col width="43%">
+<col width="48%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Layer</th>
@@ -967,7 +1172,7 @@ attrition, and treatment-confounder feedback?</td>
 <tr class="odd">
 <td align="left">Plan-layer truth matrix (3.5)</td>
 <td align="left">The complete production pipeline: specification,
-banding, sequential eligibility, the comparator draw, worker
+enrollment periods, sequential eligibility, the comparator draw, worker
 subprocesses, dual analysis files</td>
 <td align="left">Does the pipeline as a whole recover a planted
 constant-hazard truth, including the separation of PP from ITT under
@@ -1234,7 +1439,7 @@ weights. Log-IRR scale.</caption>
 </table>
 <p>In Table 4, every interval in a cell whose assumptions hold covers
 the truth; the per-protocol estimator remains close to the truth in s3
-precisely because its censoring weights (1.5) model the informative
+precisely because its censoring weights (1.8.2) model the informative
 loss; and in the s3 ITT cell both packages miss on the same side (swereg
 -0.090, TrialEmulation -0.099) while agreeing with each other to within
 0.009. A single dataset nonetheless provides limited evidence: at N =
@@ -1385,7 +1590,7 @@ these residuals. In the s3 per-protocol cell, the truncated-weight mean
 bias of +0.049 falls to +0.019 (MC SE 0.014) when the same replicates
 are refit with untruncated weights: most of the displacement is
 attributable to clipping the weights, the bias–variance tradeoff
-described in 1.6. Informative dropout means the high-risk individuals
+described in 1.8.3. Informative dropout means the high-risk individuals
 still under observation late in follow-up must carry large censoring
 weights to represent those who left; the 1st/99th-percentile truncation
 caps precisely those weights, and the under-corrected selection surfaces
@@ -1393,13 +1598,13 @@ as bias toward the null. This is also why the untruncated per-protocol
 results are exported as a sensitivity analysis: a material divergence
 between the truncated and untruncated estimates indicates that
 truncation is attenuating the correction. The event-priority convention
-(1.3) is excluded as a cause by design contrast: the s2 per-protocol
+(1.4) is excluded as a cause by design contrast: the s2 per-protocol
 cell shares the identical switching, censoring, and event-accounting
 machinery, differs only in that its loss is non-informative, and shows
 no bias with the same truncated weights (+0.002). The remaining small
 residuals (for example in the s2 ITT cell) are consistent with loss
-truncating follow-up toward its early bands, so that the
-person-time-weighted working-model summary (1.2) no longer weights
+truncating follow-up toward its early follow-up intervals, so that the
+person-time-weighted working-model summary (1.6) no longer weights
 follow-up exactly as the no-loss truth functional does.</p>
 <p>The s3 ITT cell is of a different kind: truncated-weight mean bias
 -0.071, roughly 8 Monte Carlo standard errors from zero and present in
@@ -1455,20 +1660,20 @@ expected to fail</td>
 <td align="left">θ = +0.7, three independent seeds at N = 20,000,
 TrialEmulation cross-check</td>
 <td align="left">The person-time-weighted-average interpretation of the
-pooled IRR (1.2)</td>
+pooled IRR (1.6)</td>
 </tr>
 <tr class="odd">
 <td align="left">Near-positivity violation</td>
 <td align="left">φA = 1.5: propensity scores span 0–1; ITT fit at three
 truncation levels</td>
-<td align="left">The truncation bias-variance tradeoff (1.6)</td>
+<td align="left">The truncation bias-variance tradeoff (1.8.3)</td>
 </tr>
 <tr class="even">
 <td align="left">Treatment-confounder feedback</td>
 <td align="left">AR(1) confounder Lt = 0.7 Lt−1 − 0.4 At−1 + εt driving
 both switching (0.8 Lt) and outcome (0.5 Lt); N = 25,000</td>
 <td align="left">The residual-bias limit of single-model IPCW under
-feedback (1.9)</td>
+feedback (1.7)</td>
 </tr>
 <tr class="odd">
 <td align="left">Determinism</td>
@@ -1609,7 +1814,7 @@ Log-IRR scale.</caption>
 </table>
 <p>Under a harmful effect with strong depletion of susceptibles, the
 marginal hazard ratio declines over follow-up, so the single pooled IRR,
-a person-time-weighted average (1.2), legitimately lies above the
+a person-time-weighted average (1.6), legitimately lies above the
 cumulative-rate truth, by a mean of +0.075 across the three seeds. This
 is a property of the estimand, not an implementation defect: swereg and
 <code>TrialEmulation</code> agree to within 0.023 on every seed because
@@ -1658,7 +1863,7 @@ scale.</caption>
 </tr>
 </tbody>
 </table>
-<p>Table 9 quantifies the tradeoff stated in 1.6 on a design whose
+<p>Table 9 quantifies the tradeoff stated in 1.8.3 on a design whose
 propensity scores approach the boundary (maximum raw stabilised weight
 1325): each tightening of the truncation percentiles reduces variance at
 the cost of measurable bias toward the null. When extreme weights are
@@ -1717,35 +1922,37 @@ a time-ramping effect rather than selection per se. The ITT estimand,
 which needs no censoring model against this feedback, is near-unbiased
 in the same data (bias -0.024). Where treatment–confounder feedback is
 central to the question, g-methods beyond this pipeline are indicated,
-exactly as stated in 1.9.</p>
+exactly as stated in 1.7.</p>
 </div>
 <div class="section level3">
 <h3 id="full-pipeline-truth-recovery-plan-layer">3.5 Full-pipeline truth recovery (plan layer)<a class="anchor" aria-label="anchor" href="#full-pipeline-truth-recovery-plan-layer"></a>
 </h3>
 <p>The layers above validate the estimators on pre-built person-period
 panels. This layer validates everything that sits on top in production:
-the machine-readable specification, trial-band assignment, sequential
-eligibility with a lifetime new-user exclusion, the per-band 2:1
-comparator draw, the worker subprocess chain, the dual PP/ITT analysis
-files, and the pooled weighted outcome model.</p>
+the machine-readable specification, enrollment-period assignment,
+sequential eligibility with a lifetime new-user exclusion, the 2:1
+comparator draw in each enrollment period, the worker subprocess chain,
+the dual PP/ITT analysis files, and the pooled weighted outcome
+model.</p>
 <p>The data-generating process plants an exactly known truth in a
 realistic skeleton. Persons are observed weekly from 2016-01-01 to
-2021-06-30 — roughly 287 ISO weeks, deliberately spanning 2020’s 53-week
+2021-06-30, roughly 287 ISO weeks, deliberately spanning 2020’s 53-week
 ISO year, and are split into never-treaters and initiators; initiators
-start treatment at a band drawn uniformly from the first 56 four-week
-bands and, in the discontinuation cell, stop after a geometric duration
-(4% weekly hazard). The weekly outcome hazard is constant at 0.0025
-untreated and doubled while treated, so the marginal per-week incidence
-rate ratio among sustained users is exactly 2.0. Scenario B adds a
-binary frailty carried by 30% of persons that doubles both the
-initiation probability and the outcome hazard, a genuine baseline
-confounder; mixture-averaging over the two risk groups with first-event
-depletion attenuates the marginal truth to 1.982. Loss, when present, is
-geometric (2% weekly, or 1%/3% by risk group for informative loss) and
-multiplies person-time equally in both arms, so the truth is unchanged
-and loss is purely a nuisance the machinery must tolerate. The ITT truth
-in the discontinuation cell (1.44) is simulated directly as the
-do(initiate)-versus-do(never) contrast with natural discontinuation.</p>
+start treatment at an enrollment period drawn uniformly from the first
+56 four-week enrollment periods and, in the discontinuation cell, stop
+after a geometric duration (4% weekly hazard). The weekly outcome hazard
+is constant at 0.0025 untreated and doubled while treated, so the
+marginal per-week incidence rate ratio among sustained users is exactly
+2.0. Scenario B adds a binary frailty carried by 30% of persons that
+doubles both the initiation probability and the outcome hazard, a
+genuine baseline confounder; mixture-averaging over the two risk groups
+with first-event depletion attenuates the marginal truth to 1.982. Loss,
+when present, is geometric (2% weekly, or 1%/3% by risk group for
+informative loss) and multiplies person-time equally in both arms, so
+the truth is unchanged and loss is purely a nuisance the machinery must
+tolerate. The ITT truth in the discontinuation cell (1.44) is simulated
+directly as the do(initiate)-versus-do(never) contrast with natural
+discontinuation.</p>
 <table class="table">
 <caption>Table 11. Skeleton descriptives per plan-layer cell (before
 eligibility and enrollment).</caption>
@@ -1941,8 +2148,9 @@ true separation of +0.330: the per-protocol arm censors at deviation and
 reweights back to the sustained-treatment truth of 2.0, while the ITT
 arm retains post-discontinuation person-time and attenuates toward the
 do(initiate) truth. This cell also exercises the event-priority
-convention (1.3), since events and deviations collide in the same band
-whenever discontinuers have events in their final treated band.</p>
+convention (1.4), since events and deviations collide in the same
+follow-up interval whenever discontinuers have events in their final
+treated follow-up interval.</p>
 <p>Because a single pipeline run at a fixed seed cannot distinguish bias
 from draw-level noise, the two no-loss scenarios are repeated over eight
 independent seeds at 6,000 persons each, rerunning the complete pipeline
@@ -2169,10 +2377,11 @@ over 200 replicate draws per scenario at 3,000 persons, each refit end
 to end, what fraction of nominal 95% intervals cover the truth? The
 study uses the per-protocol estimand estimated with the primary
 truncated weight (the pipeline’s default analysis exactly as reported).
-The per-protocol censoring weights (1.5) target the sustained-treatment
-effect in all three scenarios, including the informative loss in s3, so
-the three scenarios test whether the interval calibration survives the
-same nuisance that biases the intention-to-treat estimand.</p>
+The per-protocol censoring weights (1.8.2) target the
+sustained-treatment effect in all three scenarios, including the
+informative loss in s3, so the three scenarios test whether the interval
+calibration survives the same nuisance that biases the
+intention-to-treat estimand.</p>
 <table class="table">
 <caption>Table 15. Per-protocol coverage calibration, M = 200 replicates
 per scenario at N = 3,000, using the primary truncated per-protocol
@@ -2222,30 +2431,30 @@ analysis as reported. Log-IRR scale.</caption>
 </tbody>
 </table>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" alt="Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (per-protocol estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. Because the per-protocol censoring weights correct the informative loss, the interval cloud straddles the truth in every scenario — s1, s2, and s3 alike — with only the sampling-expected few percent of misses and none of the wholesale downward displacement the intention-to-treat estimand shows under the same loss." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" alt="Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (per-protocol estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. Because the per-protocol censoring weights correct the informative loss, the interval cloud straddles the truth in every scenario (s1, s2, and s3 alike), with only the sampling-expected few percent of misses and none of the wholesale downward displacement the intention-to-treat estimand shows under the same loss." width="672"><p class="caption">
 Figure 3. Coverage calibration: all 200 replicate 95% confidence
 intervals per scenario (per-protocol estimand, primary truncated
 weights), sorted by point estimate, against the true log-IRR (horizontal
 line). Intervals that miss the truth are drawn in red. Because the
 per-protocol censoring weights correct the informative loss, the
-interval cloud straddles the truth in every scenario — s1, s2, and s3
-alike — with only the sampling-expected few percent of misses and none
+interval cloud straddles the truth in every scenario (s1, s2, and s3
+alike), with only the sampling-expected few percent of misses and none
 of the wholesale downward displacement the intention-to-treat estimand
 shows under the same loss.
 </p>
 </div>
 <p>Across all three scenarios the per-protocol interval stays close to
 nominal: 96.0% in s1, 97.5% under confounding with independent loss
-(s2), and 96.5% under informative loss (s3). The censoring weights (1.5)
-remove the selection that informative loss induces, so the s3 point
-estimate carries only +0.022 mean bias (Table 15), so intervals of the
-correct width cover the truth rather than missing systematically as the
-estimate distribution shifts away from it. The mild departures in s1 and
-s2 are the expected consequence of treating estimated weights as fixed
-(1.8). This is the payoff of being specific about the estimand: under
-the same informative loss the intention-to-treat interval degrades,
-because no variance estimator can repair a point estimate the estimand
-itself leaves biased — whereas the per-protocol interval, built around
+(s2), and 96.5% under informative loss (s3). The censoring weights
+(1.8.2) remove the selection that informative loss induces, so the s3
+point estimate carries only +0.022 mean bias (Table 15), so intervals of
+the correct width cover the truth rather than missing systematically as
+the estimate distribution shifts away from it. The mild departures in s1
+and s2 are the expected consequence of treating estimated weights as
+fixed (1.8.6). This is the payoff of being specific about the estimand:
+under the same informative loss the intention-to-treat interval
+degrades, because no variance estimator can repair a point estimate the
+estimand itself leaves biased. The per-protocol interval, built around
 an unbiased estimate, remains calibrated.</p>
 </div>
 <div class="section level3">
@@ -2401,7 +2610,7 @@ depletion of susceptibles plus late-follow-up up-weighting produces, and
 the untruncated fit is the worst of the three. Neither package, and
 neither weight variant, dominates across the grid.</p>
 <p>The two unmeasured-driver cells locate the boundary set by assumption
-(5) of the analysis plan (1.9). In both, every fit is displaced together
+(5) of the analysis plan (1.7). In both, every fit is displaced together
 and in the same direction, toward an exaggerated protective effect: with
 dropout on the unmeasured factor, swereg truncated -0.039, untruncated
 -0.049, TrialEmulation -0.059; with the unmeasured factor driving
@@ -2421,7 +2630,7 @@ approaches (negative-control outcomes, sensitivity analyses for
 unmeasured selection) rather than weight diagnostics.</p>
 <table class="table">
 <caption>Table 17. Feedback boundary, per-protocol estimand: censoring
-driven by a time-varying covariate that treatment affects (the 1.9
+driven by a time-varying covariate that treatment affects (the 1.7
 regime); both swereg fits use the truncated (primary) product weight.
 All approaches fail by three to six times the largest bias in Table 16.
 Log-IRR scale.</caption>
@@ -2450,7 +2659,7 @@ SE)</th>
 <td align="right">+0.183 (0.016)</td>
 </tr></tbody>
 </table>
-<p>Table 17 is the boundary the SAP declares in 1.9, now measured: when
+<p>Table 17 is the boundary the SAP declares in 1.7, now measured: when
 the determinants of censoring are time-varying and affected by
 treatment, every configuration of either package (time-updated censoring
 weights, frozen covariates, or baseline conditioning) is biased by an
@@ -2514,7 +2723,7 @@ each has the lower error are those its mechanism predicts. The
 pipeline’s convention is therefore retained on the evidence: the
 truncated fit is the primary analysis (its error is stable and bounded
 across every regime tested), the untruncated fit is always exported
-alongside (1.6), and a material divergence between the two indicates
+alongside (1.8.3), and a material divergence between the two indicates
 that the censoring weights are unstable. The appropriate responses are
 then sensitivity analyses at looser truncation percentiles (Table 9
 quantifies the dose–response), restriction of the eligible population
@@ -2527,9 +2736,9 @@ scheme in this pipeline suffices (Table 17).</p>
 <div class="section level2">
 <h2 id="implementation-mapping">4. Implementation mapping<a class="anchor" aria-label="anchor" href="#implementation-mapping"></a>
 </h2>
-<p>Section 1 does not refer to the code. This section names the
-function, argument and option behind each step, and the source of the
-validation evidence.</p>
+<p>Section 1 names no code. This section names the function, argument,
+option, column and test file behind each step of Section 1, and the
+source of the validation evidence.</p>
 <div class="section level3">
 <h3 id="sap-step-code">4.1 SAP step → code<a class="anchor" aria-label="anchor" href="#sap-step-code"></a>
 </h3>
@@ -2546,37 +2755,60 @@ validation evidence.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">1.1</td>
-<td align="left">Band width
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
-</td>
+<td align="left">Values, 1.1, 1.4</td>
+<td align="left">Width of the enrollment period</td>
 <td align="left">
-<code>period_width</code> (default 4 weeks) in the
-trial-band assignment inside <code>TTEPlan</code>
-</td>
+<code>period_width</code> argument of
+<code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, default
+<code>4L</code>. It also sets the width of each follow-up interval.
+<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> states the timing rules with worked
+examples</td>
 </tr>
 <tr class="even">
 <td align="left">1.1</td>
-<td align="left">Sequential eligibility, enrollment, the comparator
-draw</td>
-<td align="left">
-<code>TTEPlan$s1_generate_enrollments_and_ipw()</code>;
-<code>comparator_to_intervention_ratio</code> and <code>seed</code> from
-the YAML spec’s <code>treatment.implementation</code>
-</td>
+<td align="left">Global and per-enrollment criteria</td>
+<td align="left">Global: <code>inclusion_criteria$isoyears</code>,
+<code>inclusion_criteria$criteria</code> and
+<code>exclusion_criteria</code>. Per enrollment:
+<code>additional_inclusion</code> (<code>age_range</code>,
+<code>isoyear_range</code>, <code>has_event</code>, washouts) and
+<code>additional_exclusion</code>, applied after the global criteria by
+<code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code>.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses a second <code>age_range</code>
+in one enrollment, because every <code>age_range</code> writes the one
+column <code>eligible_age</code>. It also refuses a second
+<code>isoyear_range</code>, and an <code>isoyear_range</code> outside
+<code>inclusion_criteria$isoyears</code> (26.13.0). An
+<code>isoyear_range</code> writes a column of its own, so the age range
+still applies. Since 26.14.0, TARGET item 6a lists the criteria per
+enrollment, and the protocol table states an enrollment-level exclusion
+as “is TRUE”</td>
 </tr>
 <tr class="odd">
 <td align="left">1.1</td>
+<td align="left">Look-back windows</td>
+<td align="left">
+<code>window</code> takes a number of weeks,
+<code>"N year"</code> or <code>"N years"</code> (read as 52N weeks), or
+<code>lifetime_before_baseline</code>. A value of 99999 or more,
+<code>Inf</code> included, means lifetime. Since 26.12.0 the window
+counts calendar ISO weeks from <code>isoyearweek</code>, not rows
+(<code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code>). An exclusion with
+<code>window: lifetime_before_and_after_baseline</code> reads every row
+of the person, after baseline as well</td>
+</tr>
+<tr class="even">
+<td align="left">1.1, 1.8.7</td>
 <td align="left">Washout / new-user exclusion</td>
 <td align="left">A washout rule in any of the four rule blocks.
 <code>type: no_prior_value</code> keeps a person-week when no prior week
-in the window holds <code>value</code>.
+in the window holds <code>value</code>. A missing value in the window
+makes the rule <code>NA</code>, and the week is then ineligible.
 <code>type: only_prior_value</code> keeps a person-week when every prior
-week in the window that holds an observation holds <code>value</code>.
-The window is <code>lifetime_before_baseline</code>, or a number of
-weeks</td>
+week in the window that holds an observation holds <code>value</code>,
+so it skips missing weeks</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1.1</td>
 <td align="left">Prevalent-user warning</td>
 <td align="left">
@@ -2590,67 +2822,150 @@ the check and says so when no skeleton is loaded
 <code>options(swereg.warn_prevalent_user = FALSE)</code> to silence
 it</td>
 </tr>
+<tr class="even">
+<td align="left">1.2, 1.4</td>
+<td align="left">Arm values and the weekly status</td>
+<td align="left">
+<code>treatment.implementation</code>:
+<code>variable</code>, <code>intervention_value</code> and
+<code>comparator_value</code>. The pipeline writes
+<code>rd_intervention</code>: <code>TRUE</code> at the intervention
+value, <code>FALSE</code> at the comparator value, <code>NA</code>
+otherwise. It also writes <code>eligible_valid_treatment</code>, which
+is <code>TRUE</code> where <code>rd_intervention</code> is not
+<code>NA</code>
+</td>
+</tr>
 <tr class="odd">
 <td align="left">1.3</td>
+<td align="left">Arm classification, recruiting week</td>
+<td align="left">
+<code>R/tte_enrollment_periods.R</code>. Each
+confounder reaches the panel as <code>.tte_entry__&lt;v&gt;</code>, its
+value at the recruiting week. The panel column
+<code>enrollment_period_id</code> names the trial, and
+<code>trial_id</code> names the calendar period of each follow-up
+interval</td>
+</tr>
+<tr class="even">
+<td align="left">1.3</td>
+<td align="left">Comparator draw</td>
+<td align="left">
+<code>TTEPlan$s1_generate_enrollments_and_ipw()</code>.
+<code>comparator_to_intervention_ratio</code> (required;
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops without it) and <code>seed</code>
+(optional; without it the draw calls <code>set.seed(NULL)</code>) come
+from the YAML spec’s <code>treatment.implementation</code>. The draw
+takes <code>round(ratio * n)</code> comparators,
+<code>by = trial_id</code>
+</td>
+</tr>
+<tr class="odd">
+<td align="left">1.4</td>
+<td align="left">Time-zero checks</td>
+<td align="left">
+<code>R/tte_landmark_qualify.R</code>. The attrition
+steps are <code>landmark_candidates</code> (“Candidate person-trials,
+before the time-zero checks”), <code>landmark_observed</code> (“Not
+under observation at time zero”) and <code>landmark_event_free</code>
+(“Event before time zero”). The observation contract is
+<code>observed_var</code> on each enrollment</td>
+</tr>
+<tr class="even">
+<td align="left">1.4</td>
+<td align="left">Arm tolerance</td>
+<td align="left">
+<code>intervention_tolerance_weeks</code> and
+<code>comparator_tolerance_weeks</code> on each enrollment, each a whole
+number of at least 0, default 0</td>
+</tr>
+<tr class="odd">
+<td align="left">1.4</td>
 <td align="left">Follow-up stop events, event priority</td>
-<td align="left">
-<code>TTEEnrollment$s5_prepare_outcome()</code>;
-horizon from <code>follow_up</code>, administrative end of study from
-<code>admin_censor_isoyearweek</code>
+<td align="left">The private <code>TTEEnrollment</code> method
+<code>s5_prepare_outcome()</code>, which
+<code>$s4_prepare_for_analysis()</code> calls. The horizon comes from
+<code>follow_up</code>. The administrative end comes from
+<code>global_max_isoyearweek</code> (default: the largest
+<code>isoyearweek</code> of the first skeleton file), passed to
+<code>TTEDesign</code> as <code>admin_censor_isoyearweek</code>
 </td>
 </tr>
 <tr class="even">
 <td align="left">1.4</td>
-<td align="left">Single imputation of a missing entry-window
-confounder</td>
+<td align="left">Loss of observation</td>
 <td align="left">
-<code>TTEEnrollment$s1_impute_confounders(seed = 4)</code>;
-the method is the plan’s <code>impute_fn</code>, whose default draws one
-hot-deck value</td>
+<code>.tte_record_end_boundary()</code> writes
+<code>weeks_to_record_end</code>, and
+<code>.tte_observation_gap_boundary()</code> writes
+<code>weeks_to_observation_gap</code>, the first absent week after time
+zero (<code>.tte_first_gap_week()</code>). Under both estimands
+<code>.tte_gap_record_end()</code> moves the record end to that week, so
+the stop row gets <code>weeks_to_loss</code> and
+<code>censor_this_period = 1</code>. The event-priority rule clears
+<code>.deviation_clip</code> only, never the gap.
+<code>.tte_deviation_boundary()</code> holds discordant runs only, and
+ITT sets <code>weeks_to_protocol_deviation</code> to <code>NA</code>. A
+panel that <code>enroll()</code> built with <code>observed_var</code>
+and that lacks <code>weeks_to_observation_gap</code> was enrolled before
+swereg 26.15.0. Its weekly rows are gone, so the gap cannot be
+recomputed. swereg then warns once. The warning says that gaps in
+observation cannot be detected in the panel, and that an outcome after
+such a gap may be counted. A re-run of s1 removes the limitation.
+<code><a href="../reference/qs2_read.html">qs2_read()</a></code> gives the warning when it reads such an
+enrollment from a file, and <code>.tte_gap_record_end()</code> gives it
+for a panel that was not read. An enrollment saved before 26.15.0 runs
+its saved method bodies and the old rules, so it warns on read only</td>
 </tr>
 <tr class="odd">
-<td align="left">1.4</td>
+<td align="left">1.8.1</td>
 <td align="left">Stabilised IPW</td>
-<td align="left"><code>TTEEnrollment$s2_ipw(stabilize = TRUE)</code></td>
+<td align="left">
+<code>TTEEnrollment$s2_ipw(stabilize = TRUE)</code>, on
+the <code>.tte_entry__&lt;v&gt;</code> columns</td>
 </tr>
 <tr class="even">
-<td align="left">1.5</td>
-<td align="left">Follow-up carry-forward</td>
-<td align="left">
-<code>TTEEnrollment$s1b_fill_followup_confounders()</code>;
-filled counts from <code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code>
-</td>
-</tr>
-<tr class="odd">
-<td align="left">1.5</td>
+<td align="left">1.8.2</td>
 <td align="left">IPCW censoring model</td>
-<td align="left">
-<code>TTEEnrollment$s6_ipcw_pp()</code> via
-<code>s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)</code>;
+<td align="left">The private <code>TTEEnrollment</code> method
+<code>s6_ipcw_pp()</code>, reached through
+<code>$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)</code>.
 GAM engine <code>mgcv::bam(..., discrete = TRUE)</code>;
-<code>estimate_ipcw_pp_with_gam = FALSE</code> gives the linear-in-time
-sensitivity variant</td>
-</tr>
-<tr class="even">
-<td align="left">1.6</td>
-<td align="left">Weight truncation</td>
-<td align="left">
-<code>TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)</code>;
-truncated columns <code>ipw_trunc</code> (ITT) and
-<code>analysis_weight_pp_trunc</code> (PP product weight); untruncated
-PP results exported as a sensitivity sheet</td>
+<code><a href="https://rdrr.io/pkg/mgcv/man/s.html" class="external-link">mgcv::s()</a></code> asks for 10 basis functions. Follow-up term:
+<code>s(tstart)</code> with 10 or more distinct starts,
+<code>splines::ns(tstart, df = 3)</code> with 4 to 9,
+<code>factor(tstart)</code> with 2 or 3, none with 1
+(<code>.tte_ipcw_time_term()</code>). Calendar term:
+<code>s(trial_id)</code> with 10 or more distinct <code>trial_id</code>,
+<code>trial_id</code> (linear) with 2 to 9, none with 1</td>
 </tr>
 <tr class="odd">
-<td align="left">1.7–1.8</td>
-<td align="left">Outcome model + inference</td>
+<td align="left">1.8.3</td>
+<td align="left">Weight truncation</td>
+<td align="left">In the pipeline,
+<code>TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")</code>
+truncates the treatment weight at its defaults <code>lower = 0.01</code>
+and <code>upper = 0.99</code>, and writes <code>ipw_trunc</code> (ITT).
+The private <code>s6_ipcw_pp()</code> writes
+<code>analysis_weight_pp_trunc</code> (PP product weight) with 0.01 and
+0.99 fixed in the code. Untruncated PP results are exported as a
+sensitivity sheet</td>
+</tr>
+<tr class="even">
+<td align="left">1.8.4, 1.8.6</td>
+<td align="left">Outcome model and inference</td>
 <td align="left">
 <code>TTEEnrollment$irr(weight_col)</code>:
-<code>survey::svydesign(ids = ~person)</code> +
+<code>survey::svydesign(ids = ~person)</code> and
 <code>survey::svyglm(family = quasipoisson())</code> with
-<code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code> terms for follow-up and trial index</td>
+<code>splines::ns(tstop, df = 3)</code>. Calendar term:
+<code>splines::ns(trial_id, df = 3)</code> with 5 or more distinct
+<code>trial_id</code> in the analysis data, <code>trial_id</code>
+(linear) with 2 to 4, none with 1. The Wald interval uses 1.96 whatever
+<code>conf_level</code> is</td>
 </tr>
-<tr class="even">
-<td align="left">1.2, 1.7–1.8</td>
+<tr class="odd">
+<td align="left">1.6, 1.8.5, 1.8.6</td>
 <td align="left">Risk difference, number needed to treat, bootstrap
 interval</td>
 <td align="left">
@@ -2661,10 +2976,47 @@ seed 1, on <code>analysis_weight_pp_trunc</code> (stored as
 <code>ipw_trunc</code> (stored as <code>rd_itt</code> and
 <code>rd_curve_itt</code>). The level comes from
 <code>study.implementation.conf_level</code> in the YAML spec, default
-0.95</td>
+0.95. <code>TTEPlan$get_curves()</code> returns the stop time in weeks
+from time zero as the column <code>follow_up_interval</code>, and the
+stored risk-difference rows use the same name</td>
+</tr>
+<tr class="even">
+<td align="left">1.8.7</td>
+<td align="left">Missing data</td>
+<td align="left">
+<code>TTEEnrollment$s1_impute_confounders(seed = 4)</code>.
+The method is the plan’s <code>impute_fn</code>, whose default
+<code><a href="../reference/tteenrollment_impute_confounders.html">tteenrollment_impute_confounders()</a></code> draws one hot-deck
+value. <code>TTEEnrollment$s1b_fill_followup_confounders()</code>
+carries a follow-up value forward, and
+<code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> counts the filled rows</td>
 </tr>
 <tr class="odd">
-<td align="left">1.10</td>
+<td align="left">1.8.8</td>
+<td align="left">Subgroups and heterogeneity</td>
+<td align="left">
+<code>subgroups</code> in the YAML spec, each with
+<code>implementation$variable</code>. <code>$s3_analyze()</code> runs
+<code>TTEEnrollment$irr_by_subgroup()</code> and
+<code>TTEEnrollment$effect_modification_test()</code> for each subgroup
+and estimand. <code>TTEEnrollment$heterogeneity_test(weight_col)</code>
+fits <code>treatment * splines::ns(trial_id, df = min(3, n - 1))</code>;
+<code>$s3_analyze()</code> does not call it</td>
+</tr>
+<tr class="even">
+<td align="left">1.9</td>
+<td align="left">Sensitivity analyses</td>
+<td align="left">The untruncated PP IRR is stored as
+<code>irr_pp</code>. <code>estimate_ipcw_pp_with_gam = FALSE</code> in
+<code>$s2_generate_analysis_files_and_ipcw_pp()</code> fits the
+censoring model as a cloglog GLM:
+<code>splines::ns(tstart, df = 3)</code> with 4 or more distinct starts,
+<code>factor(tstart)</code> with 2 or 3, none with 1, and
+<code>trial_id</code> linear with 2 or more distinct values, none with
+1</td>
+</tr>
+<tr class="odd">
+<td align="left">1.8</td>
 <td align="left">Pre-specification</td>
 <td align="left">YAML spec parsed by <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>;
 full grid run by
@@ -2724,13 +3076,14 @@ full grid run by
 </tbody>
 </table>
 <p>The tables and figures themselves are rendered from
-<code>vignettes/tte-validation-evidence.rds</code>, regenerated by
-<code>dev/generate_validation_evidence.R</code> (in the source
-repository, not the installed package). The script reruns every cell
-through the same DGP/truth/fit helpers the tests source
-(<code>tests/testthat/helper-tte_*.R</code>), so the vignette’s numbers
-and the suite’s assertions cannot drift apart; rerun it after any
-estimator change and commit the refreshed artifact alongside.</p>
+<code>vignettes/tte-validation-evidence.rds</code>, which
+<code>dev/generate_validation_evidence.R</code> writes (in the source
+repository, not the installed package). The script uses the same
+data-generating, truth and fit helpers as the tests
+(<code>tests/testthat/helper-tte_*.R</code>). No test reads the
+<code>.rds</code> file, so the vignette numbers and the test assertions
+can drift apart. Rerun the script after any estimator change, and commit
+the refreshed file with the change.</p>
 </div>
 <div class="section level3">
 <h3 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -2743,28 +3096,35 @@ coronary heart disease. <em>Epidemiology</em> 2008;19(6):766–779. DOI
 10.1097/EDE.0b013e3181875e61.</li>
 <li>Hernán MA, Robins JM. Using big data to emulate a target trial when
 a randomized trial is not available. <em>Am J Epidemiol</em>
-2016;183(8):758–764.</li>
+2016;183(8):758–764. DOI 10.1093/aje/kwv254.</li>
 <li>Danaei G, García Rodríguez LA, Cantero OF, Logan R, Hernán MA.
 Observational data for comparative effectiveness research: an emulation
 of randomised trials of statins and primary prevention of coronary heart
-disease. <em>Stat Methods Med Res</em> 2013;22(1):70–96.</li>
+disease. <em>Stat Methods Med Res</em> 2013;22(1):70–96. DOI
+10.1177/0962280211403603.</li>
 <li>Altman DG. Confidence intervals for the number needed to treat.
 <em>BMJ</em> 1998;317(7168):1309–1312. DOI
 10.1136/bmj.317.7168.1309.</li>
-<li>Caniglia EC, Zash R, Swanson SA, et al. Emulating target trials to
+<li>Benchimol EI, et al. The REporting of studies Conducted using
+Observational Routinely-collected health Data (RECORD) Statement.
+<em>PLoS Med</em> 2015;12(10):e1001885. DOI
+10.1371/journal.pmed.1001885.</li>
+<li>Caniglia EC, Zash R, Fennell C, et al. Emulating target trials to
 avoid immortal time bias: an application to antibiotic initiation and
 preterm delivery. <em>Epidemiology</em> 2023;34(3):430–438. DOI
 10.1097/EDE.0000000000001601.</li>
 <li>Dafni U. Landmark analysis at the 25-year landmark point. <em>Circ
 Cardiovasc Qual Outcomes</em> 2011;4(3):363–371. DOI
 10.1161/CIRCOUTCOMES.110.957951.</li>
-<li>Cashin AG, et al. Emulating a target trial — the TARGET statement.
-<em>JAMA</em> 2025.</li>
+<li>Cashin AG, Hansford HJ, Hernán MA, et al. Transparent Reporting of
+Observational Studies Emulating a Target Trial: the TARGET Statement.
+<em>JAMA</em> 2025;334(12):1084–1093. DOI 10.1001/jama.2025.13350. Also
+<em>BMJ</em> 2025;390:e087179.</li>
 <li>Thompson WA Jr. On the treatment of grouped observations in life
 studies. <em>Biometrics</em> 1977;33(3):463–470.</li>
-<li>Su L, Rezvani R, Seaman SR, Bartlett JW. <em>TrialEmulation: An R
-package to emulate target trials for time-to-event data from electronic
-health records.</em> arXiv:2402.12083, 2024.</li>
+<li>Su L, Rezvani R, Seaman SR, Starr C, Gravestock I. TrialEmulation:
+An R Package to Emulate Target Trials for Causal Analysis of
+Observational Time-to-event Data. arXiv:2402.12083, 2024.</li>
 <li>Zhang J, Yu KF. What’s the relative risk? A method of correcting the
 odds ratio in cohort studies of common outcomes. <em>JAMA</em>
 1998;280(19):1690–1691.</li>

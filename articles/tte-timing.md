@@ -1,4 +1,4 @@
-# TTE timing: intervals, the landmark, and the estimand
+# TTE timing: intervals, time zero, and the estimand
 
 ## The interval convention
 
@@ -11,17 +11,17 @@ Every interval in swereg is `[tstart, tstop)`. The stop is
 Every duration is `person_weeks = tstop - tstart`. It **never** adds
 one.
 
-Three four-week bands span `[0, 12)`. That is 12 person-weeks, and the
-three bands bill 4, 4 and 4:
+Three four-week follow-up intervals span `[0, 12)`. That is 12
+person-weeks, and the three intervals bill 4, 4 and 4:
 
-    band 1   [0,  4)   ->  4 - 0  = 4 weeks
-    band 2   [4,  8)   ->  8 - 4  = 4 weeks
-    band 3   [8, 12)   -> 12 - 8  = 4 weeks
-                              total = 12 weeks
+    interval 1   [0,  4)   ->  4 - 0  = 4 weeks
+    interval 2   [4,  8)   ->  8 - 4  = 4 weeks
+    interval 3   [8, 12)   -> 12 - 8  = 4 weeks
+                                  total = 12 weeks
 
 The `+ 1` form is the **inclusive** convention. Under it, weeks 1
-through 4 is `4 - 1 + 1 = 4`. The same three bands then bill 5, 5 and 5,
-for a total of 15. Both are correct arithmetic. The two differ in
+through 4 is `4 - 1 + 1 = 4`. The same three intervals then bill 5, 5
+and 5, for a total of 15. Both are correct arithmetic. The two differ in
 whether the stop belongs to the interval.
 
 Mixing them is how an off-by-one becomes a silently wrong denominator.
@@ -62,8 +62,8 @@ the inclusive reading disagree, and each test asserts both numbers.
 
 Every example below runs on one small skeleton. It holds 16 consecutive
 ISO year-weeks, `period_width = 4` and `follow_up_time = 12`. The first
-four weeks are the entry band. The remaining twelve are three follow-up
-bands.
+four weeks are the enrollment period. The remaining twelve are three
+follow-up intervals.
 
 ``` r
 library(swereg)
@@ -72,7 +72,7 @@ library(data.table)
 PW <- 4L # period_width
 FU <- 12L # follow_up_time
 
-# Sixteen consecutive weeks, starting on a band boundary.
+# Sixteen consecutive weeks, starting on an enrollment period boundary.
 tte_weeks <- function(n = 16L) {
   wk <- copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -158,18 +158,19 @@ tte_prepare <- function(trial, estimand = "pp") {
 }
 ```
 
-A woman with no boundary of any kind bills three whole bands:
+A woman with no boundary of any kind bills three whole follow-up
+intervals:
 
 ``` r
 whole <- rbindlist(list(tte_person("WHOLE", rep(TRUE, 16L)), tte_fillers()))
 tte_enroll(whole, tte_design())$data[
   id == "WHOLE"
-][order(tstart), .(entry_band_id, trial_id, tstart, tstop, person_weeks)]
-#>    entry_band_id trial_id tstart tstop person_weeks
-#>            <int>    <int>  <int> <int>        <int>
-#> 1:          1566     1567      0     4            4
-#> 2:          1566     1568      4     8            4
-#> 3:          1566     1569      8    12            4
+][order(tstart), .(enrollment_period_id, trial_id, tstart, tstop, person_weeks)]
+#>    enrollment_period_id trial_id tstart tstop person_weeks
+#>                   <int>    <int>  <int> <int>        <int>
+#> 1:                 1566     1567      0     4            4
+#> 2:                 1566     1568      4     8            4
+#> 3:                 1566     1569      8    12            4
 ```
 
 ## Three instants, and they are three different weeks
@@ -177,33 +178,39 @@ tte_enroll(whole, tte_design())$data[
 A person-trial has three instants, and each answers a different
 question.
 
-The table shows the first two bands of the worked skeleton below.
+The table shows the first two enrollment periods of the worked skeleton
+below.
 
-| week index        | 6264  | 6265  | 6266  | 6267  | 6268     | 6269     | 6270     | 6271     |
-|-------------------|-------|-------|-------|-------|----------|----------|----------|----------|
-| band              | 1566  | 1566  | 1566  | 1566  | 1567     | 1567     | 1567     | 1567     |
-| role              | entry | entry | entry | entry | landmark | n/a      | n/a      | n/a      |
-| `[tstart, tstop)` | n/a   | n/a   | n/a   | n/a   | `[0, 1)` | `[1, 2)` | `[2, 3)` | `[3, 4)` |
+| week index        | 6264  | 6265  | 6266  | 6267  | 6268      | 6269     | 6270     | 6271     |
+|-------------------|-------|-------|-------|-------|-----------|----------|----------|----------|
+| enrollment period | 1566  | 1566  | 1566  | 1566  | 1567      | 1567     | 1567     | 1567     |
+| role              | entry | entry | entry | entry | time zero | n/a      | n/a      | n/a      |
+| `[tstart, tstop)` | n/a   | n/a   | n/a   | n/a   | `[0, 1)`  | `[1, 2)` | `[2, 3)` | `[3, 4)` |
 
-1.  The **recruiting week** is the earliest week of the entry band that
-    is both eligible and in an arm. swereg reads the confounders there.
-2.  The **entry band** is the window that classifies the arm. It
+1.  The **recruiting week** is the earliest week of the enrollment
+    period that is both eligible and in an arm. swereg reads the
+    confounders there.
+2.  The **enrollment period** is the window that classifies the arm. It
     contributes no follow-up.
-3.  The **landmark** is the week that closes the entry band. Follow-up
-    opens there, at `tstart == 0`.
+3.  **Time zero** opens follow-up, at `tstart == 0`.
 
-Band `b` covers week indices `b * period_width` to
-`(b + 1) * period_width - 1`. Its landmark sits at week index
-`(b + 1) * period_width`, which is the first week of band `b + 1`. Week
-indices are positions in
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome.
+
+Enrollment period `b` covers week indices `b * period_width` to
+`(b + 1) * period_width - 1`. Its time zero sits at week index
+`(b + 1) * period_width`, which is the first week of enrollment period
+`b + 1`. Week indices are positions in
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
 minus one. That is the scale `trial_id` reads.
 
-`entry_band_id` names the trial. `trial_id` names the follow-up band, so
-the first row of every person-trial holds
-`trial_id == entry_band_id + 1` and `tstart == 0`.
+`enrollment_period_id` names the trial. `trial_id` names the calendar
+period of the follow-up interval. The first row of every person-trial
+therefore holds `trial_id == enrollment_period_id + 1` and
+`tstart == 0`.
 
-### The recruiting week is not the first week of the entry band
+### The recruiting week is not the first week of the enrollment period
 
 EARLY is on the intervention in every week. LATE holds `NA` in weeks 1
 and 2, then starts in week 3. `age` rises by one each week, so the
@@ -219,19 +226,19 @@ three <- rbindlist(list(
 ))
 tte_enroll(three, tte_design())$data[
   id %chin% c("EARLY", "LATE", "CMP1") & tstart == 0
-][order(id), .(id, exposed, entry_band_id, trial_id, .tte_entry__age, age)]
+][order(id), .(id, exposed, enrollment_period_id, trial_id, .tte_entry__age, age)]
 #> Key: <id, trial_id>
-#>        id exposed entry_band_id trial_id .tte_entry__age   age
-#>    <char>  <lgcl>         <int>    <int>           <num> <num>
-#> 1:   CMP1   FALSE          1566     1567              51    55
-#> 2:  EARLY    TRUE          1566     1567              51    55
-#> 3:   LATE    TRUE          1566     1567              53    55
+#>        id exposed enrollment_period_id trial_id .tte_entry__age   age
+#>    <char>  <lgcl>                <int>    <int>           <num> <num>
+#> 1:   CMP1   FALSE                 1566     1567              51    55
+#> 2:  EARLY    TRUE                 1566     1567              51    55
+#> 3:   LATE    TRUE                 1566     1567              53    55
 ```
 
 `.tte_entry__age` holds 51 for EARLY and 53 for LATE. Week 1 gives 51
 and week 3 gives 53, so LATE is recruited in the week her treatment
 starts. The plain `age` column holds the time-updated value of the
-follow-up band, which is 55.
+follow-up interval, which is 55.
 
 Entry covariates are therefore read in the **same** week treatment
 starts for an initiator, and not strictly before it. The rule is
@@ -240,7 +247,7 @@ comparator never initiates. `$s2_ipw()` and `$table1()` read
 `.tte_entry__<v>`. `$s6_ipcw_pp()` reads the time-updated `<v>`, because
 censoring depends on what is true during follow-up.
 
-### Band boundaries are anchored to the calendar
+### Enrollment period boundaries are anchored to the calendar
 
 `trial_id` is `(week_index - 1) %/% period_width` over
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
@@ -248,13 +255,13 @@ which starts at ISO week `1900-01`. Two studies with different start
 dates share the same boundaries.
 
 ``` r
-band_of <- function(w) {
+period_of <- function(w) {
   (match(w, cstime::dates_by_isoyearweek$isoyearweek) - 1L) %/% PW
 }
 data.table(
   isoyearweek = weeks[1:8],
-  study_a_from_week_1 = band_of(weeks[1:8]),
-  study_b_from_week_3 = c(NA, NA, band_of(weeks[3:8]))
+  study_a_from_week_1 = period_of(weeks[1:8]),
+  study_b_from_week_3 = c(NA, NA, period_of(weeks[3:8]))
 )
 #>    isoyearweek study_a_from_week_1 study_b_from_week_3
 #>         <char>               <int>               <int>
@@ -269,28 +276,29 @@ data.table(
 ```
 
 Study B starts two weeks later and still breaks at the same week. Its
-first band holds two weeks rather than four.
+first enrollment period holds two weeks rather than four.
 
 ## The qualified population
 
-A person-band reaches the candidate table only when both statements hold
-at its landmark.
+A candidate person-trial qualifies only when both statements hold at its
+time zero.
 
-1.  The person is under observation at the landmark.
-2.  No outcome occurrence stops at or before the landmark.
+1.  The person is under observation at time zero.
+2.  No outcome occurrence stops at or before time zero.
 
 A week is a half-open interval, so an occurrence in week `w` stops at
-`w + 1`. Statement 2 therefore covers every week of the entry band, and
-every week before it.
+`w + 1`. Statement 2 therefore covers every week of the enrollment
+period, and every week before it.
 
 Statement 2 reads **every** column in `design$outcome_vars`, and not the
 one outcome a later step analyses. One enrollment serves several
 outcomes, so one enrolled set has to be event-free for all of them.
 
-Eligibility stays a baseline property. `.band_baseline_treatment()`
-assesses it on the entry band, and no step reads it again at the
-landmark. Reading it there would empty the intervention arm, because a
-new-user exclusion turns `eligible` off from the week after initiation.
+Eligibility stays a baseline property.
+`.enrollment_period_baseline_treatment()` assesses it on the enrollment
+period, and no step reads it again at time zero. Reading it there would
+empty the intervention arm, because a new-user exclusion turns
+`eligible` off from the week after initiation.
 
 ### The row-presence assertion, and what it assumes
 
@@ -316,10 +324,11 @@ forbidden, and
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 stops on a spec that declares neither form.
 
-### An outcome inside the entry band
+### An outcome inside the enrollment period
 
-W has the outcome in week 2 of her entry band and starts treatment in
-week 4 of the same band. K is the same woman without the outcome.
+W has the outcome in week 2 of her enrollment period and starts
+treatment in week 4 of the same enrollment period. K is the same woman
+without the outcome.
 
 ``` r
 qual <- rbindlist(list(
@@ -355,20 +364,21 @@ into the two arms.
 ### The comparator draw happens after qualification
 
 The draw is seeded incidence density sampling of qualified comparators,
-taken inside one entry band. Every qualified intervention person-band
-enrolls. The draw then takes `comparator_to_intervention_ratio` times
-that band’s count of intervention person-bands, or every remaining
-qualified comparator when the band holds fewer.
+taken inside one enrollment period. Every qualified intervention
+person-trial enrolls. The draw then takes
+`comparator_to_intervention_ratio` times that period’s count of
+qualified intervention person-trials, or every remaining qualified
+comparator when the enrollment period holds fewer.
 
-The sampling is stratified by the `period_width`-week entry band, and
-not by the week. Two individuals in one band enter up to
-`period_width - 1` weeks apart. The draw reads no other variable. It
-attaches no comparator to an intervention individual, so it forms no
-matched set. swereg adjusts for the remaining measured covariates
-afterwards, with inverse probability of treatment weights fitted on the
-confounders read at the recruiting week.
+The sampling is stratified by the `period_width`-week enrollment period,
+and not by the week. Two individuals in one enrollment period are
+recruited up to `period_width - 1` weeks apart. The draw reads no other
+variable. It attaches no comparator to an intervention individual, so it
+forms no matched set. swereg adjusts for the remaining measured
+covariates afterwards, with inverse probability of treatment weights
+fitted on the confounders read at the recruiting week.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
-states that weight model in section 1.4.
+states that weight model in section 1.8.1 (Treatment weights).
 
 Qualification runs after the arm classification and before the draw. The
 position is part of the rule. It runs after the classification, so
@@ -393,16 +403,17 @@ sort(unique(m$data$id))
 #> [1] "FC1" "FC2" "I1"
 ```
 
-CBAD has the outcome in week 2 of her entry band, so she cannot qualify.
-The draw returns two comparators for one initiator, and it takes both
-from the qualified pool. CBAD is not among them.
+CBAD has the outcome in week 2 of her enrollment period, so she cannot
+qualify. The draw returns two comparators for one initiator, and it
+takes both from the qualified pool. CBAD is not among them.
 
 ## Protocol deviation is read weekly
 
 `enroll()` reads the weekly `time_treatment_var` sequence, and writes
 one exact boundary into `weeks_to_protocol_deviation`. The decision is
-per week, not per band, so a woman’s verdict follows what she did. It
-does not follow where her weeks fall against the calendar grid.
+per week, not per follow-up interval, so a woman’s verdict follows what
+she did. It does not follow where her weeks fall against the calendar
+grid.
 
 An assessment is discordant when `time_treatment_var` does not hold the
 assigned arm of that person-trial. `NA` is discordant in both arms.
@@ -485,36 +496,56 @@ unique(tte_enroll(asym, tte_design(ik = 0L, ck = 3L))$data[
 ### Loss of observation is never tolerated
 
 An internal gap in the weekly sequence stops follow-up at the first
-absent week. No tolerance applies, because loss of observation is not
-discordance. The person may return in a later week. She is still
-censored at the gap.
+absent week, under both estimands. No tolerance applies, because loss of
+observation is not discordance. The person may return in a later week.
+She is still censored at the gap, and an outcome at or after the gap
+week never counts.
 
 ``` r
 gap <- rbindlist(list(
-  tte_person("GAP", rep(TRUE, n), absent_fu = 5L), tte_fillers()
+  tte_person("GAP", rep(TRUE, n), absent_fu = 5L, event_fu = 7L),
+  tte_fillers()
 ))
-unique(tte_enroll(gap, tte_design(ik = 3L))$data[
-  id == "GAP", .(id, weeks_to_protocol_deviation, weeks_to_record_end)
+gap_trial <- tte_enroll(gap, tte_design(ik = 3L))
+unique(gap_trial$data[
+  id == "GAP", .(id, weeks_to_observation_gap, weeks_to_protocol_deviation)
 ])
-#>        id weeks_to_protocol_deviation weeks_to_record_end
-#>    <char>                       <int>               <int>
-#> 1:    GAP                           4                  NA
+#>        id weeks_to_observation_gap weeks_to_protocol_deviation
+#>    <char>                    <int>                       <int>
+#> 1:    GAP                        4                          NA
+rbind(
+  data.table(estimand = "pp", tte_prepare(tte_enroll(gap, tte_design(ik = 3L)), "pp")[
+    id == "GAP", .(tstart, tstop, person_weeks, event)
+  ]),
+  data.table(estimand = "itt", tte_prepare(tte_enroll(gap, tte_design(ik = 3L)), "itt")[
+    id == "GAP", .(tstart, tstop, person_weeks, event)
+  ])
+)
+#>    estimand tstart tstop person_weeks event
+#>      <char>  <int> <int>        <int> <int>
+#> 1:       pp      0     4            4     0
+#> 2:      itt      0     4            4     0
 ```
 
 GAP is missing follow-up week 5 and holds every other week. Under a
-tolerance of 3 she still stops at week 4, the left edge of the absent
-week. Her `weeks_to_record_end` is `NA`, because her record reaches the
-end of the panel.
+tolerance of 3, her `weeks_to_observation_gap` is 4, the left edge of
+the absent week. Her `weeks_to_protocol_deviation` is `NA`, because the
+gap is not a deviation. Both estimands stop her at week 4. Her outcome
+in follow-up week 7 falls in the same follow-up interval as the gap, and
+it does not count.
 
-## The terminal band is clipped, and it is kept
+A plan saved before swereg 26.15.0 warns when it is read, because gaps
+cannot be detected in it.
 
-The panel is one row per person-trial-band. Nothing is expanded weekly.
-Every band before the boundary is complete follow-up, and the band that
-reaches the boundary carries the censoring.
+## The terminal follow-up interval is clipped, and it is kept
 
-`s5_prepare_outcome()` clips that band at the exact boundary and sets
-`person_weeks` to `tstop - tstart`. The row stays in the analysis data.
-It carries the exposure before the boundary and nothing after it.
+The panel is one row per person-trial interval. Nothing is expanded
+weekly. Every interval before the boundary is complete follow-up, and
+the interval that reaches the boundary carries the censoring.
+
+`s5_prepare_outcome()` clips that interval at the exact boundary and
+sets `person_weeks` to `tstop - tstart`. The row stays in the analysis
+data. It carries the exposure before the boundary and nothing after it.
 
 ``` r
 clip <- rbindlist(list(tte_person("EVENT7", rep(TRUE, n), event_fu = 7L), tte_fillers()))
@@ -528,12 +559,12 @@ tte_prepare(tte_enroll(clip, tte_design()))[
 ```
 
 EVENT7 has the outcome in follow-up week 7, which is the interval
-`[6, 7)`. Week 7 falls inside the band `[4, 8)`, so her terminal row
-stops at 7 and bills three weeks. The two rows bill 7 weeks in total,
-which is the boundary itself. Reading the boundary at the band stop
-would bill 8.
+`[6, 7)`. Week 7 falls inside the follow-up interval `[4, 8)`, so her
+terminal row stops at 7 and bills three weeks. The two rows bill 7 weeks
+in total, which is the boundary itself. Reading the boundary at the
+interval stop would bill 8.
 
-### A record that ends inside a band bills only the weeks present
+### A record that ends inside a follow-up interval bills only the weeks present
 
 ``` r
 gone <- rbindlist(list(tte_person("GONE", rep(TRUE, n), absent_fu = 11:12), tte_fillers()))
@@ -547,8 +578,8 @@ tte_prepare(tte_enroll(gone, tte_design()))[
 #> 3:      8    10            2     0            10
 ```
 
-GONE holds ten follow-up weeks and bills ten. The band-level read
-credited her with twelve, because it read the stop of the last band.
+GONE holds ten follow-up weeks and bills ten. The interval-level read
+credited her with twelve, because it read the stop of the last interval.
 
 ### The tie, and the priority order
 
@@ -559,8 +590,9 @@ three levels.
 2.  A protocol deviation and an observed loss come next.
 3.  An administrative end and a requested follow-up end come last.
 
-An event that stops in the deviation band wins that band. The row counts
-as an event and not as a censoring, and the deviation does not clip it.
+An event that stops in the deviation interval wins that interval. The
+row counts as an event and not as a censoring, and the deviation does
+not clip it. This exception never applies to a gap in observation.
 
 ``` r
 tie <- rbindlist(list(
@@ -599,16 +631,16 @@ bill 4 and 2, which is 6. The boundary took the `+ 1L` and the durations
 beside it did not.
 
 Neither the administrative end nor the requested follow-up end is
-rounded to a band boundary. A six-week requested follow-up stops at week
-six, including for a woman in a four-week band.
+rounded to an interval boundary. A six-week requested follow-up stops at
+week six, including for a woman with four-week follow-up intervals.
 
 ## The estimand
 
 ### The qualified population
 
-The population is every person-band that reaches its landmark `L` under
-observation and free of every enrollment outcome through `L`. The whole
-entry band must also classify it into an arm.
+The population is every candidate person-trial that reaches its time
+zero `L` under observation and free of every enrollment outcome before
+`L`. The whole enrollment period must also classify it into an arm.
 
 The comparator draw happens after that, so the ratio counts qualified
 people.
@@ -616,9 +648,9 @@ people.
 ### Intention-to-treat
 
 Among people who reach `L` alive, event-free and under observation,
-compare those the entry band classified as initiators against those it
-classified as comparators. Follow-up runs from `L`. Later treatment
-changes do not enter.
+compare those the enrollment period classified as initiators against
+those it classified as comparators. Follow-up runs from `L`. Later
+treatment changes do not enter.
 
 ### Per-protocol
 
@@ -669,9 +701,10 @@ no single change was made in isolation.
 ## Limitations
 
 - **The censoring approximation is compressed.** The panel is one row
-  per band, so the censoring model reads a band and not a week. A
-  boundary inside a band is exact in the person-time, and the censoring
-  probability that covers it is still a band-level quantity.
+  per follow-up interval, so the censoring model reads an interval and
+  not a week. A boundary inside an interval is exact in the person-time,
+  and the censoring probability that covers it is still an
+  interval-level quantity.
 - **Within-week ordering is unidentifiable.** A week is the finest
   resolution the source data carries. Two things in one week have no
   order, and swereg resolves them at the weekly right boundary by
@@ -679,21 +712,24 @@ no single change was made in isolation.
 - **Timing is weekly, and not date-level.** A registry date is known to
   the day. The skeleton is a person-week grid, so every boundary rounds
   to a week.
-- **Trials still open every `period_width` weeks.** The landmark removes
-  the within-band immortal time. It does not make the trial grid finer,
-  so a person who becomes eligible mid-band waits for the next band.
+- **Trials still open every `period_width` weeks.** Time zero after the
+  enrollment period removes the immortal time inside it. It does not
+  make the trial grid finer, so a person who becomes eligible inside an
+  enrollment period waits until its time zero.
 - **The estimand is now landmark-survivor.** It conditions on reaching
-  `L`. People who die or have the outcome inside the entry band are not
-  in the population. The estimate says nothing about them (Dafni 2011).
+  `L`. People who die or have the outcome inside the enrollment period
+  are not in the population. The estimate says nothing about them (Dafni
+  2011).
 - **The censoring model carries no adherence history.** It reads the
-  time-updated confounders, the band start and the trial index. It
-  carries no lagged treatment term, so a person whose adherence has been
-  failing for months looks like one who fails for the first time.
+  time-updated confounders, the start of the follow-up interval and its
+  calendar period. It carries no lagged treatment term, so a person
+  whose adherence has been failing for months looks like one who fails
+  for the first time.
 - **swereg implements no grace period.** A grace period allows
   initiation within a fixed window after assignment without counting it
   as a deviation, and it requires cloning, censoring and weighting
-  (Hernán 2018; Maringe 2020). `period_width` gives within-band slack
-  for the timing of initiation at enrollment, and nothing else.
+  (Hernán 2018; Maringe 2020). `period_width` gives slack for the timing
+  of initiation inside the enrollment period, and nothing else.
 
 ## References
 
@@ -743,18 +779,18 @@ particular threshold”.
 
 **Anderson JR, Cain KC, Gelber RD. Analysis of survival by tumor
 response. J Clin Oncol. 1983;1(11):710-719.** DOI
-10.1200/JCO.1983.1.11.710. PMID 6668489. The origin of the landmark
-method. “The usual method of comparing responders and nonresponders is
+10.1200/JCO.1983.1.11.710. PMID 6668489. The origin of the method that
+classifies response at a fixed time and analyses survival from that
+time. “The usual method of comparing responders and nonresponders is
 biased in favor of responders, and these results are frequently
 misinterpreted as providing evidence that response prolongs survival.”
 
 **Dafni U. Landmark analysis at the 25-year landmark point. Circ
 Cardiovasc Qual Outcomes. 2011;4(3):363-371.** DOI
 10.1161/CIRCOUTCOMES.110.957951. PMID 21586725. The conditional reading
-of a landmark estimand. “The goal of the landmark method is to estimate
-in an unbiased way the time-to-event probabilities in each group
-conditional on the group membership of patients at a specific time
-point, the landmark time.”
+of a landmark-survivor estimand. The method estimates the time-to-event
+probabilities of each group “conditional on the group membership of
+patients at a specific time point”.
 
 **Maringe C, Benitez Majano S, Exarchakou A, et al. Reflection on modern
 methods: trial emulation in the presence of immortal-time bias. Int J

@@ -362,8 +362,8 @@ refuses the entry in these cases:
 - The entry is in `inclusion_criteria$criteria`.
 
 The range limits trial registration only, and follow-up continues past
-`max`. A 4-week band that crosses `min` or `max` recruits only from its
-weeks inside the range.
+`max`. A 4-week enrollment period that crosses `min` or `max` recruits
+only from its weeks inside the range.
 
 An enrollment takes at most one `age_range`. Every `age_range` writes
 the one column `eligible_age`, so a second entry would replace the

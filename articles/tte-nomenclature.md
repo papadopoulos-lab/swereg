@@ -45,7 +45,7 @@ which is TTE.
 One iteration per `enrollment_id`. Run by
 `plan$s1_generate_enrollments_and_ipw()`:
 
-    skeleton files ──(parallel worker subprocesses)──► enroll (band-based draw + collapse)
+    skeleton files ──(parallel worker subprocesses)──► enroll (draw per enrollment period + collapse)
       ──► rbind ──► impute ──► IPW + truncate ──► save
 
 Produces two files per enrollment_id:
@@ -107,26 +107,29 @@ per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
 intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side
 by side (and as separate forest plots) in the exported tables.
 
-## Enrollment band width
+## Enrollment period width
 
 The `period_width` parameter in `TTEDesign` (default: 4 weeks) sets the
-width of an enrollment band. The input is a person-week skeleton, so
-eligibility and treatment status are assessed weekly. `period_width`
-then groups consecutive weeks into bands, and each band opens exactly
-one trial. With `period_width = 4`, one trial opens every four weeks,
-and not one trial per week.
+width of an enrollment period. The same width sets each follow-up
+interval. The input is a person-week skeleton, so eligibility and
+treatment status are assessed weekly. `period_width` then groups
+consecutive weeks into enrollment periods, and each enrollment period
+opens exactly one trial. With `period_width = 4`, one trial opens every
+four weeks, and not one trial per week.
 
-Time zero is the landmark, the week that closes the entry band. A person
-must reach that week under observation and free of every enrollment
-outcome to enter the trial. The entry band therefore carries no
-follow-up and no within-band immortal time. `period_width` therefore
-trades the number of trials against how long a newly eligible person
-waits:
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome. The enrollment period
+therefore carries no follow-up and no immortal time. `period_width`
+therefore trades the number of trials against how long a newly eligible
+person waits:
 
-- **Narrower bands** (e.g., `period_width = 1`): a person waits at most
-  one week for a trial, at the cost of more trials and a larger dataset.
-- **Wider bands** (e.g., `period_width = 4`): fewer trials and lower
-  computational cost, at the cost of a wait of up to four weeks.
+- **Narrower enrollment periods** (e.g., `period_width = 1`): a person
+  waits at most one week for a trial. The cost is more trials and a
+  larger dataset.
+- **Wider enrollment periods** (e.g., `period_width = 4`): fewer trials
+  and lower computational cost, at the cost of a wait of up to four
+  weeks.
 
 Caniglia et al. (2023) report a residual immortal time under a different
 time origin. They set time zero to the first day of the enrollment week
@@ -141,8 +144,8 @@ and define exposure over that whole week:
 > immortal time bias.”
 
 That residual is a property of a time origin that opens before
-classification ends. swereg opens follow-up at the landmark instead, so
-a shorter band does not reduce it. See
+classification ends. swereg opens follow-up at time zero instead, so a
+shorter enrollment period does not reduce it. See
 [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md)
 for the timing rules and worked examples.
 
@@ -150,8 +153,8 @@ swereg implements no grace period. A grace period allows initiation
 within a fixed window after assignment, and does not count that
 initiation as a deviation. It requires cloning, censoring and weighting
 (Hernan 2016, Section 4.4), which this pipeline does not do.
-`period_width` gives within-band slack for the timing of initiation at
-enrollment only. Deviation after the entry band censors per-protocol
+`period_width` gives slack only for the timing of initiation inside the
+enrollment period. Deviation after time zero censors per-protocol
 follow-up at the right edge of the first discordant run that exceeds the
 arm’s tolerance. See
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
@@ -160,28 +163,30 @@ for the same statement, mapped to the reference papers.
 Set `period_width = 1` when the protocol defines treatment at a single
 time point. Set it wider when initiation is gradual.
 
-Band boundaries are anchored to a fixed calendar origin, not to the
-first observed week of a study. swereg numbers the rows of
+Enrollment period boundaries are anchored to a fixed calendar origin,
+not to the first observed week of a study. swereg numbers the rows of
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
 which starts at ISO week `1900-01`, then assigns
 `trial_id = (week_index - 1) %/% period_width`. Two studies with
-different start dates therefore share the same band boundaries.
+different start dates therefore share the same enrollment period
+boundaries.
 
 ## The comparator draw
 
 swereg uses **incidence density sampling** within each sequential trial.
-Within each enrollment band, it takes a seeded random sample of
+Within each enrollment period, it takes a seeded random sample of
 comparator individuals. The sample size is the stated
 comparator-to-intervention ratio, for example 5:1, applied to that
-band’s count of intervention individuals. Where the band holds fewer
-comparators than that, the draw takes all of them. The draw is therefore
-stratified by the `period_width`-week entry band, and not by the week.
-It reads no other variable. It attaches no comparator individual to an
-intervention individual, so it forms no matched set, and no later step
-conditions on one. A person can be an intervention individual in one
-trial and a comparator individual in another. That property is what
-names the draw incidence density sampling. It is a design choice for
-computational efficiency on a large registry dataset.
+period’s count of intervention individuals. Where the enrollment period
+holds fewer comparators than that, the draw takes all of them. The draw
+is therefore stratified by the `period_width`-week enrollment period,
+and not by the week. It reads no other variable. It attaches no
+comparator individual to an intervention individual, so it forms no
+matched set, and no later step conditions on one. A person can be an
+intervention individual in one trial and a comparator individual in
+another. That property is what names the draw incidence density
+sampling. It is a design choice for computational efficiency on a large
+registry dataset.
 
 Alternative approaches described in the literature:
 

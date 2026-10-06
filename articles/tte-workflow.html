@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,7 +52,7 @@
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -146,13 +146,12 @@ Corrected with baseline confounder adjustment, typically via inverse
 probability of treatment weighting (IPW).</p></li>
 <li><p><strong>Time zero is not well-defined</strong> – in a trial, time
 zero is the moment of randomization. In observational data there is no
-such moment, so you have to define one. swereg uses <em>band-based
-enrollment</em>: each band of <code>period_width</code> weeks opens one
-trial. The band classifies the arm. Time zero is the
-<strong>landmark</strong>, the week that closes the band. A person
-enters only if she reaches the landmark under observation and free of
-every enrollment outcome. See
-<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
+such moment, so you have to define one. swereg uses <em>enrollment
+periods</em>: each enrollment period of <code>period_width</code> weeks
+opens one trial, and it classifies the arm. Time zero is a landmark: the
+first week after the enrollment period closes. A person enters the trial
+only if they reach that week under observation and free of every
+enrollment outcome. See <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
 <li><p><strong>Follow-up is informatively truncated</strong> – people
 drop out of observation (emigration, death, end of data) in ways that
 depend on their baseline or time-varying characteristics. Corrected with
@@ -213,24 +212,26 @@ panel, with one row per person per trial per time period.
 <code>tstop</code> columns appear here. This is the form IPW and IPCW-PP
 estimation operates on.</li>
 </ul>
-<p>Enrollment itself is the per-band comparator draw. Within each
-<code>period_width</code>-week band, swereg takes
-<code>comparator_to_intervention_ratio</code> times that band’s count of
-initiators. Where the band holds fewer comparators than that, swereg
-takes all of them. The draw is seeded incidence density sampling. It is
-stratified by the <code>period_width</code>-week entry band, and not by
-the week. It reads no other variable, and it attaches no comparator to
-an initiator, so it forms no matched set. swereg reads only the weeks of
-a band in which the person is eligible and the treatment column holds
-<code>TRUE</code> or <code>FALSE</code>. A person is an initiator when
-at least one of those weeks holds <code>TRUE</code>. A person is a
-comparator when all of those weeks hold <code>FALSE</code>. swereg drops
-the remaining weeks first, so an <code>NA</code> week does not stop a
-comparator classification. A person-band with no such week is
-ineligible, and enters neither arm. See
-<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> for the full statement of that
-rule. The draw is a computational shortcut compared to full cloning –
-see <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
+<p>Enrollment itself is the comparator draw in each enrollment period.
+Within each <code>period_width</code>-week enrollment period, swereg
+takes <code>comparator_to_intervention_ratio</code> times that period’s
+count of initiators. Where the enrollment period holds fewer comparators
+than that, swereg takes all of them. The draw is seeded incidence
+density sampling. It is stratified by the <code>period_width</code>-week
+enrollment period, and not by the week. It reads no other variable, and
+it attaches no comparator to an initiator, so it forms no matched set.
+swereg reads only the weeks of an enrollment period in which the person
+is eligible and the treatment column holds <code>TRUE</code> or
+<code>FALSE</code>. A person is an initiator when at least one of those
+weeks holds <code>TRUE</code>. A person is a comparator when all of
+those weeks hold <code>FALSE</code>. swereg drops the remaining weeks
+first, so an <code>NA</code> week does not stop a comparator
+classification. A candidate person-trial with no such week is ineligible
+for that trial, and enters neither arm. See
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, section 1.3 (Assignment
+procedures), for the full statement of that rule. The draw is a
+computational shortcut compared to full cloning – see
+<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
 </div>
 <div class="section level4">
 <h4 id="tteplan-the-ett-grid-builder">TTEPlan: the ETT grid builder<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-builder"></a>
@@ -471,7 +472,7 @@ that classifies treatment, which is <code>rd_statin_status</code> here,
 a string column holding values such as <code>"initiated"</code> and
 <code>"not_initiated"</code>. It also names the value that counts as the
 intervention arm, the value that counts as the comparator, and the
-per-band sampling ratio.</p>
+comparator sampling ratio.</p>
 </div>
 </div>
 <div class="section level3">

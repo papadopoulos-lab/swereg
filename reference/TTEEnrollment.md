@@ -10,9 +10,10 @@ The `data_level` property controls which methods are available:
 - `"person_week"`: Data has one row per person per time unit. Pass
   `ratio` to the constructor to enroll and transition to trial level.
 
-- `"trial"`: Data has been expanded to trial panels (band-level).
-  Methods `$s2_ipw()`, `$s4_prepare_for_analysis()`, and
-  `$s3_truncate_weights()` require this level.
+- `"trial"`: Data has been expanded to trial panels, one row per
+  person-trial interval. Methods `$s2_ipw()`,
+  `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require
+  this level.
 
 Enrollment (the comparator draw + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing `ratio` to
@@ -20,42 +21,47 @@ the constructor.
 
 `.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes what a
 stored field means, or adds a field its readers need. swereg 26.10.19
-raised it to `4L`. 26.10.18 and every earlier release wrote a lower
-number, so the check refuses every object they left on disk. Schema 4
-stores the fill summary in `fill_summary` and the propensity-model
-diagnostics in `ps_fit`, and this release reads both.
+raised it to `4L`. Schema 4 stores the fill summary in `fill_summary`
+and the propensity-model diagnostics in `ps_fit`, and this release reads
+both. swereg 26.15.0 raised it to `5L`, which gives the panel column
+`enrollment_period_id` its current name.
+[`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+migrates a schema-4 object to schema 5 before this check runs. The check
+refuses every object below schema 4.
 
 ## Baseline treatment
 
 The input is a person-week skeleton, so eligibility and treatment status
-are assessed weekly. `period_width` collapses consecutive weeks into
-bands, and each band opens one trial.
+are assessed weekly. `period_width` groups consecutive weeks into
+enrollment periods, and each enrollment period opens one trial.
 
-swereg reads only the weeks of a band that are eligible and hold `TRUE`
-or `FALSE` in the treatment column. It drops every other week of the
-band first, and then applies three rules.
+swereg reads only the weeks of an enrollment period that are eligible
+and hold `TRUE` or `FALSE` in the treatment column. It drops every other
+week of the enrollment period first, and then applies three rules.
 
 - A person is an initiator when at least one week it reads holds `TRUE`.
 
 - A person is a comparator when every week it reads holds `FALSE`.
 
-- A person-band with no such week is ineligible, and enters neither arm.
+- A candidate person-trial with no such week is ineligible, and enters
+  neither arm.
 
 The drop comes first, so an `NA` week does not stop a comparator
-classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a
-comparator band.
+classification. An enrollment period of `FALSE`, `NA`, `FALSE`, `FALSE`
+gives a comparator.
 
-Time zero is the landmark, which is the first week of the band AFTER the
-entry band. The panel therefore starts one band after the entry band,
-and the entry band carries no follow-up. `entry_band_id` names the trial
-and `trial_id` names the follow-up band.
+Follow-up starts at time zero, which the interval convention section
+below defines. The panel therefore starts one follow-up interval after
+the enrollment period, and the enrollment period carries no follow-up.
+`enrollment_period_id` names the trial and `trial_id` names the
+follow-up interval.
 
 Each confounder reaches the panel twice. The `.tte_entry__<v>` column
 holds its value at the recruiting week, and `<v>` holds the time-updated
-value of the follow-up band. `$s2_ipw()` and `$table1()` read the entry
-column. `$s1b_fill_followup_confounders()` fills a missing `<v>` from
-the last observed value of the same person-trial, seeded from the entry
-column. See
+value of the follow-up interval. `$s2_ipw()` and `$table1()` read the
+entry column. `$s1b_fill_followup_confounders()` fills a missing `<v>`
+from the last observed value of the same person-trial, seeded from the
+entry column. See
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 for the full rule and
 [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
@@ -120,8 +126,8 @@ execution order):**
 
 - `$risk_difference(weight_col, n_boot, seed, conf_level)`:
 
-  Signed cause-specific risk difference per band, with a percentile
-  bootstrap interval resampled at the person level
+  Signed cause-specific risk difference at each distinct stop time, with
+  a percentile bootstrap interval resampled at the person level
 
 **Active bindings:**
 
@@ -132,19 +138,25 @@ execution order):**
 
 ## The interval convention
 
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome. Follow-up starts
+there.
+
 Every interval is `[tstart, tstop)`. The stop is exclusive. The person
 leaves the risk set at `tstop`, and the row holds no part of that week.
 
 Every duration is `tstop - tstart`. It never adds one. Three complete
-four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands
-bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+four-week follow-up intervals span `[0, 12)`. That is 12 person-weeks,
+and the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5
+and 5.
 
 Every `weeks_to_*` column is a boundary on the same scale, counted from
-the landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each
-name the first week the person no longer contributes. A
-`weeks_to_record_end` of 9 means the person held follow-up weeks 1 to 9
-and bills 9 person-weeks.
+time zero at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end`, `weeks_to_record_end` and
+`weeks_to_observation_gap` each name the first week the person no longer
+contributes. A `weeks_to_record_end` of 9 means the person held
+follow-up weeks 1 to 9 and bills 9 person-weeks.
 
 The `+ 1` belongs to the inclusive convention, where weeks 1 through 4
 is `4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in
@@ -154,7 +166,7 @@ wrong denominator, so swereg MUST read every stop as exclusive.
 One place adds a week, and it converts a calendar reading into a stop.
 `admin_censor_isoyearweek` names the last week under study, and
 [`difftime()`](https://rdrr.io/r/base/difftime.html) returns the whole
-weeks between that week and the landmark week. The stop is one week
+weeks between that week and the time-zero week. The stop is one week
 later, because the person holds the whole of the administrative week.
 
 `tests/testthat/test-interval-convention.R` pins each of the five
@@ -165,7 +177,7 @@ boundaries.
 [TTEDesign](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md)
 for design class.
 [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
-for the enrollment band vocabulary.
+for the enrollment period vocabulary.
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
@@ -205,9 +217,9 @@ Other tte_classes:
 
 - `landmark_attrition`:
 
-  A data.table or NULL. It reports why landmark qualification dropped
-  each candidate person-band, by criterion and by arm. Its columns are
-  `trial_id`, `criterion`, `n_persons`, `n_person_trials`,
+  A data.table or NULL. It reports why the time-zero qualification
+  dropped each candidate person-trial, by criterion and by arm. Its
+  columns are `trial_id`, `criterion`, `n_persons`, `n_person_trials`,
   `n_intervention` and `n_comparator`. The row with `trial_id = NA`
   covers the whole cohort. The three criteria are `landmark_candidates`,
   `landmark_observed` and `landmark_event_free`, and each count is
@@ -328,10 +340,10 @@ from survey weights, and `svyglm` scales to large registry datasets
 This is computationally equivalent to the pooled logistic approach used
 by Danaei et al. (2013).
 
-**Calendar-time adjustment**: When `trial_id` is present in the data
-(from band-based enrollment), it is included in the model to adjust for
-calendar-time variation in outcome rates across enrollment bands
-(Caniglia 2023, Danaei 2013). Uses natural splines for \>=5 unique trial
+**Calendar-time adjustment**: When `trial_id` is present in the data,
+the model adjusts for calendar-time variation in outcome rates (Caniglia
+2023, Danaei 2013). In the panel, `trial_id` indexes the calendar period
+of each follow-up interval. Uses natural splines for \>=5 unique trial
 IDs, linear term for 2-4, omitted for 1.
 
 **Estimand (marginal)**: confounding is removed by the supplied
@@ -367,7 +379,8 @@ Test for heterogeneity of treatment effects across trials.
 
 Fits a model with a `trial_id x treatment` interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
-across enrollment bands (Hernan 2008, Danaei 2013).
+across the calendar periods that `trial_id` indexes (Hernan 2008, Danaei
+2013).
 
 #### Usage
 
@@ -544,7 +557,7 @@ are returned. `at_risk` is the weighted risk set, `sum(w)`, and is the
 denominator of the hazard. `n_persons_at_risk` is an unweighted count of
 distinct people, taken over `design$person_id_var`, and is the number a
 risk table under a survival panel reports. It is not a row count: the
-panel holds one row per person-trial-band and a person contributes
+panel holds one row per person-trial interval and a person contributes
 several sequential trials, so rows exceed people. `$rates()` reports the
 same idea at whole-arm grain under the name `n_persons`; the two names
 differ because the grain differs.
@@ -553,8 +566,8 @@ differ because the grain differs.
 
 ### `TTEEnrollment$risk_difference()`
 
-Signed cause-specific risk difference at each band, with a percentile
-bootstrap interval resampled at the person level.
+Signed cause-specific risk difference at each follow-up interval, with a
+percentile bootstrap interval resampled at the person level.
 
 The two arm-specific curves are the ones `$survival_curve()` builds,
 from the same weighted discrete-time hazard, so the point estimate here
@@ -577,8 +590,9 @@ comparator in an early trial and an initiator in a later one, and a
 separate draw per arm would discard the covariance between the two arms
 and bias the interval while leaving the point estimate untouched.
 
-A replicate that draws no person for an arm, or that empties a band,
-yields `NA` for that band and onwards. The percentile step drops those.
+A replicate that draws no person for an arm, or that empties a stop
+time, yields `NA` at that stop time and every later one. The percentile
+step drops those.
 
 A zero-event arm gets no interval. When either arm has no
 positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
@@ -588,7 +602,7 @@ every replicate assigns that arm a failure risk of exactly zero. The
 percentiles then describe the other arm alone, which is
 anti-conservative, and more replicates do not repair it. The condition
 is evaluated per horizon and per arm, on the events up to and including
-that band.
+that stop time.
 
 Deaths are censored, not modelled as a competing risk, so this is a
 cause-specific risk difference under independent censoring, not a
@@ -625,10 +639,10 @@ competing-risk one.
 
 #### Returns
 
-A data.table with one row per band and columns `tstop` (named after
-`design$tstop_var`), `surv_comparator`, `surv_intervention`, `rd`,
-`rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
-`n_persons_with_event_comparator` and
+A data.table with one row per distinct stop time of the panel rows, and
+columns `tstop` (named after `design$tstop_var`), `surv_comparator`,
+`surv_intervention`, `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`,
+`nnt_direction`, `n_persons_with_event_comparator` and
 `n_persons_with_event_intervention`.
 
 `interval_status` takes one of three values. `"ok"` means the interval
@@ -641,18 +655,19 @@ spans the null from one that does not exist.
 reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
 decision every formatter reads. No formatter re-derives the direction
 from a sign, so a figure and a results sheet cannot disagree about one
-band.
+stop time.
 
 The two event columns count distinct PEOPLE who had the outcome at or
-before that band, in that arm. They are deliberately not row counts and
-not person-trial counts: the panel holds one row per person-trial-band,
-and one woman can carry the event in two of her sequential trials, which
-is one person who had the outcome. `$rates()` and `$summary()` report
-the event ROW count instead, and on real data the two numbers differ.
+before that stop time, in that arm. They are deliberately not row counts
+and not person-trial counts: the panel holds one row per person-trial
+interval, and one woman can carry the event in two of her sequential
+trials, which is one person who had the outcome. `$rates()` and
+`$summary()` report the event ROW count instead, and on real data the
+two numbers differ.
 
 The replicate matrix the interval was read off is attached as the
-`rd_boot` attribute (`n_boot` rows by one column per band), alongside
-`conf_level` and `n_boot`.
+`rd_boot` attribute (`n_boot` rows by one column per stop time),
+alongside `conf_level` and `n_boot`.
 
 ------------------------------------------------------------------------
 
@@ -810,7 +825,7 @@ Create a new TTEEnrollment object.
   Numeric or NULL. If provided, automatically enrolls participants
   (sampling comparison group and creating trial panels). Only valid for
   person_week data. The Baseline treatment section of TTEEnrollment
-  states the rule that decides the arm of each person-band.
+  states the rule that decides the arm of each candidate person-trial.
 
 - `seed`:
 
@@ -870,9 +885,11 @@ stops when the object carries an older schema.
 Step 4: Prepare the outcome/analysis dataset for one estimand. For
 `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
 `$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
-in ITT mode, which never censors at treatment switching. ITT skips IPCW,
-because baseline IPW alone is the valid ITT weight. This is the
-recommended way to prepare an enrollment for analysis.
+in ITT mode, which never censors at treatment switching. ITT follow-up
+stops at the first absent week after time zero, as PP follow-up does. An
+outcome at or after that week is never counted, under either estimand.
+ITT skips IPCW, because baseline IPW alone is the valid ITT weight. This
+is the recommended way to prepare an enrollment for analysis.
 
 The censoring row stays in `self$data`, and it carries only the exposure
 before its boundary. `s5_prepare_outcome()` clips that row at the exact
@@ -883,10 +900,12 @@ treatment. Releases before 26.9.0 deleted the row instead, which threw
 away every valid week it held.
 
 Event-priority convention: an outcome event that stops in the deviation
-band wins. The row then counts as an event and not as a censoring. The
-deviation does not clip it, `censor_this_period` is 0, and the censoring
-model does not treat it as censored (since 26.7.3). The row still stops
-at the exact event week, which can fall inside the band.
+follow-up interval wins. The row then counts as an event and not as a
+censoring. The deviation does not clip it, `censor_this_period` is 0,
+and the censoring model does not treat it as censored (since 26.7.3).
+The row still stops at the exact event week, which can fall inside the
+follow-up interval. The convention applies to a treatment deviation
+only, and never to an observation gap.
 
 #### Usage
 
@@ -912,8 +931,9 @@ at the exact event week, which can fall inside the band.
 - `estimand`:
 
   Character, `"pp"` (per-protocol, default) or `"itt"`
-  (intention-to-treat). ITT keeps follow-up through treatment switching
-  and uses baseline IPW only (no IPCW); analyse it with
+  (intention-to-treat). ITT keeps follow-up through treatment switching,
+  and it censors at the first absent week after time zero. It uses
+  baseline IPW only (no IPCW); analyse it with
   `$irr(weight_col = "ipw_trunc")`.
 
 - `estimate_ipcw_pp_separately_by_treatment`:
@@ -1050,7 +1070,7 @@ design <- TTEDesign$new(
   eligible_var = "eligible"
 )
 
-# Enroll via constructor (band-based), then $-chain
+# Enroll via constructor (by enrollment period), then $-chain
 enrollment <- TTEEnrollment$new(my_skeleton, design,
   ratio = 2, seed = 4, extra_cols = "isoyearweek"
 )

@@ -22,7 +22,7 @@
 
 ### TTE reference
 
-- [TTE timing: intervals, the landmark, and the
+- [TTE timing: intervals, time zero, and the
   estimand](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md):
 - [Target trial emulation
   nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):

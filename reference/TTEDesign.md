@@ -4,26 +4,33 @@ Holds column name mappings that define the schema for trial data. This
 allows specifying variable names once and reusing them across all TTE
 workflow functions.
 
-swereg 26.9.0 moved time zero to the landmark. A `tstart == 0` row of a
-schema-2 object is an entry band row, and a 26.9.0 reader takes it for a
-landmark row. The check refuses the object, so that reinterpretation
-cannot happen in silence.
+swereg 26.9.0 moved time zero to the first week after the enrollment
+period. A `tstart == 0` row of a schema-2 object is a row of the
+enrollment period. A 26.9.0 reader takes it for a time-zero row. The
+check refuses the object, so that reinterpretation cannot happen in
+silence.
 
 ## The interval convention
+
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome. Follow-up starts
+there.
 
 Every interval is `[tstart, tstop)`. The stop is exclusive. The person
 leaves the risk set at `tstop`, and the row holds no part of that week.
 
 Every duration is `tstop - tstart`. It never adds one. Three complete
-four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands
-bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+four-week follow-up intervals span `[0, 12)`. That is 12 person-weeks,
+and the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5
+and 5.
 
 Every `weeks_to_*` column is a boundary on the same scale, counted from
-the landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each
-name the first week the person no longer contributes. A
-`weeks_to_record_end` of 9 means the person held follow-up weeks 1 to 9
-and bills 9 person-weeks.
+time zero at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end`, `weeks_to_record_end` and
+`weeks_to_observation_gap` each name the first week the person no longer
+contributes. A `weeks_to_record_end` of 9 means the person held
+follow-up weeks 1 to 9 and bills 9 person-weeks.
 
 The `+ 1` belongs to the inclusive convention, where weeks 1 through 4
 is `4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in
@@ -33,7 +40,7 @@ wrong denominator, so swereg MUST read every stop as exclusive.
 One place adds a week, and it converts a calendar reading into a stop.
 `admin_censor_isoyearweek` names the last week under study, and
 [`difftime()`](https://rdrr.io/r/base/difftime.html) returns the whole
-weeks between that week and the landmark week. The stop is one week
+weeks between that week and the time-zero week. The stop is one week
 later, because the person holds the whole of the administrative week.
 
 `tests/testthat/test-interval-convention.R` pins each of the five
@@ -44,7 +51,7 @@ boundaries.
 [TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
 for the trial class.
 [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
-for the enrollment band vocabulary.
+for the enrollment period vocabulary.
 
 Other tte_classes:
 [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
@@ -63,8 +70,8 @@ Other tte_classes:
 - `treatment_var`:
 
   Character, treatment column name. Enrollment reads every eligible week
-  of the entry band, not only its first week. See the Baseline treatment
-  section of TTEEnrollment for the full rule.
+  of the enrollment period, not only its first week. See the Baseline
+  treatment section of TTEEnrollment for the full rule.
 
 - `outcome_vars`:
 
@@ -125,11 +132,13 @@ Other tte_classes:
 
 - `period_width`:
 
-  Integer, band width in weeks for enrollment and aggregation.
-  Eligibility and treatment status are assessed weekly. `period_width`
-  collapses consecutive weeks into bands, and each band opens exactly
-  one trial. Initiation in any week of a band is attributed to the start
-  of that band.
+  Integer, the width in weeks of the enrollment period. The same width
+  sets each follow-up interval. Eligibility and treatment status are
+  assessed weekly. `period_width` groups consecutive weeks into
+  enrollment periods, and each enrollment period opens exactly one
+  trial. Initiation in any week of an enrollment period enrolls the
+  person in that period's trial. Follow-up starts at time zero, which
+  the interval convention section defines.
 
 ## Methods
 
@@ -193,8 +202,8 @@ Create a new TTEDesign object.
 
   Character, name of the baseline treatment column. It holds `TRUE` for
   the intervention arm, `FALSE` for the comparator arm, and `NA` outside
-  the two arms. Enrollment reads every eligible week of the entry band,
-  not only its first week. See the Baseline treatment section of
+  the two arms. Enrollment reads every eligible week of the enrollment
+  period, not only its first week. See the Baseline treatment section of
   TTEEnrollment for the full rule.
 
 - `outcome_vars`:
@@ -272,13 +281,15 @@ Create a new TTEDesign object.
 
 - `period_width`:
 
-  Integer, band width in weeks for enrollment and time aggregation
-  (default: 4L). The input is a person-week skeleton, so eligibility and
-  treatment status are assessed weekly. `period_width` then collapses
-  consecutive weeks into bands, and each band opens exactly one trial.
-  With `period_width = 4L`, one trial opens every four weeks, not one
-  trial per week. Initiation in any week of a band is attributed to the
-  start of that band. Must be a positive integer.
+  Integer, the width in weeks of the enrollment period (default: 4L).
+  The same width sets each follow-up interval. The input is a
+  person-week skeleton, so eligibility and treatment status are assessed
+  weekly. `period_width` then groups consecutive weeks into enrollment
+  periods, and each enrollment period opens exactly one trial. With
+  `period_width = 4L`, one trial opens every four weeks, not one trial
+  per week. Initiation in any week of an enrollment period enrolls the
+  person in that period's trial. Follow-up starts at time zero, which
+  the interval convention section defines. Must be a positive integer.
 
 ------------------------------------------------------------------------
 

@@ -50,11 +50,12 @@ observational analyses suffer which randomized trials do not:
 
 2.  **Time zero is not well-defined** – in a trial, time zero is the
     moment of randomization. In observational data there is no such
-    moment, so you have to define one. swereg uses *band-based
-    enrollment*: each band of `period_width` weeks opens one trial. The
-    band classifies the arm. Time zero is the **landmark**, the week
-    that closes the band. A person enters only if she reaches the
-    landmark under observation and free of every enrollment outcome. See
+    moment, so you have to define one. swereg uses *enrollment periods*:
+    each enrollment period of `period_width` weeks opens one trial, and
+    it classifies the arm. Time zero is a landmark: the first week after
+    the enrollment period closes. A person enters the trial only if they
+    reach that week under observation and free of every enrollment
+    outcome. See
     [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md).
 
 3.  **Follow-up is informatively truncated** – people drop out of
@@ -110,23 +111,25 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
   `tstart` / `tstop` columns appear here. This is the form IPW and
   IPCW-PP estimation operates on.
 
-Enrollment itself is the per-band comparator draw. Within each
-`period_width`-week band, swereg takes
-`comparator_to_intervention_ratio` times that band’s count of
-initiators. Where the band holds fewer comparators than that, swereg
-takes all of them. The draw is seeded incidence density sampling. It is
-stratified by the `period_width`-week entry band, and not by the week.
-It reads no other variable, and it attaches no comparator to an
-initiator, so it forms no matched set. swereg reads only the weeks of a
-band in which the person is eligible and the treatment column holds
-`TRUE` or `FALSE`. A person is an initiator when at least one of those
-weeks holds `TRUE`. A person is a comparator when all of those weeks
-hold `FALSE`. swereg drops the remaining weeks first, so an `NA` week
-does not stop a comparator classification. A person-band with no such
-week is ineligible, and enters neither arm. See
-[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
-for the full statement of that rule. The draw is a computational
-shortcut compared to full cloning – see
+Enrollment itself is the comparator draw in each enrollment period.
+Within each `period_width`-week enrollment period, swereg takes
+`comparator_to_intervention_ratio` times that period’s count of
+initiators. Where the enrollment period holds fewer comparators than
+that, swereg takes all of them. The draw is seeded incidence density
+sampling. It is stratified by the `period_width`-week enrollment period,
+and not by the week. It reads no other variable, and it attaches no
+comparator to an initiator, so it forms no matched set. swereg reads
+only the weeks of an enrollment period in which the person is eligible
+and the treatment column holds `TRUE` or `FALSE`. A person is an
+initiator when at least one of those weeks holds `TRUE`. A person is a
+comparator when all of those weeks hold `FALSE`. swereg drops the
+remaining weeks first, so an `NA` week does not stop a comparator
+classification. A candidate person-trial with no such week is ineligible
+for that trial, and enters neither arm. See
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md),
+section 1.3 (Assignment procedures), for the full statement of that
+rule. The draw is a computational shortcut compared to full cloning –
+see
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
 for the trade-offs.
 
@@ -368,7 +371,7 @@ global inclusion/exclusion spec but add their own `additional_inclusion`
 classifies treatment, which is `rd_statin_status` here, a string column
 holding values such as `"initiated"` and `"not_initiated"`. It also
 names the value that counts as the intervention arm, the value that
-counts as the comparator, and the per-band sampling ratio.
+counts as the comparator, and the comparator sampling ratio.
 
 ### Loop 1: enrollment + IPW
 

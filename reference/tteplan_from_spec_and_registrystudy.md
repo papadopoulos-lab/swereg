@@ -80,8 +80,9 @@ tteplan_from_spec_and_registrystudy(
 
 - period_width:
 
-  Integer, band width in weeks for enrollment and time aggregation
-  (default: 4L). Stored on the plan and passed through to TTEDesign.
+  Integer, the width in weeks of the enrollment period (default: 4L).
+  The same width sets each follow-up interval. Stored on the plan and
+  passed through to TTEDesign.
 
 - check_skeletons:
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -60,6 +60,60 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.15.0" id="swereg-26150">swereg 26.15.0<a class="anchor" aria-label="anchor" href="#swereg-26150"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-15-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-15-0"></a></h3>
+<ul><li>
+<strong>The panel column <code>entry_band_id</code> is now <code>enrollment_period_id</code>.</strong> It is a column of the <code>TTEEnrollment</code> panel, <code>$data</code>.</li>
+<li>
+<strong>The <code>band</code> column of <code>$get_curves()</code> and of the stored risk-difference rows is now <code>follow_up_interval</code>.</strong> The stored rows are the <code>rd_*</code> slots of <code>results_ett</code> in a <code>TTEPlan</code>. The <code>rd_curve_*</code> slots keep their <code>tstop</code> column.</li>
+<li>
+<strong>Downstream code that reads <code>entry_band_id</code>, or the <code>band</code> column of <code>$get_curves()</code> or of the stored risk-difference rows, MUST change to the new name.</strong> <code><a href="../reference/qs2_read.html">qs2_read()</a></code> renames the columns in a saved file, as “New features” states.</li>
+<li>
+<strong>Both estimands censor at the first missing week after time zero.</strong> A gap in observation is loss of observation, and an outcome at or after the gap is never counted. Intention-to-treat used to continue through a gap. After a gap of a whole follow-up interval, it also moved the later rows one interval early on the follow-up axis. Per-protocol used to count an outcome after a gap in the same follow-up interval. Under per-protocol, a treatment deviation keeps its event priority.</li>
+<li>
+<strong>The CONSORT and attrition labels changed, as the next five entries state.</strong> The CONSORT diagrams, the <code>step_label</code> column of the <code>$export_tables()</code> attrition sheets and TARGET item 8 show these labels.</li>
+<li>
+<strong>“Censored before landmark” is now “Not under observation at time zero”.</strong> The old label was false, because a death is not censoring.</li>
+<li><strong>“Event before landmark” is now “Event before time zero”.</strong></li>
+<li><strong>“Has invalid treatment” is now “No week in either treatment arm”.</strong></li>
+<li>
+<strong>A washout exclusion label now names what the step drops, <code>"Prior &lt;variable&gt; ..."</code>, in place of the rule <code>"No prior &lt;variable&gt; ..."</code>.</strong> The protocol table and TARGET item 6a keep the rule.</li>
+<li>
+<strong>Three steps that printed their raw step name now have labels.</strong> <code>landmark_candidates</code> is “Candidate person-trials, before the time-zero checks”. <code>enrolled_after_comparator_draw</code> is “Enrolled after the comparator draw”. <code>analysis_dataset</code> is “Analysis dataset (per-protocol)”.</li>
+<li>
+<strong>The comparator-draw box of the CONSORT diagram says “stratified by the 4-week enrollment period”, not “entry band”.</strong> The number is the design’s <code>period_width</code>.</li>
+<li>
+<strong>The <code>landmark_*</code> step names are unchanged.</strong> They are <code>landmark_candidates</code>, <code>landmark_observed</code> and <code>landmark_event_free</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-15-0">New features<a class="anchor" aria-label="anchor" href="#new-features-26-15-0"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/qs2_read.html">qs2_read()</a></code> loads a plan or an enrollment that swereg 26.14.0 saved, with the columns above renamed.</strong> It acts on a <code>TTEPlan</code> at schema 3 and a <code>TTEEnrollment</code> at schema 4, before the schema check. Every number is unchanged.</li>
+<li>
+<strong>An enrollment with an <code>observed_var</code>, enrolled before swereg 26.15.0, warns once per file per R process that gaps cannot be detected in it.</strong> Its panel has no <code>weeks_to_observation_gap</code> column, so an outcome after a gap may count. Re-run <code>$s1_generate_enrollments_and_ipw()</code> to remove the limitation.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-15-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-15-0"></a></h3>
+<ul><li>
+<strong>TARGET items 6d and 7d state the time-zero definition.</strong> Item 7d said follow-up began at the start of the enrollment period. Both items now say that time zero is the first week after the enrollment period closes.</li>
+<li>
+<strong>TARGET item 6h states its censoring model as the default settings of the pipeline.</strong> The plan does not record the arguments that s2 ran with, so the old sentence stated the model as a fact that nothing checked.</li>
+<li>
+<strong>TARGET items 6f, 6h and 7 state the per-protocol censoring rule.</strong> They said that per-protocol follow-up stopped at treatment switching. Follow-up stops when the run of weeks off the assigned strategy exceeds the arm’s tolerance, and a missing treatment status counts as off the strategy.</li>
+<li>
+<strong>TARGET item 6c states a seed only when the specification states one.</strong> It printed “The draw ran from a stated seed.” for every plan.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-15-0">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-15-0"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> follows the step-3 protocol.</strong> Section 1 opens with the values the protocol must state, follows TARGET items 6a to 6h in order, and holds no code.</li>
+<li>
+<strong>The help pages, the vignettes and the generated text use one vocabulary: enrollment period, follow-up interval and time zero.</strong> “Landmark” is now a defined term: time zero is a landmark.</li>
+<li><strong>The cross-references between the vignettes point to the renumbered sections of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>.</strong></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.14.0" id="swereg-26140">swereg 26.14.0<a class="anchor" aria-label="anchor" href="#swereg-26140"></a></h2>
 <div class="section level3">

@@ -45,19 +45,25 @@ use different confounders or design columns. Within an enrollment_id
 
 ## The interval convention
 
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome. Follow-up starts
+there.
+
 Every interval is `[tstart, tstop)`. The stop is exclusive. The person
 leaves the risk set at `tstop`, and the row holds no part of that week.
 
 Every duration is `tstop - tstart`. It never adds one. Three complete
-four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands
-bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+four-week follow-up intervals span `[0, 12)`. That is 12 person-weeks,
+and the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5
+and 5.
 
 Every `weeks_to_*` column is a boundary on the same scale, counted from
-the landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each
-name the first week the person no longer contributes. A
-`weeks_to_record_end` of 9 means the person held follow-up weeks 1 to 9
-and bills 9 person-weeks.
+time zero at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end`, `weeks_to_record_end` and
+`weeks_to_observation_gap` each name the first week the person no longer
+contributes. A `weeks_to_record_end` of 9 means the person held
+follow-up weeks 1 to 9 and bills 9 person-weeks.
 
 The `+ 1` belongs to the inclusive convention, where weeks 1 through 4
 is `4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in
@@ -67,7 +73,7 @@ wrong denominator, so swereg MUST read every stop as exclusive.
 One place adds a week, and it converts a calendar reading into a stop.
 `admin_censor_isoyearweek` names the last week under study, and
 [`difftime()`](https://rdrr.io/r/base/difftime.html) returns the whole
-weeks between that week and the landmark week. The stop is one week
+weeks between that week and the time-zero week. The stop is one week
 later, because the person holds the whole of the administrative week.
 
 `tests/testthat/test-interval-convention.R` pins each of the five
@@ -135,7 +141,8 @@ Other tte_classes:
 
 - `period_width`:
 
-  Integer, band width in weeks for enrollment (default: 4L).
+  Integer, the width in weeks of the enrollment period (default: 4L).
+  The same width sets each follow-up interval.
 
 - `enrollment_counts`:
 
@@ -428,7 +435,7 @@ minus survival. A y-axis window is therefore meaningless until it says
 which scale it is measured on, so `ylim` requires a companion
 `ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
 survival-scale window is translated onto the plotted scale: `c(0.95, 1)`
-becomes `c(0, 0.05)` and shows the same band of the figure it always
+becomes `c(0, 0.05)` and shows the same region of the figure it always
 did. An undeclared window is an error, not a guess. Left undeclared and
 applied as given, a survival-scale window clips the whole
 cumulative-failure curve out of view and produces a blank panel with no
@@ -614,14 +621,14 @@ estimand and weight combinations carry it: per-protocol on
 intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores
 one summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`,
 `nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each
-also stores the full band-by-band curve under `rd_curve_pp_trunc` or
-`rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside
-the risk difference.
+also stores the full curve, one row per stop time, under
+`rd_curve_pp_trunc` or `rd_curve_itt`, with `surv_comparator` and
+`surv_intervention` beside the risk difference.
 
 The curve also carries `n_persons_at_risk_comparator` and
 `n_persons_at_risk_intervention`. Each is a head count of distinct
-people in that arm and band. It is the count a numbers-at-risk row
-reports. The figure reads it rather than opening the analysis file
+people in that arm at that stop time. It is the count a numbers-at-risk
+row reports. The figure reads it rather than opening the analysis file
 again.
 
 The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
@@ -808,15 +815,17 @@ what produced the risk-difference interval.
 
 Every stored survival curve, as one flat table.
 
-One row per emulated trial, estimand, weighting, arm and band.
-`$s3_analyze()` stores one wide curve per estimand, with a survival
-column for each arm. This method returns one row per arm instead.
+One row per emulated trial, estimand, weighting, arm and stop time.
+`follow_up_interval` holds the stop time, in weeks from time zero, of
+the rows the curve was evaluated at. `$s3_analyze()` stores one wide
+curve per estimand, with a survival column for each arm. This method
+returns one row per arm instead.
 
 The table carries the numbers at risk beside survival.
 `n_persons_at_risk` is an unweighted count of distinct people, per arm
-per band. `$s3_analyze()` stores it and this method melts it. A risk
-table reports people, so it cannot be derived from `surv`, which is a
-weighted probability.
+per stop time. `$s3_analyze()` stores it and this method melts it. A
+risk table reports people, so it cannot be derived from `surv`, which is
+a weighted probability.
 
 A curve stored before that column existed gives `NA`. A consumer that
 draws a risk table MUST check for missing values first. It MUST refuse
@@ -829,7 +838,7 @@ to draw. A row of missing counts looks like a drawn risk table.
 #### Returns
 
 A data.table with columns `ett_id`, `estimand`, `weights`, `arm`,
-`band`, `surv` and `n_persons_at_risk`.
+`follow_up_interval`, `surv` and `n_persons_at_risk`.
 
 ------------------------------------------------------------------------
 

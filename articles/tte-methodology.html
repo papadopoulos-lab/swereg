@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,7 +52,7 @@
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -151,22 +151,24 @@ trial emulations.</p></li>
 <td align="left">Sequence of nested trials</td>
 <td align="left">Hernán 2008, Danaei 2013</td>
 <td align="left">
-<code>TTEEnrollment$new(..., ratio=)</code>: Band-based
-enrollment assesses eligibility and treatment status weekly, then
-collapses <code>period_width</code> consecutive weeks into one band.
-Each band opens exactly one trial. Initiation in any week of a band
-assigns the person to that band. Time zero is the landmark, the week
-that closes the band, and the person must reach it under observation and
-event-free. See <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</td>
+<code>TTEEnrollment$new(..., ratio=)</code>: Enrollment
+assesses eligibility and treatment status weekly, then collapses
+<code>period_width</code> consecutive weeks into one enrollment period.
+Each enrollment period opens exactly one trial. Initiation in any week
+of an enrollment period assigns the person to the trial of that period.
+Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome. See
+<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</td>
 </tr>
 <tr class="even">
 <td align="left">Cloning + censoring</td>
 <td align="left">Hernán 2016</td>
-<td align="left">Not used. Our per-band comparator draw is an
-alternative to cloning that is computationally more efficient for large
-registries. The draw is incidence density sampling, stratified by the
-<code>period_width</code>-week entry band, and it reads no other
-variable. It forms no matched set.</td>
+<td align="left">Not used. Our comparator draw in each enrollment period
+is an alternative to cloning that is computationally more efficient for
+large registries. The draw is incidence density sampling, stratified by
+the <code>period_width</code>-week enrollment period, and it reads no
+other variable. It forms no matched set.</td>
 </tr>
 <tr class="odd">
 <td align="left">Grace period</td>
@@ -175,10 +177,10 @@ variable. It forms no matched set.</td>
 <strong>Not implemented.</strong> A true grace period
 (initiation allowed within X weeks of assignment without deviation)
 requires cloning + censoring + weighting. <code>period_width</code>
-provides only within-band slack for the <em>timing of initiation at
-enrollment</em>: treatment starting in any week of the entry band
-assigns the person to that band, and follow-up opens at the landmark
-that closes it. Deviation thereafter censors at the right edge of the
+provides slack only for the <em>timing of initiation at enrollment</em>.
+Treatment that starts in any week of the enrollment period assigns the
+person to its trial. Follow-up opens at time zero, the first week after
+the period closes. Deviation thereafter censors at the right edge of the
 first discordant run that exceeds the arm’s tolerance. See
 <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>.</td>
 </tr>
@@ -205,7 +207,7 @@ first discordant run that exceeds the arm’s tolerance. See
 <td align="left">Hernán 2008, Danaei 2013</td>
 <td align="left">
 <code>$s2_ipw()</code>: Logistic regression P(A=1 |
-L_baseline), stabilized by default. L_baseline is the entry-band
+L_baseline), stabilized by default. L_baseline is the enrollment-period
 snapshot <code>.tte_entry__&lt;v&gt;</code>, read at the recruiting
 week.</td>
 </tr>
@@ -237,7 +239,7 @@ switch censoring, no IPCW; analysis weight = baseline
 <td align="left">Danaei 2013</td>
 <td align="left">IPW: stabilized with marginal treatment probability.
 IPCW-PP: numerator from a second censoring model with the follow-up-time
-and trial-index terms and no confounders (see note below).</td>
+and calendar-period terms and no confounders (see note below).</td>
 </tr>
 <tr class="even">
 <td align="left">Weight truncation</td>
@@ -280,7 +282,8 @@ handled differently between the two estimands:</p>
 <td align="left">same</td>
 </tr>
 <tr class="even">
-<td align="left">Outcome event AND switch in the same band</td>
+<td align="left">Outcome event AND switch in the same follow-up
+interval</td>
 <td align="left">counts as event (event-priority, since 26.7.3)</td>
 <td align="left">counts as event</td>
 </tr>
@@ -291,9 +294,12 @@ handled differently between the two estimands:</p>
 <strong>ignored</strong> (not censored)</td>
 </tr>
 <tr class="even">
-<td align="left">Loss to follow-up (records end early)</td>
-<td align="left">censors, IPCW-corrected</td>
-<td align="left">censors, treated as independent</td>
+<td align="left">Loss of observation (the record ends early, or a week
+after time zero has no row)</td>
+<td align="left">censors, IPCW-corrected; an outcome at or after a
+missing week never counts</td>
+<td align="left">censors, treated as independent; an outcome at or after
+a missing week never counts</td>
 </tr>
 <tr class="odd">
 <td align="left">Administrative end (study cutoff)</td>
@@ -312,9 +318,9 @@ weight = baseline <code>ipw</code> only.</p>
 <p><strong>Note on IPCW stabilization</strong>: Danaei (2013) describes
 stabilized IPCW weights with a numerator conditioned on baseline
 covariates. That requires the same covariates in the outcome model.
-swereg’s outcome model is covariate-free, so the numerator is a second
-fitted censoring model, fitted in the same strata, that carries the same
-follow-up-time and trial-index terms and no confounders.</p>
+swereg’s outcome model is covariate-free. The numerator is therefore a
+second censoring model, fitted in the same strata, that carries the same
+follow-up-time and calendar-period terms and no confounders.</p>
 </div>
 <div class="section level3">
 <h3 id="outcome-models">Outcome models<a class="anchor" aria-label="anchor" href="#outcome-models"></a>
@@ -359,9 +365,12 @@ flexibly.</td>
 <td align="left">Trial as covariate</td>
 <td align="left">Caniglia 2023, Danaei 2013</td>
 <td align="left">Includes <code>trial_id</code> in the outcome model of
-<code>$irr()</code> (natural spline with 3 df for ≥5 trials, linear for
-2-4) and in the IPCW models (with the default GAM, a penalised spline
-for ≥10 trials; otherwise linear). One trial takes no trial term.</td>
+<code>$irr()</code> and in the IPCW models. On the panel,
+<code>trial_id</code> is the calendar period of each follow-up interval,
+and not a trial index. The outcome model takes a natural spline with 3
+df for ≥5 distinct calendar periods, and a linear term for 2-4. The IPCW
+models with the default GAM take a penalised spline for ≥10, and a
+linear term otherwise. One calendar period takes no calendar term.</td>
 </tr>
 <tr class="odd">
 <td align="left">Robust variance</td>
@@ -385,15 +394,16 @@ reports an interval that crosses zero as running through infinity;
 swereg reports no interval there</td>
 <td align="left">
 <code>$risk_difference()</code>: the cause-specific
-risk difference per band, from weighted discrete-time survival in each
-arm. Death censors follow-up; there is no competing-risk model. The
-interval is a percentile bootstrap that resamples persons, with one
-resample shared by both arms and the weights held fixed. The number
-needed to treat is <code>-1/rd</code>, labelled NNTB or NNTH by the sign
-of <code>rd</code>, with an interval only when the risk-difference
-interval excludes zero. <code>$s3_analyze()</code> runs it for both
-estimands. See <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> sections 1.2, 1.7
-and 1.8.</td>
+risk difference at each distinct stop time, from weighted discrete-time
+survival in each arm. Death censors follow-up; there is no
+competing-risk model. The interval is a percentile bootstrap that
+resamples persons, with one resample shared by both arms and the weights
+held fixed. The number needed to treat is <code>-1/rd</code>, labelled
+NNTB or NNTH by the sign of <code>rd</code>, with an interval only when
+the risk-difference interval excludes zero. <code>$s3_analyze()</code>
+runs it for both estimands. See <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
+sections 1.6 (Causal contrasts), 1.8.5 (Absolute scale) and 1.8.6
+(Inference).</td>
 </tr>
 </tbody>
 </table>
@@ -446,7 +456,7 @@ Users can fit these externally on <code>$extract()</code> data.</td>
 <td align="left">Baseline-conditional IPCW stabilization</td>
 <td align="left">Would require the baseline covariates in the outcome
 model, which has none here. The numerator model carries the
-follow-up-time and trial-index terms and no confounders.</td>
+follow-up-time and calendar-period terms and no confounders.</td>
 </tr>
 </tbody>
 </table>

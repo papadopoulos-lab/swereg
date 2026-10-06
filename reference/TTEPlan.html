@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -128,15 +128,19 @@ Returns <code>NA</code> when no ETTs have been added.</p></dd>
 
 
 
+<p>Time zero is a landmark: the first week after the enrollment period closes.
+A person enters the trial only if they reach that week under observation
+and free of every enrollment outcome. Follow-up starts there.</p>
 <p>Every interval is <code>[tstart, tstop)</code>. The stop is exclusive. The person
 leaves the risk set at <code>tstop</code>, and the row holds no part of that week.</p>
 <p>Every duration is <code>tstop - tstart</code>. It never adds one. Three complete
-four-week bands span <code>[0, 12)</code>. That is 12 person-weeks, and the bands bill
-4, 4 and 4. The inclusive convention bills 5, 5 and 5.</p>
-<p>Every <code>weeks_to_*</code> column is a boundary on the same scale, counted from the
-landmark at week 0. <code>weeks_to_event</code>, <code>weeks_to_protocol_deviation</code>,
-<code>weeks_to_loss</code>, <code>weeks_to_admin_end</code> and <code>weeks_to_record_end</code> each name
-the first week the person no longer contributes. A <code>weeks_to_record_end</code> of
+four-week follow-up intervals span <code>[0, 12)</code>. That is 12 person-weeks, and
+the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.</p>
+<p>Every <code>weeks_to_*</code> column is a boundary on the same scale, counted from
+time zero at week 0. <code>weeks_to_event</code>, <code>weeks_to_protocol_deviation</code>,
+<code>weeks_to_loss</code>, <code>weeks_to_admin_end</code>, <code>weeks_to_record_end</code> and
+<code>weeks_to_observation_gap</code> each name the first week the person no longer
+contributes. A <code>weeks_to_record_end</code> of
 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.</p>
 <p>The <code>+ 1</code> belongs to the inclusive convention, where weeks 1 through 4 is
 <code>4 - 1 + 1 = 4</code>. Both are correct arithmetic. The two differ in whether the
@@ -144,7 +148,7 @@ stop belongs to the interval. A mix of them makes a silently wrong
 denominator, so swereg MUST read every stop as exclusive.</p>
 <p>One place adds a week, and it converts a calendar reading into a stop.
 <code>admin_censor_isoyearweek</code> names the last week under study, and
-<code><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime()</a></code> returns the whole weeks between that week and the landmark
+<code><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime()</a></code> returns the whole weeks between that week and the time-zero
 week. The stop is one week later, because the person holds the whole of the
 administrative week.</p>
 <p><code>tests/testthat/test-interval-convention.R</code> pins each of the five
@@ -204,7 +208,8 @@ boundaries.</p>
 
 
     <dt><code>period_width</code></dt>
-<dd><p>Integer, band width in weeks for enrollment (default: 4L).</p></dd>
+<dd><p>Integer, the width in weeks of the enrollment period
+(default: 4L). The same width sets each follow-up interval.</p></dd>
 
 
     <dt><code>enrollment_counts</code></dt>
@@ -461,7 +466,7 @@ minus survival. A y-axis window is therefore meaningless until it says
 which scale it is measured on, so <code>ylim</code> requires a companion
 <code>ylim_scale</code>, either <code>"survival"</code> or <code>"cumulative_failure"</code>. A
 survival-scale window is translated onto the plotted scale:
-<code>c(0.95, 1)</code> becomes <code>c(0, 0.05)</code> and shows the same band of the figure
+<code>c(0.95, 1)</code> becomes <code>c(0, 0.05)</code> and shows the same region of the figure
 it always did. An undeclared window is an error, not a guess. Left
 undeclared and applied as given, a survival-scale window clips the whole
 cumulative-failure curve out of view and produces a blank panel with no
@@ -619,19 +624,19 @@ separately by treatment group (default: TRUE).</p></dd>
 baseline characteristics (raw, unweighted, IPW, IPW truncated).
 For each ETT: loads the analysis file, computes rates, IRR, and
 heterogeneity test with both truncated and untruncated weights.</p>
-<p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
-Two estimand and weight combinations carry it: per-protocol on
+<p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
+estimand and weight combinations carry it: per-protocol on
 <code>analysis_weight_pp_trunc</code>, stored under <code>rd_pp_trunc</code>, and
-intention-to-treat on <code>ipw_trunc</code>, stored under <code>rd_itt</code>. Each stores
-one summary row at the end of follow-up, with <code>rd</code>, <code>rd_lo</code>, <code>rd_hi</code>,
-<code>nnt</code>, <code>nnt_lo</code>, <code>nnt_hi</code>, <code>nnt_direction</code> and <code>interval_status</code>. Each
-also stores the full band-by-band curve under <code>rd_curve_pp_trunc</code> or
+intention-to-treat on <code>ipw_trunc</code>, stored under <code>rd_itt</code>. Each stores one
+summary row at the end of follow-up, with <code>rd</code>, <code>rd_lo</code>, <code>rd_hi</code>, <code>nnt</code>,
+<code>nnt_lo</code>, <code>nnt_hi</code>, <code>nnt_direction</code> and <code>interval_status</code>. Each also stores
+the full curve, one row per stop time, under <code>rd_curve_pp_trunc</code> or
 <code>rd_curve_itt</code>, with <code>surv_comparator</code> and <code>surv_intervention</code> beside the
 risk difference.</p>
 <p>The curve also carries <code>n_persons_at_risk_comparator</code> and
-<code>n_persons_at_risk_intervention</code>. Each is a head count of distinct people
-in that arm and band. It is the count a numbers-at-risk row reports. The
-figure reads it rather than opening the analysis file again.</p>
+<code>n_persons_at_risk_intervention</code>. Each is a head count of distinct people in
+that arm at that stop time. It is the count a numbers-at-risk row
+reports. The figure reads it rather than opening the analysis file again.</p>
 <p>The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
 <code>spec$study$implementation$conf_level</code> and defaulting to 0.95. All three
@@ -793,14 +798,15 @@ difference and the number needed to treat. <code>n_boot</code>, <code>seed</code
 <p></p><hr><a id="method-TTEPlan-get_curves"></a><div class="section">
 <h3 id="tteplan-get-curves-"><code>TTEPlan$get_curves()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-curves-"></a></h3>
 <p>Every stored survival curve, as one flat table.</p>
-<p>One row per emulated trial, estimand, weighting, arm and band.
+<p>One row per emulated trial, estimand, weighting, arm and stop time.
+<code>follow_up_interval</code> holds the stop time, in weeks from time zero, of the
+rows the curve was evaluated at.
 <code>$s3_analyze()</code> stores one wide curve per estimand, with a survival
 column for each arm. This method returns one row per arm instead.</p>
-<p>The table carries the numbers at risk beside survival.
-<code>n_persons_at_risk</code> is an unweighted count of distinct people, per arm
-per band. <code>$s3_analyze()</code> stores it and this method melts it. A risk
-table reports people, so it cannot be derived from <code>surv</code>, which is a
-weighted probability.</p>
+<p>The table carries the numbers at risk beside survival. <code>n_persons_at_risk</code> is
+an unweighted count of distinct people, per arm per stop time.
+<code>$s3_analyze()</code> stores it and this method melts it. A risk table reports
+people, so it cannot be derived from <code>surv</code>, which is a weighted probability.</p>
 <p>A curve stored before that column existed gives <code>NA</code>. A consumer that
 draws a risk table MUST check for missing values first. It MUST refuse to
 draw. A row of missing counts looks like a drawn risk table.</p><div class="section">
@@ -809,7 +815,7 @@ draw. A row of missing counts looks like a drawn risk table.</p><div class="sect
 </div><p></p><div class="section">
 <h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
 <p>A data.table with columns <code>ett_id</code>, <code>estimand</code>, <code>weights</code>,
-<code>arm</code>, <code>band</code>, <code>surv</code> and <code>n_persons_at_risk</code>.</p>
+<code>arm</code>, <code>follow_up_interval</code>, <code>surv</code> and <code>n_persons_at_risk</code>.</p>
 </div>
 
 </div>

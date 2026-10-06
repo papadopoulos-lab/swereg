@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>TTE timing: intervals, the landmark, and the estimand • swereg</title>
+<title>TTE timing: intervals, time zero, and the estimand • swereg</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -18,7 +18,7 @@
 <link href="../deps/Newsreader-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="TTE timing: intervals, the landmark, and the estimand">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="TTE timing: intervals, time zero, and the estimand">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,7 +52,7 @@
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
-    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -88,7 +88,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.png" class="logo" alt=""><h1>TTE timing: intervals, the landmark, and the estimand</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>TTE timing: intervals, time zero, and the estimand</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/vignettes/tte-timing.Rmd" class="external-link"><code>vignettes/tte-timing.Rmd</code></a></small>
@@ -108,17 +108,17 @@ of them.</p>
 <code>tstop</code> names.</p>
 <p>Every duration is <code>person_weeks = tstop - tstart</code>. It
 <strong>never</strong> adds one.</p>
-<p>Three four-week bands span <code>[0, 12)</code>. That is 12
-person-weeks, and the three bands bill 4, 4 and 4:</p>
-<pre><code>band 1   [0,  4)   -&gt;  4 - 0  = 4 weeks
-band 2   [4,  8)   -&gt;  8 - 4  = 4 weeks
-band 3   [8, 12)   -&gt; 12 - 8  = 4 weeks
-                          total = 12 weeks</code></pre>
+<p>Three four-week follow-up intervals span <code>[0, 12)</code>. That
+is 12 person-weeks, and the three intervals bill 4, 4 and 4:</p>
+<pre><code>interval 1   [0,  4)   -&gt;  4 - 0  = 4 weeks
+interval 2   [4,  8)   -&gt;  8 - 4  = 4 weeks
+interval 3   [8, 12)   -&gt; 12 - 8  = 4 weeks
+                              total = 12 weeks</code></pre>
 <p>The <code>+ 1</code> form is the <strong>inclusive</strong>
 convention. Under it, weeks 1 through 4 is <code>4 - 1 + 1 = 4</code>.
-The same three bands then bill 5, 5 and 5, for a total of 15. Both are
-correct arithmetic. The two differ in whether the stop belongs to the
-interval.</p>
+The same three intervals then bill 5, 5 and 5, for a total of 15. Both
+are correct arithmetic. The two differ in whether the stop belongs to
+the interval.</p>
 <p>Mixing them is how an off-by-one becomes a silently wrong
 denominator. Nothing errors. A rate simply divides by 15 person-weeks
 where the panel holds 12.</p>
@@ -184,8 +184,9 @@ numbers.</p>
 </h2>
 <p>Every example below runs on one small skeleton. It holds 16
 consecutive ISO year-weeks, <code>period_width = 4</code> and
-<code>follow_up_time = 12</code>. The first four weeks are the entry
-band. The remaining twelve are three follow-up bands.</p>
+<code>follow_up_time = 12</code>. The first four weeks are the
+enrollment period. The remaining twelve are three follow-up
+intervals.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/papadopoulos-lab/swereg" class="external-link">swereg</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
@@ -193,7 +194,7 @@ band. The remaining twelve are three follow-up bands.</p>
 <span><span class="va">PW</span> <span class="op">&lt;-</span> <span class="fl">4L</span> <span class="co"># period_width</span></span>
 <span><span class="va">FU</span> <span class="op">&lt;-</span> <span class="fl">12L</span> <span class="co"># follow_up_time</span></span>
 <span></span>
-<span><span class="co"># Sixteen consecutive weeks, starting on a band boundary.</span></span>
+<span><span class="co"># Sixteen consecutive weeks, starting on an enrollment period boundary.</span></span>
 <span><span class="va">tte_weeks</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n</span> <span class="op">=</span> <span class="fl">16L</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">wk</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="fu">cstime</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">dates_by_isoyearweek</a></span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">isoyearweek</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span>  <span class="va">wk</span><span class="op">[</span>, <span class="va">idx</span> <span class="op">:=</span> <span class="va">.I</span><span class="op">]</span></span>
@@ -277,24 +278,26 @@ band. The remaining twelve are three follow-up bands.</p>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span>  <span class="va">trial</span><span class="op">$</span><span class="va">data</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p>A woman with no boundary of any kind bills three whole bands:</p>
+<p>A woman with no boundary of any kind bills three whole follow-up
+intervals:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">whole</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu">tte_person</span><span class="op">(</span><span class="st">"WHOLE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="fl">16L</span><span class="op">)</span><span class="op">)</span>, <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">whole</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
 <span>  <span class="va">id</span> <span class="op">==</span> <span class="st">"WHOLE"</span></span>
-<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">entry_band_id</span>, <span class="va">trial_id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    entry_band_id trial_id tstart tstop person_weeks</span></span>
-<span><span class="co">#&gt;            &lt;int&gt;    &lt;int&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:          1566     1567      0     4            4</span></span>
-<span><span class="co">#&gt; 2:          1566     1568      4     8            4</span></span>
-<span><span class="co">#&gt; 3:          1566     1569      8    12            4</span></span></code></pre></div>
+<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">enrollment_period_id</span>, <span class="va">trial_id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;    enrollment_period_id trial_id tstart tstop person_weeks</span></span>
+<span><span class="co">#&gt;                   &lt;int&gt;    &lt;int&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:                 1566     1567      0     4            4</span></span>
+<span><span class="co">#&gt; 2:                 1566     1568      4     8            4</span></span>
+<span><span class="co">#&gt; 3:                 1566     1569      8    12            4</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="three-instants-and-they-are-three-different-weeks">Three instants, and they are three different weeks<a class="anchor" aria-label="anchor" href="#three-instants-and-they-are-three-different-weeks"></a>
 </h2>
 <p>A person-trial has three instants, and each answers a different
 question.</p>
-<p>The table shows the first two bands of the worked skeleton below.</p>
+<p>The table shows the first two enrollment periods of the worked
+skeleton below.</p>
 <table style="width:100%;" class="table">
 <colgroup>
 <col width="11%">
@@ -320,7 +323,7 @@ question.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>band</td>
+<td>enrollment period</td>
 <td>1566</td>
 <td>1566</td>
 <td>1566</td>
@@ -336,7 +339,7 @@ question.</p>
 <td>entry</td>
 <td>entry</td>
 <td>entry</td>
-<td>landmark</td>
+<td>time zero</td>
 <td>n/a</td>
 <td>n/a</td>
 <td>n/a</td>
@@ -356,25 +359,32 @@ question.</p>
 </table>
 <ol style="list-style-type: decimal">
 <li>The <strong>recruiting week</strong> is the earliest week of the
-entry band that is both eligible and in an arm. swereg reads the
+enrollment period that is both eligible and in an arm. swereg reads the
 confounders there.</li>
-<li>The <strong>entry band</strong> is the window that classifies the
-arm. It contributes no follow-up.</li>
-<li>The <strong>landmark</strong> is the week that closes the entry
-band. Follow-up opens there, at <code>tstart == 0</code>.</li>
+<li>The <strong>enrollment period</strong> is the window that classifies
+the arm. It contributes no follow-up.</li>
+<li>
+<strong>Time zero</strong> opens follow-up, at
+<code>tstart == 0</code>.</li>
 </ol>
-<p>Band <code>b</code> covers week indices <code>b * period_width</code>
-to <code>(b + 1) * period_width - 1</code>. Its landmark sits at week
+<p>Time zero is a landmark: the first week after the enrollment period
+closes. A person enters the trial only if they reach that week under
+observation and free of every enrollment outcome.</p>
+<p>Enrollment period <code>b</code> covers week indices
+<code>b * period_width</code> to
+<code>(b + 1) * period_width - 1</code>. Its time zero sits at week
 index <code>(b + 1) * period_width</code>, which is the first week of
-band <code>b + 1</code>. Week indices are positions in
+enrollment period <code>b + 1</code>. Week indices are positions in
 <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, minus one. That is the scale
 <code>trial_id</code> reads.</p>
-<p><code>entry_band_id</code> names the trial. <code>trial_id</code>
-names the follow-up band, so the first row of every person-trial holds
-<code>trial_id == entry_band_id + 1</code> and
+<p><code>enrollment_period_id</code> names the trial.
+<code>trial_id</code> names the calendar period of the follow-up
+interval. The first row of every person-trial therefore holds
+<code>trial_id == enrollment_period_id + 1</code> and
 <code>tstart == 0</code>.</p>
 <div class="section level3">
-<h3 id="the-recruiting-week-is-not-the-first-week-of-the-entry-band">The recruiting week is not the first week of the entry band<a class="anchor" aria-label="anchor" href="#the-recruiting-week-is-not-the-first-week-of-the-entry-band"></a>
+<h3 id="the-recruiting-week-is-not-the-first-week-of-the-enrollment-period">The recruiting week is not the first week of the enrollment
+period<a class="anchor" aria-label="anchor" href="#the-recruiting-week-is-not-the-first-week-of-the-enrollment-period"></a>
 </h3>
 <p>EARLY is on the intervention in every week. LATE holds
 <code>NA</code> in weeks 1 and 2, then starts in week 3.
@@ -390,17 +400,17 @@ visible in the value swereg reads.</p>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">three</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
 <span>  <span class="va">id</span> <span class="op"><a href="https://rdrr.io/pkg/data.table/man/chmatch.html" class="external-link">%chin%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"EARLY"</span>, <span class="st">"LATE"</span>, <span class="st">"CMP1"</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">tstart</span> <span class="op">==</span> <span class="fl">0</span></span>
-<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">exposed</span>, <span class="va">entry_band_id</span>, <span class="va">trial_id</span>, <span class="va">.tte_entry__age</span>, <span class="va">age</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">exposed</span>, <span class="va">enrollment_period_id</span>, <span class="va">trial_id</span>, <span class="va">.tte_entry__age</span>, <span class="va">age</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; Key: &lt;id, trial_id&gt;</span></span>
-<span><span class="co">#&gt;        id exposed entry_band_id trial_id .tte_entry__age   age</span></span>
-<span><span class="co">#&gt;    &lt;char&gt;  &lt;lgcl&gt;         &lt;int&gt;    &lt;int&gt;           &lt;num&gt; &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:   CMP1   FALSE          1566     1567              51    55</span></span>
-<span><span class="co">#&gt; 2:  EARLY    TRUE          1566     1567              51    55</span></span>
-<span><span class="co">#&gt; 3:   LATE    TRUE          1566     1567              53    55</span></span></code></pre></div>
+<span><span class="co">#&gt;        id exposed enrollment_period_id trial_id .tte_entry__age   age</span></span>
+<span><span class="co">#&gt;    &lt;char&gt;  &lt;lgcl&gt;                &lt;int&gt;    &lt;int&gt;           &lt;num&gt; &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:   CMP1   FALSE                 1566     1567              51    55</span></span>
+<span><span class="co">#&gt; 2:  EARLY    TRUE                 1566     1567              51    55</span></span>
+<span><span class="co">#&gt; 3:   LATE    TRUE                 1566     1567              53    55</span></span></code></pre></div>
 <p><code>.tte_entry__age</code> holds 51 for EARLY and 53 for LATE. Week
 1 gives 51 and week 3 gives 53, so LATE is recruited in the week her
 treatment starts. The plain <code>age</code> column holds the
-time-updated value of the follow-up band, which is 55.</p>
+time-updated value of the follow-up interval, which is 55.</p>
 <p>Entry covariates are therefore read in the <strong>same</strong> week
 treatment starts for an initiator, and not strictly before it. The rule
 is symmetric across the arms: no rule keyed to initiation can be,
@@ -411,7 +421,7 @@ because a comparator never initiates. <code>$s2_ipw()</code> and
 follow-up.</p>
 </div>
 <div class="section level3">
-<h3 id="band-boundaries-are-anchored-to-the-calendar">Band boundaries are anchored to the calendar<a class="anchor" aria-label="anchor" href="#band-boundaries-are-anchored-to-the-calendar"></a>
+<h3 id="enrollment-period-boundaries-are-anchored-to-the-calendar">Enrollment period boundaries are anchored to the calendar<a class="anchor" aria-label="anchor" href="#enrollment-period-boundaries-are-anchored-to-the-calendar"></a>
 </h3>
 <p><code>trial_id</code> is
 <code>(week_index - 1) %/% period_width</code> over
@@ -419,13 +429,13 @@ follow-up.</p>
 <code>1900-01</code>. Two studies with different start dates share the
 same boundaries.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">band_of</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="va">period_of</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">w</span>, <span class="fu">cstime</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">dates_by_isoyearweek</a></span><span class="op">$</span><span class="va">isoyearweek</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1L</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%/%</a></span> <span class="va">PW</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
 <span>  isoyearweek <span class="op">=</span> <span class="va">weeks</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">]</span>,</span>
-<span>  study_a_from_week_1 <span class="op">=</span> <span class="fu">band_of</span><span class="op">(</span><span class="va">weeks</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>  study_b_from_week_3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fu">band_of</span><span class="op">(</span><span class="va">weeks</span><span class="op">[</span><span class="fl">3</span><span class="op">:</span><span class="fl">8</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span>  study_a_from_week_1 <span class="op">=</span> <span class="fu">period_of</span><span class="op">(</span><span class="va">weeks</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>  study_b_from_week_3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fu">period_of</span><span class="op">(</span><span class="va">weeks</span><span class="op">[</span><span class="fl">3</span><span class="op">:</span><span class="fl">8</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    isoyearweek study_a_from_week_1 study_b_from_week_3</span></span>
 <span><span class="co">#&gt;         &lt;char&gt;               &lt;int&gt;               &lt;int&gt;</span></span>
@@ -438,30 +448,30 @@ same boundaries.</p>
 <span><span class="co">#&gt; 7:     2020-10                1567                1567</span></span>
 <span><span class="co">#&gt; 8:     2020-11                1567                1567</span></span></code></pre></div>
 <p>Study B starts two weeks later and still breaks at the same week. Its
-first band holds two weeks rather than four.</p>
+first enrollment period holds two weeks rather than four.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="the-qualified-population">The qualified population<a class="anchor" aria-label="anchor" href="#the-qualified-population"></a>
 </h2>
-<p>A person-band reaches the candidate table only when both statements
-hold at its landmark.</p>
+<p>A candidate person-trial qualifies only when both statements hold at
+its time zero.</p>
 <ol style="list-style-type: decimal">
-<li>The person is under observation at the landmark.</li>
-<li>No outcome occurrence stops at or before the landmark.</li>
+<li>The person is under observation at time zero.</li>
+<li>No outcome occurrence stops at or before time zero.</li>
 </ol>
 <p>A week is a half-open interval, so an occurrence in week
 <code>w</code> stops at <code>w + 1</code>. Statement 2 therefore covers
-every week of the entry band, and every week before it.</p>
+every week of the enrollment period, and every week before it.</p>
 <p>Statement 2 reads <strong>every</strong> column in
 <code>design$outcome_vars</code>, and not the one outcome a later step
 analyses. One enrollment serves several outcomes, so one enrolled set
 has to be event-free for all of them.</p>
 <p>Eligibility stays a baseline property.
-<code>.band_baseline_treatment()</code> assesses it on the entry band,
-and no step reads it again at the landmark. Reading it there would empty
-the intervention arm, because a new-user exclusion turns
-<code>eligible</code> off from the week after initiation.</p>
+<code>.enrollment_period_baseline_treatment()</code> assesses it on the
+enrollment period, and no step reads it again at time zero. Reading it
+there would empty the intervention arm, because a new-user exclusion
+turns <code>eligible</code> off from the week after initiation.</p>
 <div class="section level3">
 <h3 id="the-row-presence-assertion-and-what-it-assumes">The row-presence assertion, and what it assumes<a class="anchor" aria-label="anchor" href="#the-row-presence-assertion-and-what-it-assumes"></a>
 </h3>
@@ -489,10 +499,11 @@ stays forbidden, and <code><a href="../reference/tteplan_read_spec.html">tteplan
 that declares neither form.</p>
 </div>
 <div class="section level3">
-<h3 id="an-outcome-inside-the-entry-band">An outcome inside the entry band<a class="anchor" aria-label="anchor" href="#an-outcome-inside-the-entry-band"></a>
+<h3 id="an-outcome-inside-the-enrollment-period">An outcome inside the enrollment period<a class="anchor" aria-label="anchor" href="#an-outcome-inside-the-enrollment-period"></a>
 </h3>
-<p>W has the outcome in week 2 of her entry band and starts treatment in
-week 4 of the same band. K is the same woman without the outcome.</p>
+<p>W has the outcome in week 2 of her enrollment period and starts
+treatment in week 4 of the same enrollment period. K is the same woman
+without the outcome.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">qual</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"W"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="fl">13L</span><span class="op">)</span><span class="op">)</span>, event_entry <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span>,</span>
@@ -525,20 +536,20 @@ Each count is cumulative, and each row splits into the two arms.</p>
 <h3 id="the-comparator-draw-happens-after-qualification">The comparator draw happens after qualification<a class="anchor" aria-label="anchor" href="#the-comparator-draw-happens-after-qualification"></a>
 </h3>
 <p>The draw is seeded incidence density sampling of qualified
-comparators, taken inside one entry band. Every qualified intervention
-person-band enrolls. The draw then takes
-<code>comparator_to_intervention_ratio</code> times that band’s count of
-intervention person-bands, or every remaining qualified comparator when
-the band holds fewer.</p>
+comparators, taken inside one enrollment period. Every qualified
+intervention person-trial enrolls. The draw then takes
+<code>comparator_to_intervention_ratio</code> times that period’s count
+of qualified intervention person-trials, or every remaining qualified
+comparator when the enrollment period holds fewer.</p>
 <p>The sampling is stratified by the <code>period_width</code>-week
-entry band, and not by the week. Two individuals in one band enter up to
-<code>period_width - 1</code> weeks apart. The draw reads no other
-variable. It attaches no comparator to an intervention individual, so it
-forms no matched set. swereg adjusts for the remaining measured
-covariates afterwards, with inverse probability of treatment weights
-fitted on the confounders read at the recruiting week.
-<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> states that weight model in section
-1.4.</p>
+enrollment period, and not by the week. Two individuals in one
+enrollment period are recruited up to <code>period_width - 1</code>
+weeks apart. The draw reads no other variable. It attaches no comparator
+to an intervention individual, so it forms no matched set. swereg
+adjusts for the remaining measured covariates afterwards, with inverse
+probability of treatment weights fitted on the confounders read at the
+recruiting week. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> states that weight
+model in section 1.8.1 (Treatment weights).</p>
 <p>Qualification runs after the arm classification and before the draw.
 The position is part of the rule. It runs after the classification, so
 attrition reports both arms. It runs before the draw, so the draw
@@ -559,9 +570,9 @@ set.</p>
 <span><span class="co">#&gt; 2:    TRUE     1</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">id</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "FC1" "FC2" "I1"</span></span></code></pre></div>
-<p>CBAD has the outcome in week 2 of her entry band, so she cannot
-qualify. The draw returns two comparators for one initiator, and it
-takes both from the qualified pool. CBAD is not among them.</p>
+<p>CBAD has the outcome in week 2 of her enrollment period, so she
+cannot qualify. The draw returns two comparators for one initiator, and
+it takes both from the qualified pool. CBAD is not among them.</p>
 </div>
 </div>
 <div class="section level2">
@@ -570,8 +581,8 @@ takes both from the qualified pool. CBAD is not among them.</p>
 <p><code>enroll()</code> reads the weekly
 <code>time_treatment_var</code> sequence, and writes one exact boundary
 into <code>weeks_to_protocol_deviation</code>. The decision is per week,
-not per band, so a woman’s verdict follows what she did. It does not
-follow where her weeks fall against the calendar grid.</p>
+not per follow-up interval, so a woman’s verdict follows what she did.
+It does not follow where her weeks fall against the calendar grid.</p>
 <p>An assessment is discordant when <code>time_treatment_var</code> does
 not hold the assigned arm of that person-trial. <code>NA</code> is
 discordant in both arms.</p>
@@ -647,32 +658,51 @@ below share one discordant pattern and get opposite verdicts.</p>
 <h3 id="loss-of-observation-is-never-tolerated">Loss of observation is never tolerated<a class="anchor" aria-label="anchor" href="#loss-of-observation-is-never-tolerated"></a>
 </h3>
 <p>An internal gap in the weekly sequence stops follow-up at the first
-absent week. No tolerance applies, because loss of observation is not
-discordance. The person may return in a later week. She is still
-censored at the gap.</p>
+absent week, under both estimands. No tolerance applies, because loss of
+observation is not discordance. The person may return in a later week.
+She is still censored at the gap, and an outcome at or after the gap
+week never counts.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"GAP"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, absent_fu <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span>, <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"GAP"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, absent_fu <span class="op">=</span> <span class="fl">5L</span>, event_fu <span class="op">=</span> <span class="fl">7L</span><span class="op">)</span>,</span>
+<span>  <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">gap</span>, <span class="fu">tte_design</span><span class="op">(</span>ik <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
-<span>  <span class="va">id</span> <span class="op">==</span> <span class="st">"GAP"</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">weeks_to_protocol_deviation</span>, <span class="va">weeks_to_record_end</span><span class="op">)</span></span>
+<span><span class="va">gap_trial</span> <span class="op">&lt;-</span> <span class="fu">tte_enroll</span><span class="op">(</span><span class="va">gap</span>, <span class="fu">tte_design</span><span class="op">(</span>ik <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">gap_trial</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
+<span>  <span class="va">id</span> <span class="op">==</span> <span class="st">"GAP"</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">weeks_to_observation_gap</span>, <span class="va">weeks_to_protocol_deviation</span><span class="op">)</span></span>
 <span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        id weeks_to_protocol_deviation weeks_to_record_end</span></span>
-<span><span class="co">#&gt;    &lt;char&gt;                       &lt;int&gt;               &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:    GAP                           4                  NA</span></span></code></pre></div>
+<span><span class="co">#&gt;        id weeks_to_observation_gap weeks_to_protocol_deviation</span></span>
+<span><span class="co">#&gt;    &lt;char&gt;                    &lt;int&gt;                       &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:    GAP                        4                          NA</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>estimand <span class="op">=</span> <span class="st">"pp"</span>, <span class="fu">tte_prepare</span><span class="op">(</span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">gap</span>, <span class="fu">tte_design</span><span class="op">(</span>ik <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span>, <span class="st">"pp"</span><span class="op">)</span><span class="op">[</span></span>
+<span>    <span class="va">id</span> <span class="op">==</span> <span class="st">"GAP"</span>, <span class="fu">.</span><span class="op">(</span><span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span>, <span class="va">event</span><span class="op">)</span></span>
+<span>  <span class="op">]</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>estimand <span class="op">=</span> <span class="st">"itt"</span>, <span class="fu">tte_prepare</span><span class="op">(</span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">gap</span>, <span class="fu">tte_design</span><span class="op">(</span>ik <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span>, <span class="st">"itt"</span><span class="op">)</span><span class="op">[</span></span>
+<span>    <span class="va">id</span> <span class="op">==</span> <span class="st">"GAP"</span>, <span class="fu">.</span><span class="op">(</span><span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span>, <span class="va">event</span><span class="op">)</span></span>
+<span>  <span class="op">]</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;    estimand tstart tstop person_weeks event</span></span>
+<span><span class="co">#&gt;      &lt;char&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt; &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:       pp      0     4            4     0</span></span>
+<span><span class="co">#&gt; 2:      itt      0     4            4     0</span></span></code></pre></div>
 <p>GAP is missing follow-up week 5 and holds every other week. Under a
-tolerance of 3 she still stops at week 4, the left edge of the absent
-week. Her <code>weeks_to_record_end</code> is <code>NA</code>, because
-her record reaches the end of the panel.</p>
+tolerance of 3, her <code>weeks_to_observation_gap</code> is 4, the left
+edge of the absent week. Her <code>weeks_to_protocol_deviation</code> is
+<code>NA</code>, because the gap is not a deviation. Both estimands stop
+her at week 4. Her outcome in follow-up week 7 falls in the same
+follow-up interval as the gap, and it does not count.</p>
+<p>A plan saved before swereg 26.15.0 warns when it is read, because
+gaps cannot be detected in it.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="the-terminal-band-is-clipped-and-it-is-kept">The terminal band is clipped, and it is kept<a class="anchor" aria-label="anchor" href="#the-terminal-band-is-clipped-and-it-is-kept"></a>
+<h2 id="the-terminal-follow-up-interval-is-clipped-and-it-is-kept">The terminal follow-up interval is clipped, and it is kept<a class="anchor" aria-label="anchor" href="#the-terminal-follow-up-interval-is-clipped-and-it-is-kept"></a>
 </h2>
-<p>The panel is one row per person-trial-band. Nothing is expanded
-weekly. Every band before the boundary is complete follow-up, and the
-band that reaches the boundary carries the censoring.</p>
-<p><code>s5_prepare_outcome()</code> clips that band at the exact
+<p>The panel is one row per person-trial interval. Nothing is expanded
+weekly. Every interval before the boundary is complete follow-up, and
+the interval that reaches the boundary carries the censoring.</p>
+<p><code>s5_prepare_outcome()</code> clips that interval at the exact
 boundary and sets <code>person_weeks</code> to
 <code>tstop - tstart</code>. The row stays in the analysis data. It
 carries the exposure before the boundary and nothing after it.</p>
@@ -686,12 +716,13 @@ carries the exposure before the boundary and nothing after it.</p>
 <span><span class="co">#&gt; 1:      0     4            4     0              7</span></span>
 <span><span class="co">#&gt; 2:      4     7            3     1              7</span></span></code></pre></div>
 <p>EVENT7 has the outcome in follow-up week 7, which is the interval
-<code>[6, 7)</code>. Week 7 falls inside the band <code>[4, 8)</code>,
-so her terminal row stops at 7 and bills three weeks. The two rows bill
-7 weeks in total, which is the boundary itself. Reading the boundary at
-the band stop would bill 8.</p>
+<code>[6, 7)</code>. Week 7 falls inside the follow-up interval
+<code>[4, 8)</code>, so her terminal row stops at 7 and bills three
+weeks. The two rows bill 7 weeks in total, which is the boundary itself.
+Reading the boundary at the interval stop would bill 8.</p>
 <div class="section level3">
-<h3 id="a-record-that-ends-inside-a-band-bills-only-the-weeks-present">A record that ends inside a band bills only the weeks present<a class="anchor" aria-label="anchor" href="#a-record-that-ends-inside-a-band-bills-only-the-weeks-present"></a>
+<h3 id="a-record-that-ends-inside-a-follow-up-interval-bills-only-the-weeks-present">A record that ends inside a follow-up interval bills only the weeks
+present<a class="anchor" aria-label="anchor" href="#a-record-that-ends-inside-a-follow-up-interval-bills-only-the-weeks-present"></a>
 </h3>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gone</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu">tte_person</span><span class="op">(</span><span class="st">"GONE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, absent_fu <span class="op">=</span> <span class="fl">11</span><span class="op">:</span><span class="fl">12</span><span class="op">)</span>, <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -703,8 +734,9 @@ the band stop would bill 8.</p>
 <span><span class="co">#&gt; 1:      0     4            4     0            10</span></span>
 <span><span class="co">#&gt; 2:      4     8            4     0            10</span></span>
 <span><span class="co">#&gt; 3:      8    10            2     0            10</span></span></code></pre></div>
-<p>GONE holds ten follow-up weeks and bills ten. The band-level read
-credited her with twelve, because it read the stop of the last band.</p>
+<p>GONE holds ten follow-up weeks and bills ten. The interval-level read
+credited her with twelve, because it read the stop of the last
+interval.</p>
 </div>
 <div class="section level3">
 <h3 id="the-tie-and-the-priority-order">The tie, and the priority order<a class="anchor" aria-label="anchor" href="#the-tie-and-the-priority-order"></a>
@@ -716,9 +748,9 @@ three levels.</p>
 <li>A protocol deviation and an observed loss come next.</li>
 <li>An administrative end and a requested follow-up end come last.</li>
 </ol>
-<p>An event that stops in the deviation band wins that band. The row
-counts as an event and not as a censoring, and the deviation does not
-clip it.</p>
+<p>An event that stops in the deviation interval wins that interval. The
+row counts as an event and not as a censoring, and the deviation does
+not clip it. This exception never applies to a gap in observation.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tie</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"TIE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">6L</span>, event_fu <span class="op">=</span> <span class="fl">6L</span><span class="op">)</span>,</span>
@@ -753,8 +785,8 @@ the <code>+ 1L</code> makes the boundary 6. Her two rows bill 4 and 2,
 which is 6. The boundary took the <code>+ 1L</code> and the durations
 beside it did not.</p>
 <p>Neither the administrative end nor the requested follow-up end is
-rounded to a band boundary. A six-week requested follow-up stops at week
-six, including for a woman in a four-week band.</p>
+rounded to an interval boundary. A six-week requested follow-up stops at
+week six, including for a woman with four-week follow-up intervals.</p>
 </div>
 </div>
 <div class="section level2">
@@ -763,10 +795,10 @@ six, including for a woman in a four-week band.</p>
 <div class="section level3">
 <h3 id="the-qualified-population-1">The qualified population<a class="anchor" aria-label="anchor" href="#the-qualified-population-1"></a>
 </h3>
-<p>The population is every person-band that reaches its landmark
-<code>L</code> under observation and free of every enrollment outcome
-through <code>L</code>. The whole entry band must also classify it into
-an arm.</p>
+<p>The population is every candidate person-trial that reaches its time
+zero <code>L</code> under observation and free of every enrollment
+outcome before <code>L</code>. The whole enrollment period must also
+classify it into an arm.</p>
 <p>The comparator draw happens after that, so the ratio counts qualified
 people.</p>
 </div>
@@ -774,9 +806,9 @@ people.</p>
 <h3 id="intention-to-treat">Intention-to-treat<a class="anchor" aria-label="anchor" href="#intention-to-treat"></a>
 </h3>
 <p>Among people who reach <code>L</code> alive, event-free and under
-observation, compare those the entry band classified as initiators
-against those it classified as comparators. Follow-up runs from
-<code>L</code>. Later treatment changes do not enter.</p>
+observation, compare those the enrollment period classified as
+initiators against those it classified as comparators. Follow-up runs
+from <code>L</code>. Later treatment changes do not enter.</p>
 </div>
 <div class="section level3">
 <h3 id="per-protocol">Per-protocol<a class="anchor" aria-label="anchor" href="#per-protocol"></a>
@@ -828,10 +860,10 @@ no single change was made in isolation.</p>
 <ul>
 <li>
 <strong>The censoring approximation is compressed.</strong> The
-panel is one row per band, so the censoring model reads a band and not a
-week. A boundary inside a band is exact in the person-time, and the
-censoring probability that covers it is still a band-level
-quantity.</li>
+panel is one row per follow-up interval, so the censoring model reads an
+interval and not a week. A boundary inside an interval is exact in the
+person-time, and the censoring probability that covers it is still an
+interval-level quantity.</li>
 <li>
 <strong>Within-week ordering is unidentifiable.</strong> A week is
 the finest resolution the source data carries. Two things in one week
@@ -843,26 +875,27 @@ date is known to the day. The skeleton is a person-week grid, so every
 boundary rounds to a week.</li>
 <li>
 <strong>Trials still open every <code>period_width</code>
-weeks.</strong> The landmark removes the within-band immortal time. It
-does not make the trial grid finer, so a person who becomes eligible
-mid-band waits for the next band.</li>
+weeks.</strong> Time zero after the enrollment period removes the
+immortal time inside it. It does not make the trial grid finer, so a
+person who becomes eligible inside an enrollment period waits until its
+time zero.</li>
 <li>
 <strong>The estimand is now landmark-survivor.</strong> It
 conditions on reaching <code>L</code>. People who die or have the
-outcome inside the entry band are not in the population. The estimate
-says nothing about them (Dafni 2011).</li>
+outcome inside the enrollment period are not in the population. The
+estimate says nothing about them (Dafni 2011).</li>
 <li>
 <strong>The censoring model carries no adherence history.</strong>
-It reads the time-updated confounders, the band start and the trial
-index. It carries no lagged treatment term, so a person whose adherence
-has been failing for months looks like one who fails for the first
-time.</li>
+It reads the time-updated confounders, the start of the follow-up
+interval and its calendar period. It carries no lagged treatment term,
+so a person whose adherence has been failing for months looks like one
+who fails for the first time.</li>
 <li>
 <strong>swereg implements no grace period.</strong> A grace period
 allows initiation within a fixed window after assignment without
 counting it as a deviation, and it requires cloning, censoring and
 weighting (Hernán 2018; Maringe 2020). <code>period_width</code> gives
-within-band slack for the timing of initiation at enrollment, and
+slack for the timing of initiation inside the enrollment period, and
 nothing else.</li>
 </ul>
 </div>
@@ -911,18 +944,18 @@ the form “initiate treatment within a certain time period of some
 time-varying covariate first crossing a particular threshold”.</p>
 <p><strong>Anderson JR, Cain KC, Gelber RD. Analysis of survival by
 tumor response. J Clin Oncol. 1983;1(11):710-719.</strong> DOI
-10.1200/JCO.1983.1.11.710. PMID 6668489. The origin of the landmark
-method. “The usual method of comparing responders and nonresponders is
+10.1200/JCO.1983.1.11.710. PMID 6668489. The origin of the method that
+classifies response at a fixed time and analyses survival from that
+time. “The usual method of comparing responders and nonresponders is
 biased in favor of responders, and these results are frequently
 misinterpreted as providing evidence that response prolongs
 survival.”</p>
 <p><strong>Dafni U. Landmark analysis at the 25-year landmark point.
 Circ Cardiovasc Qual Outcomes. 2011;4(3):363-371.</strong> DOI
 10.1161/CIRCOUTCOMES.110.957951. PMID 21586725. The conditional reading
-of a landmark estimand. “The goal of the landmark method is to estimate
-in an unbiased way the time-to-event probabilities in each group
-conditional on the group membership of patients at a specific time
-point, the landmark time.”</p>
+of a landmark-survivor estimand. The method estimates the time-to-event
+probabilities of each group “conditional on the group membership of
+patients at a specific time point”.</p>
 <p><strong>Maringe C, Benitez Majano S, Exarchakou A, et al. Reflection
 on modern methods: trial emulation in the presence of immortal-time
 bias. Int J Epidemiol. 2020;49(5):1719-1729.</strong> DOI
