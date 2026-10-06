@@ -46,9 +46,11 @@
         ))
         if (isTRUE(sp$negate_final)) inner else bquote(!.(inner))
       },
+      # `!is.na()` matches the `windowed_only_obs` guard below: a week with
+      # no observation is not the value, so it MUST NOT count as one.
       "windowed_no_obs" = bquote(
         !.any_prior_in_spans(
-          .(src_sym) == .(sp$value),
+          !is.na(.(src_sym)) & .(src_sym) == .(sp$value),
           .(sp$window_weeks),
           .first,
           .last

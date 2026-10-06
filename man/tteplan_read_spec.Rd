@@ -37,7 +37,8 @@ as its own key, or a washout type under \code{implementation}
 \code{no_prior_value} and \code{only_prior_value}
 \item Each exclusion criterion must have \code{implementation$source_variable}
 \item Each outcome must have \code{implementation$variable}
-\item Each enrollment must have \code{id} and \code{treatment$implementation$variable}
+\item Each enrollment must have \code{id}, \code{treatment$implementation$variable}
+and \code{treatment$implementation$seed}
 \item Computed confounders must have \code{implementation$source_variable}
 }
 

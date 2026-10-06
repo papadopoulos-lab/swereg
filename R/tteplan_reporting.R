@@ -123,9 +123,13 @@
   # 6a: Eligibility
   # A global criterion and an enrollment's own criterion take the same line,
   # so one helper renders both.
+  # Item 7a lists the same criteria in prose, so it calls `incl_desc()` and
+  # `enr_incl_desc()` without the "Inclusion: " label.
   incl_line <- function(ic) {
+    return(paste0("Inclusion: ", incl_desc(ic)))
+  }
+  incl_desc <- function(ic) {
     return(paste0(
-      "Inclusion: ",
       ic$name,
       " (variable: ",
       ic$implementation$source_variable_combined %||%
@@ -153,6 +157,24 @@
       ")"
     ))
   }
+  enr_incl_desc <- function(ai) {
+    type <- .tte_entry_type(ai)
+    if (identical(type, "age_range")) {
+      return(paste0(
+        "Age: ",
+        ai$min,
+        "-",
+        ai$max,
+        " (variable: ",
+        ai$implementation$variable,
+        ")"
+      ))
+    }
+    if (identical(type, "isoyear_range")) {
+      return(paste0("ISO years: ", ai$min, "-", ai$max))
+    }
+    return(incl_desc(ai))
+  }
   # A spec without global ISO years still has criteria to list.
   elig_text <- NULL
   parts <- character()
@@ -173,21 +195,10 @@
   for (enr in spec$enrollments %||% list()) {
     enr_parts <- character()
     for (ai in enr$additional_inclusion %||% list()) {
-      type <- .tte_entry_type(ai)
       enr_parts <- c(
         enr_parts,
-        if (identical(type, "age_range")) {
-          paste0(
-            "Age: ",
-            ai$min,
-            "-",
-            ai$max,
-            " (variable: ",
-            ai$implementation$variable,
-            ")"
-          )
-        } else if (identical(type, "isoyear_range")) {
-          paste0("ISO years: ", ai$min, "-", ai$max)
+        if (isTRUE(.tte_entry_type(ai) %in% c("age_range", "isoyear_range"))) {
+          enr_incl_desc(ai)
         } else {
           incl_line(ai)
         }
@@ -317,35 +328,9 @@
     "A person can be an intervention individual in one trial and a ",
     "comparator individual in another. "
   )
-  # The seed sentence states what the spec holds. The seed is optional, and a
-  # spec without one runs the draw from `set.seed(NULL)`.
-  seed_ids <- vapply(
-    spec$enrollments %||% list(),
-    function(enr) {
-      return(as.character(enr$id %||% NA_character_))
-    },
-    character(1)
-  )
-  seed_set <- vapply(
-    spec$enrollments %||% list(),
-    function(enr) {
-      return(!is.null(enr$treatment$implementation$seed))
-    },
-    logical(1)
-  )
-  seed_text <- if (length(seed_set) > 0L && all(seed_set)) {
-    "The draw ran from a stated seed. "
-  } else if (!any(seed_set)) {
-    "The specification stated no seed for the draw. "
-  } else {
-    paste0(
-      "The draw ran from a stated seed in enrollment ",
-      paste(seed_ids[seed_set], collapse = ", "),
-      ". The specification stated no seed for enrollment ",
-      paste(seed_ids[!seed_set], collapse = ", "),
-      ". "
-    )
-  }
+  # `tteplan_read_spec()` refuses an enrollment without a seed, so every
+  # enrollment states one.
+  seed_text <- "The draw ran from a stated seed. "
   # `assign_paragraph()` holds the sentences that items 6c and 7c share. Each
   # caller passes only the parts that differ, so the two paragraphs cannot
   # drift apart.
@@ -584,6 +569,46 @@
     )
   )
 
+  # 7a lists the inclusion criteria of the spec, as item 6a does. An
+  # enrollment's own criteria name that enrollment. Enrollments that add the
+  # same criteria share one entry.
+  incl_7a <- character()
+  if (!is.null(iso)) {
+    incl_7a <- paste0("ISO years: ", iso[1], "-", iso[2])
+  }
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    incl_7a <- c(incl_7a, incl_desc(ic))
+  }
+  enr_7a <- list()
+  for (enr in spec$enrollments %||% list()) {
+    descs <- vapply(
+      enr$additional_inclusion %||% list(),
+      enr_incl_desc,
+      character(1)
+    )
+    if (length(descs) > 0L) {
+      key <- paste(descs, collapse = " and ")
+      enr_7a[[key]] <- c(enr_7a[[key]], enr$id)
+    }
+  }
+  for (key in names(enr_7a)) {
+    ids <- enr_7a[[key]]
+    incl_7a <- c(
+      incl_7a,
+      paste0(
+        if (length(ids) == 1L) "in enrollment " else "in enrollments ",
+        paste0("'", ids, "'", collapse = ", "),
+        ", ",
+        key
+      )
+    )
+  }
+  incl_7a_text <- if (length(incl_7a) > 0L) {
+    paste0("The inclusion criteria were: ", paste(incl_7a, collapse = "; "), ". ")
+  } else {
+    "The specification stated no inclusion criteria. "
+  }
+
   # 7a-7h: Emulation
   cat(strrep("\u2500", 59), "\n")
   cat(bold("METHODS \u2014 EMULATION"), "\n")
@@ -602,8 +627,9 @@
       pw_weeks,
       ", and each period defined one sequential trial. ",
       "A person could be eligible in some weeks of a period and not in others. ",
-      "Individuals entered the pool of eligible person-trials if they met the inclusion criteria (calendar year range, age) and had not met any exclusion criterion ",
+      "Individuals entered the pool of eligible person-trials if they met the inclusion criteria and had not met any exclusion criterion ",
       "(e.g., no prior intervention within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
+      incl_7a_text,
       "Exclusion criteria were evaluated cumulatively, and the number of persons and person-trials remaining after each criterion was recorded for the participant flow diagram. ",
       # 7b: Treatment strategies
       "Treatment strategies (6b): Treatment status was determined from registry data in every week of the person-week skeleton. ",

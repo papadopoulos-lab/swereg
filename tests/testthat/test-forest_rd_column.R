@@ -537,9 +537,10 @@ test_that("a non-default confidence level renders a matching header", {
   expect_true("Risk difference per 10,000\nat 52 wks (90% CI)" %in% drawn)
   expect_false("Risk difference per 10,000\nat 52 wks (95% CI)" %in% drawn)
 
-  # The IRR column next door is a separate, genuinely fixed 95% interval, so
-  # it must NOT follow the risk difference's level.
-  expect_true("IRR over 52 wks\n(95% CI)" %in% drawn)
+  # s3 computes the IRR interval at the same study level as the risk
+  # difference (swereg#51), so the IRR header follows it too.
+  expect_true("IRR over 52 wks\n(90% CI)" %in% drawn)
+  expect_false("IRR over 52 wks\n(95% CI)" %in% drawn)
 })
 
 test_that("the risk-difference header follows other non-default levels too", {

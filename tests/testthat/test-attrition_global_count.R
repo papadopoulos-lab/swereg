@@ -71,12 +71,13 @@ test_that("global row's n_persons equals true uniqueN, not double", {
     pid           = "person_id"
   )
 
-  # Cohort has 4 unique persons (A, B, C, D). Person C only appears in
-  # NA-period-id weeks; the pre-fix bug would have surfaced an extra
+  # The input has 4 unique persons (A, B, C, D). Person C only appears in
+  # NA-period-id weeks, so C enters no trial and the global row counts 3
+  # (A, B, D). The pre-fix bug would have surfaced an extra
   # enrollment_period_id=NA per-trial row covering C and friends.
   before_global <- attr[criterion == "before_exclusions" & is.na(enrollment_period_id)]
   expect_equal(nrow(before_global), 1L)
-  expect_equal(before_global$n_persons, 4L)
+  expect_equal(before_global$n_persons, 3L)
 })
 
 test_that("per-batch aggregation (sum by enrollment_period_id, criterion) does NOT double the global", {
@@ -98,6 +99,7 @@ test_that("per-batch aggregation (sum by enrollment_period_id, criterion) does N
                   by = .(enrollment_period_id, criterion)]
   global_before <- agg[is.na(enrollment_period_id) & criterion == "before_exclusions"]
   expect_equal(nrow(global_before), 1L)
-  # Pre-fix: 8 (=4 *2). Post-fix: 4 unique persons across batches.
-  expect_equal(global_before$n_persons, 4L)
+  # Pre-fix: 8 (=4 *2). Post-fix: 3 unique persons across batches. Person C
+  # has only NA-period-id weeks and enters no trial (swereg#51).
+  expect_equal(global_before$n_persons, 3L)
 })

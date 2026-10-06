@@ -20,22 +20,22 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #'
 #' **IRR vs HR**: For rare events (typical in registry-based TTE studies),
 #' the incidence rate ratio from Poisson regression approximates the hazard
-#' ratio from Cox regression (Thompson 1977). The Poisson model with
-#' `splines::ns(tstop, df=3)` flexibly models the baseline event rate over
-#' follow-up time. That is analogous to Cox's nonparametric baseline hazard and
-#' to Danaei et al.'s "month of follow-up and its squared terms" in pooled
-#' logistic regression.
+#' ratio from Cox regression (Thompson 1977). The Poisson model has a term in
+#' the time since time zero, read at the interval start (`tstart`). That term
+#' models the baseline event rate over follow-up. It is analogous to Cox's
+#' nonparametric baseline hazard and to Danaei et al.'s "month of follow-up
+#' and its squared terms" in pooled logistic regression.
 #'
 #' **Computational choice**: `quasipoisson` accounts for overdispersion
 #' from survey weights, and `svyglm` scales to large registry datasets
 #' (unlike `survey::svycoxph()`). This is computationally equivalent to
 #' the pooled logistic approach used by Danaei et al. (2013).
 #'
-#' **Calendar-time adjustment**: When `period_id` is present in the data, the
-#' model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
-#' Danaei 2013). In the panel, `period_id` indexes the calendar period of each
-#' follow-up interval. Uses natural splines for >=5 unique period IDs, linear
-#' term for 2-4, omitted for 1.
+#' **Trial adjustment**: The model also has a term in the trial,
+#' `enrollment_period_id`, the calendar period at time zero (Caniglia 2023,
+#' Danaei 2013). Each time term counts the distinct values in the fitted
+#' rows. It is `splines::ns(x, df = 3)` from 4 values, `factor(x)` for 2 or 3
+#' values, and no term for 1 value.
 #'
 #' **Estimand (marginal)**: confounding is removed by the supplied `weights`,
 #' not by adjusting for confounders in this model, so the coefficient is a
@@ -47,20 +47,25 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #' `vignette("tte-methods")`, "Marginal versus conditional estimands".
 #'
 #' @param weight_col Character, required. Column name for weights.
+#' @param conf_level Numeric in (0, 1), the level of the Wald interval of the
+#'   IRR. Default 0.95.
 #' @return A data.table with IRR estimates and confidence intervals.
-TTEEnrollment$set("public", "irr", function(weight_col) {
-  return(.tte_est_irr(self, weight_col))
+TTEEnrollment$set("public", "irr", function(weight_col, conf_level = 0.95) {
+  return(.tte_est_irr(self, weight_col, conf_level))
 })
 
 #' @description Test for heterogeneity of treatment effects across trials.
 #'
-#' Fits a model with a `period_id x treatment` interaction term and returns
-#' the Wald test p-value. This tests whether the treatment effect varies
-#' across the calendar periods that `period_id` indexes (Hernan 2008, Danaei
-#' 2013).
+#' Fits a model with a treatment x trial interaction and returns the Wald test
+#' p-value. The trial is `enrollment_period_id`, the calendar period at time
+#' zero. This tests whether the treatment effect varies across the trials
+#' (Hernan 2008, Danaei 2013). The interaction is with
+#' `splines::ns(enrollment_period_id, df = min(3, n - 1))`, where `n` is the
+#' number of trials. The model also has a term in the time since time zero
+#' (`tstart`).
 #'
 #' @param weight_col Character, required. Column name for weights.
-#' @return A list with `p_value` (Wald test), `n_trials` (unique period IDs),
+#' @return A list with `p_value` (Wald test), `n_trials` (unique trials),
 #'   and `interaction_coefs` (data.table of interaction coefficients).
 TTEEnrollment$set("public", "heterogeneity_test", function(weight_col) {
   return(.tte_est_heterogeneity_test(self, weight_col))
@@ -79,8 +84,13 @@ TTEEnrollment$set("public", "heterogeneity_test", function(weight_col) {
 #' The subgroup variable should be a confounder (in the PS / IPCW models)
 #' so the marginal weights remain valid within each stratum.
 #'
+#' The model has the same time terms as `$irr()`: the time since time zero
+#' (`tstart`) and the trial (`enrollment_period_id`).
+#'
 #' @param weight_col Character, required. Column name for weights.
 #' @param subgroup_var Character, required. A categorical baseline column.
+#' @param conf_level Numeric in (0, 1), the level of the Wald interval of
+#'   `ratio_of_irrs`. Default 0.95.
 #' @return A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
 #'   `interaction_coefs` (data.table), and, for a binary subgroup,
 #'   `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
@@ -88,8 +98,13 @@ TTEEnrollment$set("public", "heterogeneity_test", function(weight_col) {
 TTEEnrollment$set(
   "public",
   "effect_modification_test",
-  function(weight_col, subgroup_var) {
-    return(.tte_est_effect_modification_test(self, weight_col, subgroup_var))
+  function(weight_col, subgroup_var, conf_level = 0.95) {
+    return(.tte_est_effect_modification_test(
+      self,
+      weight_col,
+      subgroup_var,
+      conf_level
+    ))
   }
 )
 
@@ -101,17 +116,20 @@ TTEEnrollment$set(
 #' subgroup, the ratio of stratum IRRs) is attached as an attribute.
 #' Strata with no events or only one treatment arm degrade to NA with a
 #' warning; NA-subgroup rows are dropped (count attached as an attribute).
+#' Each fit has the same time terms as `$irr()`.
 #'
 #' @param weight_col Character, required. Column name for weights.
 #' @param subgroup_var Character, required. A categorical baseline column.
+#' @param conf_level Numeric in (0, 1), the level of the Wald interval of
+#'   each IRR. Default 0.95.
 #' @return A data.table with columns `level, IRR, IRR_lower, IRR_upper,
 #'   IRR_pvalue, warn, events_intervention, events_comparator`, with
 #'   attributes `em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
 TTEEnrollment$set(
   "public",
   "irr_by_subgroup",
-  function(weight_col, subgroup_var) {
-    return(.tte_est_irr_by_subgroup(self, weight_col, subgroup_var))
+  function(weight_col, subgroup_var, conf_level = 0.95) {
+    return(.tte_est_irr_by_subgroup(self, weight_col, subgroup_var, conf_level))
   }
 )
 

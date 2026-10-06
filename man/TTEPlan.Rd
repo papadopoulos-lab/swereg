@@ -496,8 +496,10 @@ separately by treatment group (default: TRUE).}
 
 For each enrollment: loads one analysis file and the raw file, computes
 baseline characteristics (raw, unweighted, IPW, IPW truncated).
-For each ETT: loads the analysis file, computes rates, IRR, and
-heterogeneity test with both truncated and untruncated weights.
+For each ETT: loads the analysis file, then computes the rates and the IRR
+with both truncated and untruncated weights. For each subgroup the spec
+names, it also computes the stratified IRRs and the effect-modification
+test.
 
 Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
 estimand and weight combinations carry it: per-protocol on
@@ -517,8 +519,9 @@ reports. The figure reads it rather than opening the analysis file again.
 The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
 \code{spec$study$implementation$conf_level} and defaulting to 0.95. All three
-are recorded on every stored row. The export path formats those numbers
-and never recomputes them.
+are recorded on every stored risk-difference row. The export path formats
+those numbers and never recomputes them. The IRR intervals and the
+interval of the ratio of stratum IRRs use the same level.
 
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads

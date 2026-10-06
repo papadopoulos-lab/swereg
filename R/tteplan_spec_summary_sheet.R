@@ -583,10 +583,12 @@
 
   # -- Confounders ----------------------------------------------------------
   add_header("Confounders")
-  # standing_methods.calendar_time is the first confounder entry. swereg adjusts
-  # for calendar time in the outcome model, through a natural spline of the
-  # trial index, and in the censoring weights. The treatment weights do not
-  # include it. An authored `note` replaces this text.
+  # standing_methods.calendar_time is the first confounder entry. The outcome
+  # model adjusts for calendar time through a term in the trial
+  # (`enrollment_period_id`, from `.tte_time_term()`). The denominator of the
+  # censoring weights adjusts for it through a term in the calendar period
+  # (`period_id`). The treatment weights do not include it. An authored `note`
+  # replaces this text.
   sm_ct <- spec$standing_methods$calendar_time
   if (!is.null(sm_ct) && identical(sm_ct$handling, "auto-adjusted")) {
     add_item("Calendar time at trial registration")
@@ -594,8 +596,10 @@
       "Handling:",
       sm_ct$note %||%
         paste(
-          "Adjusted for in the outcome model (natural spline of the trial",
-          "index) and in the censoring weights. Not in the treatment weights."
+          "Adjusted for in the outcome model through a term in the trial:",
+          "a natural spline for 4 or more trials, a factor for 2 or 3 trials,",
+          "and no term for 1 trial. Also adjusted for in the denominator of",
+          "the censoring weights. Not in the treatment weights."
         )
     )
   }

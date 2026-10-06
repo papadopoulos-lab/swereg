@@ -210,7 +210,7 @@
     change_kind := data.table::fcase(
       kind == "exclusion" , "excluded"                    ,
       kind == "selection" , "not drawn (comparator draw)" ,
-      kind == "analysis"  , "censored (per-protocol)"     ,
+      kind == "analysis"  , "censored (administrative end of follow-up)",
       default = NA_character_
     )
   ]

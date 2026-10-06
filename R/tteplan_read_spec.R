@@ -35,7 +35,8 @@
 #'     `no_prior_value` and `only_prior_value`
 #'   \item Each exclusion criterion must have `implementation$source_variable`
 #'   \item Each outcome must have `implementation$variable`
-#'   \item Each enrollment must have `id` and `treatment$implementation$variable`
+#'   \item Each enrollment must have `id`, `treatment$implementation$variable`
+#'     and `treatment$implementation$seed`
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -288,6 +289,17 @@ tteplan_read_spec <- function(spec_path) {
         "] '",
         enr$name %||% enr$id,
         "' is missing treatment$implementation$comparator_to_intervention_ratio",
+        call. = FALSE
+      )
+    }
+    # The comparator draw needs a seed to be reproducible.
+    if (is.null(tx_impl[["seed"]])) {
+      stop(
+        "enrollments[",
+        i,
+        "] '",
+        enr$name %||% enr$id,
+        "' is missing treatment$implementation$seed",
         call. = FALSE
       )
     }

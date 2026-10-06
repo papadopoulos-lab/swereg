@@ -231,7 +231,7 @@
 #' @noRd
 .S3_RD_CONF_LEVEL_DEFAULT <- 0.95
 
-
+#' Read the study's confidence level for the risk-difference and ratio intervals.
 #' Read the study's confidence level for the risk-difference interval.
 #'
 #' The level is a STUDY property, read from
@@ -259,8 +259,8 @@
   if (length(v) != 1L || is.na(v) || v <= 0 || v >= 1) {
     stop(
       "study$implementation$conf_level must be a single number strictly ",
-      "between 0 and 1. It sets the risk-difference interval and the header ",
-      "that states it.",
+      "between 0 and 1. It sets the risk-difference interval, the ratio ",
+      "intervals and the header that states the level.",
       call. = FALSE
     )
   }
@@ -348,10 +348,11 @@
 #' @param n_threads Integer, number of data.table threads.
 #' @param subgroup_var Optional column name for the stratified methods
 #'   (`irr_by_subgroup`, `effect_modification_test`); `NULL` otherwise.
-#' @param conf_level Numeric, the risk-difference interval level the study
-#'   specification names. `.s3_conf_level()` resolves it in the parent, and
-#'   every item carries it because batchit demands every formal on every item.
-#'   Only `method = "risk_difference"` reads it.
+#' @param conf_level Numeric, the interval level the study specification
+#'   names. `.s3_conf_level()` resolves it in the parent, and every item
+#'   carries it because batchit demands every formal on every item. The
+#'   `irr`, `risk_difference`, `irr_by_subgroup` and
+#'   `effect_modification_test` methods read it.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
 .s3_ett_worker <- function(
@@ -414,7 +415,10 @@
     # there. The ratio alone cannot separate an empty arm from a real effect.
     return(setNames(
       list(.s3_mark_irr_estimable(
-        safe_call(\() enrollment$irr(weight_col = weight_col), slot)
+        safe_call(
+          \() enrollment$irr(weight_col = weight_col, conf_level = conf_level),
+          slot
+        )
       )),
       slot
     ))
@@ -467,7 +471,7 @@
     slot <- paste0("subgroup_", subgroup_var, "_", suffix)
     return(setNames(
       list(safe_call(
-        \() enrollment$irr_by_subgroup(weight_col, subgroup_var),
+        \() enrollment$irr_by_subgroup(weight_col, subgroup_var, conf_level),
         slot
       )),
       slot
@@ -478,7 +482,13 @@
     slot <- paste0("emtest_", subgroup_var, "_", suffix)
     return(setNames(
       list(safe_call(
-        \() enrollment$effect_modification_test(weight_col, subgroup_var),
+        \() {
+          return(enrollment$effect_modification_test(
+            weight_col,
+            subgroup_var,
+            conf_level
+          ))
+        },
         slot
       )),
       slot

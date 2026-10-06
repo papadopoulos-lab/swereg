@@ -636,8 +636,10 @@ test_that("the spec workbook states where swereg adjusts for calendar time", {
   expect_identical(
     .iyr_calendar_handling(list(handling = "auto-adjusted")),
     paste(
-      "Adjusted for in the outcome model (natural spline of the trial index)",
-      "and in the censoring weights. Not in the treatment weights."
+      "Adjusted for in the outcome model through a term in the trial:",
+      "a natural spline for 4 or more trials, a factor for 2 or 3 trials,",
+      "and no term for 1 trial. Also adjusted for in the denominator of",
+      "the censoring weights. Not in the treatment weights."
     )
   )
 })

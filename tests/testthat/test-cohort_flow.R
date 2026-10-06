@@ -42,7 +42,7 @@ test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis
   expect_equal(flow$change_person_trials, c(NA, 1000, 500, 1400, 50))
   expect_equal(flow$change_kind, c(
     NA, "excluded", "excluded",
-    "not drawn (comparator draw)", "censored (per-protocol)"
+    "not drawn (comparator draw)", "censored (administrative end of follow-up)"
   ))
 })
 

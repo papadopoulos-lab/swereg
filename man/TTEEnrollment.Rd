@@ -282,22 +282,22 @@ accounts for within-person correlation across repeated trial entries
 
 \strong{IRR vs HR}: For rare events (typical in registry-based TTE studies),
 the incidence rate ratio from Poisson regression approximates the hazard
-ratio from Cox regression (Thompson 1977). The Poisson model with
-\code{splines::ns(tstop, df=3)} flexibly models the baseline event rate over
-follow-up time. That is analogous to Cox's nonparametric baseline hazard and
-to Danaei et al.'s "month of follow-up and its squared terms" in pooled
-logistic regression.
+ratio from Cox regression (Thompson 1977). The Poisson model has a term in
+the time since time zero, read at the interval start (\code{tstart}). That term
+models the baseline event rate over follow-up. It is analogous to Cox's
+nonparametric baseline hazard and to Danaei et al.'s "month of follow-up
+and its squared terms" in pooled logistic regression.
 
 \strong{Computational choice}: \code{quasipoisson} accounts for overdispersion
 from survey weights, and \code{svyglm} scales to large registry datasets
 (unlike \code{survey::svycoxph()}). This is computationally equivalent to
 the pooled logistic approach used by Danaei et al. (2013).
 
-\strong{Calendar-time adjustment}: When \code{period_id} is present in the data, the
-model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
-Danaei 2013). In the panel, \code{period_id} indexes the calendar period of each
-follow-up interval. Uses natural splines for >=5 unique period IDs, linear
-term for 2-4, omitted for 1.
+\strong{Trial adjustment}: The model also has a term in the trial,
+\code{enrollment_period_id}, the calendar period at time zero (Caniglia 2023,
+Danaei 2013). Each time term counts the distinct values in the fitted
+rows. It is \code{splines::ns(x, df = 3)} from 4 values, \code{factor(x)} for 2 or 3
+values, and no term for 1 value.
 
 \strong{Estimand (marginal)}: confounding is removed by the supplied \code{weights},
 not by adjusting for confounders in this model, so the coefficient is a
@@ -309,13 +309,15 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 \code{vignette("tte-methods")}, "Marginal versus conditional estimands".
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$irr(weight_col)}
+    \preformatted{TTEEnrollment$irr(weight_col, conf_level = 0.95)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{weight_col}}{Character, required. Column name for weights.}
+      \item{\code{conf_level}}{Numeric in (0, 1), the level of the Wald interval of the
+IRR. Default 0.95.}
     }
     \if{html}{\out{</div>}}
   }
@@ -330,10 +332,13 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 \subsection{\code{TTEEnrollment$heterogeneity_test()}}{
   Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a \verb{period_id x treatment} interaction term and returns
-the Wald test p-value. This tests whether the treatment effect varies
-across the calendar periods that \code{period_id} indexes (Hernan 2008, Danaei
-2013).
+Fits a model with a treatment x trial interaction and returns the Wald test
+p-value. The trial is \code{enrollment_period_id}, the calendar period at time
+zero. This tests whether the treatment effect varies across the trials
+(Hernan 2008, Danaei 2013). The interaction is with
+\code{splines::ns(enrollment_period_id, df = min(3, n - 1))}, where \code{n} is the
+number of trials. The model also has a term in the time since time zero
+(\code{tstart}).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$heterogeneity_test(weight_col)}
@@ -347,7 +352,7 @@ across the calendar periods that \code{period_id} indexes (Hernan 2008, Danaei
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list with \code{p_value} (Wald test), \code{n_trials} (unique period IDs),
+    A list with \code{p_value} (Wald test), \code{n_trials} (unique trials),
 and \code{interaction_coefs} (data.table of interaction coefficients).
   }
 }
@@ -368,9 +373,16 @@ where \code{ref} is the first factor level.
 
 The subgroup variable should be a confounder (in the PS / IPCW models)
 so the marginal weights remain valid within each stratum.
+
+The model has the same time terms as \verb{$irr()}: the time since time zero
+(\code{tstart}) and the trial (\code{enrollment_period_id}).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$effect_modification_test(weight_col, subgroup_var)}
+    \preformatted{TTEEnrollment$effect_modification_test(
+  weight_col,
+  subgroup_var,
+  conf_level = 0.95
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -378,6 +390,8 @@ so the marginal weights remain valid within each stratum.
     \describe{
       \item{\code{weight_col}}{Character, required. Column name for weights.}
       \item{\code{subgroup_var}}{Character, required. A categorical baseline column.}
+      \item{\code{conf_level}}{Numeric in (0, 1), the level of the Wald interval of
+\code{ratio_of_irrs}. Default 0.95.}
     }
     \if{html}{\out{</div>}}
   }
@@ -401,9 +415,10 @@ estimation core. The effect-modification test p-value (and, for a binary
 subgroup, the ratio of stratum IRRs) is attached as an attribute.
 Strata with no events or only one treatment arm degrade to NA with a
 warning; NA-subgroup rows are dropped (count attached as an attribute).
+Each fit has the same time terms as \verb{$irr()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var)}
+    \preformatted{TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var, conf_level = 0.95)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -411,6 +426,8 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).
     \describe{
       \item{\code{weight_col}}{Character, required. Column name for weights.}
       \item{\code{subgroup_var}}{Character, required. A categorical baseline column.}
+      \item{\code{conf_level}}{Numeric in (0, 1), the level of the Wald interval of
+each IRR. Default 0.95.}
     }
     \if{html}{\out{</div>}}
   }

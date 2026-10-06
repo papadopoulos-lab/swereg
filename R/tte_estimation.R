@@ -89,11 +89,12 @@ utils::globalVariables("..keep_cols")
 #'
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
+#' @param conf_level Numeric(1) in (0, 1), the interval level.
 #' @return A one-row data.table of IRR estimates. `events_intervention`
 #'   and `events_comparator` are the event totals of the two arms, which
 #'   is what `.tte_irr_estimable()` reads.
 #' @noRd
-.tte_est_irr <- function(self, weight_col) {
+.tte_est_irr <- function(self, weight_col, conf_level = 0.95) {
   if (self$data_level != "trial") {
     stop(
       "irr() requires trial level data.\n",
@@ -146,7 +147,7 @@ utils::globalVariables("..keep_cols")
     )
   }
 
-  return(.tte_fit_irr(data, weight_col, design))
+  return(.tte_fit_irr(data, weight_col, design, conf_level))
 }
 
 
@@ -254,6 +255,18 @@ utils::globalVariables("..keep_cols")
   ))
 }
 
+#' Two-sided normal critical value for a confidence level
+#'
+#' A Wald interval at level `conf_level` is `estimate +/- z * se` with this
+#' `z`. A level of 0.95 gives 1.959964.
+#'
+#' @param conf_level Numeric(1) strictly between 0 and 1.
+#' @return Numeric(1).
+#' @noRd
+.tte_z_crit <- function(conf_level) {
+  return(stats::qnorm(1 - (1 - conf_level) / 2))
+}
+
 #' Weighted Poisson MSM fit for one data subset
 #'
 #' The estimation core shared by `.tte_est_irr()` and
@@ -268,12 +281,13 @@ utils::globalVariables("..keep_cols")
 #' @param data A data.table, the rows to fit on.
 #' @param weight_col Character(1), the weight column.
 #' @param design A `TTEDesign`.
+#' @param conf_level Numeric(1) in (0, 1), the interval level.
 #' @return A one-row data.table of IRR estimates. It carries
 #'   `events_intervention` and `events_comparator` on both paths, so the
 #'   `NA` row still says which arm held no event. A fitted row carries the
 #'   formula the fit received in `attr(, "model_formula")`.
 #' @noRd
-.tte_fit_irr <- function(data, weight_col, design) {
+.tte_fit_irr <- function(data, weight_col, design, conf_level = 0.95) {
   # Local bindings (avoid R CMD check NSE notes)
   event <- NULL # nolint
 
@@ -359,8 +373,8 @@ utils::globalVariables("..keep_cols")
 
   result <- data.table::data.table(
     IRR = exp(coef),
-    IRR_lower = exp(coef - 1.96 * se),
-    IRR_upper = exp(coef + 1.96 * se),
+    IRR_lower = exp(coef - .tte_z_crit(conf_level) * se),
+    IRR_upper = exp(coef + .tte_z_crit(conf_level) * se),
     IRR_pvalue = pvalue,
     warn = warn,
     events_intervention = ev_n$intervention,
@@ -523,11 +537,18 @@ utils::globalVariables("..keep_cols")
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
 #' @param subgroup_var Character(1), a categorical baseline column.
+#' @param conf_level Numeric(1) in (0, 1), the level of the interval of the
+#'   ratio of stratum IRRs.
 #' @return A list with `p_value`, `subgroup_var`, `n_levels`,
 #'   `interaction_coefs` and the ratio of stratum IRRs. It carries the
 #'   formula the fit received in `attr(, "model_formula")`.
 #' @noRd
-.tte_est_effect_modification_test <- function(self, weight_col, subgroup_var) {
+.tte_est_effect_modification_test <- function(
+  self,
+  weight_col,
+  subgroup_var,
+  conf_level = 0.95
+) {
   if (self$data_level != "trial") {
     stop("effect_modification_test() requires trial level data.", call. = FALSE)
   }
@@ -657,8 +678,8 @@ utils::globalVariables("..keep_cols")
     b <- fit_summary[interaction_idx, "Estimate"]
     s <- fit_summary[interaction_idx, "Std. Error"]
     ratio <- exp(b)
-    ratio_lower <- exp(b - 1.96 * s)
-    ratio_upper <- exp(b + 1.96 * s)
+    ratio_lower <- exp(b - .tte_z_crit(conf_level) * s)
+    ratio_upper <- exp(b + .tte_z_crit(conf_level) * s)
   } else {
     ratio <- NA_real_
     ratio_lower <- NA_real_
@@ -689,11 +710,17 @@ utils::globalVariables("..keep_cols")
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
 #' @param subgroup_var Character(1), a categorical baseline column.
+#' @param conf_level Numeric(1) in (0, 1), the interval level.
 #' @return A data.table with one row per stratum, plus an `"all"` row.
 #'   Each row carries `events_intervention` and `events_comparator` for
 #'   that stratum.
 #' @noRd
-.tte_est_irr_by_subgroup <- function(self, weight_col, subgroup_var) {
+.tte_est_irr_by_subgroup <- function(
+  self,
+  weight_col,
+  subgroup_var,
+  conf_level = 0.95
+) {
   # Local bindings (avoid R CMD check NSE notes)
   event <- NULL # nolint
 
@@ -780,7 +807,7 @@ utils::globalVariables("..keep_cols")
       ))
     }
     r <- tryCatch(
-      .tte_fit_irr(subset, weight_col, design),
+      .tte_fit_irr(subset, weight_col, design, conf_level),
       error = function(e) {
         warning(
           "irr_by_subgroup: fit failed for stratum '",
@@ -817,7 +844,7 @@ utils::globalVariables("..keep_cols")
   out <- data.table::rbindlist(rows)
 
   emt <- tryCatch(
-    self$effect_modification_test(weight_col, subgroup_var),
+    self$effect_modification_test(weight_col, subgroup_var, conf_level),
     error = function(e) NULL
   )
   data.table::setattr(

@@ -201,6 +201,10 @@
     c(pid, treatment_var, "period_id"),
     c(".tte_pid", ".tte_tx", "enrollment_period_id")
   )
+  # Rows with no trial key (annual rows, weeks outside any trial period) are
+  # not person-trials. Remove them before every aggregation, so the global
+  # rows count the same person-trials as the sum of the per-trial rows.
+  sk <- sk[!is.na(enrollment_period_id)]
 
   # Classify each (person, trial) as any()-exposed so that a row in `pt0`
   # corresponds to one person-trial with a single boolean treatment flag.

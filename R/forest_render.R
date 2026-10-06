@@ -44,8 +44,9 @@
 #'   distinct-person event counts are NOT drawn: they are reported on the
 #'   `PP results` and `ITT results` workbook sheets instead.
 #' @param rd_conf_level numeric(1) strictly between 0 and 1, the confidence
-#'   level the risk-difference intervals were computed at. The header states
-#'   this level rather than a hard-coded one, so `0.9` prints `90\% CI`.
+#'   level the risk-difference intervals were computed at. s3 computes the IRR
+#'   intervals at the same study level. The IRR header and the risk-difference
+#'   header state this level, so `0.9` prints `90\% CI`.
 #'   Defaults to 0.95, which is what `$risk_difference()` defaults to, so a
 #'   caller that does not set it is unaffected. When `rd_lookup` carries its
 #'   own `conf_level` (every lookup the export path builds does), the two must
@@ -468,12 +469,13 @@
     hjust_val = 0
   )
   # `over` marks a PERIOD measure. The incidence rate ratio covers the whole
-  # follow-up, where the two columns to its left are read AT one instant. The
-  # confidence level here IS a literal, and honestly so: $irr() takes no
-  # confidence level and .fit_irr() uses a hard-coded 1.96 multiplier.
+  # follow-up, where the two columns to its left are read AT one instant.
+  # s3 computes the IRR interval at the study level `.s3_conf_level()`, the
+  # same level as the risk-difference interval. The export passes that level
+  # as `rd_conf_level`, so `rd_level` states it for both headers.
   p_irr <- text_col(
     "txt_irr",
-    paste0("IRR", over_lbl, "\n(95% CI)"),
+    paste0("IRR", over_lbl, "\n(", .ff_conf_pct(rd_level), "% CI)"),
     hjust_val = 0
   )
 
