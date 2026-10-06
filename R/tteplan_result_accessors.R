@@ -214,7 +214,7 @@
   ),
   attrition = c(
     enrollment_id = "character",
-    trial_id = "integer",
+    enrollment_period_id = "integer",
     step_order = "integer",
     step_name = "character",
     n_persons = "numeric",
@@ -224,7 +224,7 @@
   ),
   matching = c(
     enrollment_id = "character",
-    trial_id = "integer",
+    enrollment_period_id = "integer",
     n_intervention_total = "numeric",
     n_comparator_total = "numeric",
     n_intervention_enrolled = "numeric",
@@ -893,7 +893,7 @@
 #' Columns the stored attrition table must carry.
 #' @noRd
 .ACC_ATTRITION_COLS <- c(
-  "trial_id",
+  "enrollment_period_id",
   "criterion",
   "n_persons",
   "n_person_trials",
@@ -906,12 +906,12 @@
 #'
 #' `$s1_generate_enrollments_and_ipw()` stores
 #' `plan$enrollment_counts[[eid]]$attrition` at one row per trial and criterion,
-#' plus ONE GLOBAL ROW per criterion. The global row carries `trial_id = NA` and
-#' the true overall `uniqueN(persons)`.
+#' plus ONE GLOBAL ROW per criterion. The global row carries
+#' `enrollment_period_id = NA` and the true overall `uniqueN(persons)`.
 #'
-#' This accessor returns EVERY STORED ROW, in stored order. `trial_id` is `NA`
-#' on a global row and the trial index on a per-trial row, so the caller filters
-#' on that column.
+#' This accessor returns EVERY STORED ROW, in stored order.
+#' `enrollment_period_id` is `NA` on a global row and the trial on a per-trial
+#' row, so the caller filters on that column.
 #'
 #' It returns the stored rows and nothing else. It does not sum the per-trial
 #' rows. It does not create a global row for a criterion that has none. It does
@@ -927,7 +927,7 @@
 #' such decision: it reports what is stored.
 #'
 #' `step_order` is the position of the criterion in stored order, so every row
-#' of one criterion carries the same value, whatever its `trial_id`.
+#' of one criterion carries the same value, whatever its `enrollment_period_id`.
 #'
 #' The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw
 #' step and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores neither
@@ -958,7 +958,7 @@
     criterion <- as.character(att$criterion)
     return(data.table::data.table(
       enrollment_id = as.character(eid),
-      trial_id = as.integer(att$trial_id),
+      enrollment_period_id = as.integer(att$enrollment_period_id),
       step_order = match(criterion, unique(criterion)),
       step_name = criterion,
       n_persons = as.numeric(att$n_persons),
@@ -974,7 +974,7 @@
 #' Columns the stored comparator-draw table must carry.
 #' @noRd
 .ACC_MATCHING_COLS <- c(
-  "trial_id",
+  "enrollment_period_id",
   "n_intervention_total",
   "n_comparator_total",
   "n_intervention_enrolled",
@@ -1018,7 +1018,7 @@
     }
     return(data.table::data.table(
       enrollment_id = as.character(eid),
-      trial_id = as.integer(mat$trial_id),
+      enrollment_period_id = as.integer(mat$enrollment_period_id),
       n_intervention_total = as.numeric(mat$n_intervention_total),
       n_comparator_total = as.numeric(mat$n_comparator_total),
       n_intervention_enrolled = as.numeric(mat$n_intervention_enrolled),

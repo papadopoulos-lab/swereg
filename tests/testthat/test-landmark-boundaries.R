@@ -400,9 +400,9 @@ test_that("a whole missing follow-up interval is censored before it can renumber
   # The renumbering is real, and this reads it off the enrolled panel. Her two
   # rows are two follow-up intervals apart on the calendar and one follow-up
   # interval apart in `tstop`.
-  panel <- trial$data[id == "MIDGAP"][order(trial_id)]
+  panel <- trial$data[id == "MIDGAP"][order(period_id)]
   expect_identical(nrow(panel), 2L)
-  expect_identical(as.integer(diff(panel$trial_id)), 2L)
+  expect_identical(as.integer(diff(panel$period_id)), 2L)
   expect_identical(panel$tstop, c(4L, 8L))
 
   # The gap opens at follow-up week 5, so the boundary is week 4. The gap is

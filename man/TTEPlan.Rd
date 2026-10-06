@@ -135,12 +135,14 @@ Other tte_classes:
     \item{\code{enrollment_counts}}{Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:
 \describe{
-\item{attrition}{Long-format data.table (trial_id, criterion,
-n_persons, n_person_trials, n_intervention, n_comparator) showing
-cumulative attrition at each eligibility step. Includes a
-\code{"before_exclusions"} row with pre-filtering counts.}
-\item{matching}{data.table (trial_id, n_intervention_total,
-n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).}
+\item{attrition}{Long-format data.table (enrollment_period_id,
+criterion, n_persons, n_person_trials, n_intervention,
+n_comparator) showing cumulative attrition at each eligibility
+step. Includes a \code{"before_exclusions"} row with
+pre-filtering counts.}
+\item{matching}{data.table (enrollment_period_id,
+n_intervention_total, n_comparator_total, n_intervention_enrolled,
+n_comparator_enrolled).}
 }}
 
     \item{\code{output_dir}}{Character. Directory where enrollment/analysis files are stored.}
@@ -394,9 +396,10 @@ Requires \code{self$spec} to be set (e.g., via
 \enumerate{
 \item \strong{Pass 1a (scout)}: Lightweight parallel pass that reads each
 skeleton file, applies exclusions and treatment, and returns eligible
-\verb{(person_id, trial_id, intervention)} tuples. No confounders or enrollment.
+\verb{(person_id, enrollment_period_id, intervention)} tuples. No confounders
+or enrollment.
 \item \strong{Centralized comparator draw}: Combines all tuples from all batches,
-then per \code{trial_id} keeps all intervention and samples
+then per \code{enrollment_period_id} keeps all intervention and samples
 \code{ratio * n_intervention} comparator globally. Stores counts on
 \code{self$enrollment_counts} for TARGET Item 8 reporting.
 \item \strong{Pass 1b (full enrollment)}: Parallel pass that re-reads each
@@ -764,7 +767,7 @@ remaining-after-step.
 \verb{$s1_generate_enrollments_and_ipw()} stores one row per trial and
 criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
 true overall count of distinct people. This method returns EVERY STORED
-ROW. \code{trial_id} is \code{NA} on a global row and the trial index on a
+ROW. \code{enrollment_period_id} is \code{NA} on a global row and the trial on a
 per-trial row, so the caller filters on that column.
 
 The method returns the stored rows and nothing else. It does not sum the
@@ -799,7 +802,7 @@ nothing.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns \code{enrollment_id}, \code{trial_id},
+    A data.table with columns \code{enrollment_id}, \code{enrollment_period_id},
 \code{step_order}, \code{step_name}, \code{n_persons}, \code{n_person_trials},
 \code{n_arm_intervention} and \code{n_arm_comparator}.
   }
@@ -834,7 +837,7 @@ An enrollment that stored no comparator-draw table gets NO ROW.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns \code{enrollment_id}, \code{trial_id},
+    A data.table with columns \code{enrollment_id}, \code{enrollment_period_id},
 \code{n_intervention_total}, \code{n_comparator_total},
 \code{n_intervention_enrolled} and \code{n_comparator_enrolled}.
   }

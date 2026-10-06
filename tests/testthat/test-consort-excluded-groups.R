@@ -59,7 +59,7 @@ skip_if_not_installed("data.table")
 .ceg_flow <- function() {
   ec <- list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = .CEG_STEPS,
       n_persons = .CEG_PERSONS,
       n_person_trials = .CEG_PERSON_TRIALS,
@@ -318,7 +318,7 @@ test_that("the production render path fills inclusion_steps from the spec", {
   washout_col <- "eligible_no_rd_approach1_single_everbefore"
   ec <- list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c(
         "before_exclusions", "eligible_valid_treatment", "eligible_age",
         washout_col, "eligible_no_rd_cancer_everbefore"

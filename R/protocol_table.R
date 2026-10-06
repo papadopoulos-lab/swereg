@@ -103,8 +103,9 @@
 
 #' Render the stratum of the comparator draw
 #'
-#' The draw runs inside one `trial_id` group, and `trial_id` is the week index
-#' divided by `period_width`. The stratum is therefore the enrollment period,
+#' The draw runs inside one `enrollment_period_id` group, and
+#' `enrollment_period_id` is the week index divided by `period_width`. The
+#' stratum is therefore the enrollment period,
 #' and the enrollment period is the only stratum. A width of 1 makes the
 #' enrollment period one week.
 #'

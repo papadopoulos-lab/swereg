@@ -166,9 +166,6 @@ test_that("images match on inventory, dimensions and renderer input", {
   "TTEPlan$public_methods$recompute_baselines" = "producer",
   ".restore_enrollment_counts" = "persistence loader",
   "tteplan_load" = "persistence loader",
-  # The schema migration `qs2_read()` runs. It renames a column in the stored
-  # risk-difference rows of a plan read from disk, and reports no number.
-  ".tte_migrate_plan" = "persistence loader",
   # Readers of the KEYS. They answer "did this stage run", not "what does it
   # report", and no accessor answers that.
   ".plan_analysed_ett_ids" = "key reader",
@@ -234,9 +231,6 @@ test_that("images match on inventory, dimensions and renderer input", {
   ),
   `.write_combined_rates_irr` = c(
     "results <- plan$results_ett"
-  ),
-  `.tte_migrate_plan` = c(
-    "results <- obj$results_ett"
   ),
   `tteplan_load` = c(
     "fields <- c(\"spec\", \"enrollment_counts\", \"period_width\",",
@@ -462,7 +456,10 @@ test_that("the cohort flow reads through the accessor", {
   stored <- plan$enrollment_counts[["01"]]
 
   expect_identical(nrow(counts$attrition), nrow(stored$attrition))
-  expect_identical(counts$attrition$trial_id, stored$attrition$trial_id)
+  expect_identical(
+    counts$attrition$enrollment_period_id,
+    stored$attrition$enrollment_period_id
+  )
   expect_identical(
     counts$attrition$criterion,
     as.character(stored$attrition$criterion)

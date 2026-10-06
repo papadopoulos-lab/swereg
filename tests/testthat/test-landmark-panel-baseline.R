@@ -37,12 +37,12 @@ skip_if_not_installed("cstime")
   wk$isoyearweek[start_idx:(start_idx + n_weeks - 1L)]
 }
 
-# The trial_id of the first enrollment period, read from `.assign_trial_ids()`
+# The period_id of the first enrollment period, read from `.assign_period_ids()`
 # itself rather than hard-coded.
 .lpb_period0 <- function(weeks) {
   d <- data.table::data.table(id = 1L, isoyearweek = weeks)
-  swereg:::.assign_trial_ids(d, .lpb_pw)
-  min(d$trial_id)
+  swereg:::.assign_period_ids(d, .lpb_pw)
+  min(d$period_id)
 }
 
 # One person, one row per week.
@@ -145,21 +145,21 @@ test_that("the panel starts after the enrollment period", {
   # Every person-trial opens at the landmark, which is the enrollment period
   # after the enrollment period, and its first row is `tstart == 0`.
   first_rows <- panel[
-    order(enrollment_person_trial_id, trial_id),
+    order(enrollment_person_trial_id, period_id),
     .SD[1L],
     by = enrollment_person_trial_id
   ]
   expect_gt(nrow(first_rows), 0L)
   expect_identical(
-    first_rows$trial_id,
+    first_rows$period_id,
     first_rows$enrollment_period_id + 1L
   )
   expect_true(all(first_rows$tstart == 0L))
 
   # No row anywhere in the panel sits in the enrollment period. That enrollment
   # period is the immortal one, and this is the assertion that says it is gone.
-  expect_equal(sum(panel$trial_id <= panel$enrollment_period_id), 0L)
-  expect_true(all(panel$trial_id >= panel$enrollment_period_id + 1L))
+  expect_equal(sum(panel$period_id <= panel$enrollment_period_id), 0L)
+  expect_true(all(panel$period_id >= panel$enrollment_period_id + 1L))
 
   # Follow-up is still `follow_up_time` weeks long: two enrollment periods of
   # four weeks.
@@ -212,10 +212,10 @@ test_that("the entry covariate is read at the recruiting week", {
   # The follow-up column keeps the time-updated value on every row, so the
   # snapshot did not overwrite it.
   expect_identical(
-    panel[id == "LATE"][order(trial_id)]$age,
+    panel[id == "LATE"][order(period_id)]$age,
     c(104L, 108L)
   )
-  expect_true(all(panel[trial_id == period0 + 1L]$age == age_at_first_interval))
+  expect_true(all(panel[period_id == period0 + 1L]$age == age_at_first_interval))
 })
 
 
@@ -503,7 +503,7 @@ test_that("imputation receives the entry-snapshot names", {
     tx <- i <= (n %/% 2L)
     data.table::data.table(
       enrollment_person_trial_id = as.character(i),
-      trial_id = 1L,
+      period_id = 1L,
       tstart = c(0L, 4L, 8L),
       tstop = c(4L, 8L, 12L),
       exposed = tx,
@@ -630,7 +630,7 @@ test_that("a panel built without a recruiting week keeps the old read", {
   period0 <- .lpb_period0(weeks)
   enrolled_ids <- data.table::data.table(
     id = c("LATE", "EARLY", paste0("C", 1:4)),
-    trial_id = period0,
+    enrollment_period_id = period0,
     intervention = c(TRUE, TRUE, rep(FALSE, 4L)),
     enrollment_person_trial_id = paste0(
       c("LATE", "EARLY", paste0("C", 1:4)),
@@ -648,8 +648,8 @@ test_that("a panel built without a recruiting week keeps the old read", {
   expect_false(".tte_entry__age" %in% names(trial$data))
   expect_true("enrollment_period_id" %in% names(trial$data))
   # Time zero still moves. Only the covariate read falls back.
-  expect_true(all(trial$data$trial_id >= trial$data$enrollment_period_id + 1L))
-  expect_true(all(trial$data[tstart == 0L]$trial_id == period0 + 1L))
+  expect_true(all(trial$data$period_id >= trial$data$enrollment_period_id + 1L))
+  expect_true(all(trial$data[tstart == 0L]$period_id == period0 + 1L))
 
   # `$s2_ipw()` reads the follow-up column, and reports no error.
   trial$s2_ipw()

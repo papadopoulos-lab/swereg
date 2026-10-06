@@ -317,8 +317,8 @@
 
 
 # The warning for a panel enrolled before swereg wrote
-# `weeks_to_observation_gap`. `qs2_read()` gives it on read, and
-# `.tte_gap_record_end()` gives it in `s5_prepare_outcome()`.
+# `weeks_to_observation_gap`. `.tte_gap_record_end()` gives it in
+# `s5_prepare_outcome()`.
 .TTE_LEGACY_GAP_WARNING <- paste(
   "This enrollment was enrolled before swereg 26.15.0, so its panel has no",
   "`weeks_to_observation_gap` column. Gaps in observation cannot be detected",
@@ -367,30 +367,26 @@
 #' A panel enrolled before swereg 26.15.0 lacks `weeks_to_observation_gap`
 #' (see `.tte_is_legacy_gap_panel()`). Its weekly rows are gone, so swereg
 #' cannot recompute the gap. This function then leaves the record end alone,
-#' and warns once with `.TTE_LEGACY_GAP_WARNING`. The warning says three
+#' and warns with `.TTE_LEGACY_GAP_WARNING`. The warning says three
 #' things:
 #'
 #' - Gaps in observation cannot be detected in the panel.
 #' - An outcome after such a gap may be counted.
 #' - A re-run of s1 removes the limitation.
 #'
-#' `qs2_read()` gives the same warning when it reads such an enrollment from
-#' a file. It then sets the private flag `.legacy_gap_warned`, and this
-#' function does not warn again for that object. An enrollment saved before
-#' 26.15.0 runs its saved method bodies and the old rules, so it warns on
-#' read only.
+#' [qs2_read()] refuses an enrollment saved before schema 6, so this panel
+#' reaches the function only from an object in memory.
 #'
 #' @param data The panel inside `s5_prepare_outcome()`. It MUST carry
 #'   `.record_end`. It is changed by reference.
 #' @param design The [TTEDesign] of the enrollment.
 #' @param steps_completed Character, the `steps_completed` of the enrollment.
-#' @param warned Logical, `TRUE` when `qs2_read()` already gave the warning.
 #' @return `data`, invisibly.
 #' @noRd
-.tte_gap_record_end <- function(data, design, steps_completed, warned) {
+.tte_gap_record_end <- function(data, design, steps_completed) {
   .record_end <- weeks_to_observation_gap <- NULL # nolint
   if (!"weeks_to_observation_gap" %in% names(data)) {
-    if (!warned && .tte_is_legacy_gap_panel(data, design, steps_completed)) {
+    if (.tte_is_legacy_gap_panel(data, design, steps_completed)) {
       warning(.TTE_LEGACY_GAP_WARNING, call. = FALSE)
     }
     return(invisible(data))

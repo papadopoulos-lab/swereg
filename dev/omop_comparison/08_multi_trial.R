@@ -27,7 +27,7 @@ trial_starts <- dt[eligible == 1, .(
   baseline_nvarB = nvarB,
   baseline_nvarC = nvarC
 )]
-trial_starts[, trial_id := .I]
+trial_starts[, person_trial_index := .I]
 
 cat("=== expansion ===\n")
 cat("n persons:", uniqueN(trial_starts$person_id), "\n")
@@ -49,12 +49,12 @@ followup <- trial_starts[, {
     nvarB          = pdata$nvarB,
     nvarC          = pdata$nvarC
   )
-}, by = .(trial_id, person_id, trial_start, baseline_treatment,
+}, by = .(person_trial_index, person_id, trial_start, baseline_treatment,
           baseline_catvarA_f, baseline_catvarB_f,
           baseline_nvarA, baseline_nvarB, baseline_nvarC)]
 
 followup[, t := period - trial_start]
-setorder(followup, trial_id, t)
+setorder(followup, person_trial_index, t)
 followup[, tstart := t]
 followup[, tstop  := t + 1L]
 followup[, event := outcome]
@@ -65,7 +65,7 @@ cat("memory (MB):", round(as.numeric(object.size(followup))/1e6, 1), "\n")
 # Use baseline-captured confounders as the static confounders, like TE does:
 # TE's MSM uses the values at trial start (captured at eligible row).
 trial_long <- followup[, .(
-  enrollment_person_trial_id = trial_id,
+  enrollment_person_trial_id = person_trial_index,
   person_id,
   tstart, tstop,
   treatment_baseline = baseline_treatment,

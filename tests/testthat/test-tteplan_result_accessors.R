@@ -360,7 +360,7 @@ skip_if_not_installed("data.table")
       # deliberately has NO global row, which is what a file written before
       # the global row existed looks like.
       attrition = data.table::data.table(
-        trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
+        enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
         criterion = c(
           "before_exclusions", "before_exclusions", "before_exclusions",
           "age", "age", "age",
@@ -374,7 +374,7 @@ skip_if_not_installed("data.table")
         n_comparator = c(2000, 2000, 4000, 1550, 1550, 3100, 1100, 1100)
       ),
       matching = data.table::data.table(
-        trial_id = 1L,
+        enrollment_period_id = 1L,
         n_intervention_total = 800,
         n_comparator_total = 2200,
         n_intervention_enrolled = 300,
@@ -426,11 +426,11 @@ skip_if_not_installed("data.table")
     "n_baseline", "n_baseline_intervention", "n_baseline_comparator"
   ),
   attrition = c(
-    "enrollment_id", "trial_id", "step_order", "step_name", "n_persons",
+    "enrollment_id", "enrollment_period_id", "step_order", "step_name", "n_persons",
     "n_person_trials", "n_arm_intervention", "n_arm_comparator"
   ),
   matching = c(
-    "enrollment_id", "trial_id", "n_intervention_total", "n_comparator_total",
+    "enrollment_id", "enrollment_period_id", "n_intervention_total", "n_comparator_total",
     "n_intervention_enrolled", "n_comparator_enrolled"
   ),
   subgroups = c(
@@ -448,10 +448,10 @@ skip_if_not_installed("data.table")
   baselines = c(
     "enrollment_id", "imputation", "weighting", "variant", "variable", "level"
   ),
-  # `trial_id` is in the key. `$get_attrition()` returns the per-trial rows and
+  # `enrollment_period_id` is in the key. `$get_attrition()` returns the per-trial rows and
   # the global row of each criterion, so a key without it duplicates.
-  attrition = c("enrollment_id", "trial_id", "step_order"),
-  matching = c("enrollment_id", "trial_id"),
+  attrition = c("enrollment_id", "enrollment_period_id", "step_order"),
+  matching = c("enrollment_id", "enrollment_period_id"),
   # `subgroup_var` is in the key. Production allows several subgroup variables
   # per ETT, and every variable has its own `"all"` row, so a key without it
   # duplicates on correct data.
@@ -607,9 +607,9 @@ test_that("get_attrition returns one row per enrollment and stored row", {
   # The fixture stores 8 rows over 3 criteria: two per-trial rows for each
   # criterion, and a global row for two of the three.
   expect_identical(nrow(at), 8L)
-  expect_identical(at$trial_id, c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L))
+  expect_identical(at$enrollment_period_id, c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L))
   # `step_order` is the criterion's position, so every row of one criterion
-  # shares it whatever its `trial_id`.
+  # shares it whatever its `enrollment_period_id`.
   expect_identical(at$step_order, c(1L, 1L, 1L, 2L, 2L, 2L, 3L, 3L))
   expect_identical(
     at$step_name,
@@ -638,9 +638,9 @@ test_that("get_attrition returns one row per enrollment and stored row", {
   # Nothing stores a step kind, so the table carries none.
   expect_false("kind" %in% names(at))
 
-  # The GLOBAL rows are what a caller filtering on `trial_id` gets, and they
+  # The GLOBAL rows are what a caller filtering on `enrollment_period_id` gets, and they
   # carry the stored global counts.
-  g <- at[is.na(at$trial_id)]
+  g <- at[is.na(at$enrollment_period_id)]
   expect_identical(nrow(g), 2L)
   expect_identical(g$step_name, c("before_exclusions", "age"))
   expect_identical(g$n_persons, c(5000, 4000))
@@ -652,7 +652,7 @@ test_that("get_matching returns one row per enrollment and trial", {
   # The fixture stores one matching row, for enrollment 01, trial 1.
   expect_identical(nrow(mt), 1L)
   expect_identical(mt$enrollment_id, "01")
-  expect_identical(mt$trial_id, 1L)
+  expect_identical(mt$enrollment_period_id, 1L)
   expect_identical(mt$n_intervention_total, 800)
   expect_identical(mt$n_comparator_total, 2200)
   expect_identical(mt$n_intervention_enrolled, 300)
@@ -954,7 +954,7 @@ test_that("the accessors compute nothing", {
   )))
   # The counts are the stored ones, unchanged. The global rows still carry the
   # stored global numbers.
-  expect_identical(at[is.na(at$trial_id)]$n_person_trials, c(50000, 40000))
+  expect_identical(at[is.na(at$enrollment_period_id)]$n_person_trials, c(50000, 40000))
   # `$get_matching()` reports the matching counts and creates no step either.
   expect_false("step_name" %in% names(plan$get_matching()))
 })
@@ -976,14 +976,14 @@ test_that("attrition returns the stored rows and sums nothing", {
   # sum is `.attrition_overall()`'s decision to make.
   pd <- at[at$step_name == "prior_disease"]
   expect_identical(nrow(pd), 2L)
-  expect_identical(pd$trial_id, c(1L, 2L))
-  expect_false(any(is.na(pd$trial_id)))
+  expect_identical(pd$enrollment_period_id, c(1L, 2L))
+  expect_false(any(is.na(pd$enrollment_period_id)))
   expect_identical(pd$n_persons, c(1800, 1900))
   expect_false(3700 %in% at$n_persons)
 
   # A global row carries the stored global count, not a sum over its per-trial
   # rows. Summing every stored row for `before_exclusions` gives 11200.
-  g <- at[is.na(at$trial_id)]
+  g <- at[is.na(at$enrollment_period_id)]
   expect_identical(g$n_persons, c(5000, 4000))
   expect_identical(g$n_arm_intervention, c(1000, 900))
   expect_false(11200 %in% at$n_persons)

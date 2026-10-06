@@ -145,7 +145,7 @@ test_that(".s1b_worker returns enrolled_ids + counts and writes no file", {
   expect_s3_class(res$enrolled_ids, "data.table")
   expect_true(nrow(res$enrolled_ids) > 0L)
   expect_true(all(
-    c("trial_id", "intervention") %in% names(res$enrolled_ids)
+    c("enrollment_period_id", "intervention") %in% names(res$enrolled_ids)
   ))
 
   expect_named(res$counts, c("attrition", "matching"))
@@ -153,12 +153,12 @@ test_that(".s1b_worker returns enrolled_ids + counts and writes no file", {
   expect_s3_class(res$counts$matching, "data.table")
   expect_true(nrow(res$counts$attrition) > 0L)
   expect_true(all(
-    c("trial_id", "criterion", "n_persons", "n_person_trials") %in%
+    c("enrollment_period_id", "criterion", "n_persons", "n_person_trials") %in%
       names(res$counts$attrition)
   ))
   expect_true(all(
     c(
-      "trial_id",
+      "enrollment_period_id",
       "n_intervention_total",
       "n_comparator_total",
       "n_intervention_enrolled",

@@ -10,17 +10,16 @@
 #' underlying qs2 error `qdata format detected, use qs2::qd_read`. swereg has
 #' never written qdata files itself.
 #'
-#' @section Schema migration:
-#' The reader renames the columns that swereg 26.15.0 renamed, before it
-#' checks the schema version of an R6 object. A [TTEEnrollment] at schema 4
-#' gets the panel column `enrollment_period_id` under that name. A [TTEPlan]
-#' at schema 3 gets the column `follow_up_interval` under that name in its
-#' stored risk-difference rows. The rename changes no value. An object at an
-#' older schema is refused as before.
+#' @section Stored objects from an older schema:
+#' The reader refuses a [TTEEnrollment] below schema 6 and a [TTEPlan] below
+#' schema 5. The error names the file. It says to rebuild the plan with s0 and
+#' re-run s1, then s2 and s3. The reader does not migrate such an object.
 #'
-#' The rename runs here because a deserialised R6 object keeps the method
-#' bodies it was saved with. Its own `check_version()` refuses the older
-#' schema, so a migration inside the new `check_version()` would never run.
+#' The refusal runs here, before the reader calls `check_version()`. A
+#' deserialised R6 object keeps the method bodies it was saved with, so its
+#' `check_version()` is the code of the release that saved it. Its panel also
+#' keeps the old column names. A model fitted on that panel loses its calendar
+#' term, and gives no error.
 #'
 #' @section data.table over-allocation:
 #' The reader restores data.table over-allocation before it returns. qs2 does
@@ -72,10 +71,10 @@
 qs2_read <- function(file, nthreads = 1L) {
   obj <- qs2::qs_read(file, nthreads = nthreads)
 
-  # Rename the columns a later release renamed, BEFORE the version check.
-  # The object keeps the `check_version()` body it was saved with, and that
-  # body refuses an older schema. See R/tte_schema_migration.R.
-  obj <- .tte_migrate_on_read(obj, path = file)
+  # Refuse an enrollment or plan from an older schema, BEFORE the version
+  # check. The object keeps the method bodies it was saved with, so
+  # `check_version()` is old code. See R/tte_schema_migration.R.
+  .tte_refuse_stale_on_read(obj, path = file)
 
   # Auto-check schema version for R6 objects
   if (is.environment(obj) && !is.null(obj$check_version)) {

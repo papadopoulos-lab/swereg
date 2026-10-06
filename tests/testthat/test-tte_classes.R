@@ -407,10 +407,10 @@ test_that("tte_enroll samples at correct ratio and creates interval-level panels
   # 2:1
   expect_true(n_comparator_trials >= n_intervention_trials)
 
-  # Check enrollment_person_trial_id, trial_id (enrollment period), and
-  # trial_week created
+  # Check enrollment_person_trial_id, period_id (calendar period of the
+  # follow-up interval), and trial_week created
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
-  expect_true("trial_id" %in% names(trial$data))
+  expect_true("period_id" %in% names(trial$data))
   expect_true("trial_week" %in% names(trial$data))
   expect_equal(min(trial$data$trial_week), 0L)
 
@@ -1018,10 +1018,10 @@ test_that("tte_enroll creates trial panels from person-week data", {
   expect_equal(trial$data_level, "trial")
   expect_true("enroll" %in% trial$steps_completed)
 
-  # Check enrollment_person_trial_id and trial_id (enrollment period) were
-  # created
+  # Check enrollment_person_trial_id and period_id (calendar period of the
+  # follow-up interval) were created
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
-  expect_true("trial_id" %in% names(trial$data))
+  expect_true("period_id" %in% names(trial$data))
 
   # Check trial_week was created and is 0-indexed
   expect_true("trial_week" %in% names(trial$data))
@@ -1057,7 +1057,7 @@ test_that("full person_week to trial workflow", {
   expect_equal(trial$data_level, "trial")
   expect_true("enroll" %in% trial$steps_completed)
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
-  expect_true("trial_id" %in% names(trial$data))
+  expect_true("period_id" %in% names(trial$data))
   expect_true("trial_week" %in% names(trial$data))
   expect_true("person_weeks" %in% names(trial$data))
 
@@ -1861,7 +1861,7 @@ test_that("irr() fits Poisson model and returns expected output", {
   expect_equal(attr(result, "swereg_type"), "irr")
 })
 
-test_that("irr() includes trial_id when available", {
+test_that("irr() includes period_id when available", {
   set.seed(42)
   n_trials <- 200
   n_periods <- 5
@@ -1876,7 +1876,7 @@ test_that("irr() includes trial_id when available", {
     event = as.integer(runif(n_trials * n_periods) < 0.02),
     person_weeks = rep(4L, n_trials * n_periods),
     analysis_weight_pp_trunc = rep(runif(n_trials, 0.8, 1.2), each = n_periods),
-    trial_id = rep(sample(1:10, n_trials, replace = TRUE), each = n_periods)
+    period_id = rep(sample(1:10, n_trials, replace = TRUE), each = n_periods)
   )
 
   design <- TTEDesign$new(
@@ -1898,7 +1898,7 @@ test_that("irr() includes trial_id when available", {
     "truncate"
   )
 
-  # Should not error — trial_id included with ns() for >= 5 unique values
+  # Should not error — period_id included with ns() for >= 5 unique values
   result <- trial$irr(weight_col = "analysis_weight_pp_trunc")
   expect_true(data.table::is.data.table(result))
   expect_true(result$IRR > 0)
@@ -2036,12 +2036,12 @@ test_that("survival_curve requires event column", {
 })
 
 # =============================================================================
-# IPCW formula includes trial_id test
+# IPCW formula includes period_id test
 # =============================================================================
 
-test_that("IPCW censoring model includes trial_id when data has multiple trial IDs", {
+test_that("IPCW censoring model includes period_id when data has multiple period IDs", {
   # This test verifies the IPCW formula construction logic indirectly
-  # by checking that s6_ipcw_pp runs without error when trial_id is present
+  # by checking that s6_ipcw_pp runs without error when period_id is present
   set.seed(42)
   n_trials <- 200
   n_periods <- 5
@@ -2056,7 +2056,7 @@ test_that("IPCW censoring model includes trial_id when data has multiple trial I
     age = factor(rep(sample(1:4, n_trials, replace = TRUE), each = n_periods)),
     death = as.integer(runif(n_trials * n_periods) < 0.01),
     ipw = rep(runif(n_trials, 0.5, 2), each = n_periods),
-    trial_id = rep(sample(1:20, n_trials, replace = TRUE), each = n_periods)
+    period_id = rep(sample(1:20, n_trials, replace = TRUE), each = n_periods)
   )
 
   design <- TTEDesign$new(
@@ -2083,10 +2083,10 @@ test_that("IPCW censoring model includes trial_id when data has multiple trial I
 
 
 # =============================================================================
-# .assign_trial_ids() tests
+# .assign_period_ids() tests
 # =============================================================================
 
-test_that(".assign_trial_ids() produces consistent trial IDs from isoyearweek", {
+test_that(".assign_period_ids() produces consistent period IDs from isoyearweek", {
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == "2020-01")
   week_range <- cstime_weeks$isoyearweek[start_idx:(start_idx + 19)]
@@ -2095,33 +2095,33 @@ test_that(".assign_trial_ids() produces consistent trial IDs from isoyearweek", 
     isoyearweek = week_range
   )
 
-  swereg:::.assign_trial_ids(dt, period_width = 4L)
+  swereg:::.assign_period_ids(dt, period_width = 4L)
 
-  # Should have trial_id column
-  expect_true("trial_id" %in% names(dt))
+  # Should have period_id column
+  expect_true("period_id" %in% names(dt))
 
   # With period_width=4, there should be at most ceil(20/4)+1 = 6 unique
-  # trial_ids (enrollment period boundaries are global, so first/last enrollment
+  # period_ids (enrollment period boundaries are global, so first/last enrollment
   # periods may be partial)
-  n_unique <- length(unique(dt$trial_id))
+  n_unique <- length(unique(dt$period_id))
   expect_true(n_unique >= 4L && n_unique <= 6L)
 
-  # Calling twice on different data with same isoyearweek should give same trial_id
+  # Calling twice on different data with same isoyearweek should give same period_id
   dt2 <- data.table::data.table(isoyearweek = week_range[5:10])
-  swereg:::.assign_trial_ids(dt2, period_width = 4L)
-  expect_equal(dt2$trial_id, dt$trial_id[5:10])
+  swereg:::.assign_period_ids(dt2, period_width = 4L)
+  expect_equal(dt2$period_id, dt$period_id[5:10])
 })
 
-test_that(".assign_trial_ids() with period_width=1 gives unique IDs per week", {
+test_that(".assign_period_ids() with period_width=1 gives unique IDs per week", {
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == "2020-01")
   week_range <- cstime_weeks$isoyearweek[start_idx:(start_idx + 3)]
 
   dt <- data.table::data.table(isoyearweek = week_range)
-  swereg:::.assign_trial_ids(dt, period_width = 1L)
+  swereg:::.assign_period_ids(dt, period_width = 1L)
 
-  # Each week should have a unique trial_id
-  expect_equal(length(unique(dt$trial_id)), 4L)
+  # Each week should have a unique period_id
+  expect_equal(length(unique(dt$period_id)), 4L)
 })
 
 
@@ -2151,9 +2151,9 @@ test_that(".s1_eligible_tuples() returns correct tuples", {
 
   tuples <- swereg:::.s1_eligible_tuples(dt, design)
 
-  # Should have person_id, trial_id, intervention columns
+  # Should have person_id, enrollment_period_id, intervention columns
   expect_true("id" %in% names(tuples))
-  expect_true("trial_id" %in% names(tuples))
+  expect_true("enrollment_period_id" %in% names(tuples))
   expect_true("intervention" %in% names(tuples))
 
   # Should have one row per (person, trial) — only eligible rows
@@ -2189,22 +2189,22 @@ test_that("enroll with enrolled_ids skips the comparator draw and uses pre-decid
     period_width = 4L
   )
 
-  # First, find the actual trial_id that .assign_trial_ids would assign
+  # First, find the actual period_id that .assign_period_ids would assign
   # for the first eligible week (same as in the data)
   probe <- data.table::copy(dt[id == 1 & eligible == TRUE, .(isoyearweek)])
-  swereg:::.assign_trial_ids(probe, period_width = 4L)
-  first_trial_id <- probe$trial_id[1]
+  swereg:::.assign_period_ids(probe, period_width = 4L)
+  first_period_id <- probe$period_id[1]
 
   # Create pre-matched enrolled_ids: keep all 10 intervention + only 5 comparator
   enrolled_ids <- data.table::data.table(
     id = c(1:10, 11:15),
-    trial_id = rep(first_trial_id, 15),
+    enrollment_period_id = rep(first_period_id, 15),
     intervention = c(rep(TRUE, 10), rep(FALSE, 5)),
     enrollment_person_trial_id = paste0(
       "01.",
       c(1:10, 11:15),
       ".",
-      first_trial_id
+      first_period_id
     )
   )
 
@@ -2246,7 +2246,7 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
   # enrolled_ids with person IDs that don't exist in dt (ids 1-15)
   enrolled_ids <- data.table::data.table(
     id = c(9001L, 9002L),
-    trial_id = c(1L, 1L),
+    enrollment_period_id = c(1L, 1L),
     intervention = c(TRUE, FALSE),
     enrollment_person_trial_id = c("01.9001.1", "01.9002.1")
   )
@@ -2316,13 +2316,13 @@ test_that("centralized comparator draw across two batches produces correct globa
   # Create tuples (as .s1a_worker would return)
   tuples_a <- data.table::data.table(
     id = 1:13,
-    trial_id = rep(0L, 13),
+    enrollment_period_id = rep(0L, 13),
     exposed = c(rep(TRUE, 10), rep(FALSE, 3)),
     enrollment_person_trial_id = paste0("01.", 1:13, ".0")
   )
   tuples_b <- data.table::data.table(
     id = 14:65,
-    trial_id = rep(0L, 52),
+    enrollment_period_id = rep(0L, 52),
     exposed = c(rep(TRUE, 2), rep(FALSE, 50)),
     enrollment_person_trial_id = paste0("01.", 14:65, ".0")
   )
@@ -2343,7 +2343,7 @@ test_that("centralized comparator draw across two batches produces correct globa
       }
       data.table::rbindlist(list(exp_rows, sampled))
     },
-    by = trial_id
+    by = enrollment_period_id
   ]
 
   n_enrolled_intervention <- sum(enrolled_ids$exposed == TRUE)
@@ -2361,7 +2361,7 @@ test_that("centralized comparator draw across two batches produces correct globa
 test_that("centralized comparator draw handles trial with 0 intervention", {
   tuples <- data.table::data.table(
     id = 1:10,
-    trial_id = c(rep(0L, 5), rep(1L, 5)),
+    enrollment_period_id = c(rep(0L, 5), rep(1L, 5)),
     exposed = c(rep(TRUE, 3), rep(FALSE, 2), rep(FALSE, 5))
   )
 
@@ -2378,15 +2378,15 @@ test_that("centralized comparator draw handles trial with 0 intervention", {
       }
       data.table::rbindlist(list(exp_rows, sampled))
     },
-    by = trial_id
+    by = enrollment_period_id
   ]
 
   # Trial 0: 3 intervention + 2 comparator (ratio=2 wants 6, only 2 available)
-  trial0 <- enrolled_ids[trial_id == 0]
+  trial0 <- enrolled_ids[enrollment_period_id == 0]
   expect_equal(sum(trial0$exposed == TRUE), 3L)
   expect_equal(sum(trial0$exposed == FALSE), 2L)
 
   # Trial 1: 0 intervention, so 0 comparator sampled
-  trial1 <- enrolled_ids[trial_id == 1]
+  trial1 <- enrolled_ids[enrollment_period_id == 1]
   expect_equal(nrow(trial1), 0L)
 })

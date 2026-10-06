@@ -80,11 +80,11 @@ ttm_skeleton <- function(
       cstime::dates_by_isoyearweek$isoyearweek
     )
   ]
-  wk[, trial_id := (week_index - 1L) %/% 4L] # .assign_trial_ids enrollment-period rule
+  wk[, period_id := (week_index - 1L) %/% 4L] # .assign_period_ids enrollment-period rule
   wk[, wrank := seq_len(.N)] # 1-based week rank within the study window
-  sk[wk, `:=`(trial_id = i.trial_id, .wrank = i.wrank), on = "isoyearweek"]
-  min_period <- min(wk$trial_id)
-  period_start <- wk[, .(start_rank = min(wrank)), by = trial_id]
+  sk[wk, `:=`(period_id = i.period_id, .wrank = i.wrank), on = "isoyearweek"]
+  min_period <- min(wk$period_id)
+  period_start <- wk[, .(start_rank = min(wrank)), by = period_id]
 
   highrisk <- stats::rbinom(n_persons, 1L, 0.30)
   p_init <- if (scenario == "A") {
@@ -95,7 +95,7 @@ ttm_skeleton <- function(
   is_init <- stats::rbinom(n_persons, 1L, p_init)
   init_period <- min_period +
     (sample.int(n_init_periods, n_persons, replace = TRUE) - 1L)
-  init_rank <- period_start$start_rank[match(init_period, period_start$trial_id)]
+  init_rank <- period_start$start_rank[match(init_period, period_start$period_id)]
   # dur is numeric so that Inf (never discontinue) survives `.ir + .dur`
   # without integer overflow
   dur <- if (disc_hazard > 0) {
@@ -158,7 +158,7 @@ ttm_skeleton <- function(
     sk[, .drop := NULL]
   }
 
-  sk[, c(".hr", ".init", ".ir", ".dur", ".age", ".wrank", "trial_id") := NULL]
+  sk[, c(".hr", ".init", ".ir", ".dur", ".age", ".wrank", "period_id") := NULL]
   data.table::setkey(sk, id, isoyearweek)
   sk[]
 }

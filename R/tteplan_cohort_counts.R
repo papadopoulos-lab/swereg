@@ -80,7 +80,7 @@
       NULL
     } else {
       data.table::data.table(
-        trial_id = a$trial_id,
+        enrollment_period_id = a$enrollment_period_id,
         criterion = a$step_name,
         n_persons = a$n_persons,
         n_person_trials = a$n_person_trials,
@@ -92,7 +92,7 @@
       NULL
     } else {
       data.table::data.table(
-        trial_id = m$trial_id,
+        enrollment_period_id = m$enrollment_period_id,
         n_intervention_total = m$n_intervention_total,
         n_comparator_total = m$n_comparator_total,
         n_intervention_enrolled = m$n_intervention_enrolled,

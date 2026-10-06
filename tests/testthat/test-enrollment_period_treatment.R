@@ -74,7 +74,7 @@
 }
 
 # follow_up_time == period_width, so one follow-up interval per trial. The
-# panel's `trial_id` names that follow-up interval, and `enrollment_period_id`
+# panel's `period_id` names that follow-up interval, and `enrollment_period_id`
 # names the trial, so the summary keys on `enrollment_period_id`.
 .period_direct_path <- function(d, design, ratio, seed = 4) {
   trial <- TTEEnrollment$new(
@@ -86,7 +86,7 @@
   )
   trial$data[,
     list(candidate_treatment = exposed[1]),
-    by = list(id, trial_id = enrollment_period_id)
+    by = list(id, enrollment_period_id)
   ]
 }
 
@@ -100,8 +100,8 @@
 # rather than hard-coded.
 .period_ids <- function(d) {
   probe <- data.table::data.table(isoyearweek = unique(d$isoyearweek))
-  swereg:::.assign_trial_ids(probe, period_width = 4L)
-  probe$trial_id
+  swereg:::.assign_period_ids(probe, period_width = 4L)
+  probe$period_id
 }
 
 
@@ -130,10 +130,10 @@ test_that("both paths read every eligible week of the enrollment period, not onl
   entry_period <- .period_ids(d)[1]
 
   scout <- .period_scout_path(d, design)
-  scout_val <- scout[id == 1L & trial_id == entry_period]$intervention
+  scout_val <- scout[id == 1L & enrollment_period_id == entry_period]$intervention
 
   direct <- .period_direct_path(d, design, ratio = 1)
-  direct_val <- direct[id == 1L & trial_id == entry_period]$candidate_treatment
+  direct_val <- direct[id == 1L & enrollment_period_id == entry_period]$candidate_treatment
 
   # Ground truth: treated in weeks 3 and 4 of the enrollment period, so the
   # enrollment period is intervention. Asserted as a value, not only as an
@@ -167,7 +167,7 @@ test_that("both paths agree on every enrollment period the direct path enrolls",
   both <- merge(
     direct,
     scout,
-    by = c("id", "trial_id"),
+    by = c("id", "enrollment_period_id"),
     all.x = TRUE
   )
   expect_equal(nrow(both), nrow(direct))
@@ -203,14 +203,14 @@ test_that("an enrollment period whose eligible weeks are all out of arm enters n
   direct <- .period_direct_path(d, design, ratio = 20)
 
   # State 3: not returned by either path.
-  expect_equal(nrow(scout[id == 7L & trial_id == entry_period]), 0L)
-  expect_equal(nrow(direct[id == 7L & trial_id == entry_period]), 0L)
+  expect_equal(nrow(scout[id == 7L & enrollment_period_id == entry_period]), 0L)
+  expect_equal(nrow(direct[id == 7L & enrollment_period_id == entry_period]), 0L)
 
   # The same person IS classified in the enrollment period where a protocol arm
   # is present, so the drop is per enrollment period and not per person.
-  expect_identical(scout[id == 7L & trial_id == second_period]$intervention, FALSE)
+  expect_identical(scout[id == 7L & enrollment_period_id == second_period]$intervention, FALSE)
   expect_identical(
-    direct[id == 7L & trial_id == second_period]$candidate_treatment,
+    direct[id == 7L & enrollment_period_id == second_period]$candidate_treatment,
     FALSE
   )
 })
@@ -234,8 +234,8 @@ test_that("out-of-arm weeks are dropped, and the enrollment period keeps its in-
   scout <- .period_scout_path(d, design)
   direct <- .period_direct_path(d, design, ratio = 20)
 
-  scout_val <- scout[id == 8L & trial_id == entry_period]$intervention
-  direct_val <- direct[id == 8L & trial_id == entry_period]$candidate_treatment
+  scout_val <- scout[id == 8L & enrollment_period_id == entry_period]$intervention
+  direct_val <- direct[id == 8L & enrollment_period_id == entry_period]$candidate_treatment
 
   expect_length(scout_val, 1L)
   expect_length(direct_val, 1L)
@@ -277,14 +277,14 @@ test_that("an enrollment period whose first week is out of arm is classified fro
   # rule and never an unlucky draw.
   direct <- .period_direct_path(d, design, ratio = 20)
 
-  expect_identical(scout[id == 2L & trial_id == entry_period]$intervention, FALSE)
+  expect_identical(scout[id == 2L & enrollment_period_id == entry_period]$intervention, FALSE)
   expect_identical(
-    direct[id == 2L & trial_id == entry_period]$candidate_treatment,
+    direct[id == 2L & enrollment_period_id == entry_period]$candidate_treatment,
     FALSE
   )
-  expect_identical(scout[id == 3L & trial_id == entry_period]$intervention, TRUE)
+  expect_identical(scout[id == 3L & enrollment_period_id == entry_period]$intervention, TRUE)
   expect_identical(
-    direct[id == 3L & trial_id == entry_period]$candidate_treatment,
+    direct[id == 3L & enrollment_period_id == entry_period]$candidate_treatment,
     TRUE
   )
 })
@@ -318,9 +318,9 @@ test_that("an out-of-arm week inside the enrollment period does not stop a compa
   scout <- .period_scout_path(d, design)
   direct <- .period_direct_path(d, design, ratio = 20)
 
-  expect_identical(scout[id == 4L & trial_id == entry_period]$intervention, FALSE)
+  expect_identical(scout[id == 4L & enrollment_period_id == entry_period]$intervention, FALSE)
   expect_identical(
-    direct[id == 4L & trial_id == entry_period]$candidate_treatment,
+    direct[id == 4L & enrollment_period_id == entry_period]$candidate_treatment,
     FALSE
   )
 })
@@ -350,7 +350,7 @@ test_that("period_width = 1 leaves every enrollment period with one week, so the
   # Eight weeks, eight enrollment periods, and the arm follows the week.
   expect_equal(nrow(scout[id == 1L]), 8L)
   expect_identical(
-    scout[id == 1L][order(trial_id)]$intervention,
+    scout[id == 1L][order(enrollment_period_id)]$intervention,
     c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)
   )
 })
@@ -383,7 +383,7 @@ test_that("the seeded comparator draw does not depend on input row order", {
   reversed <- d[rev(seq_len(nrow(d)))]
 
   arms <- function(x) {
-    sort(paste0(x$id, ".", x$trial_id, ":", x$candidate_treatment))
+    sort(paste0(x$id, ".", x$enrollment_period_id, ":", x$candidate_treatment))
   }
   from_sorted <- arms(.period_direct_path(d, design, ratio = 2, seed = 99))
   from_reversed <- arms(

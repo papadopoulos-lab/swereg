@@ -16,7 +16,7 @@
 # The standalone helpers and the spec functions moved to the tteplan_*.R files.
 # =============================================================================
 
-.TTE_PLAN_SCHEMA_VERSION <- 4L
+.TTE_PLAN_SCHEMA_VERSION <- 5L
 
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
@@ -121,12 +121,14 @@ TTEPlan <- R6::R6Class(
     #' @field enrollment_counts Named list of per-enrollment TARGET Item 8 data.
     #'   Each element is a list with:
     #'   \describe{
-    #'     \item{attrition}{Long-format data.table (trial_id, criterion,
-    #'       n_persons, n_person_trials, n_intervention, n_comparator) showing
-    #'       cumulative attrition at each eligibility step. Includes a
-    #'       \code{"before_exclusions"} row with pre-filtering counts.}
-    #'     \item{matching}{data.table (trial_id, n_intervention_total,
-    #'       n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).}
+    #'     \item{attrition}{Long-format data.table (enrollment_period_id,
+    #'       criterion, n_persons, n_person_trials, n_intervention,
+    #'       n_comparator) showing cumulative attrition at each eligibility
+    #'       step. Includes a \code{"before_exclusions"} row with
+    #'       pre-filtering counts.}
+    #'     \item{matching}{data.table (enrollment_period_id,
+    #'       n_intervention_total, n_comparator_total, n_intervention_enrolled,
+    #'       n_comparator_enrolled).}
     #'   }
     enrollment_counts = NULL,
     #' @field output_dir Character. Directory where enrollment/analysis files are stored.

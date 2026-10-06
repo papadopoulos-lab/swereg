@@ -273,14 +273,14 @@
     )
   }
   # The stratum of the draw, in words. `sample()` runs inside one
-  # `trial_id` group, and `trial_id` is the week index divided by
-  # `period_width`. The stratum is therefore the enrollment period, and the
-  # enrollment period is the only stratum. A width of 1 makes the enrollment
-  # period one week, so the two
+  # `enrollment_period_id` group, and `enrollment_period_id` is the week index
+  # divided by `period_width`. The stratum is therefore the enrollment period,
+  # and the enrollment period is the only stratum. A width of 1 makes the
+  # enrollment period one week, so the two
   # readings differ and the text has to say which one it describes.
   #
   # Do not write the two-word grouping expression here. Its literal text
-  # is what `test-no_na_trial_id_in_aggregates.R` scans this file for,
+  # is what `test-no_na_period_key_in_aggregates.R` scans this file for,
   # and a comment is not a call site.
   pw <- as.integer(plan$period_width %||% 4L)
   pw_weeks <- paste0(pw, if (pw == 1L) " week" else " weeks")
@@ -305,7 +305,7 @@
   # The draw is one sample per trial, sized from that trial's intervention
   # count. It pairs nothing, so no matched set exists to condition on.
   # `survey::svydesign(ids = ~person_id_var)` clusters the variance on
-  # person, and `trial_id` enters the outcome model as a covariate: a
+  # person, and `period_id` enters the outcome model as a covariate: a
   # natural spline from 5 trials, linear below that. Both are what a
   # non-matched stratified sample needs, and neither is a matched-set
   # stratum.

@@ -54,12 +54,12 @@ skip_if_not_installed("cstime")
   wk$isoyearweek[start_idx:(start_idx + n_weeks - 1L)]
 }
 
-# The trial_id of the first enrollment period, read from `.assign_trial_ids()`
+# The period_id of the first enrollment period, read from `.assign_period_ids()`
 # itself rather than hard-coded.
 .lme_period0 <- function(weeks) {
   d <- data.table::data.table(id = 1L, isoyearweek = weeks)
-  swereg:::.assign_trial_ids(d, .lme_period_width)
-  min(d$trial_id)
+  swereg:::.assign_period_ids(d, .lme_period_width)
+  min(d$period_id)
 }
 
 # One person. `tx` names the 1-indexed weeks the person is in the intervention
@@ -106,7 +106,7 @@ skip_if_not_installed("cstime")
     outcome_vars = outcome_vars,
     confounder_vars = "age",
     # follow_up_time == period_width, so one follow-up interval per trial and
-    # the panel's trial_id is the enrollment period.
+    # the panel's period_id is the enrollment period after the trial.
     follow_up_time = .lme_period_width,
     period_width = .lme_period_width
   )
@@ -123,7 +123,7 @@ skip_if_not_installed("cstime")
 }
 
 # The 0-indexed week index of one 1-indexed fixture week, on the scale
-# `.assign_trial_ids()` and `.tte_week_index0()` share.
+# `.assign_period_ids()` and `.tte_week_index0()` share.
 .lme_week_index <- function(weeks, i) {
   swereg:::.tte_week_index0(weeks[i])
 }
@@ -131,7 +131,7 @@ skip_if_not_installed("cstime")
 # The recruiting week each candidate person-trial reports, keyed by person id.
 .lme_recruit <- function(d, period) {
   dd <- data.table::copy(d)
-  swereg:::.assign_trial_ids(dd, .lme_period_width)
+  swereg:::.assign_period_ids(dd, .lme_period_width)
   bt <- swereg:::.enrollment_period_baseline_treatment(
     data = dd,
     person_id_col = "id",
@@ -139,14 +139,14 @@ skip_if_not_installed("cstime")
     eligible_col = "eligible",
     out_col = "candidate_treatment"
   )
-  bt <- bt[trial_id == period]
+  bt <- bt[enrollment_period_id == period]
   stats::setNames(bt$recruit_week_index, bt$id)
 }
 
 # The ids enrolled into the first enrollment period, split by arm.
 #
-# The panel keys on `enrollment_period_id`, which names the trial. `trial_id`
-# names the follow-up interval, and follow-up opens at time zero, the first week
+# The panel keys on `enrollment_period_id`, which names the trial. `period_id`
+# names the calendar period of the follow-up interval, and follow-up opens at time zero, the first week
 # after the enrollment period.
 .lme_enrolled <- function(trial, period0) {
   panel <- trial$data[enrollment_period_id == period0]
@@ -192,7 +192,7 @@ test_that("a woman with an entry-window event is not enrolled", {
 
   # The cascade names the reason. W survives observation and falls at
   # event-freedom.
-  att <- trial$landmark_attrition[trial_id == period0]
+  att <- trial$landmark_attrition[enrollment_period_id == period0]
   n <- stats::setNames(att$n_person_trials, att$criterion)
   expect_equal(
     unname(n["landmark_candidates"]),
@@ -266,7 +266,7 @@ test_that("a woman with no row at the landmark is not enrolled", {
   expect_true("K" %in% enrolled$intervention)
 
   # The cascade attributes the absence to observation, once.
-  att <- trial$landmark_attrition[trial_id == period0]
+  att <- trial$landmark_attrition[enrollment_period_id == period0]
   n <- stats::setNames(att$n_person_trials, att$criterion)
   expect_equal(
     unname(n["landmark_candidates"] - n["landmark_observed"]),
@@ -375,7 +375,7 @@ test_that("the cascade reports both reasons, by criterion and by arm", {
   d <- data.table::rbindlist(people)
 
   trial <- .lme_enroll(d, .lme_design())
-  att <- trial$landmark_attrition[trial_id == period0]
+  att <- trial$landmark_attrition[enrollment_period_id == period0]
   n <- stats::setNames(att$n_person_trials, att$criterion)
   int <- stats::setNames(att$n_intervention, att$criterion)
   cmp <- stats::setNames(att$n_comparator, att$criterion)
@@ -466,14 +466,14 @@ test_that("the scout path drops the same candidate person-trials as the direct p
     arm_col = "intervention"
   )
 
-  scout <- sort(qualified$candidates[trial_id == period0]$id)
+  scout <- sort(qualified$candidates[enrollment_period_id == period0]$id)
   expect_equal(scout, c("C1", "I1"))
 
   # The direct path classifies on the design's own treatment column, then
   # qualifies the same way. Both paths MUST drop the same candidate
   # person-trials.
   dd <- data.table::copy(d)
-  swereg:::.assign_trial_ids(dd, .lme_period_width)
+  swereg:::.assign_period_ids(dd, .lme_period_width)
   direct <- swereg:::.tte_qualify_candidates(
     candidates = swereg:::.enrollment_period_baseline_treatment(
       data = dd,
@@ -487,7 +487,7 @@ test_that("the scout path drops the same candidate person-trials as the direct p
     person_id_col = "id",
     arm_col = "candidate_treatment"
   )
-  expect_equal(sort(direct$candidates[trial_id == period0]$id), scout)
+  expect_equal(sort(direct$candidates[enrollment_period_id == period0]$id), scout)
 })
 
 test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
@@ -516,7 +516,7 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
     cache_path = NULL
   )
 
-  expect_equal(sort(res$tuples[trial_id == period0]$id), c("C1", "I1"))
+  expect_equal(sort(res$tuples[enrollment_period_id == period0]$id), c("C1", "I1"))
   # The three landmark rows stack onto the exclusion cascade, and each one
   # carries a global row for CONSORT.
   crit <- unique(res$attrition$criterion)
@@ -526,7 +526,7 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
   ))
   expect_true("before_exclusions" %in% crit)
   land <- res$attrition[
-    criterion == "landmark_event_free" & is.na(trial_id)
+    criterion == "landmark_event_free" & is.na(enrollment_period_id)
   ]
   expect_equal(nrow(land), 1L)
 
@@ -534,7 +534,7 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
   # `.s1b_worker()`, then `enrolled_ids` on disk, then s1c.
   expect_true("recruit_week_index" %in% names(res$tuples))
   expect_equal(
-    unname(res$tuples[trial_id == period0 & id == "I1"]$recruit_week_index),
+    unname(res$tuples[enrollment_period_id == period0 & id == "I1"]$recruit_week_index),
     .lme_week_index(weeks, 1L)
   )
 })
@@ -550,7 +550,7 @@ test_that("the recruiting week reaches the entry rows of both enrollment paths",
   design <- .lme_design()
 
   dd <- data.table::copy(d)
-  swereg:::.assign_trial_ids(dd, .lme_period_width)
+  swereg:::.assign_period_ids(dd, .lme_period_width)
   tuples <- swereg:::.enrollment_period_baseline_treatment(
     data = dd,
     person_id_col = "id",
@@ -562,7 +562,7 @@ test_that("the recruiting week reaches the entry rows of both enrollment paths",
 
   # Pre-matched mode: `enrolled_ids` carries the column in, exactly as s1b
   # writes it. The enrollment MUST accept it and build a panel.
-  enrolled_ids <- tuples[trial_id == period0]
+  enrolled_ids <- tuples[enrollment_period_id == period0]
   pre <- TTEEnrollment$new(
     data = data.table::copy(dd),
     design = design,

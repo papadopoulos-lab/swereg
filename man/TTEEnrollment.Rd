@@ -26,9 +26,10 @@ what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to \code{4L}. Schema 4 stores the fill summary in
 \code{fill_summary} and the propensity-model diagnostics in \code{ps_fit}, and
 this release reads both. swereg 26.15.0 raised it to \code{5L}, which gives
-the panel column \code{enrollment_period_id} its current name. \code{\link[=qs2_read]{qs2_read()}}
-migrates a schema-4 object to schema 5 before this check runs. The
-check refuses every object below schema 4.
+the panel column \code{enrollment_period_id} its current name. This release
+raised it to \code{6L}, which names the calendar period of each row
+\code{period_id}. \code{\link[=qs2_read]{qs2_read()}} refuses every enrollment below schema 6
+before this check runs. The check refuses the same objects.
 }
 \section{Baseline treatment}{
 
@@ -54,8 +55,8 @@ gives a comparator.
 Follow-up starts at time zero, which the interval convention section below
 defines. The panel therefore starts one follow-up interval after the
 enrollment period, and the enrollment period carries no follow-up.
-\code{enrollment_period_id} names the trial and \code{trial_id} names the follow-up
-interval.
+\code{enrollment_period_id} names the trial and \code{period_id} names the calendar
+period of the follow-up interval.
 
 Each confounder reaches the panel twice. The \verb{.tte_entry__<v>} column holds
 its value at the recruiting week, and \verb{<v>} holds the time-updated value of
@@ -183,9 +184,10 @@ NULL (legacy / unprepared) is treated as per-protocol.}
 
     \item{\code{landmark_attrition}}{A data.table or NULL. It reports why the
 time-zero qualification dropped each candidate person-trial, by
-criterion and by arm. Its columns are \code{trial_id}, \code{criterion},
-\code{n_persons}, \code{n_person_trials}, \code{n_intervention} and \code{n_comparator}.
-The row with \code{trial_id = NA} covers the whole cohort. The three
+criterion and by arm. Its columns are \code{enrollment_period_id},
+\code{criterion}, \code{n_persons}, \code{n_person_trials}, \code{n_intervention} and
+\code{n_comparator}. The row with \code{enrollment_period_id = NA} covers the
+whole cohort. The three
 criteria are \code{landmark_candidates}, \code{landmark_observed} and
 \code{landmark_event_free}, and each count is cumulative. It stays \code{NULL}
 when the design declares no \code{observed_var}, and when the caller
@@ -284,10 +286,10 @@ from survey weights, and \code{svyglm} scales to large registry datasets
 (unlike \code{survey::svycoxph()}). This is computationally equivalent to
 the pooled logistic approach used by Danaei et al. (2013).
 
-\strong{Calendar-time adjustment}: When \code{trial_id} is present in the data, the
+\strong{Calendar-time adjustment}: When \code{period_id} is present in the data, the
 model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
-Danaei 2013). In the panel, \code{trial_id} indexes the calendar period of each
-follow-up interval. Uses natural splines for >=5 unique trial IDs, linear
+Danaei 2013). In the panel, \code{period_id} indexes the calendar period of each
+follow-up interval. Uses natural splines for >=5 unique period IDs, linear
 term for 2-4, omitted for 1.
 
 \strong{Estimand (marginal)}: confounding is removed by the supplied \code{weights},
@@ -321,9 +323,9 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 \subsection{\code{TTEEnrollment$heterogeneity_test()}}{
   Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a \verb{trial_id x treatment} interaction term and returns
+Fits a model with a \verb{period_id x treatment} interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
-across the calendar periods that \code{trial_id} indexes (Hernan 2008, Danaei
+across the calendar periods that \code{period_id} indexes (Hernan 2008, Danaei
 2013).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -338,7 +340,7 @@ across the calendar periods that \code{trial_id} indexes (Hernan 2008, Danaei
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list with \code{p_value} (Wald test), \code{n_trials} (unique trial IDs),
+    A list with \code{p_value} (Wald test), \code{n_trials} (unique period IDs),
 and \code{interaction_coefs} (data.table of interaction coefficients).
   }
 }
@@ -729,7 +731,8 @@ states the rule that decides the arm of each candidate person-trial.}
 trial panels during enrollment.}
       \item{\code{enrolled_ids}}{data.table or NULL. Pre-drawn enrollment IDs from
 the two-pass pipeline. When provided, enrollment skips the comparator
-draw and uses these IDs directly.}
+draw and uses these IDs directly. It MUST carry the trial of each
+person-trial in \code{enrollment_period_id}.}
       \item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
 without copying it. Use only when the caller will not reuse the data.}
     }

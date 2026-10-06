@@ -202,7 +202,7 @@ set.
 
 ```r
 enrollment$data_level  # "trial"
-# now has: trial_id, tstart, tstop, intervention, ...
+# now has: period_id, tstart, tstop, intervention, ...
 ```
 
 The remaining Loop 1 steps work on this trial panel:

@@ -12,11 +12,14 @@
   spec,
   cache_path
 ) {
-  enrollment_person_trial_id <- trial_id <- NULL
+  enrollment_person_trial_id <- enrollment_period_id <- NULL
   pid <- enrollment_spec$design$person_id_var
 
-  .assign_trial_ids(skeleton, enrollment_spec$design$period_width)
-  data.table::setorderv(skeleton, c(pid, "trial_id", "isoyearweek"))
+  # The skeleton weeks carry their calendar period `period_id`. The tuples
+  # and the attrition rows below group the weeks into person-trials, and carry
+  # the trial as `enrollment_period_id`.
+  .assign_period_ids(skeleton, enrollment_spec$design$period_width)
+  data.table::setorderv(skeleton, c(pid, "period_id", "isoyearweek"))
 
   eligible_cols <- attr(skeleton, "eligible_cols")
   attrition <- .s1_compute_attrition(skeleton, eligible_cols, pid)
@@ -54,7 +57,7 @@
       ".",
       get(pid),
       ".",
-      trial_id
+      enrollment_period_id
     )
   ]
 
@@ -222,7 +225,7 @@
 # --- internal: enumerate columns s1b will actually read from the cache -----
 #
 # The cache must contain:
-#   - id, isoyearweek, trial_id          (keying + grouping)
+#   - id, isoyearweek, period_id         (keying + grouping)
 #   - rd_intervention, baseline_intervention (treatment, computed in s1a)
 #   - design$confounder_vars             (Phase B `first()` aggregation)
 #   - design$treatment_var               (Phase B treatment override)
@@ -242,7 +245,7 @@
   needed <- c(
     "id",
     "isoyearweek",
-    "trial_id",
+    "period_id",
     "rd_intervention",
     "baseline_intervention",
     design$confounder_vars,

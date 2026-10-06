@@ -17,13 +17,13 @@
 #
 # Fixture A is the `helper-tte_scenarios.R` build: scenario s1 at N = 2000,
 # pushed through `$s2_ipw()`, `$s3_truncate_weights()` and
-# `$s4_prepare_for_analysis(estimand = "itt")`. It carries no `trial_id`, so
+# `$s4_prepare_for_analysis(estimand = "itt")`. It carries no `period_id`, so
 # it drives the five single-trial methods.
 #
 # Fixture B is a small multi-trial enrollment, built as in
-# `test-tte_effect_modification.R` with a `trial_id` column added. The three
+# `test-tte_effect_modification.R` with a `period_id` column added. The three
 # stratified methods need more than one trial. `$heterogeneity_test()` stops
-# without a `trial_id` column, and the calendar-time term of the other two is
+# without a `period_id` column, and the calendar-time term of the other two is
 # dead without one.
 #
 # The fixtures write nothing to disk. `$survival_curve()` is called with no
@@ -139,7 +139,7 @@ build_fixture_a <- function() {
 # ---------------------------------------------------------------------------
 
 # `.sim_em()` from test-tte_effect_modification.R, at a smaller size, plus a
-# `trial_id` column. Z modifies the treatment effect, and trial_id carries a
+# `period_id` column. Z modifies the treatment effect, and period_id carries a
 # calendar-time drift in the baseline rate.
 
 p10_simulate_em <- function(
@@ -151,11 +151,11 @@ p10_simulate_em <- function(
   set.seed(seed)
   Z <- stats::rbinom(N, 1, 0.5)
   A <- stats::rbinom(N, 1, 0.5)
-  trial_id <- rep_len(seq_len(n_trials), N)
+  period_id <- rep_len(seq_len(n_trials), N)
   out <- vector("list", T_periods)
   for (t in seq_len(T_periods)) {
     haz <- stats::plogis(
-      -3 + log(2) * A + 0.3 * Z + log(2) * A * Z + 0.15 * (trial_id - 3)
+      -3 + log(2) * A + 0.3 * Z + log(2) * A * Z + 0.15 * (period_id - 3)
     )
     out[[t]] <- data.table::data.table(
       id = seq_len(N),
@@ -163,7 +163,7 @@ p10_simulate_em <- function(
       tstop = t,
       treatment = as.logical(A),
       Z = Z,
-      trial_id = trial_id,
+      period_id = period_id,
       event = stats::rbinom(N, 1, haz),
       person_weeks = 1L,
       w = 1
@@ -237,7 +237,7 @@ capture_values <- function() {
     irr_by_subgroup = quietly(b$irr_by_subgroup("w", "Z")),
     effect_modification_test = quietly(b$effect_modification_test("w", "Z")),
     heterogeneity_test = quietly(b$heterogeneity_test("w")),
-    # Fixture A carries no `trial_id`, so its IRR never reaches the
+    # Fixture A carries no `period_id`, so its IRR never reaches the
     # calendar-time spline branch. Fixture B has five trials and does.
     irr_b = quietly(b$irr("w"))
   )

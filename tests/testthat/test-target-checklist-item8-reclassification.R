@@ -38,7 +38,7 @@ skip_if_not_installed("data.table")
 .item8r_skeleton <- function() {
   return(data.table::data.table(
     person_id = c("A", "A", "B", "B", "C", "C"),
-    trial_id = rep(1L, 6L),
+    period_id = rep(1L, 6L),
     eligible_year = rep(TRUE, 6L),
     eligible_washout = c(FALSE, TRUE, FALSE, FALSE, TRUE, TRUE),
     rd_intervention = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE)
@@ -58,7 +58,7 @@ skip_if_not_installed("data.table")
 
 #' The global rows, in application order. Item 8 reads these and no others.
 .item8r_global <- function(att) {
-  g <- att[is.na(att$trial_id)]
+  g <- att[is.na(att$enrollment_period_id)]
   return(g[match(
     c("before_exclusions", "eligible_year", "eligible_washout"),
     g$criterion

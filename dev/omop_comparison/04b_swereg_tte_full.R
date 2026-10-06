@@ -133,5 +133,5 @@ cat(sprintf("  estimate = %.3f  se = %.3f  95%%CI = (%.3f, %.3f)\n",
 cat("\nRemaining methodological difference:\n")
 cat("  - TE replicates each person across multiple trial starts (sequential).\n")
 cat("  - swereg-TTE here uses one trial per person (first eligible period).\n")
-cat("  swereg-TTE's TTEPlan does support multi-trial expansion via trial_id;\n")
+cat("  swereg-TTE's TTEPlan does support multi-trial expansion via enrollment_period_id;\n")
 cat("  not exercised here because it requires a RegistryStudy + spec setup.\n")

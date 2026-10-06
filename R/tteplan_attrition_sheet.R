@@ -65,7 +65,7 @@
 
 #' Write the CONSORT attrition numbers for one enrollment to a sheet.
 #' Carries `criterion`, `n_persons`, `n_person_trials`, `n_intervention`,
-#' and `n_comparator`, aggregated across trial_ids. Companion to the
+#' and `n_comparator`, aggregated across trials. Companion to the
 #' CONSORT PNG/PDF sidecars: readers can cite exact numbers without
 #' measuring pixels. The counts come from `$get_attrition()` and
 #' `$get_matching()`.

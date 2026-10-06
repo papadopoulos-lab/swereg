@@ -159,7 +159,8 @@
 #' draw comparators at the comparator-to-intervention ratio.
 #'
 #' Reads the 2,194-ish `s1a_pre_*` chunks for this enrollment, rbindlists
-#' tuples + attrition, samples comparators per `trial_id`, and RETURNS the two
+#' tuples + attrition, samples comparators per `enrollment_period_id`, and
+#' RETURNS the two
 #' declared outputs:
 #'   - `enrolled_ids` (post-draw enrolled IDs for s1c)
 #'   - `counts`       (`matching` + `attrition` sidecar the master reads back)
@@ -185,7 +186,8 @@
   work_dir,
   skel_basenames
 ) {
-  intervention <- trial_id <- criterion <- n_persons <- n_person_trials <-
+  intervention <- enrollment_period_id <- criterion <- n_persons <-
+    n_person_trials <-
     n_intervention <- n_comparator <- NULL
 
   eid <- enrollment_spec$enrollment_id
@@ -239,7 +241,7 @@
       }
       data.table::rbindlist(list(int_rows, sampled))
     },
-    by = trial_id
+    by = enrollment_period_id
   ]
 
   global_counts <- all_tuples[,
@@ -247,19 +249,19 @@
       n_intervention_total = sum(intervention == TRUE),
       n_comparator_total = sum(intervention == FALSE)
     ),
-    by = trial_id
+    by = enrollment_period_id
   ]
   enrolled_counts <- enrolled_ids[,
     .(
       n_intervention_enrolled = sum(intervention == TRUE),
       n_comparator_enrolled = sum(intervention == FALSE)
     ),
-    by = trial_id
+    by = enrollment_period_id
   ]
   matching_counts <- merge(
     global_counts,
     enrolled_counts,
-    by = "trial_id",
+    by = "enrollment_period_id",
     all.x = TRUE
   )
 
@@ -270,7 +272,7 @@
       n_intervention = sum(n_intervention),
       n_comparator = sum(n_comparator)
     ),
-    by = .(trial_id, criterion)
+    by = .(enrollment_period_id, criterion)
   ]
 
   counts <- list(attrition = attrition_summary, matching = matching_counts)

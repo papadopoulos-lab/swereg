@@ -1,8 +1,8 @@
 # swereg never calls its comparator draw matching, and never claims that it
 # allocates comparators to individual initiators.
 #
-# The draw runs `by = trial_id`, and `trial_id` is the week index divided by
-# `period_width`. It is ONE sample per trial. Its size is
+# The draw runs `by = enrollment_period_id`, and `enrollment_period_id` is the
+# week index divided by `period_width`. It is ONE sample per trial. Its size is
 # `comparator_to_intervention_ratio` times that trial's count of intervention
 # individuals, capped at the comparators the trial holds. It attaches no
 # comparator to an intervention individual, so no matched set exists, and
@@ -16,7 +16,8 @@
 #      does not run. A reviewer then asks which matched sets the analysis
 #      conditions on, and there are none.
 #   2. A denial that the draw read a covariate is wrong the other way. A
-#      reviewer who inspects `trial_id` finds a covariate, because calendar
+#      reviewer who inspects `enrollment_period_id` finds a covariate, because
+#      calendar
 #      time is one.
 #   3. A per-initiator count claims an allocation the code never makes. The
 #      draw takes one trial-level sample and pairs nobody with anybody.
@@ -172,7 +173,7 @@ skip_if_not_installed("data.table")
   list(
     attrition = data.table::data.table(
       enrollment_id = "01",
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age"),
       n_persons = c(1000, 800),
       n_person_trials = c(5000, 4000),
@@ -180,7 +181,7 @@ skip_if_not_installed("data.table")
       n_comparator = c(4000, 3200)
     ),
     matching = data.table::data.table(
-      trial_id = 1L,
+      enrollment_period_id = 1L,
       n_intervention_total = 800,
       n_comparator_total = 3200,
       n_intervention_enrolled = 700,

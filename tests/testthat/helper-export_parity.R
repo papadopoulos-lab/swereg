@@ -411,7 +411,7 @@
   plan$enrollment_counts <- list(
     `01` = list(
       attrition = data.table::data.table(
-        trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA),
+        enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA),
         # `landmark_observed` is here on purpose. Every other criterion is a
         # name the label lookup does not hold, so without it the Attrition
         # sheet's `step_label` column exercises only its fallback branch and
@@ -439,7 +439,7 @@
         )
       ),
       matching = data.table::data.table(
-        trial_id = c(1L, 2L),
+        enrollment_period_id = c(1L, 2L),
         n_intervention_total = c(800, 820),
         n_comparator_total = c(2200, 2300),
         n_intervention_enrolled = c(150, 150),
@@ -451,7 +451,7 @@
     # sheet, no table-of-contents row and no CONSORT sidecar. And no matching.
     `02` = list(
       attrition = data.table::data.table(
-        trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
+        enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
         criterion = c(
           "before_exclusions", "before_exclusions", "before_exclusions",
           "age", "age", "age",

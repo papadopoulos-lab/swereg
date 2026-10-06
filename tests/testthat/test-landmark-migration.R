@@ -16,8 +16,9 @@
 # file tests.
 #
 # The reachability witness is `qs2_read()`. It is the function every swereg
-# reader goes through, and it calls `check_version()` on any R6 object it
-# deserialises.
+# reader goes through. It refuses an enrollment below schema 6 and a plan
+# below schema 5 itself, and it calls `check_version()` on any other R6 object
+# it deserialises. `test-schema-refusal.R` tests the first part.
 
 skip_if_not_installed("data.table")
 skip_if_not_installed("qs2")
@@ -90,10 +91,11 @@ test_that("a version-2 object is refused, not reinterpreted", {
 
   # The three schema constants moved to 3 together, so 2 is the last release
   # that could have written any of them. 26.15.0 moved the enrollment to 5
-  # and the plan to 4.
+  # and the plan to 4. The `period_id` rename moved the enrollment to 6 and
+  # the plan to 5.
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 5L)
-  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 4L)
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 6L)
+  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 5L)
 
   # --- TTEDesign ---
   design_path <- .lmg_save(
@@ -111,11 +113,11 @@ test_that("a version-2 object is refused, not reinterpreted", {
     "enrollment_v2.qs2"
   )
   expect_error(qs2_read(enrollment_path), "schema version 2")
-  # `TTEEnrollment` is on schema 5, and its message no longer names the
+  # `TTEEnrollment` is on schema 6, and its message no longer names the
   # landmark move. It refuses more than the 26.9.0 boundary did: it also
-  # refuses the schema-3 objects 26.10.17 and 26.10.18 wrote. The message
-  # names the required version and the remedy instead.
-  expect_error(qs2_read(enrollment_path), "requires version 5")
+  # refuses every schema up to 5. The message names the required version and
+  # the remedy instead.
+  expect_error(qs2_read(enrollment_path), "requires version 6")
   expect_error(qs2_read(enrollment_path), "[Rr]e-run s1")
 
   # --- TTEPlan ---

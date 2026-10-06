@@ -463,17 +463,17 @@ TTEEnrollment$set(
     ]
 
     # The calendar-time term. `mgcv::s()` asks for 10 basis functions by
-    # default and stops below 10 distinct values, so a shorter trial index
-    # takes a linear term instead.
-    n_trials <- if ("trial_id" %in% names(working_data)) {
-      working_data[.ipcw_has_time == TRUE, data.table::uniqueN(trial_id)]
+    # default and stops below 10 distinct values, so fewer calendar periods
+    # take a linear term instead.
+    n_trials <- if ("period_id" %in% names(working_data)) {
+      working_data[.ipcw_has_time == TRUE, data.table::uniqueN(period_id)]
     } else {
       0L
     }
     calendar_term <- if (use_gam && n_trials >= 10L) {
-      "s(trial_id)"
+      "s(period_id)"
     } else if (n_trials > 1L) {
-      "trial_id"
+      "period_id"
     } else {
       ""
     }

@@ -25,9 +25,10 @@
 # warning therefore left the caller naming a PNG that was never written.
 # =============================================================================
 
-#' Collapse a long-format attrition table (one row per trial_id + criterion,
-#' plus one global row per criterion with `trial_id = NA`) to one row per
-#' criterion, preserving original criterion order.
+#' Collapse a long-format attrition table (one row per enrollment_period_id +
+#' criterion, plus one global row per criterion with
+#' `enrollment_period_id = NA`) to one row per criterion, preserving original
+#' criterion order.
 #'
 #' ONE source set: the global rows. They hold the true overall
 #' `uniqueN(persons)` for their criterion.
@@ -50,7 +51,7 @@
 #' @noRd
 .attrition_overall <- function(att) {
   n_persons <- n_person_trials <- n_intervention <- n_comparator <-
-    criterion <- trial_id <- NULL
+    criterion <- enrollment_period_id <- NULL
   if (is.null(att) || nrow(att) == 0L) {
     return(NULL)
   }
@@ -62,12 +63,13 @@
   # which would scramble the CONSORT steps.
   crit_order <- unique(att$criterion)
 
-  # All or nothing. Every criterion needs a NA-trial_id row, so that the
-  # `n_persons` column reports one unit across every row. A legacy attrition
-  # file (pre-global-row) has a NA row for some criteria and not for others.
+  # All or nothing. Every criterion needs a NA-enrollment_period_id row, so
+  # that the `n_persons` column reports one unit across every row. A legacy
+  # attrition file (pre-global-row) has a NA row for some criteria and not for
+  # others.
   # There is no source set that reports one unit for that input, so this
   # reports nothing.
-  has_na_per_crit <- att[, any(is.na(trial_id)), by = criterion]
+  has_na_per_crit <- att[, any(is.na(enrollment_period_id)), by = criterion]
   if (nrow(has_na_per_crit) == 0L || !all(has_na_per_crit$V1)) {
     return(NULL)
   }
@@ -75,7 +77,7 @@
   # The global rows and NOTHING else. `att` on its own would add the global
   # rows to the per-trial rows for every criterion, which counts that
   # criterion twice.
-  src <- att[is.na(trial_id)]
+  src <- att[is.na(enrollment_period_id)]
   overall <- src[,
     .(
       n_persons = sum(n_persons),

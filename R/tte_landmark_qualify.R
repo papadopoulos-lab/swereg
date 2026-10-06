@@ -14,8 +14,8 @@
 #' Read the 0-indexed week index of each row.
 #'
 #' The index is the position of `isoyearweek` in
-#' `cstime::dates_by_isoyearweek`, minus one. `.assign_trial_ids()` reads the
-#' same scale. It sets `trial_id` to `(position - 1) %/% period_width`. So
+#' `cstime::dates_by_isoyearweek`, minus one. `.assign_period_ids()` reads the
+#' same scale. It sets `period_id` to `(position - 1) %/% period_width`. So
 #' `week_index %/% period_width` is the enrollment period, and
 #' `week_index %% period_width` is the offset inside it.
 #'
@@ -105,8 +105,9 @@
 #' `observed_var` does not, and this function returns its input unchanged.
 #'
 #' @param candidates A data.table with one row per candidate person-trial. It
-#'   MUST carry `person_id_col`, `trial_id` and `arm_col`. Row order is
-#'   preserved, which is what keeps the seeded comparator draw reproducible.
+#'   MUST carry `person_id_col`, `enrollment_period_id` and `arm_col`. Row
+#'   order is preserved, which is what keeps the seeded comparator draw
+#'   reproducible.
 #' @param data The person-week source data. It MUST carry `person_id_col`,
 #'   `isoyearweek`, every column in `design$outcome_vars`, and the observation
 #'   column when the design names one.
@@ -127,7 +128,7 @@
 ) {
   lm_pid <- lm_enrollment_period <- lm_obs <- i.lm_obs <- NULL # nolint
   fe_pid <- fe_w <- fe_week <- i.fe_week <- NULL # nolint
-  .tte_landmark <- trial_id <- NULL # nolint
+  .tte_landmark <- enrollment_period_id <- NULL # nolint
 
   if (is.null(design$observed_var)) {
     return(list(candidates = candidates, attrition = NULL))
@@ -202,13 +203,13 @@
   # names are columns of `qb` and the values are columns of the joined table,
   # so both mappings are built by name rather than written as literals.
   qb <- data.table::copy(candidates)
-  qb[, .tte_landmark := (as.integer(trial_id) + 1L) * period_width]
+  qb[, .tte_landmark := (as.integer(enrollment_period_id) + 1L) * period_width]
   # A candidate with no row at its landmark keeps the FALSE default and so fails
   # observation. That is the one place an absent landmark row is reported.
   qb[, lm_obs := FALSE]
   on_landmark <- stats::setNames(
     c("lm_pid", "lm_enrollment_period"),
-    c(person_id_col, "trial_id")
+    c(person_id_col, "enrollment_period_id")
   )
   qb[landmark, on = on_landmark, lm_obs := i.lm_obs]
   qb[, fe_week := NA_integer_]
@@ -219,8 +220,9 @@
   ]
 
   # Both vectors are logical and never NA. A candidate whose `isoyearweek` is
-  # outside the calendar has an NA `trial_id`, and so an NA landmark. It fails
-  # observation, because no landmark row can carry an NA enrollment period.
+  # outside the calendar has an NA `enrollment_period_id`, and so an NA
+  # landmark. It fails observation, because no landmark row can carry an NA
+  # enrollment period.
   # Writing the event test so it cannot return NA either keeps the second
   # vector clean: `candidates[NA]` returns a row of NAs rather than dropping
   # it.
@@ -300,8 +302,9 @@
 #' @param arm Logical vector, `TRUE` for the intervention arm.
 #' @param keep Logical vector, the rows this step still holds.
 #' @param label Character, the criterion name to report.
-#' @return A data.table with one row per `trial_id`, plus one row carrying
-#'   `trial_id = NA` for the whole cohort. The columns match
+#' @return A data.table with one row per `enrollment_period_id`, plus one row
+#'   carrying `enrollment_period_id = NA` for the whole cohort. The columns
+#'   match
 #'   `.s1_compute_attrition()`, so both tables stack.
 #' @noRd
 .tte_qualify_attrition_rows <- function(
@@ -311,10 +314,10 @@
   keep,
   label
 ) {
-  qa_pid <- qa_arm <- trial_id <- criterion <- NULL # nolint
+  qa_pid <- qa_arm <- enrollment_period_id <- criterion <- NULL # nolint
   x <- data.table::data.table(
     qa_pid = candidates[[person_id_col]][keep],
-    trial_id = candidates[["trial_id"]][keep],
+    enrollment_period_id = candidates[["enrollment_period_id"]][keep],
     qa_arm = arm[keep]
   )
   j <- quote(list(
@@ -323,9 +326,13 @@
     n_intervention = sum(qa_arm),
     n_comparator = sum(!qa_arm)
   ))
-  per_trial <- x[!is.na(trial_id), eval(j), by = trial_id]
+  per_trial <- x[
+    !is.na(enrollment_period_id),
+    eval(j),
+    by = enrollment_period_id
+  ]
   overall <- x[, eval(j)]
-  overall[, trial_id := NA_integer_]
+  overall[, enrollment_period_id := NA_integer_]
   out <- data.table::rbindlist(list(per_trial, overall), use.names = TRUE)
   out[, criterion := label]
   return(out[])

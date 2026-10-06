@@ -375,7 +375,7 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
   dt <- data.table::data.table(
     id = rep(1:3, each = 4),
     isoyearweek = rep(paste0("2015-0", 1:4), 3),
-    trial_id = rep(0L, 12),
+    period_id = rep(0L, 12),
     eligible_isoyears = rep(TRUE, 12),
     eligible_age = c(
       rep(TRUE, 4),   # person 1: passes age
@@ -397,11 +397,11 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
   )
 
   expect_s3_class(result, "data.table")
-  expect_true(all(c("trial_id", "criterion", "n_persons", "n_person_trials",
+  expect_true(all(c("enrollment_period_id", "criterion", "n_persons", "n_person_trials",
                      "n_intervention", "n_comparator") %in% names(result)))
 
-  # Per-criterion rows include both per-trial (trial_id = 0L) and global
-  # (trial_id = NA) entries; this test has a single trial so each criterion
+  # Per-criterion rows include both per-trial (enrollment_period_id = 0L) and global
+  # (enrollment_period_id = NA) entries; this test has a single trial so each criterion
   # yields exactly 2 rows with identical counts.
   # After eligible_isoyears: all 3 persons pass
   r1 <- result[criterion == "eligible_isoyears"]
@@ -420,11 +420,11 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
   expect_equal(unique(r3$n_person_trials), 1L)
 })
 
-test_that(".s1_compute_attrition groups by trial_id", {
+test_that(".s1_compute_attrition groups by period into enrollment_period_id", {
   dt <- data.table::data.table(
     id = rep(1:2, each = 4),
     isoyearweek = rep(paste0("2015-0", 1:4), 2),
-    trial_id = rep(c(0L, 0L, 1L, 1L), 2),
+    period_id = rep(c(0L, 0L, 1L, 1L), 2),
     eligible_isoyears = rep(TRUE, 8),
     eligible_age = c(
       TRUE, TRUE, TRUE, TRUE,    # person 1: all pass
@@ -435,36 +435,36 @@ test_that(".s1_compute_attrition groups by trial_id", {
 
   result <- swereg:::.s1_compute_attrition(dt, c("eligible_isoyears", "eligible_age"), "id")
 
-  # After eligible_isoyears: two per-trial rows plus one NA-trial_id global
+  # After eligible_isoyears: two per-trial rows plus one NA-enrollment_period_id global
   r_iso <- result[criterion == "eligible_isoyears"]
   expect_equal(nrow(r_iso), 3L)
-  expect_equal(nrow(r_iso[!is.na(trial_id)]), 2L)
+  expect_equal(nrow(r_iso[!is.na(enrollment_period_id)]), 2L)
 
   # After eligible_age, per-trial: trial 0 has 2 persons, trial 1 has 1
   r_age <- result[criterion == "eligible_age"]
-  expect_equal(r_age[!is.na(trial_id) & trial_id == 0L, n_persons], 2L)
-  expect_equal(r_age[!is.na(trial_id) & trial_id == 1L, n_persons], 1L)
+  expect_equal(r_age[!is.na(enrollment_period_id) & enrollment_period_id == 0L, n_persons], 2L)
+  expect_equal(r_age[!is.na(enrollment_period_id) & enrollment_period_id == 1L, n_persons], 1L)
 })
 
-test_that(".s1_compute_attrition emits NA-trial_id global rows with true uniqueN", {
+test_that(".s1_compute_attrition emits NA-enrollment_period_id global rows with true uniqueN", {
   # Two persons who both enter two sequential trials. Per-trial uniqueN
-  # summed = 4 (double-counted), but true uniqueN = 2. The NA-trial_id
+  # summed = 4 (double-counted), but true uniqueN = 2. The NA-enrollment_period_id
   # global row must report 2, not 4.
   dt <- data.table::data.table(
     id = rep(c(1L, 2L), each = 4),
     isoyearweek = rep(paste0("2015-0", 1:4), 2),
-    trial_id = rep(c(0L, 0L, 1L, 1L), 2),
+    period_id = rep(c(0L, 0L, 1L, 1L), 2),
     eligible_isoyears = rep(TRUE, 8),
     rd_intervention = c(rep(TRUE, 4), rep(FALSE, 4))
   )
   result <- swereg:::.s1_compute_attrition(dt, "eligible_isoyears", "id")
 
-  global <- result[is.na(trial_id) & criterion == "eligible_isoyears"]
+  global <- result[is.na(enrollment_period_id) & criterion == "eligible_isoyears"]
   expect_equal(nrow(global), 1L)
   expect_equal(global$n_persons, 2L)          # true uniqueN across trials
   expect_equal(global$n_person_trials, 4L)    # 2 persons x 2 trials
 
-  per_trial <- result[!is.na(trial_id) & criterion == "eligible_isoyears"]
+  per_trial <- result[!is.na(enrollment_period_id) & criterion == "eligible_isoyears"]
   expect_equal(sum(per_trial$n_persons), 4L)  # inflated sum (what we are replacing)
 })
 
@@ -1599,13 +1599,13 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
   plan <- .make_plan_with_spec(spec)
 
   # Populate enrollment_counts with attrition + matching.
-  # Each criterion carries a global row (trial_id = NA) and the per-trial row
+  # Each criterion carries a global row (enrollment_period_id = NA) and the per-trial row
   # it summarises. One trial runs here, so the two hold the same counts.
   # Item 8 reads the global rows, and the assertions below are their numbers.
   plan$enrollment_counts <- list(
     "01" = list(
       attrition = data.table::data.table(
-        trial_id = c(NA_integer_, 0L, NA_integer_, 0L),
+        enrollment_period_id = c(NA_integer_, 0L, NA_integer_, 0L),
         criterion = c(
           "eligible_isoyears",
           "eligible_isoyears",
@@ -1618,7 +1618,7 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
         n_comparator = c(1200L, 1200L, 700L, 700L)
       ),
       matching = data.table::data.table(
-        trial_id = 0L,
+        enrollment_period_id = 0L,
         n_intervention_total = 100L,
         n_comparator_total = 200L,
         n_intervention_enrolled = 100L,

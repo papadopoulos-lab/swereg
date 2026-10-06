@@ -108,10 +108,12 @@
 }
 
 
-#' Get all eligible (person_id, trial_id, intervention, recruit_week_index)
-#' tuples from a skeleton.
+#' Get all eligible (person_id, enrollment_period_id, intervention,
+#' recruit_week_index) tuples from a skeleton.
 #' Used by `.s1a_finalize_on_skeleton()` for scouting and available for direct
-#' use. Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
+#' use. Caller should pre-sort by (pid, period_id, isoyearweek) for efficiency.
+#' The skeleton weeks carry `period_id`. The tuples carry the trial of each
+#' person-trial as `enrollment_period_id`.
 #'
 #' `recruit_week_index` names the week that recruited each person into each
 #' enrollment period. It travels the whole scout chain: these tuples reach
@@ -119,8 +121,8 @@
 #' on disk. The s1c enrollment then reads it back on `entry_dt`.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
-  if (!"trial_id" %in% names(skeleton)) {
-    .assign_trial_ids(skeleton, design$period_width)
+  if (!"period_id" %in% names(skeleton)) {
+    .assign_period_ids(skeleton, design$period_width)
   }
   # `.enrollment_period_baseline_treatment()` is the single source of truth for
   # the (person, enrollment period) -> baseline treatment mapping, and
@@ -133,7 +135,7 @@
   # separately.
   #
   # No setorderv() before the group-by: the scout path has already
-  # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
+  # sorted the skeleton by (pid, period_id, isoyearweek), logical-vector
   # subsetting preserves order, and any() is order-independent regardless.
   # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
   return(.enrollment_period_baseline_treatment(
@@ -150,27 +152,28 @@
 
 #' Compute cumulative attrition counts per eligibility criterion.
 #'
-#' Returns a long-format data.table with rows per (trial_id, criterion)
-#' AND a global row (`trial_id = NA`) per criterion. The global row
-#' carries true overall `uniqueN(person_id)`. Summing the per-trial
-#' `n_persons` across trial_ids over-counts because one person who
+#' Returns a long-format data.table with rows per (enrollment_period_id,
+#' criterion) AND a global row (`enrollment_period_id = NA`) per criterion.
+#' The global row carries true overall `uniqueN(person_id)`. Summing the
+#' per-trial `n_persons` across trials over-counts because one person who
 #' enters N trials contributes N times to that sum. Downstream CONSORT
-#' consumers must prefer the NA-trial_id rows for person headcounts.
+#' consumers must prefer the NA-enrollment_period_id rows for person
+#' headcounts.
 #' Per-trial rows are retained for diagnostic slicing.
 #'
 #' Each row includes a "before_exclusions" entry plus one per cumulative
 #' eligibility level, with intervention/comparator breakdowns (always in
 #' person-trial units) for TARGET Item 8 reporting.
 #'
-#' @param skeleton data.table with trial_id and eligible_* columns assigned.
+#' @param skeleton data.table with period_id and eligible_* columns assigned.
 #' @param eligible_cols Character vector of eligible_* column names in
 #'   application order.
 #' @param pid Character, person ID column name.
 #' @param treatment_var Character, name of the treatment column (default
 #'   `"rd_intervention"`).
-#' @return data.table with columns: trial_id, criterion, n_persons,
-#'   n_person_trials, n_intervention, n_comparator. Rows with `trial_id = NA`
-#'   carry true overall uniqueN of persons.
+#' @return data.table with columns: enrollment_period_id, criterion,
+#'   n_persons, n_person_trials, n_intervention, n_comparator. Rows with
+#'   `enrollment_period_id = NA` carry true overall uniqueN of persons.
 #' @noRd
 .s1_compute_attrition <- function(
   skeleton,
@@ -178,17 +181,26 @@
   pid,
   treatment_var = "rd_intervention"
 ) {
-  .tte_pid <- .tte_tx <- .tte_tx_any <- trial_id <- . <- criterion <- NULL
+  .tte_pid <- .tte_tx <- .tte_tx_any <- enrollment_period_id <- . <-
+    criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector", call. = FALSE)
   }
 
   # Subset to needed columns for efficiency
-  .cols <- c(pid, "trial_id", eligible_cols, treatment_var)
+  .cols <- c(pid, "period_id", eligible_cols, treatment_var)
   sk <- skeleton[, .cols, with = FALSE]
 
-  # Alias pid and treatment columns to fixed names for j-expressions
-  data.table::setnames(sk, c(pid, treatment_var), c(".tte_pid", ".tte_tx"))
+  # Alias pid and treatment columns to fixed names for j-expressions.
+  # Every grouping below collects the weeks of one person into person-trials.
+  # The group key is therefore the trial, so the calendar period `period_id`
+  # of the week is written as `enrollment_period_id`. `sk` is a column
+  # subset, so the rename leaves `skeleton` untouched.
+  data.table::setnames(
+    sk,
+    c(pid, treatment_var, "period_id"),
+    c(".tte_pid", ".tte_tx", "enrollment_period_id")
+  )
 
   # Classify each (person, trial) as any()-exposed so that a row in `pt0`
   # corresponds to one person-trial with a single boolean treatment flag.
@@ -198,23 +210,23 @@
     .(
       .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
     ),
-    by = c(".tte_pid", "trial_id")
+    by = c(".tte_pid", "enrollment_period_id")
   ]
-  # Per-trial summary: drop rows where trial_id is NA (person-weeks that
-  # fall outside any trial period). Without this filter, those rows
-  # collapse into a `(trial_id = NA, criterion)` group whose `n_persons`
-  # later gets summed together with the genuine `before_global` row in
-  # the per-batch aggregation step (line ~1641, `by = .(trial_id,
-  # criterion)`), inflating the reported global cohort by ~2x in CONSORT.
+  # Per-trial summary: drop rows where enrollment_period_id is NA
+  # (person-weeks that fall outside any trial period). Without this filter,
+  # those rows collapse into a `(enrollment_period_id = NA, criterion)` group.
+  # The per-batch aggregation step of `.s1b_worker()` then sums its
+  # `n_persons` with the genuine `before_global` row, which inflates the
+  # reported global cohort by ~2x in CONSORT.
   before_row <- pt0[
-    !is.na(trial_id),
+    !is.na(enrollment_period_id),
     .(
       n_persons = data.table::uniqueN(.tte_pid),
       n_person_trials = .N,
       n_intervention = sum(.tte_tx_any, na.rm = TRUE),
       n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
     ),
-    by = trial_id
+    by = enrollment_period_id
   ]
   before_row[, criterion := "before_exclusions"]
   # Global (across-trials) row: true uniqueN of persons, not a sum of
@@ -222,7 +234,7 @@
   # person column of the attrition table double-counts everyone who
   # enters more than one sequential trial.
   before_global <- pt0[, .(
-    trial_id = NA_integer_,
+    enrollment_period_id = NA_integer_,
     n_persons = data.table::uniqueN(.tte_pid),
     n_person_trials = .N,
     n_intervention = sum(.tte_tx_any, na.rm = TRUE),
@@ -248,26 +260,26 @@
     pt_i <- sk[
       cumulative_mask,
       .(.tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)),
-      by = c(".tte_pid", "trial_id")
+      by = c(".tte_pid", "enrollment_period_id")
     ]
-    # Same filter as `before_row` above: drop the spurious `trial_id = NA`
-    # group so it doesn't collide with `global_rows[[i]]` during the
-    # per-batch aggregation summing.
+    # Same filter as `before_row` above: drop the spurious
+    # `enrollment_period_id = NA` group so it doesn't collide with
+    # `global_rows[[i]]` during the per-batch aggregation summing.
     rows[[i]] <- pt_i[
-      !is.na(trial_id),
+      !is.na(enrollment_period_id),
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
         n_intervention = sum(.tte_tx_any, na.rm = TRUE),
         n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
       ),
-      by = trial_id
+      by = enrollment_period_id
     ][, criterion := eligible_cols[i]]
-    # Global (trial_id = NA) companion row: true uniqueN of persons
-    # across all trials after this cumulative criterion.
+    # Global (enrollment_period_id = NA) companion row: true uniqueN of
+    # persons across all trials after this cumulative criterion.
     global_rows[[i]] <- pt_i[,
       .(
-        trial_id = NA_integer_,
+        enrollment_period_id = NA_integer_,
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
         n_intervention = sum(.tte_tx_any, na.rm = TRUE),

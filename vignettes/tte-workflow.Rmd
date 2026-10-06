@@ -513,7 +513,7 @@ Cox model (Thompson 1977). It uses `splines::ns(tstop, df = 3)`.
 
 ```{r, eval = FALSE}
 enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
-#>   Wald test on trial_id x treatment interaction
+#>   Wald test on period_id x treatment interaction
 #>   chisq = 3.21, df = 2, p = 0.20
 ```
 

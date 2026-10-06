@@ -74,9 +74,10 @@
 #' \enumerate{
 #'   \item **Pass 1a (scout)**: Lightweight parallel pass that reads each
 #'     skeleton file, applies exclusions and treatment, and returns eligible
-#'     `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.
+#'     `(person_id, enrollment_period_id, intervention)` tuples. No confounders
+#'     or enrollment.
 #'   \item **Centralized comparator draw**: Combines all tuples from all batches,
-#'     then per `trial_id` keeps all intervention and samples
+#'     then per `enrollment_period_id` keeps all intervention and samples
 #'     `ratio * n_intervention` comparator globally. Stores counts on
 #'     `self$enrollment_counts` for TARGET Item 8 reporting.
 #'   \item **Pass 1b (full enrollment)**: Parallel pass that re-reads each

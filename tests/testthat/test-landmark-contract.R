@@ -111,7 +111,7 @@ lc_skeleton <- function() {
     id = c(1L, 2L),
     isoyearweek = "2015-01",
     isoyear = 2015L,
-    trial_id = 0L,
+    period_id = 0L,
     rd_intervention = c(TRUE, FALSE),
     baseline_intervention = c(TRUE, FALSE),
     rd_age_continuous = 55,
@@ -624,12 +624,12 @@ test_that("the TTEDesign schema version is 3L", {
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
 })
 
-test_that("the TTEEnrollment schema version is 5L", {
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 5L)
+test_that("the TTEEnrollment schema version is 6L", {
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 6L)
 })
 
-test_that("the TTEPlan schema version is 4L", {
-  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 4L)
+test_that("the TTEPlan schema version is 5L", {
+  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 5L)
 })
 
 # ---------------------------------------------------------------------------

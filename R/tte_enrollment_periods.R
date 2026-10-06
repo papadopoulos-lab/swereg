@@ -1,21 +1,21 @@
 # Enrollment periods: the enrollment period each person-week falls in, and the
 # arm each candidate person-trial takes in its enrollment period.
 
-#' Assign trial IDs from isoyearweek using period_width
+#' Assign the calendar period of each week from isoyearweek and period_width
 #'
-#' Single source of truth for the isoyearweek -> trial_id mapping. Used by
+#' Single source of truth for the isoyearweek -> period_id mapping. Used by
 #' `.s1_eligible_tuples()` (s1a scout) and `enroll()` Phase A (s1b full enrollment).
 #'
 #' @param data A data.table with an `isoyearweek` column. Modified by reference.
 #' @param period_width Integer, the width of the enrollment period in weeks.
-#' @return Invisible data, with `trial_id` column added.
+#' @return Invisible data, with `period_id` column added.
 #' @noRd
-.assign_trial_ids <- function(data, period_width) {
-  . <- isoyearweek <- .tte_week_index <- trial_id <- i.trial_id <- NULL
+.assign_period_ids <- function(data, period_width) {
+  . <- isoyearweek <- .tte_week_index <- period_id <- i.period_id <- NULL
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   cstime_weeks[, .tte_week_index := .I]
-  cstime_weeks[, trial_id := (.tte_week_index - 1L) %/% period_width]
-  data[cstime_weeks, trial_id := i.trial_id, on = "isoyearweek"]
+  cstime_weeks[, period_id := (.tte_week_index - 1L) %/% period_width]
+  data[cstime_weeks, period_id := i.period_id, on = "isoyearweek"]
   return(invisible(data))
 }
 
@@ -73,7 +73,7 @@
 #' `.tte_entry_snapshot()` reads her confounders at that instant, into the
 #' `.tte_entry__` columns of the panel.
 #'
-#' @param data A data.table with a `trial_id` column and an `isoyearweek`
+#' @param data A data.table with a `period_id` column and an `isoyearweek`
 #'   column. This function does not modify it.
 #' @param person_id_col Character, the person identifier column.
 #' @param treatment_col Character, the treatment column. It holds `TRUE` for the
@@ -85,7 +85,9 @@
 #' @param out_col Character, the name of the treatment column in the result.
 #' @return A data.table with one row per candidate person-trial that holds at
 #'   least one eligible in-arm week. Its columns are `person_id_col`,
-#'   `trial_id`, `out_col` and `recruit_week_index`.
+#'   `enrollment_period_id`, `out_col` and `recruit_week_index`. The function
+#'   groups the weeks into person-trials by `period_id`, and writes that group
+#'   key as `enrollment_period_id`.
 #' @noRd
 .enrollment_period_baseline_treatment <- function(
   data,
@@ -117,8 +119,12 @@
     list(any(v), min(isoyearweek)),
     list(v = as.name(treatment_col))
   )
-  res <- data[keep, eval(j), by = c(person_id_col, "trial_id")]
-  data.table::setnames(res, c("V1", "V2"), c(out_col, "recruit_isoyearweek"))
+  res <- data[keep, eval(j), by = c(person_id_col, "period_id")]
+  data.table::setnames(
+    res,
+    c("period_id", "V1", "V2"),
+    c("enrollment_period_id", out_col, "recruit_isoyearweek")
+  )
   res[, recruit_week_index := .tte_week_index0(recruit_isoyearweek)]
   res[, recruit_isoyearweek := NULL]
   return(res[])

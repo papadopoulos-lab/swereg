@@ -197,7 +197,7 @@ utils::globalVariables("..keep_cols")
 #' @noRd
 .tte_fit_irr <- function(data, weight_col, design) {
   # Local bindings (avoid R CMD check NSE notes)
-  trial_id <- event <- NULL # nolint
+  period_id <- event <- NULL # nolint
 
   # Both arms need at least one event. Zero events in one arm separates the
   # Poisson fit, which returns a very large or very small ratio with an
@@ -224,11 +224,11 @@ utils::globalVariables("..keep_cols")
     return(out_na)
   }
 
-  has_trial_id <- "trial_id" %in%
+  has_period_id <- "period_id" %in%
     names(data) &&
-    data[, data.table::uniqueN(trial_id)] > 1L
-  n_trial_ids <- if (has_trial_id) {
-    data[, data.table::uniqueN(trial_id)]
+    data[, data.table::uniqueN(period_id)] > 1L
+  n_period_ids <- if (has_period_id) {
+    data[, data.table::uniqueN(period_id)]
   } else {
     0L
   }
@@ -241,7 +241,7 @@ utils::globalVariables("..keep_cols")
     weight_col,
     "event",
     "person_weeks",
-    if (has_trial_id) "trial_id"
+    if (has_period_id) "period_id"
   ))
   svy_data <- data[, ..keep_cols]
 
@@ -255,10 +255,10 @@ utils::globalVariables("..keep_cols")
   warn <- FALSE
   treatment_coef <- paste0(design$treatment_var, "TRUE")
 
-  trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
-    paste0(" + splines::ns(trial_id, df = 3)")
-  } else if (has_trial_id) {
-    " + trial_id"
+  trial_term <- if (has_period_id && n_period_ids >= 5L) {
+    paste0(" + splines::ns(period_id, df = 3)")
+  } else if (has_period_id) {
+    " + period_id"
   } else {
     ""
   }
@@ -329,7 +329,7 @@ utils::globalVariables("..keep_cols")
 #' @noRd
 .tte_est_heterogeneity_test <- function(self, weight_col) {
   # Local bindings (avoid R CMD check NSE notes)
-  trial_id <- NULL # nolint
+  period_id <- NULL # nolint
 
   if (self$data_level != "trial") {
     stop("heterogeneity_test() requires trial level data.", call. = FALSE)
@@ -347,16 +347,16 @@ utils::globalVariables("..keep_cols")
       call. = FALSE
     )
   }
-  if (!"trial_id" %in% names(data)) {
+  if (!"period_id" %in% names(data)) {
     stop(
-      "'trial_id' column not found. Heterogeneity test requires multiple trials.",
+      "'period_id' column not found. Heterogeneity test requires multiple periods.",
       call. = FALSE
     )
   }
 
-  n_trials <- data[, data.table::uniqueN(trial_id)]
+  n_trials <- data[, data.table::uniqueN(period_id)]
   if (n_trials < 2L) {
-    stop("Need at least 2 unique trial_ids for heterogeneity test.", call. = FALSE)
+    stop("Need at least 2 unique period_ids for heterogeneity test.", call. = FALSE)
   }
 
   keep_cols <- unique(c(
@@ -366,7 +366,7 @@ utils::globalVariables("..keep_cols")
     weight_col,
     "event",
     "person_weeks",
-    "trial_id"
+    "period_id"
   ))
   svy_data <- data[, ..keep_cols]
 
@@ -378,13 +378,13 @@ utils::globalVariables("..keep_cols")
   rm(svy_data)
 
   # Spline interaction: does the treatment effect vary smoothly over
-  # calendar time (trial period)? Uses ns(trial_id, df=3) interacted
+  # calendar time (calendar period)? Uses ns(period_id, df=3) interacted
   # with treatment — 3 interaction terms instead of one per trial period.
   spline_df <- min(3L, n_trials - 1L)
   formula_int <- stats::as.formula(paste0(
     "event ~ ",
     design$treatment_var,
-    " * splines::ns(trial_id, df = ",
+    " * splines::ns(period_id, df = ",
     spline_df,
     ")",
     " + splines::ns(",
@@ -400,7 +400,7 @@ utils::globalVariables("..keep_cols")
   )
   rm(svy_design)
 
-  # Extract interaction coefficients (treatment:ns(trial_id) terms)
+  # Extract interaction coefficients (treatment:ns(period_id) terms)
   coef_names <- names(stats::coef(fit))
   interaction_idx <- grep(
     paste0("^", design$treatment_var, "TRUE:"),
@@ -468,7 +468,7 @@ utils::globalVariables("..keep_cols")
 #' @noRd
 .tte_est_effect_modification_test <- function(self, weight_col, subgroup_var) {
   # Local bindings (avoid R CMD check NSE notes)
-  trial_id <- NULL # nolint
+  period_id <- NULL # nolint
 
   if (self$data_level != "trial") {
     stop("effect_modification_test() requires trial level data.", call. = FALSE)
@@ -516,18 +516,18 @@ utils::globalVariables("..keep_cols")
     )
   }
 
-  has_trial_id <- "trial_id" %in%
+  has_period_id <- "period_id" %in%
     names(d) &&
-    d[, data.table::uniqueN(trial_id)] > 1L
-  n_trial_ids <- if (has_trial_id) {
-    d[, data.table::uniqueN(trial_id)]
+    d[, data.table::uniqueN(period_id)] > 1L
+  n_period_ids <- if (has_period_id) {
+    d[, data.table::uniqueN(period_id)]
   } else {
     0L
   }
-  trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
-    " + splines::ns(trial_id, df = 3)"
-  } else if (has_trial_id) {
-    " + trial_id"
+  trial_term <- if (has_period_id && n_period_ids >= 5L) {
+    " + splines::ns(period_id, df = 3)"
+  } else if (has_period_id) {
+    " + period_id"
   } else {
     ""
   }
@@ -540,7 +540,7 @@ utils::globalVariables("..keep_cols")
     "event",
     "person_weeks",
     subgroup_var,
-    if (has_trial_id) "trial_id"
+    if (has_period_id) "period_id"
   ))
   svy_data <- d[, ..keep_cols]
   svy_data[[subgroup_var]] <- factor(svy_data[[subgroup_var]])

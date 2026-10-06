@@ -232,7 +232,7 @@ test_that("the direct and production paths agree on qualified enrollment", {
   prod_int <- .lpp_periods(
     prod$tuples[intervention == TRUE],
     "id",
-    "trial_id"
+    "enrollment_period_id"
   )
   direct_int <- .lpp_periods(
     direct$data[rd_intervention == TRUE],
@@ -245,7 +245,7 @@ test_that("the direct and production paths agree on qualified enrollment", {
   enrolled_int <- .lpp_periods(
     prod$enrolled_ids[intervention == TRUE],
     "id",
-    "trial_id"
+    "enrollment_period_id"
   )
   expect_identical(enrolled_int, prod_int)
 })
@@ -261,7 +261,7 @@ test_that("both paths open follow-up at time zero, the first week after the enro
   for (panel in list(prod$panel, direct$data)) {
     first_rows <- panel[tstart == 0L]
     expect_gt(nrow(first_rows), 0L)
-    expect_true(all(first_rows$trial_id == first_rows$enrollment_period_id + 1L))
+    expect_true(all(first_rows$period_id == first_rows$enrollment_period_id + 1L))
     expect_identical(
       panel[, min(tstart), by = enrollment_person_trial_id]$V1,
       rep(0L, data.table::uniqueN(panel$enrollment_person_trial_id))

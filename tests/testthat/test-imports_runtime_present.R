@@ -125,12 +125,12 @@ test_that("the CONSORT guard passes when all three packages are installed", {
 })
 
 # The smallest input `.build_cohort_flow()` accepts. The shape comes from
-# `test-cohort_flow.R`: one global row per criterion, so `trial_id` is `NA`,
-# plus a matching table with one row per trial.
+# `test-cohort_flow.R`: one global row per criterion, so `enrollment_period_id`
+# is `NA`, plus a matching table with one row per trial.
 .consort_fixture_counts <- function() {
   list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age", "eligible_no_x"),
       n_persons = c(1000, 800, 700),
       n_person_trials = c(5000, 4000, 3500),
@@ -138,7 +138,7 @@ test_that("the CONSORT guard passes when all three packages are installed", {
       n_comparator = c(4000, 3200, 2800)
     ),
     matching = data.table::data.table(
-      trial_id = 1:2,
+      enrollment_period_id = 1:2,
       n_intervention_enrolled = c(350, 350),
       n_comparator_enrolled = c(700, 700)
     )

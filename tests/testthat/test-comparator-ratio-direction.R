@@ -93,7 +93,7 @@ skip_if_not_installed("openxlsx")
   list(
     attrition = data.table::data.table(
       enrollment_id = "01",
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age"),
       n_persons = c(1000, 800),
       n_person_trials = c(5000, 4000),
@@ -101,7 +101,7 @@ skip_if_not_installed("openxlsx")
       n_comparator = c(4000, 3200)
     ),
     matching = data.table::data.table(
-      trial_id = 1L,
+      enrollment_period_id = 1L,
       n_intervention_total = 800,
       n_comparator_total = 3200,
       n_intervention_enrolled = 700,

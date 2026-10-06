@@ -17,8 +17,7 @@
 # 3. A treatment deviation never stops ITT. Under PP, an outcome in the same
 #    follow-up interval as a deviation is still counted.
 # 4. A panel without `weeks_to_observation_gap` warns once, and is read as
-#    having no gap. A read of such a panel warns on read, and s4 does not
-#    warn again.
+#    having no gap.
 # 5. Without a gap, ITT and PP output is unchanged. The fingerprints were
 #    measured on swereg before this change.
 
@@ -157,7 +156,7 @@ skip_if_not_installed("withr")
 .ig_fingerprint <- function(d) {
   cols <- c(
     "id",
-    "trial_id",
+    "period_id",
     "tstart",
     "tstop",
     "person_weeks",
@@ -330,32 +329,6 @@ test_that("a panel without weeks_to_observation_gap warns once and keeps the old
 
   # A panel that carries the column gives no such warning.
   msgs <- .ig_warnings(enrol(), "itt")
-  expect_false(any(grepl("26.15.0", msgs, fixed = TRUE)))
-})
-
-test_that("a read legacy panel warns once on read and not again in s4", {
-  trial <- TTEEnrollment$new(
-    data = data.table::copy(.ig_gap_data()),
-    design = .ig_design(),
-    ratio = 2,
-    seed = 4,
-    extra_cols = "isoyearweek"
-  )
-  trial$data[, weeks_to_observation_gap := NULL]
-  path <- withr::local_tempfile(fileext = ".qs2")
-  qs2::qs_save(trial, path)
-
-  # The read gives the warning, and sets the private flag.
-  msgs <- character()
-  read <- withCallingHandlers(qs2_read(path), warning = function(w) {
-    msgs <<- c(msgs, conditionMessage(w))
-    invokeRestart("muffleWarning")
-  })
-  expect_identical(msgs, .ig_legacy_text)
-  expect_true(read$.__enclos_env__$private$.legacy_gap_warned)
-
-  # s4 on the same object does not warn again.
-  msgs <- .ig_warnings(read, "itt")
   expect_false(any(grepl("26.15.0", msgs, fixed = TRUE)))
 })
 

@@ -382,8 +382,8 @@ test_that("an enrollment period that crosses the new year recruits only from in-
   # 2017-03.
   weeks <- c(sprintf("2016-%02d", 50:52), sprintf("2017-%02d", 1:3))
   period <- data.table::data.table(isoyearweek = weeks)
-  swereg:::.assign_trial_ids(period, 4L)
-  expect_identical(period$trial_id, c(1525L, 1525L, rep(1526L, 4L)))
+  swereg:::.assign_period_ids(period, 4L)
+  expect_identical(period$period_id, c(1525L, 1525L, rep(1526L, 4L)))
 
   # Person 2 starts systemic MHT in 2017-02, the third week of the enrollment
   # period.
@@ -426,11 +426,11 @@ test_that("an enrollment period that crosses the new year recruits only from in-
   for (i in seq_along(ids)) {
     want <- expected[[ids[i]]]
     prepared <- .iyr_prepare(built, i)
-    swereg:::.assign_trial_ids(prepared, 4L)
+    swereg:::.assign_period_ids(prepared, 4L)
 
     # The enrollment period reads only the weeks inside the enrollment's own
     # range.
-    in_period <- prepared[trial_id == 1526L & eligible == TRUE]
+    in_period <- prepared[period_id == 1526L & eligible == TRUE]
     expect_identical(
       sort(unique(in_period$isoyearweek)),
       want$weeks,
@@ -444,7 +444,7 @@ test_that("an enrollment period that crosses the new year recruits only from in-
       pid = "id"
     )
     last <- att[
-      trial_id == 1526L &
+      enrollment_period_id == 1526L &
         criterion == utils::tail(attr(prepared, "eligible_cols"), 1L)
     ]
     expect_identical(nrow(last), 1L, info = ids[i])
@@ -459,7 +459,7 @@ test_that("an enrollment period that crosses the new year recruits only from in-
       treatment_col = "rd_intervention",
       eligible_col = "eligible",
       out_col = "intervention"
-    )[trial_id == 1526L][order(id)]
+    )[enrollment_period_id == 1526L][order(id)]
     recruit <- cstime::dates_by_isoyearweek$isoyearweek[
       tuples$recruit_week_index + 1L
     ]

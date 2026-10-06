@@ -5,7 +5,7 @@
 # number there is a wrong number in a paper.
 #
 # The attrition table holds two kinds of row for each criterion. One global
-# row carries `trial_id = NA` and counts across every trial. The rest carry
+# row carries `enrollment_period_id = NA` and counts across every trial. The rest carry
 # one row per trial. `.attrition_overall()` reads the global rows and nothing
 # else. A sum over both kinds counts every person-trial of a criterion twice.
 #
@@ -69,7 +69,7 @@
 #' table then has the shape of one written before the global rows existed.
 .item8_attrition <- function(drop_global_for = NULL) {
   att <- data.table::data.table(
-    trial_id = rep(c(NA_integer_, 0L, 1L), times = 3L),
+    enrollment_period_id = rep(c(NA_integer_, 0L, 1L), times = 3L),
     criterion = rep(.ITEM8_CRITERIA, each = 3L),
     n_persons = c(700, 400, 500, 520, 300, 360, 430, 250, 290),
     n_person_trials = c(
@@ -91,7 +91,7 @@
   if (is.null(drop_global_for)) {
     return(att)
   }
-  return(att[!(is.na(trial_id) & criterion == drop_global_for)])
+  return(att[!(is.na(enrollment_period_id) & criterion == drop_global_for)])
 }
 
 
@@ -304,7 +304,7 @@ test_that("Item 8 prints the analysis total alone when the arm counts are NA", {
 
 test_that("Item 8 prints the placeholder when one criterion carries no global row", {
   mat <- data.table::data.table(
-    trial_id = c(0L, 1L),
+    enrollment_period_id = c(0L, 1L),
     n_intervention_total = c(160, 200),
     n_comparator_total = c(240, 300),
     n_intervention_enrolled = c(100, 120),

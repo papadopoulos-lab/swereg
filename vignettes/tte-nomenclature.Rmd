@@ -134,7 +134,7 @@ swereg implements no grace period. A grace period allows initiation within a fix
 
 Set `period_width = 1` when the protocol defines treatment at a single time point. Set it wider when initiation is gradual.
 
-Enrollment period boundaries are anchored to a fixed calendar origin, not to the first observed week of a study. swereg numbers the rows of `cstime::dates_by_isoyearweek`, which starts at ISO week `1900-01`, then assigns `trial_id = (week_index - 1) %/% period_width`. Two studies with different start dates therefore share the same enrollment period boundaries.
+Enrollment period boundaries are anchored to a fixed calendar origin, not to the first observed week of a study. swereg numbers the rows of `cstime::dates_by_isoyearweek`, which starts at ISO week `1900-01`, then assigns `period_id = (week_index - 1) %/% period_width`. Two studies with different start dates therefore share the same enrollment period boundaries.
 
 # The comparator draw
 

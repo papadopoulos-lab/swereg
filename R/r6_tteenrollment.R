@@ -3,7 +3,7 @@
 # =============================================================================
 
 .TTE_DESIGN_SCHEMA_VERSION <- 3L
-.TTE_ENROLLMENT_SCHEMA_VERSION <- 5L
+.TTE_ENROLLMENT_SCHEMA_VERSION <- 6L
 
 # =============================================================================
 # TTEEnrollment: Enrollment data with design and state (R6 class)
@@ -83,8 +83,8 @@
 #' Follow-up starts at time zero, which the interval convention section below
 #' defines. The panel therefore starts one follow-up interval after the
 #' enrollment period, and the enrollment period carries no follow-up.
-#' `enrollment_period_id` names the trial and `trial_id` names the follow-up
-#' interval.
+#' `enrollment_period_id` names the trial and `period_id` names the calendar
+#' period of the follow-up interval.
 #'
 #' Each confounder reaches the panel twice. The `.tte_entry__<v>` column holds
 #' its value at the recruiting week, and `<v>` holds the time-updated value of
@@ -169,9 +169,10 @@ TTEEnrollment <- R6::R6Class(
     estimand = NULL,
     #' @field landmark_attrition A data.table or NULL. It reports why the
     #'   time-zero qualification dropped each candidate person-trial, by
-    #'   criterion and by arm. Its columns are `trial_id`, `criterion`,
-    #'   `n_persons`, `n_person_trials`, `n_intervention` and `n_comparator`.
-    #'   The row with `trial_id = NA` covers the whole cohort. The three
+    #'   criterion and by arm. Its columns are `enrollment_period_id`,
+    #'   `criterion`, `n_persons`, `n_person_trials`, `n_intervention` and
+    #'   `n_comparator`. The row with `enrollment_period_id = NA` covers the
+    #'   whole cohort. The three
     #'   criteria are `landmark_candidates`, `landmark_observed` and
     #'   `landmark_event_free`, and each count is cumulative. It stays `NULL`
     #'   when the design declares no `observed_var`, and when the caller
@@ -207,7 +208,8 @@ TTEEnrollment <- R6::R6Class(
     #'   trial panels during enrollment.
     #' @param enrolled_ids data.table or NULL. Pre-drawn enrollment IDs from
     #'   the two-pass pipeline. When provided, enrollment skips the comparator
-    #'   draw and uses these IDs directly.
+    #'   draw and uses these IDs directly. It MUST carry the trial of each
+    #'   person-trial in `enrollment_period_id`.
     #' @param own_data Logical. If TRUE, takes ownership of the data.table
     #'   without copying it. Use only when the caller will not reuse the data.
     initialize = function(
@@ -232,15 +234,15 @@ TTEEnrollment <- R6::R6Class(
 
       # Auto-detect data_level if not specified
       if (is.null(data_level)) {
-        has_trial_id <- design$id_var %in% names(data)
+        has_id_var <- design$id_var %in% names(data)
         has_person_id <- !is.null(design$person_id_var) &&
           design$person_id_var %in% names(data)
 
-        if (has_trial_id && !has_person_id) {
+        if (has_id_var && !has_person_id) {
           data_level <- "trial"
-        } else if (has_person_id && !has_trial_id) {
+        } else if (has_person_id && !has_id_var) {
           data_level <- "person_week"
-        } else if (has_trial_id && has_person_id) {
+        } else if (has_id_var && has_person_id) {
           data_level <- "trial"
         } else {
           stop(
@@ -347,9 +349,10 @@ TTEEnrollment <- R6::R6Class(
     #' 26.10.19 raised it to `4L`. Schema 4 stores the fill summary in
     #' `fill_summary` and the propensity-model diagnostics in `ps_fit`, and
     #' this release reads both. swereg 26.15.0 raised it to `5L`, which gives
-    #' the panel column `enrollment_period_id` its current name. [qs2_read()]
-    #' migrates a schema-4 object to schema 5 before this check runs. The
-    #' check refuses every object below schema 4.
+    #' the panel column `enrollment_period_id` its current name. This release
+    #' raised it to `6L`, which names the calendar period of each row
+    #' `period_id`. [qs2_read()] refuses every enrollment below schema 6
+    #' before this check runs. The check refuses the same objects.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION
@@ -554,10 +557,6 @@ TTEEnrollment <- R6::R6Class(
 
   private = list(
     .schema_version = NULL,
-    # TRUE once `qs2_read()` warned that the panel predates
-    # `weeks_to_observation_gap`. `s5_prepare_outcome()` then does not warn
-    # again.
-    .legacy_gap_warned = FALSE,
 
     # =========================================================================
     # Private methods — internal implementation details
@@ -605,8 +604,8 @@ TTEEnrollment <- R6::R6Class(
         set.seed(seed)
       }
 
-      # ---- Phase A: Assign universal trial IDs from isoyearweek ----
-      .assign_trial_ids(data, period_width)
+      # ---- Phase A: Assign the calendar period of every week ----
+      .assign_period_ids(data, period_width)
 
       id_var <- design$id_var
 
@@ -617,6 +616,7 @@ TTEEnrollment <- R6::R6Class(
 
       if (!is.null(enrolled_ids)) {
         # ---- Pre-drawn mode: build entry_dt from enrolled_ids ----
+        .tte_check_enrolled_ids(enrolled_ids)
         # Filter to persons in this batch
         enrolled_ids <- data.table::copy(enrolled_ids)
         batch_persons <- unique(data[[person_id_col]])
@@ -629,7 +629,6 @@ TTEEnrollment <- R6::R6Class(
           return(invisible(self))
         }
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
-        entry_dt[, enrollment_period_id := trial_id]
         entry_dt[, baseline_tx := intervention]
         entry_dt[,
           (id_var) := stringi::stri_c(.tte_person_id, ".", enrollment_period_id)
@@ -662,7 +661,10 @@ TTEEnrollment <- R6::R6Class(
         # different comparator sets from the same rows in a different order.
         # The sort cannot reach the scout path, which never builds
         # `candidates`.
-        data.table::setorderv(candidates, c(person_id_col, "trial_id"))
+        data.table::setorderv(
+          candidates,
+          c(person_id_col, "enrollment_period_id")
+        )
 
         # C-qualify: drop every candidate person-trial that does not reach
         # time zero under observation and event-free. This runs BETWEEN the arm
@@ -694,13 +696,16 @@ TTEEnrollment <- R6::R6Class(
         }
 
         # Comparator draw stratified by enrollment period
-        intervention_count <- intervention_candidates[, .N, by = trial_id]
+        intervention_count <- intervention_candidates[,
+          .N,
+          by = enrollment_period_id
+        ]
         data.table::setnames(intervention_count, "N", "n_intervention")
 
         # Sample comparators within each enrollment period independently
         drawn_comparator <- comparator_candidates[
           intervention_count,
-          on = "trial_id",
+          on = "enrollment_period_id",
           nomatch = NULL,
           allow.cartesian = FALSE
         ][,
@@ -708,11 +713,12 @@ TTEEnrollment <- R6::R6Class(
             n_to_sample <- min(round(ratio * n_intervention), .N)
             .SD[sample(.N, n_to_sample)]
           },
-          by = trial_id
+          by = enrollment_period_id
         ]
         drawn_comparator[, n_intervention := NULL]
 
-        # Combine: entry_dt with (person_id, trial_id, baseline_intervention).
+        # Combine: entry_dt with (person_id, enrollment_period_id,
+        # baseline_intervention).
         # `recruit_week_index` travels with each row. It names the week that
         # recruited that person into that enrollment period, and a later step
         # reads her covariates there. The pre-drawn branch above gets the same
@@ -721,7 +727,7 @@ TTEEnrollment <- R6::R6Class(
         drawn_comparator[, baseline_tx := FALSE]
         entry_cols <- c(
           person_id_col,
-          "trial_id",
+          "enrollment_period_id",
           "baseline_tx",
           "recruit_week_index"
         )
@@ -730,7 +736,6 @@ TTEEnrollment <- R6::R6Class(
           drawn_comparator[, entry_cols, with = FALSE]
         ))
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
-        entry_dt[, enrollment_period_id := trial_id]
 
         # enrollment_person_trial_id format: "person_id.enrollment_period_id"
         entry_dt[,
@@ -780,16 +785,16 @@ TTEEnrollment <- R6::R6Class(
 
       collapse_max_cols <- intersect(design$outcome_vars, names(data_enrolled))
 
-      # Aggregate within each (person_id, trial_id) — single pass.
+      # Aggregate within each (person_id, period_id) — single pass.
       # setkeyv sorts in place AND marks the key, replacing the previous
       # setorderv → setkeyv pair (two sorts). Include isoyearweek in the
       # key so first(isoyearweek) inside the aggregation is deterministic.
-      # `by = c(pid, trial_id)` still uses binary-search grouping because
+      # `by = c(pid, period_id)` still uses binary-search grouping because
       # data.table honors partial-key by clauses.
-      by_cols <- c(person_id_col, "trial_id")
+      by_cols <- c(person_id_col, "period_id")
       data.table::setkeyv(
         data_enrolled,
-        c(person_id_col, "trial_id", "isoyearweek")
+        c(person_id_col, "period_id", "isoyearweek")
       )
 
       # Build aggregation expression list
@@ -892,11 +897,8 @@ TTEEnrollment <- R6::R6Class(
       data.table::setnames(interval_data, person_id_col, ".tte_person_id")
 
       # CJ-style expansion: for each entry, create one row per follow-up
-      # interval then join against interval_data Remove trial_id from entry_dt
-      # before expansion (it's in enrollment_period_id)
-      if ("trial_id" %in% names(entry_dt)) {
-        entry_dt[, trial_id := NULL]
-      }
+      # interval, numbered by its calendar period `period_id`, then join
+      # against interval_data on that period.
 
       # Follow-up starts at TIME ZERO, which is the first week after the
       # enrollment period closes. `.tte_qualify_candidates()` has already
@@ -907,7 +909,7 @@ TTEEnrollment <- R6::R6Class(
       # `period_width - 1` weeks.
       expanded <- entry_dt[,
         .(
-          trial_id = seq(
+          period_id = seq(
             enrollment_period_id + 1L,
             enrollment_period_id + n_follow_up_intervals
           )
@@ -916,13 +918,13 @@ TTEEnrollment <- R6::R6Class(
       ]
 
       # Keyed binary join replaces hash-based merge for Phase D
-      data.table::setkey(expanded, .tte_person_id, trial_id)
-      data.table::setkey(interval_data, .tte_person_id, trial_id)
+      data.table::setkey(expanded, .tte_person_id, period_id)
+      data.table::setkey(interval_data, .tte_person_id, period_id)
       panel <- interval_data[expanded, nomatch = NULL]
 
-      # `enrollment_period_id` names the trial and `trial_id` names the
-      # follow-up interval. The two differ on every row, so the panel keeps
-      # both.
+      # `enrollment_period_id` names the trial and `period_id` names the
+      # calendar period of the follow-up interval. The two differ on every
+      # row, so the panel keeps both.
       if (!is.null(entry_snapshot)) {
         ecols <- setdiff(names(entry_snapshot), id_var)
         for (col in ecols) {
@@ -1316,8 +1318,7 @@ TTEEnrollment <- R6::R6Class(
       .tte_gap_record_end(
         data,
         design = design,
-        steps_completed = self$steps_completed,
-        warned = isTRUE(private$.legacy_gap_warned)
+        steps_completed = self$steps_completed
       )
       data[,
         weeks_to_loss := data.table::fifelse(

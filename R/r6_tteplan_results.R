@@ -127,7 +127,7 @@ TTEPlan$set("public", "get_baselines", function() {
 #' `$s1_generate_enrollments_and_ipw()` stores one row per trial and
 #' criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
 #' true overall count of distinct people. This method returns EVERY STORED
-#' ROW. `trial_id` is `NA` on a global row and the trial index on a
+#' ROW. `enrollment_period_id` is `NA` on a global row and the trial on a
 #' per-trial row, so the caller filters on that column.
 #'
 #' The method returns the stored rows and nothing else. It does not sum the
@@ -157,7 +157,7 @@ TTEPlan$set("public", "get_baselines", function() {
 #' A consumer labels them from `step_order`, and this method decides
 #' nothing.
 #'
-#' @return A data.table with columns `enrollment_id`, `trial_id`,
+#' @return A data.table with columns `enrollment_id`, `enrollment_period_id`,
 #'   `step_order`, `step_name`, `n_persons`, `n_person_trials`,
 #'   `n_arm_intervention` and `n_arm_comparator`.
 TTEPlan$set("public", "get_attrition", function() {
@@ -184,7 +184,7 @@ TTEPlan$set("public", "get_attrition", function() {
 #'
 #' An enrollment that stored no comparator-draw table gets NO ROW.
 #'
-#' @return A data.table with columns `enrollment_id`, `trial_id`,
+#' @return A data.table with columns `enrollment_id`, `enrollment_period_id`,
 #'   `n_intervention_total`, `n_comparator_total`,
 #'   `n_intervention_enrolled` and `n_comparator_enrolled`.
 TTEPlan$set("public", "get_matching", function() {

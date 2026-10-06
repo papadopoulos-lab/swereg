@@ -275,7 +275,7 @@ test_that("a REAL s1d dispatch commits both outputs, and file_raw is the RAW pan
   expect_true(all(swereg:::.tte_entry_col(conf) %in% names(raw$data)))
   # Follow-up opens at time zero, the first week after the enrollment period, on
   # every row.
-  expect_true(all(raw$data$trial_id > raw$data$enrollment_period_id))
+  expect_true(all(raw$data$period_id > raw$data$enrollment_period_id))
 
   # No staging litter survived the successful commit.
   expect_length(

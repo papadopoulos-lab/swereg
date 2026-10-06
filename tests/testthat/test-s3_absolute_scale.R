@@ -56,7 +56,7 @@ skip_if_not_installed("qs2")
         id = persons[k],
         enrollment_person_trial_id = paste0(persons[k], "_t", trial),
         rd_intervention = arm[k],
-        trial_id = trial,
+        period_id = trial,
         tstart = (keep - 1L) * 4L,
         tstop = keep * 4L,
         event = ev[keep],

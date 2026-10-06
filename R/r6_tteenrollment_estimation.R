@@ -31,10 +31,10 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #' (unlike `survey::svycoxph()`). This is computationally equivalent to
 #' the pooled logistic approach used by Danaei et al. (2013).
 #'
-#' **Calendar-time adjustment**: When `trial_id` is present in the data, the
+#' **Calendar-time adjustment**: When `period_id` is present in the data, the
 #' model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
-#' Danaei 2013). In the panel, `trial_id` indexes the calendar period of each
-#' follow-up interval. Uses natural splines for >=5 unique trial IDs, linear
+#' Danaei 2013). In the panel, `period_id` indexes the calendar period of each
+#' follow-up interval. Uses natural splines for >=5 unique period IDs, linear
 #' term for 2-4, omitted for 1.
 #'
 #' **Estimand (marginal)**: confounding is removed by the supplied `weights`,
@@ -54,13 +54,13 @@ TTEEnrollment$set("public", "irr", function(weight_col) {
 
 #' @description Test for heterogeneity of treatment effects across trials.
 #'
-#' Fits a model with a `trial_id x treatment` interaction term and returns
+#' Fits a model with a `period_id x treatment` interaction term and returns
 #' the Wald test p-value. This tests whether the treatment effect varies
-#' across the calendar periods that `trial_id` indexes (Hernan 2008, Danaei
+#' across the calendar periods that `period_id` indexes (Hernan 2008, Danaei
 #' 2013).
 #'
 #' @param weight_col Character, required. Column name for weights.
-#' @return A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
+#' @return A list with `p_value` (Wald test), `n_trials` (unique period IDs),
 #'   and `interaction_coefs` (data.table of interaction coefficients).
 TTEEnrollment$set("public", "heterogeneity_test", function(weight_col) {
   return(.tte_est_heterogeneity_test(self, weight_col))

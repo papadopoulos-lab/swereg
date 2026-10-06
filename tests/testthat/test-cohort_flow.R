@@ -1,7 +1,7 @@
 test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis as one ordered flow", {
   ec <- list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age", "eligible_no_x"),
       n_persons = c(1000, 800, 700),
       n_person_trials = c(5000, 4000, 3500),
@@ -9,7 +9,7 @@ test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis
       n_comparator = c(4000, 3200, 2800)
     ),
     matching = data.table::data.table(
-      trial_id = 1:2,
+      enrollment_period_id = 1:2,
       n_intervention_enrolled = c(350, 350),
       n_comparator_enrolled = c(700, 700)
     )
@@ -49,7 +49,7 @@ test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis
 test_that(".build_consort_dot renders comparator-draw and analysis boxes from the flow", {
   ec <- list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age"),
       n_persons = c(1000, 800),
       n_person_trials = c(5000, 4000),
@@ -57,7 +57,7 @@ test_that(".build_consort_dot renders comparator-draw and analysis boxes from th
       n_comparator = c(4000, 3200)
     ),
     matching = data.table::data.table(
-      trial_id = 1L,
+      enrollment_period_id = 1L,
       n_intervention_enrolled = 700,
       n_comparator_enrolled = 1400
     )
@@ -96,7 +96,7 @@ test_that(".build_consort_dot renders comparator-draw and analysis boxes from th
 test_that(".build_cohort_flow omits analysis arm split when unavailable", {
   ec <- list(
     attrition = data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = c("before_exclusions", "eligible_age"),
       n_persons = c(1000, 800),
       n_person_trials = c(5000, 4000),
@@ -104,7 +104,7 @@ test_that(".build_cohort_flow omits analysis arm split when unavailable", {
       n_comparator = c(4000, 3200)
     ),
     matching = data.table::data.table(
-      trial_id = 1L, n_intervention_enrolled = 700, n_comparator_enrolled = 1400
+      enrollment_period_id = 1L, n_intervention_enrolled = 700, n_comparator_enrolled = 1400
     )
   )
   flow <- swereg:::.build_cohort_flow(ec, analysis_n = 2050)
@@ -127,9 +127,9 @@ test_that(".build_cohort_flow returns NULL without attrition", {
 # =============================================================================
 # `.attrition_overall()` reads the global rows, or it reads nothing
 # =============================================================================
-# A stored attrition table holds per-trial rows (`trial_id` is the trial index)
-# and, since the global-row change, one global row per criterion (`trial_id` is
-# NA). The two sets describe the SAME people, so a sum over both counts every
+# A stored attrition table holds per-trial rows (`enrollment_period_id` is the
+# trial) and, since the global-row change, one global row per criterion
+# (`enrollment_period_id` is NA). The two sets describe the SAME people, so a sum over both counts every
 # person of a criterion twice.
 #
 # The fixture below is the legacy shape: `before_exclusions` and `age` carry a
@@ -143,7 +143,7 @@ test_that(".build_cohort_flow returns NULL without attrition", {
 
 .attrition_mixed <- function() {
   data.table::data.table(
-    trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
+    enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
     criterion = c(
       "before_exclusions", "before_exclusions", "before_exclusions",
       "age", "age", "age",
@@ -163,8 +163,8 @@ test_that(".attrition_overall returns NULL when one criterion has no global row"
   # The fixture is well formed and holds eight rows, so the NULL below reports
   # the mixed shape and not an empty table.
   expect_equal(nrow(att), 8L)
-  expect_true(any(is.na(att$trial_id)))
-  expect_equal(sum(is.na(att$trial_id[att$criterion == "prior_disease"])), 0L)
+  expect_true(any(is.na(att$enrollment_period_id)))
+  expect_equal(sum(is.na(att$enrollment_period_id[att$criterion == "prior_disease"])), 0L)
 
   expect_null(swereg:::.attrition_overall(att))
 })
@@ -176,7 +176,7 @@ test_that(".attrition_overall reads the global rows when every criterion has one
   att <- rbind(
     att,
     data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = "prior_disease",
       n_persons = 1500,
       n_person_trials = 13000,
@@ -213,7 +213,7 @@ test_that("a mixed attrition table builds no cohort flow and no CONSORT diagram"
   att <- rbind(
     .attrition_mixed(),
     data.table::data.table(
-      trial_id = NA_integer_,
+      enrollment_period_id = NA_integer_,
       criterion = "prior_disease",
       n_persons = 1500,
       n_person_trials = 13000,

@@ -174,7 +174,7 @@ A woman with no boundary of any kind bills three whole follow-up intervals:
 whole <- rbindlist(list(tte_person("WHOLE", rep(TRUE, 16L)), tte_fillers()))
 tte_enroll(whole, tte_design())$data[
   id == "WHOLE"
-][order(tstart), .(enrollment_period_id, trial_id, tstart, tstop, person_weeks)]
+][order(tstart), .(enrollment_period_id, period_id, tstart, tstop, person_weeks)]
 ```
 
 # Three instants, and they are three different weeks
@@ -202,11 +202,11 @@ free of every enrollment outcome.
 Enrollment period `b` covers week indices `b * period_width` to
 `(b + 1) * period_width - 1`. Its time zero sits at week index
 `(b + 1) * period_width`, which is the first week of enrollment period `b + 1`. Week indices are positions in
-`cstime::dates_by_isoyearweek`, minus one. That is the scale `trial_id` reads.
+`cstime::dates_by_isoyearweek`, minus one. That is the scale `period_id` reads.
 
-`enrollment_period_id` names the trial. `trial_id` names the calendar period
+`enrollment_period_id` names the trial. `period_id` names the calendar period
 of the follow-up interval. The first row of every person-trial therefore holds
-`trial_id == enrollment_period_id + 1` and `tstart == 0`.
+`period_id == enrollment_period_id + 1` and `tstart == 0`.
 
 ## The recruiting week is not the first week of the enrollment period
 
@@ -224,7 +224,7 @@ three <- rbindlist(list(
 ))
 tte_enroll(three, tte_design())$data[
   id %chin% c("EARLY", "LATE", "CMP1") & tstart == 0
-][order(id), .(id, exposed, enrollment_period_id, trial_id, .tte_entry__age, age)]
+][order(id), .(id, exposed, enrollment_period_id, period_id, .tte_entry__age, age)]
 ```
 
 `.tte_entry__age` holds 51 for EARLY and 53 for LATE. Week 1 gives 51 and week
@@ -240,7 +240,7 @@ time-updated `<v>`, because censoring depends on what is true during follow-up.
 
 ## Enrollment period boundaries are anchored to the calendar
 
-`trial_id` is `(week_index - 1) %/% period_width` over
+`period_id` is `(week_index - 1) %/% period_width` over
 `cstime::dates_by_isoyearweek`, which starts at ISO week `1900-01`. Two studies
 with different start dates share the same boundaries.
 
@@ -315,7 +315,7 @@ qual <- rbindlist(list(
 ))
 tq <- tte_enroll(qual, tte_design())
 sort(unique(tq$data[id %chin% c("W", "K")]$id))
-tq$landmark_attrition[is.na(trial_id)]
+tq$landmark_attrition[is.na(enrollment_period_id)]
 ```
 
 W does not enroll. Her event sits at `tstart = 0` under the old time origin,
