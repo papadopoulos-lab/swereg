@@ -1,8 +1,9 @@
 # The migration gate: an object saved under an older schema is REFUSED.
 #
 # swereg 26.9.0 moved time zero to the landmark. A `tstart == 0` row of a
-# schema-2 object is an entry band row. A 26.9.0 reader takes the same row for
-# a landmark row, so a silent load changes what every row of that object means.
+# schema-2 object is an enrollment period row. A 26.9.0 reader takes the same
+# row for a landmark row, so a silent load changes what every row of that object
+# means.
 #
 # `TTEDesign`, `TTEEnrollment` and `TTEPlan` therefore each stop in
 # `check_version()`. `TTEPlan` already did. The other two warned and continued,
@@ -88,10 +89,11 @@ test_that("a version-2 object is refused, not reinterpreted", {
   dir <- withr::local_tempdir()
 
   # The three schema constants moved to 3 together, so 2 is the last release
-  # that could have written any of them.
+  # that could have written any of them. 26.15.0 moved the enrollment to 5
+  # and the plan to 4.
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 4L)
-  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 3L)
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 5L)
+  expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 4L)
 
   # --- TTEDesign ---
   design_path <- .lmg_save(
@@ -109,11 +111,11 @@ test_that("a version-2 object is refused, not reinterpreted", {
     "enrollment_v2.qs2"
   )
   expect_error(qs2_read(enrollment_path), "schema version 2")
-  # `TTEEnrollment` is on schema 4, and its message no longer names the
-  # landmark move. Schema 4 refuses more than the 26.9.0 boundary did: it
-  # also refuses the schema-3 objects 26.10.17 and 26.10.18 wrote. The
-  # message names the required version and the remedy instead.
-  expect_error(qs2_read(enrollment_path), "requires version 4")
+  # `TTEEnrollment` is on schema 5, and its message no longer names the
+  # landmark move. It refuses more than the 26.9.0 boundary did: it also
+  # refuses the schema-3 objects 26.10.17 and 26.10.18 wrote. The message
+  # names the required version and the remedy instead.
+  expect_error(qs2_read(enrollment_path), "requires version 5")
   expect_error(qs2_read(enrollment_path), "[Rr]e-run s1")
 
   # --- TTEPlan ---

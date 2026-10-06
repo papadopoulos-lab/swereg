@@ -6,9 +6,10 @@
 #
 # The TTEEnrollment layer is already truth-validated (test-tte_itt_correctness,
 # test-tte_validation_matrix); this file validates what sits ABOVE it: trial-
-# band assignment, sequential enrollment, per-band comparator_to_intervention_ratio downsampling,
-# pooling across ~55 bands, the PP/ITT dual analysis files, and the subprocess
-# worker chain. DGP + drivers live in helper-tteplan_truth.R.
+# enrollment period assignment, sequential enrollment, per-period
+# comparator_to_intervention_ratio downsampling, pooling across ~55 enrollment
+# periods, the PP/ITT dual analysis files, and the subprocess worker chain. DGP
+# + drivers live in helper-tteplan_truth.R.
 #
 # Cells (factorial {no confounding "A", baseline confounding "B"} x
 # {no loss, independent loss, informative loss} + discontinuation):
@@ -20,7 +21,7 @@
 #   DISC    : 4%/wk discontinuation -> PP (censor at deviation + IPCW) stays
 #             at 2.0, ITT attenuates toward the simulated do(initiate) truth
 #             (~1.42); encodes the post-fix rule that an event in the same
-#             band as the deviation still counts as an event
+#             enrollment period as the deviation still counts as an event
 #
 # Always-on subset: 3 cells at reduced N (~1.5 min total; each cell spawns ~12
 # worker subprocesses). Full factorial is opt-in:
@@ -86,10 +87,10 @@ test_that("plan-layer truth DISC: discontinuation separates PP (2.0) from ITT (a
   sk <- ttm_skeleton("A", n_persons = 4000L, disc_hazard = 0.04, seed = 7777L)
   r <- ttm_run_cell(sk, "DISC", "rd_age_continuous")
 
-  # PP censors at the deviation band (post-fix: an event in that same band
-  # still counts) and IPCW-reweights -> sustained-treatment truth 2.0.
-  # Fewer treated person-weeks (mean ~25/enrollee) -> log-SE ~0.10;
-  # tol = 0.28 (~2.8x SE).
+  # PP censors at the deviation enrollment period (post-fix: an event in that
+  # same enrollment period still counts) and IPCW-reweights ->
+  # sustained-treatment truth 2.0. Fewer treated person-weeks (mean
+  # ~25/enrollee) -> log-SE ~0.10; tol = 0.28 (~2.8x SE).
   expect_lt(abs(log(r$irr_pp$IRR) - log(2)), 0.28)
   expect_true(r$irr_pp$IRR_lower <= 2 && 2 <= r$irr_pp$IRR_upper)
 

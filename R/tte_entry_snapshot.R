@@ -50,7 +50,7 @@
 #' is `FALSE` when no confounder has one. A partial set stops the run, because
 #' baseline adjustment MUST read every confounder at the same instant.
 #'
-#' A panel with no snapshot reads the collapsed value of the follow-up band.
+#' A panel with no snapshot reads the collapsed value of the follow-up interval.
 #' That is what every release before this one did. Two panels reach that state:
 #' one built by an earlier release, and one whose entry rows carried no
 #' `recruit_week_index`.
@@ -82,9 +82,9 @@
 
 #' Read every confounder at the recruiting week of each person-trial.
 #'
-#' The recruiting week is the earliest week of the entry band that is both
-#' eligible and in an arm. `.band_baseline_treatment()` computes it, and
-#' `entry_dt` carries it as `recruit_week_index`.
+#' The recruiting week is the earliest week of the enrollment period that is
+#' both eligible and in an arm. `.enrollment_period_baseline_treatment()`
+#' computes it, and `entry_dt` carries it as `recruit_week_index`.
 #'
 #' The first week of the entry window is the wrong instant. A woman need not be
 #' eligible there, and she need not be in an arm there. A covariate read there

@@ -73,22 +73,23 @@ TTEPlan$set("public", "get_estimates", function() {
 
 #' @description Every stored survival curve, as one flat table.
 #'
-#' One row per emulated trial, estimand, weighting, arm and band.
+#' One row per emulated trial, estimand, weighting, arm and stop time.
+#' `follow_up_interval` holds the stop time, in weeks from time zero, of the
+#' rows the curve was evaluated at.
 #' `$s3_analyze()` stores one wide curve per estimand, with a survival
 #' column for each arm. This method returns one row per arm instead.
 #'
-#' The table carries the numbers at risk beside survival.
-#' `n_persons_at_risk` is an unweighted count of distinct people, per arm
-#' per band. `$s3_analyze()` stores it and this method melts it. A risk
-#' table reports people, so it cannot be derived from `surv`, which is a
-#' weighted probability.
+#' The table carries the numbers at risk beside survival. `n_persons_at_risk` is
+#' an unweighted count of distinct people, per arm per stop time.
+#' `$s3_analyze()` stores it and this method melts it. A risk table reports
+#' people, so it cannot be derived from `surv`, which is a weighted probability.
 #'
 #' A curve stored before that column existed gives `NA`. A consumer that
 #' draws a risk table MUST check for missing values first. It MUST refuse to
 #' draw. A row of missing counts looks like a drawn risk table.
 #'
 #' @return A data.table with columns `ett_id`, `estimand`, `weights`,
-#'   `arm`, `band`, `surv` and `n_persons_at_risk`.
+#'   `arm`, `follow_up_interval`, `surv` and `n_persons_at_risk`.
 TTEPlan$set("public", "get_curves", function() {
   return(.acc_curves(self))
 })

@@ -33,14 +33,14 @@
   # The four cascade rows stack onto the exclusion cascade: same columns, same
   # units, so `.s1b_worker()` sums them across skeletons unchanged and CONSORT
   # reads one continuous table.
-  qualified <- .tte_qualify_bands(
-    bands = tuples,
+  qualified <- .tte_qualify_candidates(
+    candidates = tuples,
     data = skeleton,
     design = enrollment_spec$design,
     person_id_col = pid,
     arm_col = "intervention"
   )
-  tuples <- qualified$bands
+  tuples <- qualified$candidates
   if (!is.null(qualified$attrition)) {
     attrition <- data.table::rbindlist(
       list(attrition, qualified$attrition),

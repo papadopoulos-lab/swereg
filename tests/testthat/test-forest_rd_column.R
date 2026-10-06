@@ -112,7 +112,7 @@ rd_forest_df <- function() {
 rd_lookup_fixture <- function() {
   data.table::data.table(
     ett_id = c("ETT00001", "ETT00002"),
-    band = 52L,
+    follow_up_interval = 52L,
     rd = c(-5.0e-4, 5.0e-4),
     rd_lo = c(-8.0e-4, 2.0e-4),
     rd_hi = c(-2.0e-4, 8.0e-4),
@@ -480,8 +480,9 @@ test_that("the column contract names the decision columns and exempts only those
 })
 
 test_that("the cached row copies the decision off the curve", {
-  # Driven through the real curve, not a hand-built one. RD at the last band is
-  # 1/2 - 1/3, which is positive, so the curve decides harm and -1/rd is -6.
+  # Driven through the real curve, not a hand-built one. RD at the last
+  # follow-up interval is 1/2 - 1/3, which is positive, so the curve decides
+  # harm and -1/rd is -6.
   trial <- rd_trial_panel("analysis_weight_pp_trunc")
   curve <- trial$risk_difference(
     weight_col = "analysis_weight_pp_trunc",
@@ -798,9 +799,11 @@ test_that("export path reads the cached risk difference and passes it to the ren
     ) %in%
       names(got_rd)
   ))
-  # S_cmp(8) = 1/2 and S_int(8) = 1/3, so RD = 1/2 - 1/3 at the last band.
+  # S_cmp(8) = 1/2 and S_int(8) = 1/3, so RD = 1/2 - 1/3 at the last follow-up
+  # interval.
   expect_equal(got_rd$rd, 1 / 2 - 1 / 3)
-  # Distinct PEOPLE with the event by band 8: two exposed, one unexposed.
+  # Distinct PEOPLE with the event by follow-up interval 8: two exposed, one
+  # unexposed.
   expect_equal(got_rd$n_persons_with_event_intervention, 2)
   expect_equal(got_rd$n_persons_with_event_comparator, 1)
 
@@ -838,7 +841,8 @@ test_that("export path reads the cached risk difference and passes it to the ren
   expect_equal(as.numeric(cached$conf_level), 0.95)
   expect_identical(as.character(cached$interval_status), "spans null")
 
-  # The band-by-band curve is stored too, under its own slot.
+  # The follow-up interval-by-follow-up interval curve is stored too, under its
+  # own slot.
   curve <- plan$results_ett[["ETT00001"]][["rd_curve_pp_trunc"]]
   expect_true(data.table::is.data.table(curve))
   expect_equal(curve$surv_comparator, c(1, 1 / 2))
@@ -966,7 +970,7 @@ test_that("the export path leaves the risk difference out unless it is asked for
 rd_results_row <- function() {
   data.table::data.table(
     ett_id = "ETT00001",
-    band = 156L,
+    follow_up_interval = 156L,
     rd = -5.1234e-4,
     rd_lo = -8.0e-4,
     rd_hi = -2.0e-4,

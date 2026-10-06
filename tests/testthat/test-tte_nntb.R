@@ -48,11 +48,11 @@
 #
 # The cell used to test the sign of `nntb` instead. Every formatter was then its
 # own decision-maker, and nothing forced two of them to agree. `.tte_rd_curve()`
-# now stores an `nnt_direction` column on every band, and the cell reads it.
-# `.tte_nntb()` reports no direction at all, so this path holds one producer and
-# one consumer. The block "the cell reads the stored direction, never the sign"
-# below is the only assertion that can see a formatter that went back to the
-# sign.
+# now stores an `nnt_direction` column on every follow-up interval, and the cell
+# reads it. `.tte_nntb()` reports no direction at all, so this path holds one
+# producer and one consumer. The block "the cell reads the stored direction,
+# never the sign" below is the only assertion that can see a formatter that went
+# back to the sign.
 #
 # The cell carries the INTERVAL as well, whenever the caller hands over the two
 # bounds. Three things about that interval are pinned below and none of them is
@@ -141,7 +141,7 @@ test_that("the whole fixture table survives one vectorised call", {
 #
 # `.tte_nnt_from_rd()` is the one place a signed risk difference becomes a
 # benefit-or-harm decision. `.tte_rd_curve()` stores its two columns on every
-# band, and every reader downstream reads the stored column.
+# follow-up interval, and every reader downstream reads the stored column.
 #
 # `.tte_nntb()` reports NO direction. It returns the magnitude and the interval
 # only. A second producer there would be a second decision site, and a caller

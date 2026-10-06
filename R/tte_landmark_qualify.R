@@ -2,13 +2,22 @@
 # Landmark qualification
 # =============================================================================
 
+# The one wording of the time-zero definition. Every generated text that
+# defines follow-up prints it verbatim: the TARGET checklist items 6d and 7d,
+# and the follow-up cell of the protocol table.
+.TTE_TIME_ZERO_DEFINITION <- paste(
+  "Time zero is a landmark: the first week after the enrollment period closes.",
+  "A person enters the trial only if they reach that week under observation",
+  "and free of every enrollment outcome."
+)
+
 #' Read the 0-indexed week index of each row.
 #'
 #' The index is the position of `isoyearweek` in
 #' `cstime::dates_by_isoyearweek`, minus one. `.assign_trial_ids()` reads the
 #' same scale. It sets `trial_id` to `(position - 1) %/% period_width`. So
-#' `week_index %/% period_width` is the band, and `week_index %% period_width`
-#' is the offset inside it.
+#' `week_index %/% period_width` is the enrollment period, and
+#' `week_index %% period_width` is the offset inside it.
 #'
 #' @param isoyearweek Character vector of ISO year-weeks.
 #' @return An integer vector the same length as `isoyearweek`. A week the
@@ -23,35 +32,37 @@
 }
 
 
-#' Keep the person-bands that qualify at the landmark.
+#' Keep the candidate person-trials that qualify at time zero.
 #'
-#' The landmark of a person-band is the week that closes its entry band. Band
-#' `b` covers week indices `b * period_width` to `(b + 1) * period_width - 1`.
-#' Its landmark sits at week index `(b + 1) * period_width`. That week is the
-#' first week of band `b + 1`. `.tte_week_index0()` defines the scale.
+#' Time zero is a landmark: the first week after the enrollment period closes.
+#' A person enters the trial only if they reach that week under observation
+#' and free of every enrollment outcome. Enrollment period `b` covers week
+#' indices `b * period_width` to `(b + 1) * period_width - 1`. Its time zero
+#' sits at week index `(b + 1) * period_width`. That week is the first week of
+#' enrollment period `b + 1`. `.tte_week_index0()` defines the scale.
 #'
-#' A person-band qualifies when both statements hold.
+#' A candidate person-trial qualifies when both statements hold.
 #'
-#' 1. The person is under observation at the landmark.
-#' 2. No outcome occurrence of the enrollment stops at or before the landmark.
+#' 1. The person is under observation at time zero.
+#' 2. No outcome occurrence of the enrollment stops at or before time zero.
 #'
 #' Statement 1 reads `design$observed_var`. The `row_presence` sentinel reads
 #' the row being there as the observation. A named column has to hold `TRUE`
 #' on that row.
 #'
-#' The last band of the data has no landmark, because no week follows it. No
-#' band there qualifies, and no trial opens in it. That is the intended
-#' behaviour: a trial whose landmark falls past the end of the data has no
-#' follow-up to contribute.
+#' The last enrollment period of the data has no time zero, because no week
+#' follows it. No candidate there qualifies, and no trial opens in it. That is
+#' the intended behaviour: a trial whose time zero falls past the end of the
+#' data has no follow-up to contribute.
 #'
 #' A week is a half-open interval. An outcome occurrence in week index `w`
-#' therefore stops at `w + 1`. Statement 2 excludes the band when
-#' `w + 1 <= (b + 1) * period_width`. That covers every week of the entry band
-#' and every week before it.
+#' therefore stops at `w + 1`. Statement 2 excludes the candidate when
+#' `w + 1 <= (b + 1) * period_width`. That covers every week of the enrollment
+#' period and every week before it.
 #'
-#' A woman may have the event in her entry band and start treatment later in
-#' the same band. She is excluded. The earlier code enrolled her into the
-#' intervention arm with the event already behind her.
+#' A woman may have the event in her enrollment period and start treatment later
+#' in the same enrollment period. She is excluded. The earlier code enrolled her
+#' into the intervention arm with the event already behind her.
 #'
 #' Statement 2 reads EVERY column in `design$outcome_vars`, and not the one
 #' outcome a later step analyses. One enrollment serves several outcomes:
@@ -60,20 +71,20 @@
 #' event-free for all of them.
 #'
 #' @section Eligibility is a baseline property, and it is NOT re-read here:
-#' `design$eligible_var` is assessed on the entry band, by
-#' `.band_baseline_treatment()`. It is not assessed again at the landmark, and
-#' re-reading it there would empty the intervention arm.
+#' `design$eligible_var` is assessed on the enrollment period, by
+#' `.enrollment_period_baseline_treatment()`. It is not assessed again at time
+#' zero, and re-reading it there would empty the intervention arm.
 #'
 #' swereg requires a new-user or washout exclusion on the treatment variable.
 #' `tteplan_read_spec()` warns when an enrollment declares none. That exclusion
 #' sets `eligible` to `FALSE` from the week after initiation. An initiator
-#' starts inside her entry band, and her landmark always falls after that week,
-#' so she is ineligible at her own landmark by construction.
+#' starts inside her enrollment period, and her time zero always falls after
+#' that week, so she is ineligible at her own time zero by construction.
 #'
 #' Measured on the `ttm_skeleton()` fixture that `test-s1a_declared_outputs.R`
-#' builds: 21 of 21 intervention person-bands were ineligible at the landmark.
-#' Of the 361 comparator bands that reached a landmark, 0 were ineligible
-#' there.
+#' builds: 21 of 21 intervention candidate person-trials were ineligible at
+#' time zero. Of the 361 comparator candidates that reached time zero, 0 were
+#' ineligible there.
 #'
 #' The criterion that defines the intervention arm is therefore the same
 #' criterion that would delete it. Sequential-trial designs assess eligibility
@@ -83,7 +94,7 @@
 #'
 #' Run this AFTER the arm classification and BEFORE the comparator draw. The
 #' order carries two properties. Attrition can report the arms, because each
-#' band already carries one. Sampling refills the ratio from qualified
+#' candidate already carries one. Sampling refills the ratio from qualified
 #' comparators, because the pool it draws from holds nothing else.
 #'
 #' **Qualification needs the observation contract, so it runs only when
@@ -93,33 +104,33 @@
 #' spec-driven enrollment qualifies. A [TTEDesign] built by hand without
 #' `observed_var` does not, and this function returns its input unchanged.
 #'
-#' @param bands A data.table with one row per candidate person-band. It MUST
-#'   carry `person_id_col`, `trial_id` and `arm_col`. Row order is preserved,
-#'   which is what keeps the seeded comparator draw reproducible.
+#' @param candidates A data.table with one row per candidate person-trial. It
+#'   MUST carry `person_id_col`, `trial_id` and `arm_col`. Row order is
+#'   preserved, which is what keeps the seeded comparator draw reproducible.
 #' @param data The person-week source data. It MUST carry `person_id_col`,
 #'   `isoyearweek`, every column in `design$outcome_vars`, and the observation
 #'   column when the design names one.
 #' @param design A [TTEDesign].
 #' @param person_id_col Character, the person identifier column.
-#' @param arm_col Character, the logical arm column of `bands`. `TRUE` is the
-#'   intervention arm and `FALSE` is the comparator arm.
-#' @return A list with two elements. `bands` holds the qualified rows, in the
-#'   order they arrived. `attrition` holds the criterion-level counts, or
+#' @param arm_col Character, the logical arm column of `candidates`. `TRUE` is
+#'   the intervention arm and `FALSE` is the comparator arm.
+#' @return A list with two elements. `candidates` holds the qualified rows, in
+#'   the order they arrived. `attrition` holds the criterion-level counts, or
 #'   `NULL` when the design declares no `observed_var`.
 #' @noRd
-.tte_qualify_bands <- function(
-  bands,
+.tte_qualify_candidates <- function(
+  candidates,
   data,
   design,
   person_id_col,
   arm_col
 ) {
-  lm_pid <- lm_band <- lm_obs <- i.lm_obs <- NULL # nolint
+  lm_pid <- lm_enrollment_period <- lm_obs <- i.lm_obs <- NULL # nolint
   fe_pid <- fe_w <- fe_week <- i.fe_week <- NULL # nolint
   .tte_landmark <- trial_id <- NULL # nolint
 
   if (is.null(design$observed_var)) {
-    return(list(bands = bands, attrition = NULL))
+    return(list(candidates = candidates, attrition = NULL))
   }
 
   period_width <- as.integer(design$period_width)
@@ -132,10 +143,10 @@
   )
   if (length(missing_cols) > 0L) {
     stop(
-      "Landmark qualification cannot read column(s): ",
+      "Time-zero qualification cannot read column(s): ",
       paste(missing_cols, collapse = ", "),
       ". Every outcome in the design MUST reach the enrollment data, or a ",
-      "person with the event before the landmark enrolls unnoticed.",
+      "person with the event before time zero enrolls unnoticed.",
       call. = FALSE
     )
   }
@@ -144,14 +155,14 @@
   person <- data[[person_id_col]]
 
   # --- landmark rows -------------------------------------------------------
-  # A landmark sits on a band boundary, so only a row whose week index is a
-  # multiple of `period_width` can be one. The row at week index
-  # `(b + 1) * period_width` is the landmark of band `b`, so it serves the
-  # band one below its own.
+  # A landmark sits on an enrollment period boundary, so only a row whose
+  # week index is a multiple of `period_width` can be one. The row at week
+  # index `(b + 1) * period_width` is the landmark of enrollment period `b`.
+  # It therefore serves the enrollment period one below its own.
   is_boundary <- !is.na(week_index) & (week_index %% period_width == 0L)
   landmark <- data.table::data.table(
     lm_pid = person[is_boundary],
-    lm_band = (week_index[is_boundary] %/% period_width) - 1L,
+    lm_enrollment_period = (week_index[is_boundary] %/% period_width) - 1L,
     lm_obs = if (is.null(observed_col)) {
       # The `row_presence` sentinel. The caller has already deleted every
       # unobserved person-week, so the row being here IS the observation.
@@ -162,8 +173,11 @@
   )
   # A person-week skeleton holds one row per (person, week), so this grouping
   # is an identity on well-formed data. It is here so that a duplicated week
-  # cannot duplicate a candidate band through the join below.
-  landmark <- landmark[, list(lm_obs = any(lm_obs)), by = list(lm_pid, lm_band)]
+  # cannot duplicate a candidate person-trial through the join below.
+  landmark <- landmark[,
+    list(lm_obs = any(lm_obs)),
+    by = list(lm_pid, lm_enrollment_period)
+  ]
 
   # --- first outcome occurrence per person ---------------------------------
   has_event <- rep(FALSE, nrow(data))
@@ -184,16 +198,16 @@
   }
 
   # --- apply, in cascade order ---------------------------------------------
-  # Update-joins, so the row order of `bands` survives untouched. The `on`
+  # Update-joins, so the row order of `candidates` survives untouched. The `on`
   # names are columns of `qb` and the values are columns of the joined table,
   # so both mappings are built by name rather than written as literals.
-  qb <- data.table::copy(bands)
+  qb <- data.table::copy(candidates)
   qb[, .tte_landmark := (as.integer(trial_id) + 1L) * period_width]
-  # A band with no row at its landmark keeps the FALSE default and so fails
+  # A candidate with no row at its landmark keeps the FALSE default and so fails
   # observation. That is the one place an absent landmark row is reported.
   qb[, lm_obs := FALSE]
   on_landmark <- stats::setNames(
-    c("lm_pid", "lm_band"),
+    c("lm_pid", "lm_enrollment_period"),
     c(person_id_col, "trial_id")
   )
   qb[landmark, on = on_landmark, lm_obs := i.lm_obs]
@@ -204,36 +218,37 @@
     fe_week := i.fe_week
   ]
 
-  # Both vectors are logical and never NA. A band whose `isoyearweek` is
+  # Both vectors are logical and never NA. A candidate whose `isoyearweek` is
   # outside the calendar has an NA `trial_id`, and so an NA landmark. It fails
-  # observation, because no landmark row can carry an NA band. Writing the
-  # event test so it cannot return NA either keeps the second vector clean:
-  # `bands[NA]` returns a row of NAs rather than dropping it.
+  # observation, because no landmark row can carry an NA enrollment period.
+  # Writing the event test so it cannot return NA either keeps the second
+  # vector clean: `candidates[NA]` returns a row of NAs rather than dropping
+  # it.
   pass_observed <- qb$lm_obs
   # `w + 1 <= landmark` for the first occurrence is `fe_week < landmark`.
   event_free <- is.na(qb$fe_week) |
     (!is.na(qb$.tte_landmark) & qb$fe_week >= qb$.tte_landmark)
   pass_event_free <- pass_observed & event_free
 
-  arm <- .tte_is_true(bands[[arm_col]])
+  arm <- .tte_is_true(candidates[[arm_col]])
   attrition <- data.table::rbindlist(
     list(
       .tte_qualify_attrition_rows(
-        bands,
+        candidates,
         person_id_col,
         arm,
-        rep(TRUE, nrow(bands)),
+        rep(TRUE, nrow(candidates)),
         "landmark_candidates"
       ),
       .tte_qualify_attrition_rows(
-        bands,
+        candidates,
         person_id_col,
         arm,
         pass_observed,
         "landmark_observed"
       ),
       .tte_qualify_attrition_rows(
-        bands,
+        candidates,
         person_id_col,
         arm,
         pass_event_free,
@@ -243,7 +258,7 @@
     use.names = TRUE
   )
 
-  return(list(bands = bands[pass_event_free], attrition = attrition))
+  return(list(candidates = candidates[pass_event_free], attrition = attrition))
 }
 
 
@@ -278,9 +293,9 @@
 }
 
 
-#' Count one step of the landmark cascade.
+#' Count one step of the time-zero qualification cascade.
 #'
-#' @param bands The candidate person-bands.
+#' @param candidates The candidate person-trials.
 #' @param person_id_col Character, the person identifier column.
 #' @param arm Logical vector, `TRUE` for the intervention arm.
 #' @param keep Logical vector, the rows this step still holds.
@@ -290,7 +305,7 @@
 #'   `.s1_compute_attrition()`, so both tables stack.
 #' @noRd
 .tte_qualify_attrition_rows <- function(
-  bands,
+  candidates,
   person_id_col,
   arm,
   keep,
@@ -298,8 +313,8 @@
 ) {
   qa_pid <- qa_arm <- trial_id <- criterion <- NULL # nolint
   x <- data.table::data.table(
-    qa_pid = bands[[person_id_col]][keep],
-    trial_id = bands[["trial_id"]][keep],
+    qa_pid = candidates[[person_id_col]][keep],
+    trial_id = candidates[["trial_id"]][keep],
     qa_arm = arm[keep]
   )
   j <- quote(list(

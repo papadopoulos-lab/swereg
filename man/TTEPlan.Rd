@@ -39,17 +39,22 @@ Returns \code{NA} when no ETTs have been added.}
 \section{The interval convention}{
 
 
+Time zero is a landmark: the first week after the enrollment period closes.
+A person enters the trial only if they reach that week under observation
+and free of every enrollment outcome. Follow-up starts there.
+
 Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
 leaves the risk set at \code{tstop}, and the row holds no part of that week.
 
 Every duration is \code{tstop - tstart}. It never adds one. Three complete
-four-week bands span \verb{[0, 12)}. That is 12 person-weeks, and the bands bill
-4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+four-week follow-up intervals span \verb{[0, 12)}. That is 12 person-weeks, and
+the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
 
-Every \verb{weeks_to_*} column is a boundary on the same scale, counted from the
-landmark at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
-\code{weeks_to_loss}, \code{weeks_to_admin_end} and \code{weeks_to_record_end} each name
-the first week the person no longer contributes. A \code{weeks_to_record_end} of
+Every \verb{weeks_to_*} column is a boundary on the same scale, counted from
+time zero at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
+\code{weeks_to_loss}, \code{weeks_to_admin_end}, \code{weeks_to_record_end} and
+\code{weeks_to_observation_gap} each name the first week the person no longer
+contributes. A \code{weeks_to_record_end} of
 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
 
 The \code{+ 1} belongs to the inclusive convention, where weeks 1 through 4 is
@@ -59,7 +64,7 @@ denominator, so swereg MUST read every stop as exclusive.
 
 One place adds a week, and it converts a calendar reading into a stop.
 \code{admin_censor_isoyearweek} names the last week under study, and
-\code{difftime()} returns the whole weeks between that week and the landmark
+\code{difftime()} returns the whole weeks between that week and the time-zero
 week. The stop is one week later, because the person holds the whole of the
 administrative week.
 
@@ -124,7 +129,8 @@ Other tte_classes:
 
     \item{\code{skeleton_created_at}}{POSIXct or NULL. When skeleton files were created (from first file's attribute).}
 
-    \item{\code{period_width}}{Integer, band width in weeks for enrollment (default: 4L).}
+    \item{\code{period_width}}{Integer, the width in weeks of the enrollment period
+(default: 4L). The same width sets each follow-up interval.}
 
     \item{\code{enrollment_counts}}{Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:
@@ -338,7 +344,7 @@ minus survival. A y-axis window is therefore meaningless until it says
 which scale it is measured on, so \code{ylim} requires a companion
 \code{ylim_scale}, either \code{"survival"} or \code{"cumulative_failure"}. A
 survival-scale window is translated onto the plotted scale:
-\code{c(0.95, 1)} becomes \code{c(0, 0.05)} and shows the same band of the figure
+\code{c(0.95, 1)} becomes \code{c(0, 0.05)} and shows the same region of the figure
 it always did. An undeclared window is an error, not a guess. Left
 undeclared and applied as given, a survival-scale window clips the whole
 cumulative-failure curve out of view and produces a blank panel with no
@@ -490,20 +496,20 @@ baseline characteristics (raw, unweighted, IPW, IPW truncated).
 For each ETT: loads the analysis file, computes rates, IRR, and
 heterogeneity test with both truncated and untruncated weights.
 
-Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
-Two estimand and weight combinations carry it: per-protocol on
+Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
+estimand and weight combinations carry it: per-protocol on
 \code{analysis_weight_pp_trunc}, stored under \code{rd_pp_trunc}, and
-intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}. Each stores
-one summary row at the end of follow-up, with \code{rd}, \code{rd_lo}, \code{rd_hi},
-\code{nnt}, \code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}. Each
-also stores the full band-by-band curve under \code{rd_curve_pp_trunc} or
+intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}. Each stores one
+summary row at the end of follow-up, with \code{rd}, \code{rd_lo}, \code{rd_hi}, \code{nnt},
+\code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}. Each also stores
+the full curve, one row per stop time, under \code{rd_curve_pp_trunc} or
 \code{rd_curve_itt}, with \code{surv_comparator} and \code{surv_intervention} beside the
 risk difference.
 
 The curve also carries \code{n_persons_at_risk_comparator} and
-\code{n_persons_at_risk_intervention}. Each is a head count of distinct people
-in that arm and band. It is the count a numbers-at-risk row reports. The
-figure reads it rather than opening the analysis file again.
+\code{n_persons_at_risk_intervention}. Each is a head count of distinct people in
+that arm at that stop time. It is the count a numbers-at-risk row
+reports. The figure reads it rather than opening the analysis file again.
 
 The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
@@ -688,15 +694,16 @@ difference and the number needed to treat. \code{n_boot}, \code{seed} and
 \subsection{\code{TTEPlan$get_curves()}}{
   Every stored survival curve, as one flat table.
 
-One row per emulated trial, estimand, weighting, arm and band.
+One row per emulated trial, estimand, weighting, arm and stop time.
+\code{follow_up_interval} holds the stop time, in weeks from time zero, of the
+rows the curve was evaluated at.
 \verb{$s3_analyze()} stores one wide curve per estimand, with a survival
 column for each arm. This method returns one row per arm instead.
 
-The table carries the numbers at risk beside survival.
-\code{n_persons_at_risk} is an unweighted count of distinct people, per arm
-per band. \verb{$s3_analyze()} stores it and this method melts it. A risk
-table reports people, so it cannot be derived from \code{surv}, which is a
-weighted probability.
+The table carries the numbers at risk beside survival. \code{n_persons_at_risk} is
+an unweighted count of distinct people, per arm per stop time.
+\verb{$s3_analyze()} stores it and this method melts it. A risk table reports
+people, so it cannot be derived from \code{surv}, which is a weighted probability.
 
 A curve stored before that column existed gives \code{NA}. A consumer that
 draws a risk table MUST check for missing values first. It MUST refuse to
@@ -708,7 +715,7 @@ draw. A row of missing counts looks like a drawn risk table.
   }
   \subsection{Returns}{
     A data.table with columns \code{ett_id}, \code{estimand}, \code{weights},
-\code{arm}, \code{band}, \code{surv} and \code{n_persons_at_risk}.
+\code{arm}, \code{follow_up_interval}, \code{surv} and \code{n_persons_at_risk}.
   }
 }
 

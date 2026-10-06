@@ -1,4 +1,4 @@
-# The two enrollment paths MUST qualify the same person-bands.
+# The two enrollment paths MUST qualify the same candidate person-trials.
 #
 # swereg builds a trial panel by two routes, and both must land on the same
 # qualified enrollment.
@@ -13,10 +13,11 @@
 # real subprocess through the batchit commit engine.
 #
 # The two routes classify the arm from different columns. The scout reads
-# `rd_intervention`, the weekly logical that `.s1_prepare_loaded()` derives
-# from the spec's treatment implementation. The direct route reads
-# `design$treatment_var`. Both then call `.band_baseline_treatment()` and
-# `.tte_qualify_bands()`, so a divergence in either one shows up here.
+# `rd_intervention`, the weekly logical that `.s1_prepare_loaded()` derives from
+# the spec's treatment implementation. The direct route reads
+# `design$treatment_var`. Both then call
+# `.enrollment_period_baseline_treatment()` and `.tte_qualify_candidates()`, so
+# a divergence in either one shows up here.
 #
 # The intervention arm is what makes this test causal. No sampling touches it:
 # every qualified initiator enrolls. So the two intervention sets agree if and
@@ -31,8 +32,9 @@ skip_if_not_installed("withr")
 skip_if_not_installed("processx")
 
 # One fixture, built once per test. It carries independent loss and
-# discontinuation, so some person-bands genuinely fail to qualify. A fixture
-# where qualification drops nothing would pass this test with the step removed.
+# discontinuation, so some candidate person-trials genuinely fail to qualify. A
+# fixture where qualification drops nothing would pass this test with the step
+# removed.
 .lpp_fixture <- function(env = parent.frame()) {
   root <- withr::local_tempdir(.local_envir = env)
   dir_spec <- file.path(root, "spec")
@@ -50,7 +52,7 @@ skip_if_not_installed("processx")
     disc_hazard = 0.05,
     date_min = "2018-01-01",
     date_max = "2019-06-30",
-    n_init_bands = 8L,
+    n_init_periods = 8L,
     seed = 909L
   )
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")
@@ -183,13 +185,13 @@ skip_if_not_installed("processx")
   )
 }
 
-# One plain (person, band) table, free of keys and column order, so two of
-# them compare on content alone.
-.lpp_bands <- function(dt, id_col, band_col) {
+# One plain (person, enrollment period) table, free of keys and column order, so
+# two of them compare on content alone.
+.lpp_periods <- function(dt, id_col, period_col) {
   out <- unique(data.table::as.data.table(dt)[,
-    list(id = as.character(get(id_col)), band = as.integer(get(band_col)))
+    list(id = as.character(get(id_col)), period = as.integer(get(period_col)))
   ])
-  data.table::setorderv(out, c("id", "band"))
+  data.table::setorderv(out, c("id", "period"))
   as.data.frame(out, stringsAsFactors = FALSE)
 }
 
@@ -212,9 +214,9 @@ test_that("the direct and production paths agree on qualified enrollment", {
   expect_gt(nrow(prod$panel), 0L)
   expect_gt(nrow(direct$data), 0L)
 
-  # Qualification MUST drop person-bands on this fixture. Without a drop the
-  # comparison below would hold with the whole step removed, and this file
-  # would prove nothing.
+  # Qualification MUST drop candidate person-trials on this fixture. Without a
+  # drop the comparison below would hold with the whole step removed, and this
+  # file would prove nothing.
   unqualified <- swereg:::.s1_eligible_tuples(
     data.table::copy(prepared),
     fx$es$design
@@ -227,20 +229,20 @@ test_that("the direct and production paths agree on qualified enrollment", {
 
   # The qualified intervention arm. No sampling touches it, so the two routes
   # agree here if and only if they qualify identically.
-  prod_int <- .lpp_bands(
+  prod_int <- .lpp_periods(
     prod$tuples[intervention == TRUE],
     "id",
     "trial_id"
   )
-  direct_int <- .lpp_bands(
+  direct_int <- .lpp_periods(
     direct$data[rd_intervention == TRUE],
     "id",
-    "entry_band_id"
+    "enrollment_period_id"
   )
   expect_identical(direct_int, prod_int)
 
   # Every enrolled id the production route hands to s1c is qualified too.
-  enrolled_int <- .lpp_bands(
+  enrolled_int <- .lpp_periods(
     prod$enrolled_ids[intervention == TRUE],
     "id",
     "trial_id"
@@ -248,18 +250,18 @@ test_that("the direct and production paths agree on qualified enrollment", {
   expect_identical(enrolled_int, prod_int)
 })
 
-test_that("both paths open follow-up one band after the entry band", {
+test_that("both paths open follow-up at time zero, the first week after the enrollment period", {
   skip_on_cran()
   fx <- .lpp_fixture()
   prod <- .lpp_production(fx)
   direct <- .lpp_direct(fx, .lpp_prepared(fx))
 
-  # Timing semantics. The first row of every person-trial sits at the
-  # landmark: `tstart == 0` and one band after the entry band.
+  # Timing semantics. The first row of every person-trial sits at the landmark:
+  # `tstart == 0` and at time zero, the first week after the enrollment period.
   for (panel in list(prod$panel, direct$data)) {
     first_rows <- panel[tstart == 0L]
     expect_gt(nrow(first_rows), 0L)
-    expect_true(all(first_rows$trial_id == first_rows$entry_band_id + 1L))
+    expect_true(all(first_rows$trial_id == first_rows$enrollment_period_id + 1L))
     expect_identical(
       panel[, min(tstart), by = enrollment_person_trial_id]$V1,
       rep(0L, data.table::uniqueN(panel$enrollment_person_trial_id))
@@ -267,23 +269,24 @@ test_that("both paths open follow-up one band after the entry band", {
   }
 
   # The entry snapshot is the recruiting-week value, and the two routes MUST
-  # read it at the same instant for the same person-trial.
-  # The two routes key the panel differently. `enrollment_person_trial_id` is
-  # "<enrollment_id>.<person>.<band>" on the production route, because the
-  # scout writes the enrollment id into the tuples, and "<person>.<band>" on
-  # the direct route. So the join runs on (person, entry band).
+  # read it at the same instant for the same person-trial. The two routes key
+  # the panel differently. `enrollment_person_trial_id` is
+  # "<enrollment_id>.<person>.<enrollment_period_id>" on the production route,
+  # because the scout writes the enrollment id into the tuples, and
+  # "<person>.<enrollment_period_id>" on the direct route. So the join runs on
+  # (person, enrollment period).
   snap <- ".tte_entry__rd_age_continuous"
   expect_true(snap %in% names(prod$panel))
   expect_true(snap %in% names(direct$data))
   a <- unique(prod$panel[
     tstart == 0L,
-    list(id = as.character(id), band = entry_band_id, v = get(snap))
+    list(id = as.character(id), period = enrollment_period_id, v = get(snap))
   ])
   b <- unique(direct$data[
     tstart == 0L,
-    list(id = as.character(id), band = entry_band_id, v = get(snap))
+    list(id = as.character(id), period = enrollment_period_id, v = get(snap))
   ])
-  both <- merge(a, b, by = c("id", "band"), suffixes = c("_prod", "_direct"))
+  both <- merge(a, b, by = c("id", "period"), suffixes = c("_prod", "_direct"))
   expect_gt(nrow(both), 0L)
   expect_equal(both$v_prod, both$v_direct)
 })

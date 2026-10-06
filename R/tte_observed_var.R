@@ -39,7 +39,7 @@
 #' Normalise one `observed_var` declaration.
 #'
 #' The single entry point for the observation contract. The spec parser,
-#' `TTEDesign$new()` and any later landmark code all go through it, so one
+#' `TTEDesign$new()` and the time-zero qualification all go through it, so one
 #' declaration cannot mean two things in two places.
 #'
 #' @param x The declaration. `NULL` when the caller declares nothing. A list

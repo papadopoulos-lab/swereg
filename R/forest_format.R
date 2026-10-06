@@ -205,9 +205,9 @@
 #' only some of them.
 #'
 #' The value comes from `follow_up`, the horizon the ETT grid declares. It does
-#' NOT come from the last band of a risk-difference curve. A hand-built test
-#' panel can stop short of the declared horizon, and the header states what the
-#' study followed people for.
+#' NOT come from the last stop time of a risk-difference curve. A
+#' hand-built test panel can stop short of the declared horizon, and the header
+#' states what the study followed people for.
 #'
 #' @param df A data.table as built by `.build_forest_df()`, carrying
 #'   `follow_up`.

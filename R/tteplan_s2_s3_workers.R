@@ -272,30 +272,31 @@
 #'
 #' The row and the curve answer different questions, so they get different
 #' slots. One shape cannot serve both. A results sheet reads the FIRST row of
-#' whatever it is handed. Storing the 39-band curve where a one-row summary
-#' belongs would report the first band under the header for the last one.
+#' whatever it is handed. Storing the 39-row curve where a one-row summary
+#' belongs would report the first stop time under the header for the
+#' last one.
 #'
-#' The row is the end of follow-up. `.forest_rd_row()` takes the last band, and
-#' this function adds the three fields that make the row self-describing:
-#' `interval_status`, `n_boot` and `seed`. A reader of `plan$results_ett` can
-#' then see why a bound is missing, and what produced the bound that is there,
-#' without opening the curve.
+#' The row is the end of follow-up. `.forest_rd_row()` takes the last stop
+#' time, and this function adds the three fields that make the row
+#' self-describing: `interval_status`, `n_boot` and `seed`. A reader of
+#' `plan$results_ett` can then see why a bound is missing, and what produced the
+#' bound that is there, without opening the curve.
 #'
-#' The curve is every band, with `surv_comparator` and `surv_intervention`
-#' beside the risk difference. The risk difference is built from those two
-#' columns. The old code threw them away, then read the analysis panel again
-#' to recover them.
+#' The curve is every stop time, with `surv_comparator` and
+#' `surv_intervention` beside the risk difference. The risk difference is built
+#' from those two columns. The old code threw them away, then read the analysis
+#' panel again to recover them.
 #'
 #' It also carries `n_persons_at_risk_comparator` and
 #' `n_persons_at_risk_intervention`, the head count of distinct people in each
-#' arm and band. That count is what a numbers-at-risk row reports. It was the
-#' last quantity a RENDERER had to open an analysis file for.
+#' arm at each stop time. That count is what a numbers-at-risk row reports.
+#' It was the last quantity a RENDERER had to open an analysis file for.
 #'
 #' The replicate matrix is DROPPED. `.tte_rd_curve()` attaches the whole
-#' `n_boot` by `n_band` bootstrap matrix as the `rd_boot` attribute. Measured
-#' on a 39-band curve at 500 replicates it is 156,216 bytes. Kept, it would add
-#' 169 MB to a 540-ETT plan across two estimands. The stored percentiles
-#' already summarise it.
+#' `n_boot` by `n_interval` bootstrap matrix as the `rd_boot` attribute.
+#' Measured on a 39-row curve at 500 replicates it is 156,216 bytes. Kept,
+#' it would add 169 MB to a 540-ETT plan across two estimands. The stored
+#' percentiles already summarise it.
 #'
 #' What stays is small. The row and the curve serialise to 2,335 bytes
 #' together, which is 2.5 MB across that same plan.
@@ -306,7 +307,7 @@
 #' @param curve The `$risk_difference()` return value, or the skip envelope
 #'   `safe_call()` produces when it failed.
 #' @param ett_id Character(1), the ETT the curve belongs to.
-#' @param time_var Character(1), the band column name (`design$tstop_var`).
+#' @param time_var Character(1), the time column name (`design$tstop_var`).
 #' @return A named list of two elements, one per slot.
 #' @noRd
 .s3_rd_result <- function(slot, curve, ett_id, time_var) {

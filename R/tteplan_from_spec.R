@@ -44,9 +44,9 @@
 #'   (isoyearweek string, e.g., "2023-52"). If `NULL` (default), auto-detected
 #'   from `max(isoyearweek)` in the first skeleton file. Also runs
 #'   [tteplan_validate_spec()] on that skeleton.
-#' @param period_width Integer, band width in weeks for enrollment and
-#'   time aggregation (default: 4L). Stored on the plan and passed through
-#'   to TTEDesign.
+#' @param period_width Integer, the width in weeks of the enrollment period
+#'   (default: 4L). The same width sets each follow-up interval. Stored on the
+#'   plan and passed through to TTEDesign.
 #' @param check_skeletons Logical (default `TRUE`). Run
 #'   [RegistryStudy]`$assert_skeletons_consistent()` before reading any
 #'   skeleton, so a half-rebuilt or stale skeleton store stops here rather

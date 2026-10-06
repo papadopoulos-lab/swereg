@@ -13,7 +13,8 @@ The \code{data_level} property controls which methods are available:
 \itemize{
 \item \code{"person_week"}: Data has one row per person per time unit. Pass \code{ratio}
 to the constructor to enroll and transition to trial level.
-\item \code{"trial"}: Data has been expanded to trial panels (band-level). Methods
+\item \code{"trial"}: Data has been expanded to trial panels, one row per
+person-trial interval. Methods
 \verb{$s2_ipw()}, \verb{$s4_prepare_for_analysis()}, and \verb{$s3_truncate_weights()} require this level.
 }
 
@@ -22,40 +23,43 @@ to "trial" level and is triggered by passing \code{ratio} to the constructor.
 
 \code{.TTE_ENROLLMENT_SCHEMA_VERSION} rises when a release changes
 what a stored field means, or adds a field its readers need. swereg
-26.10.19 raised it to \code{4L}. 26.10.18 and every earlier release wrote a
-lower number, so the check refuses every object they left on disk.
-Schema 4 stores the fill summary in \code{fill_summary} and the
-propensity-model diagnostics in \code{ps_fit}, and this release reads both.
+26.10.19 raised it to \code{4L}. Schema 4 stores the fill summary in
+\code{fill_summary} and the propensity-model diagnostics in \code{ps_fit}, and
+this release reads both. swereg 26.15.0 raised it to \code{5L}, which gives
+the panel column \code{enrollment_period_id} its current name. \code{\link[=qs2_read]{qs2_read()}}
+migrates a schema-4 object to schema 5 before this check runs. The
+check refuses every object below schema 4.
 }
 \section{Baseline treatment}{
 
 The input is a person-week skeleton, so eligibility and treatment status are
-assessed weekly. \code{period_width} collapses consecutive weeks into bands, and
-each band opens one trial.
+assessed weekly. \code{period_width} groups consecutive weeks into enrollment
+periods, and each enrollment period opens one trial.
 
-swereg reads only the weeks of a band that are eligible and hold \code{TRUE} or
-\code{FALSE} in the treatment column. It drops every other week of the band
-first, and then applies three rules.
+swereg reads only the weeks of an enrollment period that are eligible and
+hold \code{TRUE} or \code{FALSE} in the treatment column. It drops every other week of
+the enrollment period first, and then applies three rules.
 \itemize{
 \item A person is an initiator when at least one week it reads holds
 \code{TRUE}.
 \item A person is a comparator when every week it reads holds \code{FALSE}.
-\item A person-band with no such week is ineligible, and enters neither
-arm.
+\item A candidate person-trial with no such week is ineligible, and
+enters neither arm.
 }
 
 The drop comes first, so an \code{NA} week does not stop a comparator
-classification. A band of \code{FALSE}, \code{NA}, \code{FALSE}, \code{FALSE} is a comparator
-band.
+classification. An enrollment period of \code{FALSE}, \code{NA}, \code{FALSE}, \code{FALSE}
+gives a comparator.
 
-Time zero is the landmark, which is the first week of the band AFTER the
-entry band. The panel therefore starts one band after the entry band, and
-the entry band carries no follow-up. \code{entry_band_id} names the trial and
-\code{trial_id} names the follow-up band.
+Follow-up starts at time zero, which the interval convention section below
+defines. The panel therefore starts one follow-up interval after the
+enrollment period, and the enrollment period carries no follow-up.
+\code{enrollment_period_id} names the trial and \code{trial_id} names the follow-up
+interval.
 
 Each confounder reaches the panel twice. The \verb{.tte_entry__<v>} column holds
 its value at the recruiting week, and \verb{<v>} holds the time-updated value of
-the follow-up band. \verb{$s2_ipw()} and \verb{$table1()} read the entry column.
+the follow-up interval. \verb{$s2_ipw()} and \verb{$table1()} read the entry column.
 \verb{$s1b_fill_followup_confounders()} fills a missing \verb{<v>} from the last
 observed value of the same person-trial, seeded from the entry column. See
 \code{vignette("tte-methods")} for the full rule and
@@ -83,7 +87,7 @@ power.
 \item{\verb{$rates(weight_col)}}{Calculate events, person-years, and rates}
 \item{\verb{$irr(weight_col)}}{Fit Poisson models and extract IRR}
 \item{\verb{$survival_curve(weight_col, save_path, title)}}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying \code{analysis_weight_pp_trunc})}
-\item{\verb{$risk_difference(weight_col, n_boot, seed, conf_level)}}{Signed cause-specific risk difference per band, with a percentile bootstrap interval resampled at the person level}
+\item{\verb{$risk_difference(weight_col, n_boot, seed, conf_level)}}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level}
 }
 
 \strong{Active bindings:}
@@ -95,17 +99,22 @@ power.
 \section{The interval convention}{
 
 
+Time zero is a landmark: the first week after the enrollment period closes.
+A person enters the trial only if they reach that week under observation
+and free of every enrollment outcome. Follow-up starts there.
+
 Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
 leaves the risk set at \code{tstop}, and the row holds no part of that week.
 
 Every duration is \code{tstop - tstart}. It never adds one. Three complete
-four-week bands span \verb{[0, 12)}. That is 12 person-weeks, and the bands bill
-4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+four-week follow-up intervals span \verb{[0, 12)}. That is 12 person-weeks, and
+the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
 
-Every \verb{weeks_to_*} column is a boundary on the same scale, counted from the
-landmark at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
-\code{weeks_to_loss}, \code{weeks_to_admin_end} and \code{weeks_to_record_end} each name
-the first week the person no longer contributes. A \code{weeks_to_record_end} of
+Every \verb{weeks_to_*} column is a boundary on the same scale, counted from
+time zero at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
+\code{weeks_to_loss}, \code{weeks_to_admin_end}, \code{weeks_to_record_end} and
+\code{weeks_to_observation_gap} each name the first week the person no longer
+contributes. A \code{weeks_to_record_end} of
 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
 
 The \code{+ 1} belongs to the inclusive convention, where weeks 1 through 4 is
@@ -115,7 +124,7 @@ denominator, so swereg MUST read every stop as exclusive.
 
 One place adds a week, and it converts a calendar reading into a stop.
 \code{admin_censor_isoyearweek} names the last week under study, and
-\code{difftime()} returns the whole weeks between that week and the landmark
+\code{difftime()} returns the whole weeks between that week and the time-zero
 week. The stop is one week later, because the person holds the whole of the
 administrative week.
 
@@ -134,7 +143,7 @@ design <- TTEDesign$new(
   eligible_var = "eligible"
 )
 
-# Enroll via constructor (band-based), then $-chain
+# Enroll via constructor (by enrollment period), then $-chain
 enrollment <- TTEEnrollment$new(my_skeleton, design,
   ratio = 2, seed = 4, extra_cols = "isoyearweek"
 )
@@ -146,7 +155,7 @@ enrollment$
 }
 \seealso{
 \link{TTEDesign} for design class.
-\code{vignette("tte-nomenclature")} for the enrollment band vocabulary.
+\code{vignette("tte-nomenclature")} for the enrollment period vocabulary.
 
 Other tte_classes:
 \code{\link{TTEDesign}},
@@ -172,15 +181,15 @@ Other tte_classes:
 dataset is prepared; governs which weights are valid in \verb{$irr()}.
 NULL (legacy / unprepared) is treated as per-protocol.}
 
-    \item{\code{landmark_attrition}}{A data.table or NULL. It reports why landmark
-qualification dropped each candidate person-band, by criterion and by
-arm. Its columns are \code{trial_id}, \code{criterion}, \code{n_persons},
-\code{n_person_trials}, \code{n_intervention} and \code{n_comparator}. The row with
-\code{trial_id = NA} covers the whole cohort. The three criteria are
-\code{landmark_candidates}, \code{landmark_observed} and \code{landmark_event_free},
-and each count is cumulative. It stays \code{NULL} when the design declares
-no \code{observed_var}, and when the caller supplies \code{enrolled_ids} from
-the two-pass pipeline.}
+    \item{\code{landmark_attrition}}{A data.table or NULL. It reports why the
+time-zero qualification dropped each candidate person-trial, by
+criterion and by arm. Its columns are \code{trial_id}, \code{criterion},
+\code{n_persons}, \code{n_person_trials}, \code{n_intervention} and \code{n_comparator}.
+The row with \code{trial_id = NA} covers the whole cohort. The three
+criteria are \code{landmark_candidates}, \code{landmark_observed} and
+\code{landmark_event_free}, and each count is cumulative. It stays \code{NULL}
+when the design declares no \code{observed_var}, and when the caller
+supplies \code{enrolled_ids} from the two-pass pipeline.}
 
     \item{\code{fill_summary}}{A data.table or NULL. It holds the table
 \code{\link[=tteenrollment_fill_summary]{tteenrollment_fill_summary()}} returns, which reports what
@@ -275,11 +284,11 @@ from survey weights, and \code{svyglm} scales to large registry datasets
 (unlike \code{survey::svycoxph()}). This is computationally equivalent to
 the pooled logistic approach used by Danaei et al. (2013).
 
-\strong{Calendar-time adjustment}: When \code{trial_id} is present in the data
-(from band-based enrollment), it is included in the model to adjust for
-calendar-time variation in outcome rates across enrollment bands
-(Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
-trial IDs, linear term for 2-4, omitted for 1.
+\strong{Calendar-time adjustment}: When \code{trial_id} is present in the data, the
+model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
+Danaei 2013). In the panel, \code{trial_id} indexes the calendar period of each
+follow-up interval. Uses natural splines for >=5 unique trial IDs, linear
+term for 2-4, omitted for 1.
 
 \strong{Estimand (marginal)}: confounding is removed by the supplied \code{weights},
 not by adjusting for confounders in this model, so the coefficient is a
@@ -314,7 +323,8 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 
 Fits a model with a \verb{trial_id x treatment} interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
-across enrollment bands (Hernan 2008, Danaei 2013).
+across the calendar periods that \code{trial_id} indexes (Hernan 2008, Danaei
+2013).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$heterogeneity_test(weight_col)}
@@ -473,7 +483,7 @@ are returned. \code{at_risk} is the weighted risk set, \code{sum(w)}, and is the
 denominator of the hazard. \code{n_persons_at_risk} is an unweighted count
 of distinct people, taken over \code{design$person_id_var}, and is the
 number a risk table under a survival panel reports. It is not a row
-count: the panel holds one row per person-trial-band and a person
+count: the panel holds one row per person-trial interval and a person
 contributes several sequential trials, so rows exceed people.
 \verb{$rates()} reports the same idea at whole-arm grain under the name
 \code{n_persons}; the two names differ because the grain differs.
@@ -484,8 +494,8 @@ contributes several sequential trials, so rows exceed people.
 \if{html}{\out{<a id="method-TTEEnrollment-risk_difference"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-risk_difference}{}}}
 \subsection{\code{TTEEnrollment$risk_difference()}}{
-  Signed cause-specific risk difference at each band, with a
-percentile bootstrap interval resampled at the person level.
+  Signed cause-specific risk difference at each follow-up
+interval, with a percentile bootstrap interval resampled at the person level.
 
 The two arm-specific curves are the ones \verb{$survival_curve()} builds, from
 the same weighted discrete-time hazard, so the point estimate here and
@@ -508,8 +518,9 @@ trial and an initiator in a later one, and a separate draw per arm would
 discard the covariance between the two arms and bias the interval while
 leaving the point estimate untouched.
 
-A replicate that draws no person for an arm, or that empties a band,
-yields \code{NA} for that band and onwards. The percentile step drops those.
+A replicate that draws no person for an arm, or that empties a stop time,
+yields \code{NA} at that stop time and every later one. The percentile
+step drops those.
 
 A zero-event arm gets no interval. When either arm has no
 positive-weight event through a horizon, \code{rd_lo} and \code{rd_hi} are \code{NA}
@@ -519,7 +530,7 @@ every replicate assigns that arm a failure risk of exactly zero. The
 percentiles then describe the other arm alone, which is
 anti-conservative, and more replicates do not repair it. The condition is
 evaluated per horizon and per arm, on the events up to and including that
-band.
+stop time.
 
 Deaths are censored, not modelled as a competing risk, so this is a
 cause-specific risk difference under independent censoring, not a
@@ -548,11 +559,11 @@ caller's random stream is restored afterwards.}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with one row per band and columns \code{tstop} (named
-after \code{design$tstop_var}), \code{surv_comparator}, \code{surv_intervention},
+    A data.table with one row per distinct stop time of the panel rows,
+and columns \code{tstop}
+(named after \code{design$tstop_var}), \code{surv_comparator}, \code{surv_intervention},
 \code{rd}, \code{rd_lo}, \code{rd_hi}, \code{interval_status}, \code{nnt}, \code{nnt_direction},
-\code{n_persons_with_event_comparator} and
-\code{n_persons_with_event_intervention}.
+\code{n_persons_with_event_comparator} and \code{n_persons_with_event_intervention}.
 
 \code{interval_status} takes one of three values. \code{"ok"} means the interval
 is estimable and strictly excludes the null. \code{"spans null"} means the
@@ -564,18 +575,18 @@ spans the null from one that does not exist.
 reads \code{"benefit"}, \code{"harm"} or \code{NA_character_}, and it is the stored
 decision every formatter reads. No formatter re-derives the direction
 from a sign, so a figure and a results sheet cannot disagree about one
-band.
+stop time.
 
 The two event columns count distinct PEOPLE who had the outcome at or
-before that band, in that arm. They are deliberately not row counts and
-not person-trial counts: the panel holds one row per
-person-trial-band, and one woman can carry the event in two of her
-sequential trials, which is one person who had the outcome. \verb{$rates()}
-and \verb{$summary()} report the event ROW count instead, and on real data
-the two numbers differ.
+before that stop time, in that arm. They are deliberately not row
+counts and not person-trial counts: the panel holds one row per
+person-trial interval, and one woman can carry the event in two of her
+sequential trials, which is one person who had the outcome. \verb{$rates()} and
+\verb{$summary()} report the event ROW count instead, and on real data the two
+numbers differ.
 
-The replicate matrix the interval was read off is attached as the
-\code{rd_boot} attribute (\code{n_boot} rows by one column per band), alongside
+The replicate matrix the interval was read off is attached as the \code{rd_boot}
+attribute (\code{n_boot} rows by one column per stop time), alongside
 \code{conf_level} and \code{n_boot}.
   }
 }
@@ -712,7 +723,7 @@ which identifier column exists in data. "person_week" for pre-panel data
       \item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
 (sampling comparison group and creating trial panels). Only valid for
 person_week data. The Baseline treatment section of TTEEnrollment
-states the rule that decides the arm of each person-band.}
+states the rule that decides the arm of each candidate person-trial.}
       \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
       \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
 trial panels during enrollment.}
@@ -768,7 +779,11 @@ class version. It stops when the object carries an older schema.
   Step 4: Prepare the outcome/analysis dataset for one estimand.
 For \code{estimand = "pp"} (default) this calls \verb{$s5_prepare_outcome()} then
 \verb{$s6_ipcw_pp()}. For \code{estimand = "itt"} it calls \verb{$s5_prepare_outcome()}
-in ITT mode, which never censors at treatment switching. ITT skips IPCW,
+in ITT mode, which never censors at treatment switching. ITT follow-up
+stops at the first absent week after time zero, as PP follow-up does.
+An outcome at or after that week is never counted, under either
+estimand.
+ITT skips IPCW,
 because baseline IPW alone is the valid ITT weight. This is the
 recommended way to prepare an enrollment for analysis.
 
@@ -781,10 +796,12 @@ treatment. Releases before 26.9.0 deleted the row instead, which threw
 away every valid week it held.
 
 Event-priority convention: an outcome event that stops in the deviation
-band wins. The row then counts as an event and not as a censoring. The
-deviation does not clip it, \code{censor_this_period} is 0, and the censoring
-model does not treat it as censored (since 26.7.3). The row still stops
-at the exact event week, which can fall inside the band.
+follow-up interval wins. The row then counts as an event and not as a
+censoring. The deviation does not clip it, \code{censor_this_period} is 0, and
+the censoring model does not treat it as censored (since 26.7.3). The row
+still stops at the exact event week, which can fall inside the follow-up
+interval. The convention applies to a treatment deviation only, and
+never to an observation gap.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s4_prepare_for_analysis(
@@ -803,8 +820,9 @@ at the exact event week, which can fall inside the band.
       \item{\code{outcome}}{Character scalar. Must be one of \code{design$outcome_vars}.}
       \item{\code{follow_up}}{Optional integer. Overrides \code{design$follow_up_time}.}
       \item{\code{estimand}}{Character, \code{"pp"} (per-protocol, default) or \code{"itt"}
-(intention-to-treat). ITT keeps follow-up through treatment switching
-and uses baseline IPW only (no IPCW); analyse it with
+(intention-to-treat). ITT keeps follow-up through treatment switching,
+and it censors at the first absent week after time zero. It uses
+baseline IPW only (no IPCW); analyse it with
 \verb{$irr(weight_col = "ipw_trunc")}.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}

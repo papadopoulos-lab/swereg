@@ -1,13 +1,14 @@
 # The deviation boundary is exact, and it comes from the weekly assessments.
 #
-# `enroll()` collapses each band to one row, and the collapse keeps `last()` of
-# the band for the treatment column. Deviation used to be decided from that one
-# value, so a woman's verdict followed where her weeks fell against the
-# calendar grid. Two women who behaved the same way got opposite verdicts.
+# `enroll()` collapses each follow-up interval to one row, and the collapse
+# keeps `last()` of the follow-up interval for the treatment column. Deviation
+# used to be decided from that one value, so a woman's verdict followed where
+# her weeks fell against the calendar grid. Two women who behaved the same way
+# got opposite verdicts.
 #
 # `.tte_deviation_boundary()` now reads the weekly sequence at enrollment,
 # where it still exists, and writes one integer per person-trial. The stored
-# panel stays one row per person-trial-band.
+# panel stays one row per person-trial interval.
 #
 # This file pins four properties.
 #
@@ -23,8 +24,9 @@ skip_if_not_installed("cstime")
 .ld_pw <- 4L
 .ld_n_fu <- 12L
 
-# Consecutive ISO year-weeks starting on a band boundary. Sixteen of them make
-# one entry band and three follow-up bands under `period_width = 4`.
+# Consecutive ISO year-weeks starting on a follow-up interval boundary. Sixteen
+# of them make one enrollment period and three follow-up intervals under
+# `period_width = 4`.
 .ld_weeks <- function(n_weeks = 16L) {
   wk <- data.table::copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -34,9 +36,9 @@ skip_if_not_installed("cstime")
   wk$isoyearweek[start_idx:(start_idx + n_weeks - 1L)]
 }
 
-# The landmark week index of the band-0 trial. Follow-up week `f` of that trial
-# is week index `landmark + f - 1`, so a run that starts at follow-up week `f`
-# starts at `u0 = L + f - 1`.
+# The landmark week index of the trial of enrollment period 0. Follow-up week `f`
+# of that trial is week index `landmark + f - 1`, so a run that starts at
+# follow-up week `f` starts at `u0 = L + f - 1`.
 .ld_landmark <- function(weeks) {
   swereg:::.tte_week_index0(weeks[.ld_pw + 1L])
 }
@@ -45,8 +47,8 @@ skip_if_not_installed("cstime")
 #
 # `arm` is her assigned arm. `TRUE` is the intervention arm and `FALSE` is the
 # comparator arm. `exposed` holds that arm in every week. `eligible` holds
-# `TRUE` only inside the entry band, so band 0 is the only band that recruits
-# her.
+# `TRUE` only inside the enrollment period, so enrollment period 0 is the only
+# enrollment period that recruits her.
 #
 # `on_tx` is the weekly assessment. It holds her assigned arm by default, which
 # is concordant. Three arguments move it, and each one names 1-indexed FOLLOW-UP
@@ -174,15 +176,15 @@ test_that("a concordant week resets the tolerance run", {
   trial <- .ld_enroll(d, .ld_design(intervention_k = 1L, comparator_k = 3L))
   out <- .ld_prepare(trial)
 
-  # RESET never censors. She keeps all three follow-up bands.
+  # RESET never censors. She keeps all three follow-up intervals.
   expect_identical(.ld_boundary(out, "RESET"), NA_integer_)
   expect_identical(nrow(out[id == "RESET"]), 3L)
 
   # PAIRED censors. Her run starts at follow-up week 5, which is week index
   # `L + 4`, so the boundary is `(u0 + k + 1) - L` = 4 + 1 + 1 = 6.
   #
-  # The second band carries the censoring, and it is clipped to week 6. It
-  # bills the 2 weeks before the boundary and nothing after.
+  # The second follow-up interval carries the censoring, and it is clipped to
+  # week 6. It bills the 2 weeks before the boundary and nothing after.
   expect_identical(.ld_boundary(out, "PAIRED"), 6L)
   expect_identical(nrow(out[id == "PAIRED"]), 2L)
   expect_identical(out[id == "PAIRED"]$tstop, c(4L, 6L))
@@ -218,9 +220,10 @@ test_that("censoring is at the (k+1)th discordant week, not at the run start", {
   expect_identical(.ld_boundary(out, "RUN"), (u0 + k + 1L) - landmark)
   # The boundary MUST sit later than the start of the run.
   expect_gt(.ld_boundary(out, "RUN"), u0 - landmark)
-  # 6 falls inside the second band, so the first band is complete follow-up
-  # and the second one carries the censoring. The second band is clipped to
-  # week 6, and bills the 2 weeks it holds.
+  # 6 falls inside the second follow-up interval, so the first follow-up
+  # interval is complete follow-up and the second one carries the censoring. The
+  # second follow-up interval is clipped to week 6, and bills the 2 weeks it
+  # holds.
   expect_identical(.ld_boundary(out, "RUN"), 6L)
   expect_identical(out[id == "RUN"]$tstop, c(4L, 6L))
   expect_identical(out[id == "RUN"]$person_weeks, c(4L, 2L))
@@ -245,8 +248,9 @@ test_that("an internal observation gap censors and is never tolerated", {
     .ld_person("WHOLE", weeks, arm = TRUE),
     .ld_fillers(weeks)
   ))
-  # The gap is one week wide, and the band around it survives with three of
-  # its four weeks. A band-level read therefore still sees that band.
+  # The gap is one week wide, and the follow-up interval around it survives with
+  # three of its four weeks. An interval-level read therefore still sees that
+  # follow-up interval.
   expect_identical(nrow(d[id == "GAP"]), nrow(d[id == "WHOLE"]) - 1L)
 
   # Tolerance 2 for her arm. It applies to discordance, and never to loss of
@@ -255,16 +259,21 @@ test_that("an internal observation gap censors and is never tolerated", {
   out <- .ld_prepare(trial)
 
   # Follow-up stops at the start of the absent week, which is `u - L` for the
-  # first absent week `u`.
-  expect_identical(.ld_boundary(out, "GAP"), (landmark + 6L - 1L) - landmark)
-  expect_identical(.ld_boundary(out, "GAP"), 5L)
-  # 5 falls one week into the second band, which is clipped there and bills
-  # that one week.
+  # first absent week `u`. The gap is loss of observation and not a
+  # deviation, so `weeks_to_observation_gap` and `weeks_to_loss` hold it.
+  gap_stop <- unique(out[id == "GAP"]$weeks_to_observation_gap)
+  expect_identical(gap_stop, (landmark + 6L - 1L) - landmark)
+  expect_identical(gap_stop, 5L)
+  expect_identical(unique(out[id == "GAP"]$weeks_to_loss), 5L)
+  expect_identical(.ld_boundary(out, "GAP"), NA_integer_)
+  # 5 falls one week into the second follow-up interval, which is clipped there
+  # and bills that one week.
   expect_identical(nrow(out[id == "GAP"]), 2L)
   expect_identical(out[id == "GAP"]$tstop, c(4L, 5L))
   expect_identical(out[id == "GAP"]$person_weeks, c(4L, 1L))
 
-  # WHOLE keeps every band, so the fixture censors GAP for the gap alone.
+  # WHOLE keeps every follow-up interval, so the fixture censors GAP for the gap
+  # alone.
   expect_identical(.ld_boundary(out, "WHOLE"), NA_integer_)
   expect_identical(nrow(out[id == "WHOLE"]), 3L)
   expect_identical(out[id == "WHOLE"]$person_weeks, c(4L, 4L, 4L))
@@ -301,9 +310,10 @@ test_that("each arm uses its own tolerance", {
   expect_identical(.ld_boundary(out, "ONARM"), 7L)
   expect_identical(.ld_boundary(out, "OFFARM"), 9L)
 
-  # The two boundaries fall in different bands, so the retained follow-up
-  # differs as well as the reported week. Each terminal band is clipped at its
-  # own boundary, so the two also bill different person-time.
+  # The two boundaries fall in different follow-up intervals, so the retained
+  # follow-up differs as well as the reported week. Each terminal follow-up
+  # interval is clipped at its own boundary, so the two also bill different
+  # person-time.
   expect_identical(out[id == "ONARM"]$tstop, c(4L, 7L))
   expect_identical(out[id == "ONARM"]$person_weeks, c(4L, 3L))
   expect_identical(out[id == "OFFARM"]$tstop, c(4L, 8L, 9L))
@@ -316,16 +326,16 @@ test_that("each arm uses its own tolerance", {
 # ---------------------------------------------------------------------------
 
 test_that("the five weekly patterns each get their own exact boundary", {
-  # The five patterns that the band-collapsed read decided from `last()` of the
-  # band. Each one occupies follow-up weeks 5 to 8, which is the second band.
-  # The premise of the table is zero tolerance, so the intervention arm reads
-  # zero here. The comparator arm reads 3, and no comparator in the fixture is
-  # ever discordant.
+  # The five patterns that the follow-up interval-collapsed read decided from
+  # `last()` of the follow-up interval. Each one occupies follow-up weeks 5 to
+  # 8, which is the second follow-up interval. The premise of the table is zero
+  # tolerance, so the intervention arm reads zero here. The comparator arm reads
+  # 3, and no comparator in the fixture is ever discordant.
   weeks <- .ld_weeks()
   d <- data.table::rbindlist(list(
     # {T,T,F,F}: first discordant week is follow-up week 7.
     .ld_person("TTFF", weeks, arm = TRUE, discordant_fu = c(7L, 8L)),
-    # {T,F,T,T}: the mid-band switch the collapsed read could not see.
+    # {T,F,T,T}: the mid-interval switch the collapsed read could not see.
     .ld_person("TFTT", weeks, arm = TRUE, discordant_fu = 6L),
     # {T,F,F,T}: two discordant weeks the collapsed read could not see.
     .ld_person("TFFT", weeks, arm = TRUE, discordant_fu = c(6L, 7L)),
@@ -347,10 +357,10 @@ test_that("the five weekly patterns each get their own exact boundary", {
   expect_identical(.ld_boundary(out, "TNATT"), 6L)
   expect_identical(.ld_boundary(out, "TTTNA"), 8L)
 
-  # The second band reaches every one of the five boundaries, so all five keep
-  # the first band and a second band clipped at their own week. The clipped
-  # width is what separates them: four boundaries fall inside the band, and
-  # TTTNA sits on its edge.
+  # The second follow-up interval reaches every one of the five boundaries, so
+  # all five keep the first follow-up interval and a second follow-up interval
+  # clipped at their own week. The clipped width is what separates them: four
+  # boundaries fall inside the follow-up interval, and TTTNA sits on its edge.
   billed <- list(
     TTFF = c(4L, 3L),
     TFTT = c(4L, 2L),
@@ -385,7 +395,7 @@ test_that("ITT keeps follow-up through a discordant run", {
   expect_identical(nrow(out[id == "SWITCH"]), 3L)
 })
 
-test_that("a trial panel built outside enroll() keeps the band-collapsed read", {
+test_that("a trial panel built outside enroll() keeps the follow-up interval-collapsed read", {
   # A caller who hands in trial-level data has no weekly sequence to read, so
   # `s5_prepare_outcome()` falls back to the collapsed treatment value. That is
   # what every release before this one did, on every panel.
@@ -423,9 +433,10 @@ test_that("a trial panel built outside enroll() keeps the band-collapsed read", 
     )
   })
   out <- trial$data
-  # The band is one week wide here, so the collapsed value and the weekly
-  # value agree. Person-trial 1 deviates at band 3, and band 3 carries her
-  # censoring. A one-week band cannot be clipped, so it bills its whole week.
+  # The follow-up interval is one week wide here, so the collapsed value and the
+  # weekly value agree. Person-trial 1 deviates at follow-up interval 3, and
+  # follow-up interval 3 carries her censoring. A one-week follow-up interval
+  # cannot be clipped, so it bills its whole week.
   keep <- out[enrollment_person_trial_id == 1L]
   expect_identical(unique(keep$weeks_to_protocol_deviation), 3L)
   expect_identical(keep$tstop, c(1L, 2L, 3L))

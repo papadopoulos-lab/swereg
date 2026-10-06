@@ -6,7 +6,7 @@
 
 .tef_key <- c("enrollment_person_trial_id", "tstart", "tstop")
 
-.tef_design <- function(confounder_vars = "band") {
+.tef_design <- function(confounder_vars = "tier") {
   TTEDesign$new(
     treatment_var = "exposed",
     outcome_vars = "event",
@@ -27,8 +27,8 @@
     tstop = c(4L, 8L, 12L, 16L),
     exposed = TRUE,
     event = 0L,
-    band = c(NA, "B", NA, NA),
-    .tte_entry__band = "A"
+    tier = c(NA, "B", NA, NA),
+    .tte_entry__tier = "A"
   )
 }
 
@@ -43,8 +43,8 @@
       tstop = c(4L, 8L),
       exposed = FALSE,
       event = 0L,
-      band = NA_character_,
-      .tte_entry__band = "C"
+      tier = NA_character_,
+      .tte_entry__tier = "C"
     )
   ))
 }
@@ -55,7 +55,7 @@
   trials_entry_na_n,
   rows_leading,
   key_digest = "k1",
-  confounder = "band"
+  confounder = "tier"
 ) {
   out <- data.table::data.table(
     confounder = confounder,
@@ -101,8 +101,8 @@ test_that("the fill seeds the first row from the entry snapshot", {
   trial <- .tef_trial(.tef_panel_one())
   tteenrollment_fill_followup_confounders(trial)
 
-  expect_identical(trial$data$band[1L], "A")
-  expect_identical(trial$data$band, c("A", "B", "B", "B"))
+  expect_identical(trial$data$tier[1L], "A")
+  expect_identical(trial$data$tier, c("A", "B", "B", "B"))
 })
 
 test_that("the fill never carries a value across person-trials", {
@@ -111,10 +111,10 @@ test_that("the fill never carries a value across person-trials", {
 
   d <- trial$data
   expect_identical(
-    d$band[d$enrollment_person_trial_id == "t2"],
+    d$tier[d$enrollment_person_trial_id == "t2"],
     c("C", "C")
   )
-  expect_identical(d$band, c("A", "B", "B", "B", "C", "C"))
+  expect_identical(d$tier, c("A", "B", "B", "B", "C", "C"))
 })
 
 test_that("the fill orders the panel before it carries", {
@@ -129,8 +129,8 @@ test_that("the fill orders the panel before it carries", {
   joined <- a[b, on = .tef_key]
 
   expect_identical(nrow(joined), 6L)
-  expect_identical(joined$band, joined$i.band)
-  expect_identical(sorted$data$band, c("A", "B", "B", "B", "C", "C"))
+  expect_identical(joined$tier, joined$i.tier)
+  expect_identical(sorted$data$tier, c("A", "B", "B", "B", "C", "C"))
 })
 
 test_that("the fill changes no observed value", {
@@ -141,10 +141,10 @@ test_that("the fill changes no observed value", {
   data.table::setkeyv(before, .tef_key)
   after <- data.table::copy(trial$data)
   data.table::setkeyv(after, .tef_key)
-  observed <- !is.na(before$band)
+  observed <- !is.na(before$tier)
 
   expect_true(any(observed))
-  expect_identical(after$band[observed], before$band[observed])
+  expect_identical(after$tier[observed], before$tier[observed])
 })
 
 test_that("the fill keeps the row count and marks the step once", {
@@ -157,15 +157,15 @@ test_that("the fill keeps the row count and marks the step once", {
 
   expect_identical(nrow(trial$data), rows_before)
   expect_identical(sum(trial$steps_completed == "fill_followup"), 1L)
-  expect_identical(trial$data$band, first$band)
+  expect_identical(trial$data$tier, first$tier)
 })
 
 test_that("the fill stops when the entry snapshot cannot seed a person-trial", {
   d <- .tef_panel_one()
-  d[, .tte_entry__band := NA_character_]
+  d[, .tte_entry__tier := NA_character_]
   trial <- .tef_trial(d)
 
-  expect_error(tteenrollment_fill_followup_confounders(trial), "'band'")
+  expect_error(tteenrollment_fill_followup_confounders(trial), "'tier'")
   expect_error(
     tteenrollment_fill_followup_confounders(trial),
     "s1_impute_confounders"
@@ -174,12 +174,12 @@ test_that("the fill stops when the entry snapshot cannot seed a person-trial", {
 
 test_that("an NA entry snapshot is harmless when the plain column is full", {
   d <- .tef_panel_one()
-  d[, band := c("A", "B", "C", "D")]
-  d[, .tte_entry__band := NA_character_]
+  d[, tier := c("A", "B", "C", "D")]
+  d[, .tte_entry__tier := NA_character_]
   trial <- .tef_trial(d)
 
   expect_silent(tteenrollment_fill_followup_confounders(trial))
-  expect_identical(trial$data$band, c("A", "B", "C", "D"))
+  expect_identical(trial$data$tier, c("A", "B", "C", "D"))
 })
 
 test_that("the summary subtracts the imputed aggregates from the raw ones", {
@@ -211,17 +211,17 @@ test_that("the fill handles character, integer and numeric confounders", {
     tstop = c(4L, 8L, 12L),
     exposed = TRUE,
     event = 0L,
-    band = c(NA, "B", NA),
+    tier = c(NA, "B", NA),
     count = c(NA_integer_, 7L, NA_integer_),
     score = c(NA_real_, 1.5, NA_real_),
-    .tte_entry__band = "A",
+    .tte_entry__tier = "A",
     .tte_entry__count = 3L,
     .tte_entry__score = 0.5
   )
-  trial <- .tef_trial(d, .tef_design(c("band", "count", "score")))
+  trial <- .tef_trial(d, .tef_design(c("tier", "count", "score")))
   tteenrollment_fill_followup_confounders(trial)
 
-  expect_identical(trial$data$band, c("A", "B", "B"))
+  expect_identical(trial$data$tier, c("A", "B", "B"))
   expect_identical(trial$data$count, c(3L, 7L, 7L))
   expect_identical(trial$data$score, c(0.5, 1.5, 1.5))
 })
@@ -233,8 +233,8 @@ test_that("rows_from_imputed_entry_n counts the leading NA run only", {
     tstop = c(4L, 8L, 12L),
     exposed = TRUE,
     event = 0L,
-    band = c(NA, "B", NA),
-    .tte_entry__band = NA_character_
+    tier = c(NA, "B", NA),
+    .tte_entry__tier = NA_character_
   )
   agg <- tteenrollment_fill_aggregates(.tef_trial(d))
 
@@ -259,7 +259,7 @@ test_that("the aggregates match hand-computed counts on the two-trial panel", {
   trial <- .tef_trial(.tef_panel_two())
   agg <- tteenrollment_fill_aggregates(trial)
 
-  expect_identical(agg$confounder, "band")
+  expect_identical(agg$confounder, "tier")
   expect_identical(agg$rows_n, 6L)
   expect_identical(agg$trials_n, 2L)
   expect_identical(agg$rows_na_n, 5L)
@@ -304,11 +304,11 @@ test_that("the aggregates leave the row order of trial$data alone", {
 
 test_that("a panel with no entry snapshot comes back untouched", {
   d <- .tef_panel_one()
-  d[, .tte_entry__band := NULL]
+  d[, .tte_entry__tier := NULL]
   trial <- .tef_trial(d)
   tteenrollment_fill_followup_confounders(trial)
 
-  expect_identical(trial$data$band, c(NA, "B", NA, NA))
+  expect_identical(trial$data$tier, c(NA, "B", NA, NA))
   expect_identical(trial$steps_completed, character())
   expect_identical(nrow(tteenrollment_fill_aggregates(trial)), 0L)
 })
@@ -317,7 +317,7 @@ test_that("$s1b_fill_followup_confounders() runs the same fill", {
   trial <- .tef_trial(.tef_panel_two())
   trial$s1b_fill_followup_confounders()
 
-  expect_identical(trial$data$band, c("A", "B", "B", "B", "C", "C"))
+  expect_identical(trial$data$tier, c("A", "B", "B", "B", "C", "C"))
   expect_true("fill_followup" %in% trial$steps_completed)
   expect_null(trial$fill_summary)
 })
@@ -368,9 +368,9 @@ test_that("fill_summary and ps_fit are public fields and start NULL", {
 
   # R6 locks the instance environment, so a successful assignment proves the
   # binding already exists. A renamed field stops here.
-  trial$fill_summary <- data.table::data.table(confounder = "band")
+  trial$fill_summary <- data.table::data.table(confounder = "tier")
   trial$ps_fit <- data.table::data.table(n_fit = 1L)
-  expect_identical(trial$fill_summary$confounder, "band")
+  expect_identical(trial$fill_summary$confounder, "tier")
   expect_identical(trial$ps_fit$n_fit, 1L)
 })
 
@@ -405,7 +405,7 @@ test_that("a second fill appends no second token and refills nothing", {
   trial <- .tef_trial(.tef_panel_two())
 
   tteenrollment_fill_followup_confounders(trial)
-  band_after_first <- trial$data$band
+  tier_after_first <- trial$data$tier
   steps_after_first <- trial$steps_completed
   agg_after_first <- tteenrollment_fill_aggregates(trial)
 
@@ -413,7 +413,7 @@ test_that("a second fill appends no second token and refills nothing", {
 
   expect_identical(sum(trial$steps_completed == "fill_followup"), 1L)
   expect_identical(trial$steps_completed, steps_after_first)
-  expect_identical(trial$data$band, band_after_first)
+  expect_identical(trial$data$tier, tier_after_first)
   expect_identical(
     as.data.frame(tteenrollment_fill_aggregates(trial)),
     as.data.frame(agg_after_first)
@@ -422,7 +422,7 @@ test_that("a second fill appends no second token and refills nothing", {
 
 test_that("the fill counts the person-trials it cannot seed", {
   d <- .tef_panel_two()
-  d[enrollment_person_trial_id == "t2", .tte_entry__band := NA_character_]
+  d[enrollment_person_trial_id == "t2", .tte_entry__tier := NA_character_]
   trial <- .tef_trial(d)
 
   # Only t2 loses its seed, so the message names one person-trial.

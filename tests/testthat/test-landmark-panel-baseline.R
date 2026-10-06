@@ -1,21 +1,23 @@
 # Time zero moves to the landmark, and baseline covariates are read at the
 # recruiting week.
 #
-# Phase 8 removed the person-bands that cannot qualify at the landmark. It left
-# follow-up starting at the entry band, so a person-band still carried
-# within-band immortal time of up to `period_width - 1` weeks. Worse: landmark
-# qualification makes the WHOLE entry band immortal, because a person must
-# survive it, event-free and under observation, to enroll at all.
+# Phase 8 removed the candidate person-trials that cannot qualify at the
+# landmark. It left follow-up starting at the enrollment period, so a candidate
+# person-trial still carried within-enrollment period immortal time of up to
+# `period_width - 1` weeks. Worse: landmark qualification makes the WHOLE
+# enrollment period immortal, because a person must survive it, event-free and
+# under observation, to enroll at all.
 #
 # This file pins four properties.
 #
-# 1. The panel starts one band after the entry band, and its first row has
-#    `tstart == 0`. `entry_band_id` stays on the panel and names the trial.
+# 1. The panel starts at time zero, the first week after the enrollment period,
+#    and its first row has `tstart == 0`. `enrollment_period_id` stays on the
+#    panel and names the trial.
 # 2. Each confounder reaches the panel twice. `.tte_entry__<v>` holds the value
 #    at the recruiting week. `<v>` holds the time-updated value of the
-#    follow-up band.
+#    follow-up interval.
 # 3. `$s2_ipw()` fits the propensity score on `.tte_entry__<v>`, and not on the
-#    landmark-band value that now sits at `tstart == 0`.
+#    first follow-up interval value that now sits at `tstart == 0`.
 # 4. `.s1d_worker()` hands `impute_fn` the `.tte_entry__` names. Imputation is
 #    name-list driven, so the plain names would leave the snapshot unimputed.
 
@@ -24,8 +26,8 @@ skip_if_not_installed("cstime")
 
 .lpb_pw <- 4L
 
-# Consecutive ISO year-weeks starting on a band boundary. Twelve of them make
-# three whole bands under `period_width = 4`.
+# Consecutive ISO year-weeks starting on an enrollment period boundary. Twelve
+# of them make three whole enrollment periods under `period_width = 4`.
 .lpb_weeks <- function(n_weeks = 12L) {
   wk <- data.table::copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -35,9 +37,9 @@ skip_if_not_installed("cstime")
   wk$isoyearweek[start_idx:(start_idx + n_weeks - 1L)]
 }
 
-# The trial_id of the first band, read from `.assign_trial_ids()` itself rather
-# than hard-coded.
-.lpb_band0 <- function(weeks) {
+# The trial_id of the first enrollment period, read from `.assign_trial_ids()`
+# itself rather than hard-coded.
+.lpb_period0 <- function(weeks) {
   d <- data.table::data.table(id = 1L, isoyearweek = weeks)
   swereg:::.assign_trial_ids(d, .lpb_pw)
   min(d$trial_id)
@@ -50,12 +52,12 @@ skip_if_not_installed("cstime")
 # `rd_tx` is "none". `NA` is what makes the recruiting week her initiation
 # week. A comparator holds FALSE in every week and never initiates.
 #
-# `elig_from` is the first week she is eligible. Eligibility stops at the end
-# of the entry band, so only band 0 recruits anybody and every person-trial in
-# the fixture is a band-0 trial.
+# `elig_from` is the first week she is eligible. Eligibility stops at the end of
+# the enrollment period, so only enrollment period 0 recruits anybody and every
+# person-trial in the fixture is a trial of enrollment period 0.
 #
-# `age` rises by `age_step` every week, so the band start, the recruiting week
-# and the landmark band are three different values.
+# `age` rises by `age_step` every week, so the enrollment period start, the
+# recruiting week and the first follow-up interval are three different values.
 .lpb_person <- function(
   id,
   weeks,
@@ -103,13 +105,13 @@ skip_if_not_installed("cstime")
   )
 }
 
-# The two women who separate a correct read from a band-start read, plus enough
-# plain comparators for the ratio to draw from.
+# The two women who separate a correct read from an enrollment period-start
+# read, plus enough plain comparators for the ratio to draw from.
 #
 # LATE is not eligible until week 3 and initiates in that same week, so her
-# recruiting week is week 3 and NOT the band start. EARLY is eligible from week
-# 1 and initiates there, so her recruiting week IS the band start. The pair is
-# what makes the fixture discriminating.
+# recruiting week is week 3 and NOT the enrollment period start. EARLY is
+# eligible from week 1 and initiates there, so her recruiting week IS the
+# enrollment period start. The pair is what makes the fixture discriminating.
 .lpb_three_instant_data <- function(weeks) {
   data.table::rbindlist(list(
     .lpb_person("LATE", weeks, tx_week = 3L, elig_from = 3L),
@@ -126,22 +128,22 @@ skip_if_not_installed("cstime")
 # PROOF 1
 # ---------------------------------------------------------------------------
 
-test_that("the panel starts after the entry band", {
+test_that("the panel starts after the enrollment period", {
   weeks <- .lpb_weeks()
-  band0 <- .lpb_band0(weeks)
+  period0 <- .lpb_period0(weeks)
   d <- .lpb_three_instant_data(weeks)
 
   trial <- .lpb_enroll(d, .lpb_design(follow_up_time = 8L))
   panel <- trial$data
   expect_gt(nrow(panel), 0L)
 
-  # `entry_band_id` names the trial. Dropping it would leave nothing on the
-  # panel that says which band recruited the person.
-  expect_true("entry_band_id" %in% names(panel))
-  expect_true(all(panel$entry_band_id == band0))
+  # `enrollment_period_id` names the trial. Dropping it would leave nothing on
+  # the panel that says which enrollment period recruited the person.
+  expect_true("enrollment_period_id" %in% names(panel))
+  expect_true(all(panel$enrollment_period_id == period0))
 
-  # Every person-trial opens at the landmark, which is the band after the
-  # entry band, and its first row is `tstart == 0`.
+  # Every person-trial opens at the landmark, which is the enrollment period
+  # after the enrollment period, and its first row is `tstart == 0`.
   first_rows <- panel[
     order(enrollment_person_trial_id, trial_id),
     .SD[1L],
@@ -150,16 +152,17 @@ test_that("the panel starts after the entry band", {
   expect_gt(nrow(first_rows), 0L)
   expect_identical(
     first_rows$trial_id,
-    first_rows$entry_band_id + 1L
+    first_rows$enrollment_period_id + 1L
   )
   expect_true(all(first_rows$tstart == 0L))
 
-  # No row anywhere in the panel sits in the entry band. That band is the
-  # immortal one, and this is the assertion that says it is gone.
-  expect_equal(sum(panel$trial_id <= panel$entry_band_id), 0L)
-  expect_true(all(panel$trial_id >= panel$entry_band_id + 1L))
+  # No row anywhere in the panel sits in the enrollment period. That enrollment
+  # period is the immortal one, and this is the assertion that says it is gone.
+  expect_equal(sum(panel$trial_id <= panel$enrollment_period_id), 0L)
+  expect_true(all(panel$trial_id >= panel$enrollment_period_id + 1L))
 
-  # Follow-up is still `follow_up_time` weeks long: two bands of four weeks.
+  # Follow-up is still `follow_up_time` weeks long: two enrollment periods of
+  # four weeks.
   per_trial <- panel[, .N, by = enrollment_person_trial_id]
   expect_true(all(per_trial$N == 2L))
 })
@@ -171,16 +174,16 @@ test_that("the panel starts after the entry band", {
 
 test_that("the entry covariate is read at the recruiting week", {
   weeks <- .lpb_weeks()
-  band0 <- .lpb_band0(weeks)
+  period0 <- .lpb_period0(weeks)
   d <- .lpb_three_instant_data(weeks)
 
   # The three instants, stated as the fixture builds them. `age` starts at 100
   # in week 1 and rises by one each week.
-  age_at_band_start <- 100L # fixture week 1
+  age_at_period_start <- 100L # fixture week 1
   age_at_recruiting_week <- 102L # fixture week 3, LATE's first eligible week
-  age_at_landmark_band <- 104L # fixture week 5, the first follow-up band
-  expect_false(age_at_recruiting_week == age_at_band_start)
-  expect_false(age_at_recruiting_week == age_at_landmark_band)
+  age_at_first_interval <- 104L # fixture week 5, the first follow-up interval
+  expect_false(age_at_recruiting_week == age_at_period_start)
+  expect_false(age_at_recruiting_week == age_at_first_interval)
 
   trial <- .lpb_enroll(d, .lpb_design(follow_up_time = 8L))
   panel <- trial$data
@@ -192,17 +195,18 @@ test_that("the entry covariate is read at the recruiting week", {
   # The entry snapshot reads the recruiting week.
   expect_identical(late$.tte_entry__age, age_at_recruiting_week)
   # It is NOT the first week of the entry window.
-  expect_false(late$.tte_entry__age == age_at_band_start)
-  # It is NOT the landmark-band value, which is what `age` itself holds.
-  expect_false(late$.tte_entry__age == age_at_landmark_band)
-  expect_identical(late$age, age_at_landmark_band)
+  expect_false(late$.tte_entry__age == age_at_period_start)
+  # It is NOT the first follow-up interval value, which is what `age` itself
+  # holds.
+  expect_false(late$.tte_entry__age == age_at_first_interval)
+  expect_identical(late$age, age_at_first_interval)
 
-  # EARLY is eligible from week 1, so her recruiting week IS the band start.
-  # The two women therefore hold different entry values, and a read at the
-  # band start cannot match both.
+  # EARLY is eligible from week 1, so her recruiting week IS the enrollment
+  # period start. The two women therefore hold different entry values, and a
+  # read at the enrollment period start cannot match both.
   early <- panel[id == "EARLY" & tstart == 0L]
   expect_identical(nrow(early), 1L)
-  expect_identical(early$.tte_entry__age, age_at_band_start)
+  expect_identical(early$.tte_entry__age, age_at_period_start)
   expect_false(late$.tte_entry__age == early$.tte_entry__age)
 
   # The follow-up column keeps the time-updated value on every row, so the
@@ -211,7 +215,7 @@ test_that("the entry covariate is read at the recruiting week", {
     panel[id == "LATE"][order(trial_id)]$age,
     c(104L, 108L)
   )
-  expect_true(all(panel[trial_id == band0 + 1L]$age == age_at_landmark_band))
+  expect_true(all(panel[trial_id == period0 + 1L]$age == age_at_first_interval))
 })
 
 
@@ -220,9 +224,9 @@ test_that("the entry covariate is read at the recruiting week", {
 # ---------------------------------------------------------------------------
 
 # Ten intervention and twenty comparator persons, each recruited in a different
-# week of the entry band. `age` rises five per week, so the entry value and the
-# landmark value differ by five to twenty. Both arms span the same age range,
-# which is what keeps the logistic fit away from separation.
+# week of the enrollment period. `age` rises five per week, so the entry value
+# and the landmark value differ by five to twenty. Both arms span the same age
+# range, which is what keeps the logistic fit away from separation.
 .lpb_ipw_data <- function(weeks) {
   int <- lapply(seq_len(10L), function(i) {
     .lpb_person(
@@ -271,7 +275,8 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
   ps_entry <- unname(stats::predict(fit_entry, type = "response"))
   expect_equal(b$ps, ps_entry, tolerance = 1e-10)
 
-  # The wrong fit: the landmark-band value that now sits at `tstart == 0`.
+  # The wrong fit: the first follow-up interval value that now sits at `tstart
+  # == 0`.
   ref_follow <- data.frame(y = b$exposed, x = b$age)
   fit_follow <- stats::glm(y ~ x, data = ref_follow, family = stats::binomial)
   ps_follow <- unname(stats::predict(fit_follow, type = "response"))
@@ -342,7 +347,7 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
     n_persons = 40L,
     date_min = "2018-01-01",
     date_max = "2019-06-30",
-    n_init_bands = 8L,
+    n_init_periods = 8L,
     seed = 4242L
   )
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")
@@ -488,11 +493,11 @@ test_that("imputation receives the entry-snapshot names", {
 # row, `cumprod()` carries it through the rest of the person-trial, and the NA
 # reaches the survey fit far from its cause.
 
-# A trial-level panel, 60 person-trials over 3 bands. `.tte_entry__age` is
-# always present, so the entry snapshot cannot stand in for the follow-up
-# value. Every fourth person-trial deviates at the third band, so censoring
-# really fires and the model is fitted rather than falling back to the
-# marginal rate.
+# A trial-level panel, 60 person-trials over 3 enrollment periods.
+# `.tte_entry__age` is always present, so the entry snapshot cannot stand in for
+# the follow-up value. Every fourth person-trial deviates at the third
+# enrollment period, so censoring really fires and the model is fitted rather
+# than falling back to the marginal rate.
 .lpb_ipcw_panel <- function(n = 60L) {
   d <- data.table::rbindlist(lapply(seq_len(n), function(i) {
     tx <- i <= (n %/% 2L)
@@ -622,15 +627,15 @@ test_that("a panel built without a recruiting week keeps the old read", {
   # `enrolled_ids` built by hand, exactly as a caller outside the plan chain
   # writes it. It carries no `recruit_week_index`, so no snapshot exists and
   # `$s2_ipw()` falls back to the follow-up column.
-  band0 <- .lpb_band0(weeks)
+  period0 <- .lpb_period0(weeks)
   enrolled_ids <- data.table::data.table(
     id = c("LATE", "EARLY", paste0("C", 1:4)),
-    trial_id = band0,
+    trial_id = period0,
     intervention = c(TRUE, TRUE, rep(FALSE, 4L)),
     enrollment_person_trial_id = paste0(
       c("LATE", "EARLY", paste0("C", 1:4)),
       ".",
-      band0
+      period0
     )
   )
   trial <- TTEEnrollment$new(
@@ -641,10 +646,10 @@ test_that("a panel built without a recruiting week keeps the old read", {
     extra_cols = "isoyearweek"
   )
   expect_false(".tte_entry__age" %in% names(trial$data))
-  expect_true("entry_band_id" %in% names(trial$data))
+  expect_true("enrollment_period_id" %in% names(trial$data))
   # Time zero still moves. Only the covariate read falls back.
-  expect_true(all(trial$data$trial_id >= trial$data$entry_band_id + 1L))
-  expect_true(all(trial$data[tstart == 0L]$trial_id == band0 + 1L))
+  expect_true(all(trial$data$trial_id >= trial$data$enrollment_period_id + 1L))
+  expect_true(all(trial$data[tstart == 0L]$trial_id == period0 + 1L))
 
   # `$s2_ipw()` reads the follow-up column, and reports no error.
   trial$s2_ipw()
@@ -661,7 +666,7 @@ test_that("both Table 1 routes read the entry snapshot", {
   expect_equal(by_method, by_worker)
 
   # The number the panel reports is the mean of the entry snapshot, and not
-  # the mean of the landmark-band column.
+  # the mean of the first follow-up interval column.
   b <- trial$data[tstart == 0L]
   overall <- by_method[startsWith(Variable, "age ")]$Overall
   expect_length(overall, 1L)

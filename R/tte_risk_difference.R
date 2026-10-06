@@ -46,30 +46,30 @@
 
 #' Arm survival for a batch of bootstrap multiplicity rows
 #'
-#' The weighted hazard of one arm, accumulated over the bands, for every
-#' replicate in one batch at once.
+#' The weighted hazard of one arm, accumulated over the stop times, for
+#' every replicate in one batch at once.
 #'
 #' @param mult An integer matrix. One row per replicate, one column per
 #'   person-trial. Row `i` is the multiplicity vector of replicate `i`.
 #' @param mats The `num` and `den` matrix pair of one arm. Each is
-#'   `n_person_trial` rows by `n_band` columns.
-#' @return A numeric matrix. One row per replicate, one column per band. Row
-#'   `i` is the survival curve of replicate `i`.
+#'   `n_person_trial` rows by `n_interval` columns.
+#' @return A numeric matrix. One row per replicate, one column per stop
+#'   time. Row `i` is the survival curve of replicate `i`.
 #' @noRd
 .rd_surv_batch <- function(mult, mats) {
   numerator <- mult %*% mats$num
   denominator <- mult %*% mats$den
-  # A replicate can draw no person for an arm, or empty one band. That is a
-  # missing survival, not a zero and not an error; cumprod carries it forward
-  # and the percentile step drops it. The rule stays per element, so a batch
-  # gives the missing pattern that one replicate at a time gives.
+  # A replicate can draw no person for an arm, or empty one stop time.
+  # That is a missing survival, not a zero and not an error; cumprod carries it
+  # forward and the percentile step drops it. The rule stays per element, so a
+  # batch gives the missing pattern that one replicate at a time gives.
   denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
   surv <- 1 - numerator / denominator
-  # A band where the ARM ITSELF holds nobody at risk carries the survival
-  # forward. Its column of `den` is zero for every person-trial, so no draw can
-  # put a person there: the missing denominator is structural and says nothing
-  # about the replicate. A denominator that only THIS replicate emptied stays
-  # missing, and the percentile step drops it.
+  # A stop time where the ARM ITSELF holds nobody at risk carries the
+  # survival forward. Its column of `den` is zero for every person-trial, so no
+  # draw can put a person there: the missing denominator is structural and says
+  # nothing about the replicate. A denominator that only THIS replicate emptied
+  # stays missing, and the percentile step drops it.
   exhausted <- colSums(mats$den) <= 0
   if (any(exhausted)) {
     surv[, exhausted] <- 1
@@ -109,9 +109,9 @@
 #'
 #' The ONE place a signed risk difference becomes a benefit-or-harm decision.
 #' The decision is DATA. `.tte_rd_curve()` stores both returned columns on every
-#' band, and every formatter reads `nnt_direction` rather than the sign of a
-#' number. A formatter that re-derived the direction could disagree with the
-#' formatter beside it, and nothing would report the disagreement.
+#' stop time, and every formatter reads `nnt_direction` rather than the
+#' sign of a number. A formatter that re-derived the direction could disagree
+#' with the formatter beside it, and nothing would report the disagreement.
 #'
 #' Sign convention, fixed by `.tte_rd_curve()`:
 #' `RD(t) = S_comparator(t) - S_intervention(t)`. So a protective intervention
@@ -156,24 +156,24 @@
 #' The stored value is signed. A protective intervention gives a negative risk
 #' difference and that minus sign is the result, not a nuisance.
 #'
-#' The risk set SPANS the band. A person-trial is at risk at band `t` when its
-#' row covers `t`. That is `tstart < t <= tstop`, and not only `tstop == t`.
-#' The event still lands at the stop of its own row.
+#' The risk set SPANS the stop time. A person-trial is at risk at time
+#' `t` when its row covers `t`. That is `tstart < t <= tstop`, and not only
+#' `tstop == t`. The event still lands at the stop of its own row.
 #' `.tte_span_risk_sets()` states both rules, and `$survival_curve()` reads
 #' them, so the curve in the figure and the point estimate here are the same
 #' numbers. The bootstrap reads the same two matrices as the point estimate.
 #'
 #' Performance. The weighted hazard is `sum(w * event) / sum(w)` over the rows
 #' at risk, and both sums decompose additively over persons. So the panel is
-#' aggregated ONCE to one number pair per person-trial-band, laid out as two
-#' dense `n_person_trial x n_band` matrices per arm. A batch of `.RD_BOOT_BATCH`
-#' replicates is then a single matrix product against their multiplicity matrix.
-#' Resampling the panel itself costs about a hundred times more per replicate
-#' and returns the same numbers.
-#' The matrix row is the person-trial rather than the person only because the
-#' bootstrap index is taken over the person-trial table; the multiplicity of a
-#' person is carried by every one of her person-trials, so the product is the
-#' person-level sum written out term by term.
+#' aggregated ONCE to one number pair per person-trial interval, laid out as two
+#' dense `n_person_trial x n_interval` matrices per arm. A batch of
+#' `.RD_BOOT_BATCH` replicates is then a single matrix product against their
+#' multiplicity matrix. Resampling the panel itself costs about a hundred times
+#' more per replicate and returns the same numbers. The matrix row is the
+#' person-trial rather than the person only because the bootstrap index is taken
+#' over the person-trial table; the multiplicity of a person is carried by every
+#' one of her person-trials, so the product is the person-level sum written out
+#' term by term.
 #'
 #' One multiplicity vector serves BOTH arms. Persons cross arms: a woman can be
 #' a comparator in an early trial and an initiator in a later one. Drawing a
@@ -192,33 +192,35 @@
 #' quantity.
 #'
 #' The condition is evaluated per horizon and per arm, on the events up to and
-#' including that band. An arm can have no event by week 52 and several by
-#' week 156, and the week-156 interval is then estimable.
+#' including that stop time. An arm can have no event by week 52 and
+#' several by week 156, and the week-156 interval is then estimable.
 #'
-#' An interval that CONTAINS the null is a third state, and it is named. A band
-#' whose interval is estimable but does not strictly exclude zero reads
-#' `"spans null"`. The number needed to treat has no interval there, because
-#' `x -> -1/x` is undefined across zero. The old code left that band on `"ok"`
-#' and made the reason visible only as an empty cell on a figure.
+#' An interval that CONTAINS the null is a third state, and it is named. A
+#' stop time whose interval is estimable but does not strictly exclude
+#' zero reads `"spans null"`. The number needed to treat has no interval there,
+#' because `x -> -1/x` is undefined across zero. The old code left that
+#' stop time on `"ok"` and made the reason visible only as an empty
+#' cell on a figure.
 #'
 #' The benefit-or-harm decision is stored, not re-derived. `nnt` holds the
 #' signed number needed to treat and `nnt_direction` holds the decision.
 #' `.tte_nnt_from_rd()` computes both beside `rd`, from the same numbers.
 #' Every formatter reads `nnt_direction`, so a figure and a results sheet
-#' cannot reach opposite conclusions about one band.
+#' cannot reach opposite conclusions about one stop time.
 #'
 #' The INTERVAL of the number needed to treat is stored beside the decision.
 #' `nnt_lo` and `nnt_hi` come from `.tte_nntb()`, which is the one site that
 #' maps a risk-difference interval onto the reciprocal scale. A consumer reads
 #' the two columns and never inverts `rd_lo` and `rd_hi` itself.
 #'
-#' Both bounds are `NA` on a band whose interval does not strictly exclude the
-#' null, because `x -> -1/x` is undefined across zero. `interval_status` reads
-#' `"spans null"` on exactly those bands, so the `NA` has a stated reason. The
-#' point estimate `nnt` stays finite there, and a formatter that prints an
-#' interval MUST print nothing rather than the point estimate alone.
+#' Both bounds are `NA` on a stop time whose risk-difference interval
+#' does not strictly exclude the null, because `x -> -1/x` is undefined across
+#' zero. `interval_status` reads `"spans null"` on exactly those stop
+#' times, so the `NA` has a stated reason. The point estimate `nnt` stays
+#' finite there, and a formatter that prints an interval MUST print nothing
+#' rather than the point estimate alone.
 #'
-#' The head count of people at risk is stored per arm per band, as
+#' The head count of people at risk is stored per arm per stop time, as
 #' `n_persons_at_risk_comparator` and `n_persons_at_risk_intervention`. It is
 #' `uniqueN()` over the person identifier, the same count `$survival_curve()`
 #' returns under the name `n_persons_at_risk`. It is neither the row count,
@@ -226,11 +228,12 @@
 #' the denominator of the hazard. A numbers-at-risk row reports people, so it
 #' cannot be derived from survival or from any other weighted quantity.
 #'
-#' @param data A data.table at trial level, one row per person-trial-band.
+#' @param data A data.table at trial level, one row per person-trial interval.
 #' @param person_id_var Character, the person identifier column (the cluster).
 #' @param id_var Character, the person-trial identifier column.
 #' @param treatment_var Character, the baseline arm column (logical or 0/1).
-#' @param time_var Character, the band column.
+#' @param time_var Character, the time column. Each value is the stop of one
+#'   stop time.
 #' @param weight_col Character, the weight column (time-varying allowed).
 #' @param n_boot Integer, number of bootstrap replicates.
 #' @param conf_level Numeric in (0, 1), the percentile interval level.
@@ -239,10 +242,10 @@
 #'   `mult_comparator` attributes, one row per replicate. Verification only:
 #'   the two matrices are `n_boot x n_person_trial` and are large on real data.
 #' @param tstart_var Character, the period start column. Where the panel omits
-#'   it, `.tte_interval_start()` reads each row as covering the one band that
-#'   ends at its own stop.
-#' @return A data.table, one row per band. The `interval_status` column takes
-#'   one of three values.
+#'   it, `.tte_interval_start()` reads each row as covering the one stop
+#'   time that ends at its own stop.
+#' @return A data.table, one row per stop time. The `interval_status`
+#'   column takes one of three values.
 #'   \itemize{
 #'     \item `"ok"`. The bootstrap interval is estimable and strictly excludes
 #'       the null.
@@ -256,9 +259,10 @@
 #'   excludes the null. The `nnt_direction` column holds the stored decision. It
 #'   reads `"benefit"`, `"harm"` or `NA_character_`.
 #'   The `n_persons_at_risk_comparator` and `n_persons_at_risk_intervention`
-#'   columns hold the distinct-person head count of each arm in that band.
-#'   Attributes: `rd_boot` (the `n_boot x n_band` replicate matrix the
-#'   percentiles were read off), `conf_level`, `n_boot`, `swereg_type`.
+#'   columns hold the distinct-person head count of each arm in that stop
+#'   time. Attributes: `rd_boot` (the `n_boot x n_interval` replicate
+#'   matrix the percentiles were read off), `conf_level`, `n_boot`,
+#'   `swereg_type`.
 #' @noRd
 .tte_rd_curve <- function(
   data,
@@ -272,7 +276,8 @@
   keep_mult = FALSE,
   tstart_var = "tstart"
 ) {
-  . <- arm <- pt <- band <- num <- den <- first_band <- N <- NULL # nolint
+  . <- arm <- pt <- interval <- num <- den <- NULL # nolint
+  first_interval <- N <- NULL # nolint
   person <- n_persons <- NULL # nolint
 
   needed <- c(person_id_var, id_var, treatment_var, time_var, weight_col)
@@ -373,18 +378,18 @@
     )
   }
 
-  band_vals <- sort(unique(data[[time_var]]))
-  n_band <- length(band_vals)
-  band_code <- match(data[[time_var]], band_vals)
-  tstart <- .tte_interval_start(data, tstart_var, time_var, band_vals)
-  span <- .tte_span_index(tstart, data[[time_var]], band_vals)
+  interval_vals <- sort(unique(data[[time_var]]))
+  n_interval <- length(interval_vals)
+  interval_code <- match(data[[time_var]], interval_vals)
+  tstart <- .tte_interval_start(data, tstart_var, time_var, interval_vals)
+  span <- .tte_span_index(tstart, data[[time_var]], interval_vals)
 
   # Aggregate ONCE. Both sums are additive over persons, so a person-level
   # resample only needs these totals, never the panel rows again.
   #
-  # The two sums read different rows, and that difference is the estimand.
-  # The numerator holds the events at the stop of their own row. The
-  # denominator holds the weight of every row that SPANS the band, which is
+  # The two sums read different rows, and that difference is the estimand. The
+  # numerator holds the events at the stop of their own row. The denominator
+  # holds the weight of every row that SPANS the stop time, which is
   # the risk set `.tte_span_risk_sets()` defines and `$survival_curve()`
   # reports. The point estimate and every replicate read these same two
   # matrices, so the bootstrap cannot resample one definition while the point
@@ -392,26 +397,26 @@
   agg_num <- data.table::data.table(
     arm = tv,
     pt = pt_code,
-    band = band_code,
+    interval = interval_code,
     num = as.numeric(w) * as.numeric(ev)
-  )[num != 0, .(num = sum(num)), keyby = .(arm, pt, band)]
+  )[num != 0, .(num = sum(num)), keyby = .(arm, pt, interval)]
 
   n_span <- pmax(span$hi - span$lo + 1L, 0L)
   spanned <- rep.int(seq_along(n_span), n_span)
   agg_den <- data.table::data.table(
     arm = tv[spanned],
     pt = pt_code[spanned],
-    band = sequence(n_span, from = span$lo),
+    interval = sequence(n_span, from = span$lo),
     den = as.numeric(w)[spanned]
-  )[, .(den = sum(den)), keyby = .(arm, pt, band)]
+  )[, .(den = sum(den)), keyby = .(arm, pt, interval)]
 
   arm_mats <- function(which_arm) {
-    mn <- matrix(0, nrow = n_pt, ncol = n_band)
-    md <- matrix(0, nrow = n_pt, ncol = n_band)
+    mn <- matrix(0, nrow = n_pt, ncol = n_interval)
+    md <- matrix(0, nrow = n_pt, ncol = n_interval)
     sub_n <- agg_num[arm == which_arm]
     sub_d <- agg_den[arm == which_arm]
-    mn[cbind(sub_n$pt, sub_n$band)] <- sub_n$num
-    md[cbind(sub_d$pt, sub_d$band)] <- sub_d$den
+    mn[cbind(sub_n$pt, sub_n$interval)] <- sub_n$num
+    md[cbind(sub_d$pt, sub_d$interval)] <- sub_d$den
     return(list(num = mn, den = md))
   }
   m_int <- arm_mats(TRUE)
@@ -446,7 +451,7 @@
   surv_cmp <- arm_surv(one, m_cmp, "comparator", 0L)[1L, ]
   rd <- rd_of(surv_cmp, surv_int)
 
-  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_band)
+  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_interval)
   for (first in seq.int(1L, n_boot, by = .RD_BOOT_BATCH)) {
     rep_index <- seq.int(first, min(first + .RD_BOOT_BATCH - 1L, n_boot))
     # One draw per replicate, in replicate order, exactly as one replicate at a
@@ -489,24 +494,24 @@
   # The point estimate stays. It is a valid descriptive quantity, and the
   # `interval_status` column says why nothing accompanies it.
   #
-  # PER HORIZON and PER ARM, on the events up to and including the band.
-  # `m_int$num` and `m_cmp$num` hold `sum(w * event)` per person-trial and
-  # band. A column sum is therefore that arm's weighted event total in the
-  # band, and the running sum is its total through the horizon. An arm with no
-  # event by band 4 and two events by band 8 is inestimable at band 4 and
-  # estimable at band 8.
+  # PER HORIZON and PER ARM, on the events up to and including the stop
+  # time. `m_int$num` and `m_cmp$num` hold `sum(w * event)` per person-trial
+  # and stop time. A column sum is therefore that arm's weighted event
+  # total at the stop time, and the running sum is its total through
+  # the horizon. An arm with no event by week 4 and two events by week 8 is
+  # inestimable at week 4 and estimable at week 8.
   weighted_events_int <- cumsum(colSums(m_int$num))
   weighted_events_cmp <- cumsum(colSums(m_cmp$num))
   zero_event_arm <- weighted_events_int <= 0 | weighted_events_cmp <= 0
   rd_lo[zero_event_arm] <- NA_real_
   rd_hi[zero_event_arm] <- NA_real_
-  # Three states, and each names its own reason. A band whose interval is
-  # estimable but contains the null is NOT "ok": the number needed to treat has
-  # no interval there, because `x -> -1/x` is undefined across zero. Leaving it
-  # on "ok" put that reason nowhere except an empty cell on a figure.
-  # `zero-event arm` wins where both apply, because it is why the bounds are
-  # `NA` and an `NA` bound cannot be judged against the null.
-  interval_status <- rep("ok", n_band)
+  # Three states, and each names its own reason. A stop time whose
+  # interval is estimable but contains the null is NOT "ok": the number needed
+  # to treat has no interval there, because `x -> -1/x` is undefined across
+  # zero. Leaving it on "ok" put that reason nowhere except an empty cell on a
+  # figure. `zero-event arm` wins where both apply, because it is why the bounds
+  # are `NA` and an `NA` bound cannot be judged against the null.
+  interval_status <- rep("ok", n_interval)
   interval_status[!.tte_excludes_null(rd_lo, rd_hi)] <- "spans null"
   interval_status[zero_event_arm] <- "zero-event arm"
 
@@ -516,22 +521,22 @@
 
   # The interval, from the ONE site that maps a risk-difference interval onto
   # the reciprocal scale. Storing it here is what stops a figure from inverting
-  # `rd_lo` and `rd_hi` on its own. `.tte_nntb()` returns `NA` on a band whose
-  # interval does not strictly exclude the null, which is the same test
-  # `interval_status` reports as "spans null".
+  # `rd_lo` and `rd_hi` on its own. `.tte_nntb()` returns `NA` on a stop
+  # time whose interval does not strictly exclude the null, which is the
+  # same test `interval_status` reports as "spans null".
   nnt_bounds <- .tte_nntb(rd, rd_lo, rd_hi)
 
-  # Distinct PEOPLE, cumulative through the band -- not rows and not
-  # person-trials. One woman can carry the event in two of her sequential
+  # Distinct PEOPLE, cumulative through the stop time -- not rows and
+  # not person-trials. One woman can carry the event in two of her sequential
   # trials; she is one person who had the outcome, counted once.
   ev_rows <- which(ev == 1L)
   counts <- if (length(ev_rows)) {
     first_ev <- data.table::data.table(
       arm = tv[ev_rows],
       person = person_raw[ev_rows],
-      band = band_code[ev_rows]
-    )[, .(first_band = min(band)), keyby = c("arm", "person")]
-    first_ev[, .N, keyby = .(arm, first_band)]
+      interval = interval_code[ev_rows]
+    )[, .(first_interval = min(interval)), keyby = c("arm", "person")]
+    first_ev[, .N, keyby = .(arm, first_interval)]
   } else {
     # An ETT with no event inside the follow-up window is legitimate for a rare
     # outcome in a small stratum. Skipping the grouping matters: data.table
@@ -539,20 +544,20 @@
     NULL
   }
   cum_persons <- function(which_arm) {
-    n <- integer(n_band)
+    n <- integer(n_interval)
     if (!is.null(counts)) {
       sub <- counts[arm == which_arm]
       if (nrow(sub)) {
-        n[sub$first_band] <- sub$N
+        n[sub$first_interval] <- sub$N
       }
     }
     return(cumsum(n))
   }
 
   # The head count a numbers-at-risk row reports. Three different numbers live
-  # in one arm-band cell of this panel, and only the third belongs here:
+  # in one arm-by-interval cell of this panel, and only the third belongs here:
   #
-  #   .N                     rows       = person-trials in the band
+  #   .N                     rows       = person-trials in the interval
   #   sum(w)                 at_risk    = the weighted risk set, the hazard
   #                                       denominator
   #   uniqueN(person)        persons    = the head count
@@ -569,14 +574,14 @@
     event = ev,
     tstart = tstart,
     tstop = data[[time_var]],
-    times = band_vals
+    times = interval_vals
   )
   persons_at_risk <- function(which_arm) {
     return(spans[arm == which_arm]$n_persons_at_risk)
   }
 
   out <- data.table::data.table(
-    band = band_vals,
+    interval = interval_vals,
     surv_comparator = surv_cmp,
     surv_intervention = surv_int,
     rd = rd,
@@ -592,7 +597,7 @@
     n_persons_at_risk_comparator = persons_at_risk(FALSE),
     n_persons_at_risk_intervention = persons_at_risk(TRUE)
   )
-  data.table::setnames(out, "band", time_var)
+  data.table::setnames(out, "interval", time_var)
 
   data.table::setattr(out, "rd_boot", boot)
   data.table::setattr(out, "conf_level", conf_level)
@@ -636,9 +641,9 @@
 #' When the interval does not strictly exclude the null, all three values are
 #' `NA`. Be clear about what that `NA` is: the quantity is UNDEFINED there, not
 #' merely unmeasured, and it does make the displayed value depend on the
-#' interval. A band whose interval crosses zero shows nothing, and that is a
-#' property of the reciprocal transform rather than a decision to hide a
-#' non-significant result.
+#' interval. A stop time whose interval crosses zero shows nothing, and
+#' that is a property of the reciprocal transform rather than a decision to hide
+#' a non-significant result.
 #'
 #' Because the transform is monotone on each side, an interval that excludes
 #' the null keeps its ordering: `rd_lo` maps to `nntb_lo`, `rd_hi` maps to
@@ -793,7 +798,8 @@
 
   people <- function(x) vapply(x, .ff_num, character(1), digits = 0L)
   # The stored decision, read. NOT the sign of `nntb`, which is what let a
-  # figure and a results sheet reach opposite conclusions about one band.
+  # figure and a results sheet reach opposite conclusions about one stop
+  # time.
   usable <- is.finite(nntb) & !is.na(nnt_direction)
   benefit <- usable & nnt_direction == "benefit"
   harm <- usable & nnt_direction == "harm"

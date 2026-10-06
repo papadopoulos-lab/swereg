@@ -10,6 +10,18 @@
 #' underlying qs2 error `qdata format detected, use qs2::qd_read`. swereg has
 #' never written qdata files itself.
 #'
+#' @section Schema migration:
+#' The reader renames the columns that swereg 26.15.0 renamed, before it
+#' checks the schema version of an R6 object. A [TTEEnrollment] at schema 4
+#' gets the panel column `enrollment_period_id` under that name. A [TTEPlan]
+#' at schema 3 gets the column `follow_up_interval` under that name in its
+#' stored risk-difference rows. The rename changes no value. An object at an
+#' older schema is refused as before.
+#'
+#' The rename runs here because a deserialised R6 object keeps the method
+#' bodies it was saved with. Its own `check_version()` refuses the older
+#' schema, so a migration inside the new `check_version()` would never run.
+#'
 #' @section data.table over-allocation:
 #' The reader restores data.table over-allocation before it returns. qs2 does
 #' not keep the over-allocated column slots, so a table read from disk has a
@@ -59,6 +71,11 @@
 #' @export
 qs2_read <- function(file, nthreads = 1L) {
   obj <- qs2::qs_read(file, nthreads = nthreads)
+
+  # Rename the columns a later release renamed, BEFORE the version check.
+  # The object keeps the `check_version()` body it was saved with, and that
+  # body refuses an older schema. See R/tte_schema_migration.R.
+  obj <- .tte_migrate_on_read(obj, path = file)
 
   # Auto-check schema version for R6 objects
   if (is.environment(obj) && !is.null(obj$check_version)) {

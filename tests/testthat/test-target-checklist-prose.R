@@ -36,7 +36,7 @@ skip_if_not_installed("withr")
     "A",
     n_persons = 20L,
     date_max = "2016-12-31",
-    n_init_bands = 4L
+    n_init_periods = 4L
   )
   skel <- file.path(dir_tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel)
@@ -350,4 +350,44 @@ test_that("the estimand set drives the s3 item list", {
   expect_false(any(w == "ipw_trunc"))
   expect_false(any(grepl("ipw_trunc", names(reduced), fixed = TRUE)))
   expect_identical(length(reduced), 40L)
+})
+
+
+# --- the time-zero definition ----------------------------------------------
+# The contract wording is printed verbatim wherever the generated text defines
+# follow-up: item 6d, the item 7d segment, and the protocol table's follow-up
+# emulation cell. The expected string is written out here and not read off
+# `.TTE_TIME_ZERO_DEFINITION`, so a change to the constant fails this test.
+
+.tcp_time_zero <- paste(
+  "Time zero is a landmark: the first week after the enrollment period closes.",
+  "A person enters the trial only if they reach that week under observation",
+  "and free of every enrollment outcome."
+)
+
+test_that("item 6d states the time-zero definition verbatim", {
+  d <- .tcp_seg(.tcp_lines(), "Item 6d\\.[\\s\\S]*?(?=Item 6e\\.)")
+  expect_false(is.na(d))
+  expect_true(grepl(.tcp_time_zero, d, fixed = TRUE))
+})
+
+test_that("item 7d states the time-zero definition verbatim", {
+  seg <- .tcp_seg(.tcp_lines(), "Follow-up \\(6d\\):.*?(?=Outcomes \\(6e\\):)")
+  expect_false(is.na(seg))
+  expect_true(grepl(.tcp_time_zero, seg, fixed = TRUE))
+})
+
+test_that("the protocol table follow-up cell states the definition verbatim", {
+  plan <- .tcp_plan()
+  cell <- swereg:::.protocol_emulation(
+    plan$spec,
+    "follow_up_period",
+    list(
+      enrollment = plan$spec$enrollments[[1]],
+      enrollment_id = "01",
+      follow_up_weeks = 52,
+      follow_up_label = "1 year"
+    )
+  )
+  expect_true(.tcp_time_zero %in% strsplit(cell, "\n", fixed = TRUE)[[1]])
 })

@@ -9,8 +9,9 @@
 #
 # So the assertion here is over the WHOLE grid, never a featured subset. Every
 # ETT must carry `rd`, `rd_lo`, `rd_hi`, `nnt`, `nnt_direction` and
-# `interval_status`, plus the band-by-band curve. Gating the computation on
-# anything at all -- a flag, a featured list, an outcome role -- must break it.
+# `interval_status`, plus the follow-up interval-by-follow-up interval curve.
+# Gating the computation on anything at all -- a flag, a featured list, an
+# outcome role -- must break it.
 #
 # `rd_lo` and `rd_hi` are `NA` on a zero-event arm, by design and not by
 # failure. `interval_status` says so. The test therefore accepts a missing
@@ -36,11 +37,11 @@ skip_if_not_installed("qs2")
 
 # --- fixture ----------------------------------------------------------------
 
-# One trial-level analysis panel. `h_int` and `h_cmp` are the per-band event
+# One trial-level analysis panel. `h_int` and `h_cmp` are the per-interval event
 # probabilities in the intervention and comparator arms. Every person holds two
 # person-trials, so the person and the person-trial differ, which is the shape
 # the person-level bootstrap needs.
-.abs_panel <- function(n_persons, n_bands, h_int, h_cmp, seed) {
+.abs_panel <- function(n_persons, n_intervals, h_int, h_cmp, seed) {
   set.seed(seed)
   persons <- sprintf("p%04d", seq_len(n_persons))
   arm <- rep(c(TRUE, FALSE), length.out = n_persons)
@@ -48,9 +49,9 @@ skip_if_not_installed("qs2")
   for (k in seq_along(persons)) {
     h <- if (arm[k]) h_int else h_cmp
     for (trial in 1:2) {
-      ev <- stats::rbinom(n_bands, 1L, h)
+      ev <- stats::rbinom(n_intervals, 1L, h)
       first <- which(ev == 1L)
-      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_bands)
+      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_intervals)
       rows[[length(rows) + 1L]] <- data.table::data.table(
         id = persons[k],
         enrollment_person_trial_id = paste0(persons[k], "_t", trial),
@@ -95,14 +96,14 @@ skip_if_not_installed("qs2")
 .abs_plan <- function(
   output_dir,
   n_persons = 60L,
-  n_bands = 6L,
+  n_intervals = 6L,
   conf_level = NULL
 ) {
   design <- .abs_design()
   ids <- names(.ABS_CELLS)
   for (k in seq_along(ids)) {
     cell <- .ABS_CELLS[[k]]
-    d <- .abs_panel(n_persons, n_bands, cell$h_int, cell$h_cmp, cell$seed)
+    d <- .abs_panel(n_persons, n_intervals, cell$h_int, cell$h_cmp, cell$seed)
     enr <- swereg::TTEEnrollment$new(d, design, data_level = "trial")
     qs2::qs_save(enr, file.path(output_dir, sprintf("analysis_%03d.qs2", k)))
     qs2::qs_save(enr, file.path(output_dir, sprintf("analysis_itt_%03d.qs2", k)))
@@ -253,8 +254,9 @@ test_that("every ETT carries the stored survival curve", {
       expect_true(data.table::is.data.table(curve), info = info)
       expect_true(isTRUE(nrow(curve) > 1L), info = info)
 
-      # WIDE: one row per band, both arms as columns. A long form would give
-      # two rows per band and every reader would have to reshape it.
+      # WIDE: one row per follow-up interval, both arms as columns. A long form
+      # would give two rows per follow-up interval and every reader would have
+      # to reshape it.
       expect_true(
         all(c("surv_comparator", "surv_intervention") %in% names(curve)),
         info = info
@@ -268,17 +270,17 @@ test_that("every ETT carries the stored survival curve", {
         expect_true(all(diff(s) <= 1e-12), info = paste0(info, " / ", arm))
       }
 
-      # The stored curve is the one the risk difference was read off:
-      # RD(t) = S_comparator(t) - S_intervention(t), at every band.
+      # The stored curve is the one the risk difference was read off: RD(t) =
+      # S_comparator(t) - S_intervention(t), at every follow-up interval.
       expect_equal(
         curve$rd,
         curve$surv_comparator - curve$surv_intervention,
         info = info
       )
 
-      # The row is the LAST band of this curve, not the first. Storing the
-      # curve where the one-row summary belongs would report band 1 under the
-      # header for the end of follow-up.
+      # The row is the LAST follow-up interval of this curve, not the first.
+      # Storing the curve where the one-row summary belongs would report
+      # follow-up interval 1 under the header for the end of follow-up.
       row <- plan$results_ett[[eid]][[sub("^rd_curve_", "rd_", slot)]]
       expect_equal(row$rd, curve$rd[which.max(curve$tstop)], info = info)
 

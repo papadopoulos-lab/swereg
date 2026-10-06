@@ -752,11 +752,11 @@
         ylim_plot <- c(1 - ylim_plot[2], 1 - ylim_plot[1])
       }
     }
-    # NO ANALYSIS FILE IS OPENED TO RENDER. This branch read one until
-    # 26.8.20, and it was the last RENDER read in the export path.
-    # `$s3_analyze()` stores S(t) for both arms, and the head count of
-    # people at risk in each arm and band. Both panels of this figure
-    # therefore come from `$get_curves()`. s3 computes, s4 formats.
+    # NO ANALYSIS FILE IS OPENED TO RENDER. This branch read one until 26.8.20,
+    # and it was the last RENDER read in the export path. `$s3_analyze()` stores
+    # S(t) for both arms, and the head count of people at risk in each arm at
+    # each stop time. Both panels of this figure therefore come from
+    # `$get_curves()`. s3 computes, s4 formats.
     #
     # One analysis read remains in `$export_tables()` and it is a
     # PRODUCER's. A stale baseline panel sends `$recompute_baselines()` to
@@ -809,12 +809,12 @@
           "' curve of ",
           id_ett,
           " carries no numbers at risk. Re-run $s3_analyze(), which ",
-          "stores the distinct-person count for each arm and band.",
+          "stores the distinct-person count for each arm and stop time.",
           call. = FALSE
         )
       }
       curve <- data.table::data.table(
-        band = as.numeric(cv$band),
+        follow_up_interval = as.numeric(cv$follow_up_interval),
         surv = as.numeric(cv$surv),
         n_persons_at_risk = as.numeric(cv$n_persons_at_risk),
         group = data.table::fifelse(
@@ -823,10 +823,10 @@
           arms[["comparator"]]
         )
       )
-      data.table::setorderv(curve, c("group", "band"))
+      data.table::setorderv(curve, c("group", "follow_up_interval"))
       q <- .render_survival_curve(
         curve = curve,
-        time_var = "band",
+        time_var = "follow_up_interval",
         # Cumulative failure, not survival: a rare outcome is unreadable
         # as a curve pinned near 100%.
         scale = "cumulative_failure",

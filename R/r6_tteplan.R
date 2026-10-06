@@ -16,7 +16,7 @@
 # The standalone helpers and the spec functions moved to the tteplan_*.R files.
 # =============================================================================
 
-.TTE_PLAN_SCHEMA_VERSION <- 3L
+.TTE_PLAN_SCHEMA_VERSION <- 4L
 
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
@@ -115,7 +115,8 @@ TTEPlan <- R6::R6Class(
     registry_study_created_at = NULL,
     #' @field skeleton_created_at POSIXct or NULL. When skeleton files were created (from first file's attribute).
     skeleton_created_at = NULL,
-    #' @field period_width Integer, band width in weeks for enrollment (default: 4L).
+    #' @field period_width Integer, the width in weeks of the enrollment period
+    #'   (default: 4L). The same width sets each follow-up interval.
     period_width = 4L,
     #' @field enrollment_counts Named list of per-enrollment TARGET Item 8 data.
     #'   Each element is a list with:

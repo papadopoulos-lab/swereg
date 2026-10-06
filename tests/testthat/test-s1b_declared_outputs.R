@@ -64,7 +64,7 @@ s1b_fixture <- function(env = parent.frame(), run_s1a = TRUE) {
     n_persons = 40L,
     date_min = "2018-01-01",
     date_max = "2019-06-30",
-    n_init_bands = 8L,
+    n_init_periods = 8L,
     seed = 4242L
   )
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")

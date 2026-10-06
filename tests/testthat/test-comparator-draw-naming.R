@@ -266,9 +266,10 @@ test_that("the generated protocol table names incidence density sampling and the
     cells,
     fixed = TRUE
   )))
-  # The stratum row names the band and its width, and closes the set.
+  # The stratum row names the enrollment period and its width, and closes the
+  # set.
   expect_true(any(grepl(
-    "Comparator draw stratum: the 4-week entry band, and nothing else",
+    "Comparator draw stratum: the 4-week enrollment period, and nothing else",
     cells,
     fixed = TRUE
   )))
@@ -352,7 +353,7 @@ test_that("the generated methods text names incidence density sampling and no pa
   )
   # The stratum, stated twice: once in item 6c and once in item 7c.
   expect_gte(
-    sum(grepl("Each sequential trial was one entry band of 4 weeks.", txt, fixed = TRUE)),
+    sum(grepl("Each sequential trial was one enrollment period of 4 weeks.", txt, fixed = TRUE)),
     2L
   )
   expect_gte(
@@ -363,7 +364,8 @@ test_that("the generated methods text names incidence density sampling and no pa
     )),
     2L
   )
-  # The band is 4 weeks wide, so two individuals in one trial cover 3 weeks.
+  # The enrollment period is 4 weeks wide, so two individuals in one trial cover
+  # 3 weeks.
   expect_gte(sum(grepl("differed by up to 3 weeks", txt, fixed = TRUE)), 2L)
   expect_gte(sum(grepl("The draw read no other variable.", txt, fixed = TRUE)), 2L)
   # Confounding adjustment is by weighting, at the recruiting week.
@@ -396,11 +398,11 @@ test_that("the generated methods text reads period_width and never prints its na
     fixed = TRUE
   )))
   expect_gte(
-    sum(grepl("Each sequential trial was one entry band of 8 weeks.", txt, fixed = TRUE)),
+    sum(grepl("Each sequential trial was one enrollment period of 8 weeks.", txt, fixed = TRUE)),
     2L
   )
   expect_gte(sum(grepl("differed by up to 7 weeks", txt, fixed = TRUE)), 2L)
-  expect_false(any(grepl("entry band of 4 weeks", txt, fixed = TRUE)))
+  expect_false(any(grepl("enrollment period of 4 weeks", txt, fixed = TRUE)))
   expect_identical(.cdn_bad_match(txt), character(0))
   expect_identical(.cdn_per_initiator(txt), character(0))
 
@@ -410,7 +412,8 @@ test_that("the generated methods text reads period_width and never prints its na
   expect_gte(sum(grepl("differed by up to 1 week.", txt2, fixed = TRUE)), 2L)
   expect_false(any(grepl("differed by up to 1 weeks", txt2, fixed = TRUE)))
 
-  # A width of 1 makes the band one week, so the text drops the band wording.
+  # A width of 1 makes the enrollment period one week, so the text drops the
+  # enrollment period wording.
   plan$period_width <- 1L
   txt1 <- utils::capture.output(plan$print_target_checklist())
   expect_false(any(grepl("period_width", txt1, fixed = TRUE)))
@@ -452,7 +455,7 @@ test_that("the CONSORT flow and node labels name incidence density sampling", {
   expect_true("selection" %in% flow$kind)
   expect_true(grepl("Enrolled after the comparator draw", dot, fixed = TRUE))
   expect_true(grepl(
-    "incidence density sampling, stratified by the 4-week entry band",
+    "incidence density sampling, stratified by the 4-week enrollment period",
     dot,
     fixed = TRUE
   ))

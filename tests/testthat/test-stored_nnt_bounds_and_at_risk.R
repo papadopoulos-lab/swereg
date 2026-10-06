@@ -34,10 +34,10 @@ skip_if_not_installed("data.table")
 
 # --- fixtures ---------------------------------------------------------------
 
-# One trial-level panel. `h_int` and `h_cmp` are the per-band event
+# One trial-level panel. `h_int` and `h_cmp` are the per-interval event
 # probabilities of the two arms. Every person holds two person-trials, so the
 # person and the person-trial are genuinely different columns.
-.nn_panel <- function(n_persons, n_bands, h_int, h_cmp, seed) {
+.nn_panel <- function(n_persons, n_intervals, h_int, h_cmp, seed) {
   set.seed(seed)
   persons <- sprintf("p%04d", seq_len(n_persons))
   arm <- rep(c(TRUE, FALSE), length.out = n_persons)
@@ -45,9 +45,9 @@ skip_if_not_installed("data.table")
   for (k in seq_along(persons)) {
     h <- if (arm[k]) h_int else h_cmp
     for (trial in 1:2) {
-      ev <- stats::rbinom(n_bands, 1L, h)
+      ev <- stats::rbinom(n_intervals, 1L, h)
       first <- which(ev == 1L)
-      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_bands)
+      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_intervals)
       rows[[length(rows) + 1L]] <- data.table::data.table(
         id = persons[k],
         enrollment_person_trial_id = paste0(persons[k], "_t", trial),
@@ -79,8 +79,9 @@ skip_if_not_installed("data.table")
   enr$risk_difference(weight_col = "w", n_boot = n_boot, seed = 1L)
 }
 
-# A large arm separation, so at least one band has an interval that strictly
-# excludes the null and therefore a finite number-needed-to-treat interval.
+# A large arm separation, so at least one follow-up interval has an interval
+# that strictly excludes the null and therefore a finite number-needed-to-treat
+# interval.
 .nn_curve_ok <- function() {
   .nn_curve(h_int = 0.005, h_cmp = 0.090, seed = 11L)
 }
@@ -98,8 +99,9 @@ test_that("the stored curve carries the number-needed-to-treat interval", {
 
   expect_true(all(c("nnt_lo", "nnt_hi") %in% names(cv)))
 
-  # The fixture reaches the state the assertion needs. Without an "ok" band
-  # every bound would be `NA` and the comparison below would compare nothing.
+  # The fixture reaches the state the assertion needs. Without an "ok" follow-up
+  # interval every bound would be `NA` and the comparison below would compare
+  # nothing.
   expect_true(any(cv$interval_status == "ok"))
 
   # The bounds are the ones `.tte_nntb()` returns from the SAME three numbers.
@@ -108,7 +110,7 @@ test_that("the stored curve carries the number-needed-to-treat interval", {
   expect_equal(cv$nnt_lo, want$nntb_lo)
   expect_equal(cv$nnt_hi, want$nntb_hi)
 
-  # An "ok" band has a real interval, and it is ordered.
+  # An "ok" follow-up interval has a real interval, and it is ordered.
   ok <- cv[interval_status == "ok"]
   expect_true(all(is.finite(ok$nnt_lo)))
   expect_true(all(is.finite(ok$nnt_hi)))
@@ -148,7 +150,7 @@ test_that("a spans-null interval has no finite number-needed-to-treat bound", {
 test_that("the stored curve carries the distinct-person count at risk", {
   # The canonical 9-row panel. Three people hold five person-trials, so the
   # person count is strictly below the row count in three of the four
-  # arm-bands, and the two are not a constant offset apart.
+  # arm-follow-up intervals, and the two are not a constant offset apart.
   dt <- data.table::data.table(
     enrollment_person_trial_id = c(
       "p1_trialA",
@@ -179,8 +181,8 @@ test_that("the stored curve carries the distinct-person count at risk", {
   enr <- swereg::TTEEnrollment$new(dt, design)
   cv <- enr$risk_difference(weight_col = "w", n_boot = 20L, seed = 1L)
 
-  # Hand-counted people, in band order. Intervention: {p1, p2} then {p1, p2}.
-  # Comparator: {p3} then {p3}.
+  # Hand-counted people, in follow-up interval order. Intervention: {p1, p2}
+  # then {p1, p2}. Comparator: {p3} then {p3}.
   expect_equal(cv$n_persons_at_risk_intervention, c(2L, 2L))
   expect_equal(cv$n_persons_at_risk_comparator, c(1L, 1L))
 
@@ -260,8 +262,8 @@ test_that("get_estimates carries the stored number-needed-to-treat interval", {
   expect_identical(nrow(e), 1L)
   expect_true(all(c("nnt_lo", "nnt_hi") %in% names(e)))
 
-  # READ from the stored row, never recomputed. The row is the last band, so
-  # these are the numbers a forest figure prints.
+  # READ from the stored row, never recomputed. The row is the last follow-up
+  # interval, so these are the numbers a forest figure prints.
   expect_equal(e$nnt_lo, as.numeric(row$nnt_lo))
   expect_equal(e$nnt_hi, as.numeric(row$nnt_hi))
   expect_equal(e$nnt, as.numeric(row$nnt))
@@ -276,10 +278,10 @@ test_that("get_curves carries the stored distinct-person count at risk", {
   expect_true("n_persons_at_risk" %in% names(d))
   expect_identical(nrow(d), 2L * nrow(cv))
 
-  bands <- sort(unique(cv$tstop))
-  got_int <- d[arm == "intervention"][order(band)]
-  got_cmp <- d[arm == "comparator"][order(band)]
-  expect_equal(got_int$band, as.numeric(bands))
+  intervals <- sort(unique(cv$tstop))
+  got_int <- d[arm == "intervention"][order(follow_up_interval)]
+  got_cmp <- d[arm == "comparator"][order(follow_up_interval)]
+  expect_equal(got_int$follow_up_interval, as.numeric(intervals))
   expect_equal(
     got_int$n_persons_at_risk,
     as.numeric(cv$n_persons_at_risk_intervention)
@@ -337,12 +339,12 @@ test_that("the survival figure draws from storage with no analysis file", {
   expect_length(out, 1L)
   expect_true(file.exists(out))
 
-  # The numbers-at-risk row prints the STORED head count, per arm and band.
-  # Survival is a weighted probability, so a row derived from it would carry
-  # other numbers entirely.
+  # The numbers-at-risk row prints the STORED head count, per arm and follow-up
+  # interval. Survival is a weighted probability, so a row derived from it would
+  # carry other numbers entirely.
   expect_true("n_persons_at_risk" %in% names(captured))
-  int <- captured[group == "Intervention"][order(band)]
-  cmp <- captured[group == "Comparator"][order(band)]
+  int <- captured[group == "Intervention"][order(follow_up_interval)]
+  cmp <- captured[group == "Comparator"][order(follow_up_interval)]
   expect_equal(
     int$n_persons_at_risk,
     as.numeric(cv$n_persons_at_risk_intervention)
@@ -383,8 +385,8 @@ test_that("the survival figure draws from storage with no analysis file", {
   dir <- withr::local_tempdir(.local_envir = parent.frame())
   d <- .nn_panel(60L, 4L, h_int = 0.02, h_cmp = 0.06, seed = 21L)
   d[, rd_age_continuous := 50 + (seq_len(.N) %% 10L)]
-  # 4 weeks per band, which is what `.nn_panel()` lays out. `$rates()` needs
-  # it and fails loudly without it.
+  # 4 weeks per follow-up interval, which is what `.nn_panel()` lays out.
+  # `$rates()` needs it and fails loudly without it.
   d[, person_weeks := 4]
   d[, analysis_weight_pp_trunc := 1]
   d[, analysis_weight_pp := 1]

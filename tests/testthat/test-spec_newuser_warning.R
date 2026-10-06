@@ -1,8 +1,8 @@
 # The prevalent-user guard warns when no washout rule covers an enrollment's
-# intervention level. An enrollment classifies a person-band as "intervention"
-# from the weeks at that level, with no built-in initiation rule, so without a
-# covering washout prevalent users enrol as intervention at every eligible band
-# and discontinuers flip to comparator.
+# intervention level. An enrollment classifies a candidate person-trial as
+# "intervention" from the weeks at that level, with no built-in initiation rule,
+# so without a covering washout prevalent users enrol as intervention at every
+# eligible enrollment period and discontinuers flip to comparator.
 #
 # A prevalent week is a week at the intervention level that follows an earlier
 # week of the same person at that level. A washout covers the enrollment when

@@ -1630,11 +1630,14 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
   output <- capture.output(plan$print_target_checklist())
   full <- .strip_ansi(paste(output, collapse = "\n"))
 
-  # Item 8 should show attrition counts
-  expect_true(grepl("eligible_isoyears", full))
+  # Item 8 should show attrition counts, under the step labels the CONSORT
+  # box uses, and never the raw step names
+  expect_true(grepl("Outside of study years (2010 - 2020):", full, fixed = TRUE))
   expect_true(grepl("2,000 person-trials", full))
-  expect_true(grepl("eligible_age", full))
+  expect_true(grepl("Outside of age range (50 - 60 years):", full, fixed = TRUE))
   expect_true(grepl("1,200 person-trials", full))
+  expect_false(grepl("eligible_isoyears", full, fixed = TRUE))
+  expect_false(grepl("eligible_age", full, fixed = TRUE))
 
   # Should show matching counts
   expect_true(grepl("100 intervention person-trials", full))

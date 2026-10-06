@@ -274,8 +274,9 @@
   }
   # The stratum of the draw, in words. `sample()` runs inside one
   # `trial_id` group, and `trial_id` is the week index divided by
-  # `period_width`. The stratum is therefore the entry band, and the band
-  # is the only stratum. A width of 1 makes the band one week, so the two
+  # `period_width`. The stratum is therefore the enrollment period, and the
+  # enrollment period is the only stratum. A width of 1 makes the enrollment
+  # period one week, so the two
   # readings differ and the text has to say which one it describes.
   #
   # Do not write the two-word grouping expression here. Its literal text
@@ -285,7 +286,7 @@
   pw_weeks <- paste0(pw, if (pw == 1L) " week" else " weeks")
   stratum_text <- if (pw > 1L) {
     paste0(
-      "Each sequential trial was one entry band of ",
+      "Each sequential trial was one enrollment period of ",
       pw_weeks,
       ". ",
       "The sampling was stratified by trial, and not by week. ",
@@ -316,6 +317,35 @@
     "A person can be an intervention individual in one trial and a ",
     "comparator individual in another. "
   )
+  # The seed sentence states what the spec holds. The seed is optional, and a
+  # spec without one runs the draw from `set.seed(NULL)`.
+  seed_ids <- vapply(
+    spec$enrollments %||% list(),
+    function(enr) {
+      return(as.character(enr$id %||% NA_character_))
+    },
+    character(1)
+  )
+  seed_set <- vapply(
+    spec$enrollments %||% list(),
+    function(enr) {
+      return(!is.null(enr$treatment$implementation$seed))
+    },
+    logical(1)
+  )
+  seed_text <- if (length(seed_set) > 0L && all(seed_set)) {
+    "The draw ran from a stated seed. "
+  } else if (!any(seed_set)) {
+    "The specification stated no seed for the draw. "
+  } else {
+    paste0(
+      "The draw ran from a stated seed in enrollment ",
+      paste(seed_ids[seed_set], collapse = ", "),
+      ". The specification stated no seed for enrollment ",
+      paste(seed_ids[!seed_set], collapse = ", "),
+      ". "
+    )
+  }
   # `assign_paragraph()` holds the sentences that items 6c and 7c share. Each
   # caller passes only the parts that differ, so the two paragraphs cannot
   # drift apart.
@@ -330,7 +360,7 @@
       lead,
       "Comparator individuals entered by incidence density sampling within each sequential trial. ",
       alternative,
-      "The draw ran from a stated seed. ",
+      seed_text,
       stratum_text,
       intervention_line,
       paste(assign_parts, collapse = " "),
@@ -353,7 +383,9 @@
     assign_text
   )
 
-  # 6d: Follow-up
+  # 6d: Follow-up. The start and the stop events are the ones
+  # `s5_prepare_outcome()` applies. Protocol deviation stops per-protocol
+  # follow-up only.
   fu_text <- NULL
   if (!is.null(spec$follow_up)) {
     parts <- vapply(
@@ -363,7 +395,20 @@
       },
       character(1)
     )
-    fu_text <- paste(parts, collapse = "\n")
+    fu_text <- paste(
+      c(
+        paste0(
+          "Follow-up started at time zero. ",
+          .TTE_TIME_ZERO_DEFINITION,
+          " Follow-up ended at the earliest of the outcome ",
+          "event, loss to follow-up, the administrative end of the data, and ",
+          "the end of the follow-up horizon. Per-protocol follow-up also ended ",
+          "at protocol deviation."
+        ),
+        paste0("Horizon: ", parts)
+      ),
+      collapse = "\n"
+    )
   }
   item(
     "6",
@@ -425,8 +470,10 @@
   )
   est_how <- c(
     pp = paste0(
-      "The per-protocol estimand censors an individual at the time of ",
-      "treatment switching. It weights by the inverse probability of ",
+      "The per-protocol estimand censors an individual when the run of ",
+      "consecutive weeks off the assigned strategy exceeds the arm's ",
+      "tolerance. A missing treatment status counts as off the strategy. ",
+      "It weights by the inverse probability of ",
       "censoring, which adjusts for the potential informativeness of that ",
       "censoring (Hern\u00e1n and Robins, 2016; Danaei et al., 2013). "
     ),
@@ -504,10 +551,12 @@
     paste0(
       "Treatment weights were estimated using stabilized inverse probability weights derived from a logistic regression model ",
       "for the probability of treatment assignment conditional on measured baseline covariates, fitted on baseline rows only. ",
-      "Per-protocol effects were estimated by censoring individuals at the time of protocol deviation (treatment switching or loss to follow-up) ",
-      "and applying inverse probability of censoring weights to account for informative censoring. ",
+      "Per-protocol effects were estimated by censoring individuals at protocol deviation, a run of discordant weeks longer than the arm's tolerance, ",
+      "or at loss to follow-up, and applying inverse probability of censoring weights to account for informative censoring. ",
       "The estimator follows Hern\u00e1n and Robins (2016) and Danaei et al. (2013). ",
-      "Censoring probabilities were modelled by a complementary log-log generalized additive model (the pipeline default) with a person-time offset, ",
+      # The plan does not record the two s2 arguments that choose this model,
+      # so the sentence names the default settings and says so.
+      "Under the default settings of the pipeline, censoring probabilities were modelled by a complementary log-log generalized additive model with a person-time offset, ",
       "fitted separately for the intervention and comparator arms. ",
       "It included a smooth function of follow-up time, a smooth function of the trial index to adjust for calendar time, ",
       "and the most recently updated confounder values. With few distinct values, a time term took a simpler form, or was omitted when it had one value. ",
@@ -556,14 +605,14 @@
       "A person entered the intervention arm if at least one of those weeks was on the intervention treatment. ",
       "A person entered the comparator arm if all of those weeks were on the comparator treatment. ",
       "A person with no such week was ineligible for that period's trial and entered neither arm. ",
-      "Initiation occurring anywhere within the period was attributed to its start. ",
+      "Initiation anywhere within the period enrolled the person in that period's trial, and follow-up started at time zero. ",
       "The enrollment period width, ",
       pw_weeks,
       ", determines the granularity of sequential trial entry. ",
-      "Narrower periods reduce residual immortal time bias, at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
+      "A narrower period shortens the wait between the recruiting week and time zero, at the cost of fewer eligible individuals per trial. ",
       "No grace period was implemented. ",
       "The period provides slack for the timing of initiation at enrollment only. ",
-      "Deviation from the assigned strategy censored per-protocol follow-up at the first period off that strategy. ",
+      "Per-protocol follow-up stopped at the week in which the run of consecutive weeks off the assigned strategy exceeded the arm's tolerance. A missing treatment status counted as off the strategy. ",
       # 7c: Assignment
       assign_paragraph(
         lead = "Assignment (6c): ",
@@ -572,8 +621,11 @@
         ipw_line = "Inverse probability weighting on the covariates taken at the recruiting week then adjusted for confounding. "
       ),
       # 7d: Follow-up
-      "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and intervention criteria ",
-      "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
+      "Follow-up (6d): Follow-up started at time zero. ",
+      .TTE_TIME_ZERO_DEFINITION,
+      " ",
+      "Follow-up ended at the earliest of the outcome event, loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
+      "Per-protocol follow-up also ended at protocol deviation, the week in which the run of consecutive weeks off the assigned strategy exceeded the arm's tolerance. ",
       # 7e: Outcomes
       "Outcomes (6e): Outcome events were identified from registry data using the variables specified in the study configuration. ",
       "An event was recorded at the first time period in which the outcome indicator was observed. ",
@@ -586,7 +638,7 @@
       " analyses are not planned. ",
       paste(est_how[est_planned], collapse = ""),
       # 7g: Confounders
-      "Confounders (6g): Baseline confounders were measured at the start of each sequential trial. ",
+      "Confounders (6g): Baseline confounders were read at the recruiting week, the earliest week of the enrollment period in which the person was eligible and on one of the two protocol arms. ",
       "For computed confounders (e.g., rolling-window indicators), values were derived from the specified source variable over the lookback window preceding trial entry. ",
       "Missing baseline confounder values were singly imputed at trial entry by the plan's impute_fn; the default is a single hot-deck draw from the observed distribution of that confounder. ",
       "Missing time-updated confounder values were carried forward from the last observed value within each person-trial, seeded from the entry value. ",
@@ -663,6 +715,17 @@
         item8_parts,
         paste0("Enrollment '", enr_id, "' participant flow:")
       )
+      # Each step prints the label the CONSORT box and the attrition sheet
+      # print, from the one lookup they share, and never the raw step name.
+      step_labels <- .build_criterion_label_lookup(
+        plan,
+        enr_id,
+        observed_criteria = as.character(overall$criterion)
+      )
+      step_label <- function(step) {
+        lab <- if (step %in% names(step_labels)) step_labels[[step]] else step
+        return(gsub("\\\\n", " ", lab))
+      }
 
       n_levels <- nrow(overall)
       for (j in seq_len(n_levels)) {
@@ -682,8 +745,8 @@
         item8_parts <- c(
           item8_parts,
           sprintf(
-            "  Applying %s:",
-            bold(as.character(overall$criterion[j]))
+            "  %s:",
+            bold(step_label(as.character(overall$criterion[j])))
           ),
           sprintf(
             "    \u21b3 Excluding %s person-trials",

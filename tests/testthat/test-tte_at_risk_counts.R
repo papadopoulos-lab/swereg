@@ -1,10 +1,11 @@
 # Numbers at risk count PERSONS, not rows and not weights.
 #
 # Sequential target trial emulation enrols the same person into many trials, so
-# the analysis panel holds one row per person-trial-band. Three different
-# numbers therefore live in the same arm-band cell and are easy to confuse:
+# the analysis panel holds one row per person-trial interval. Three different
+# numbers therefore live in the same arm-follow-up interval cell and are easy to
+# confuse:
 #
-#   .N                     rows      = person-trials in the band
+#   .N                     rows      = person-trials in the follow-up interval
 #   sum(w)                 at_risk   = the WEIGHTED risk set, the hazard denominator
 #   uniqueN(person_id)     persons   = the head count a risk table reports
 #
@@ -20,11 +21,11 @@
 #   p2 -> p2_trialA                 (exposed)
 #   p3 -> p3_trialC, p3_trialD      (unexposed)
 #
-# so in three of the four arm-bands the person count is strictly below the row
-# count, and the person counts c(1, 1, 2, 2) are NOT a constant offset from the
-# row counts c(2, 2, 3, 2). A bug that returned "rows minus one" would survive a
-# fixture where every band differed by the same amount; it does not survive this
-# one.
+# so in three of the four arm-follow-up intervals the person count is strictly
+# below the row count, and the person counts c(1, 1, 2, 2) are NOT a constant
+# offset from the row counts c(2, 2, 3, 2). A bug that returned "rows minus one"
+# would survive a fixture where every follow-up interval differed by the same
+# amount; it does not survive this one.
 #
 # Hand-computed, and unchanged from the canonical fixture despite the reweight,
 # because Kaplan-Meier is invariant to rescaling the weights within an arm:
@@ -34,9 +35,10 @@ skip_if_not_installed("data.table")
 
 # --- fixture ---------------------------------------------------------------
 
-# Row order is (band 4, then band 8). `id` carries the person; each person holds
-# one or two trials, so `id` and `enrollment_person_trial_id` are genuinely
-# different columns and cannot collapse into one another.
+# Row order is (follow-up interval 4, then follow-up interval 8). `id` carries
+# the person; each person holds one or two trials, so `id` and
+# `enrollment_person_trial_id` are genuinely different columns and cannot
+# collapse into one another.
 at_risk_trial <- function() {
   dt <- data.table::data.table(
     enrollment_person_trial_id = c(

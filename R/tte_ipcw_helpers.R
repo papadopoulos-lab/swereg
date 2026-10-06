@@ -10,7 +10,7 @@
 #'
 #' swereg MUST NOT overwrite an observed follow-up value with the
 #' `.tte_entry__` value. That value describes the recruiting week, and reading
-#' it during follow-up is the confounding the landmark design removes.
+#' it during follow-up is the confounding that a time-zero design removes.
 #'
 #' `$s1b_fill_followup_confounders()` supplies a missing follow-up value from
 #' the last observed value of the same person-trial. s1d runs it before this

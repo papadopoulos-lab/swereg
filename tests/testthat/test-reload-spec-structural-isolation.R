@@ -410,7 +410,7 @@ rsi_full_spec <- function(variant = "sentinel") {
         washout_first,
         list(
           name = "Age 50-60",
-          rationale = "The trial recruits this band.",
+          rationale = "The trial recruits this enrollment period.",
           type = "age_range",
           min = 50,
           max = 60,

@@ -339,10 +339,11 @@ test_that("survival_curve handles a single treatment arm", {
 })
 
 # =============================================================================
-# tte_enroll tests (band-based)
+# tte_enroll tests (enrollment period-based)
 # =============================================================================
 
-# Helper: create person-week data with isoyearweek for band-based enrollment
+# Helper: create person-week data with isoyearweek for enrollment period-based
+# enrollment
 .make_person_week_data <- function(
   n_intervention,
   n_comparator,
@@ -368,7 +369,7 @@ test_that("survival_curve handles a single treatment arm", {
   dt
 }
 
-test_that("tte_enroll samples at correct ratio and creates band-level panels", {
+test_that("tte_enroll samples at correct ratio and creates interval-level panels", {
   set.seed(42)
   dt <- .make_person_week_data(
     n_intervention = 50,
@@ -402,10 +403,12 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   n_intervention_trials <- sum(trial_summary$exposed == TRUE)
   n_comparator_trials <- sum(trial_summary$exposed == FALSE)
   expect_equal(n_intervention_trials, 50)
-  # Ratio is per-band, so total may vary slightly but should be approximately 2:1
+  # Ratio is per-period, so total may vary slightly but should be approximately
+  # 2:1
   expect_true(n_comparator_trials >= n_intervention_trials)
 
-  # Check enrollment_person_trial_id, trial_id (band), and trial_week created
+  # Check enrollment_person_trial_id, trial_id (enrollment period), and
+  # trial_week created
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
   expect_true("trial_id" %in% names(trial$data))
   expect_true("trial_week" %in% names(trial$data))
@@ -421,7 +424,7 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   expect_true(all(trial$data$tstop - trial$data$tstart == 4L))
 })
 
-test_that("tte_enroll band IDs are isoyearweek-based (calendar-based)", {
+test_that("tte_enroll enrollment period IDs are isoyearweek-based (calendar-based)", {
   set.seed(42)
   dt <- .make_person_week_data(
     n_intervention = 10,
@@ -447,10 +450,10 @@ test_that("tte_enroll band IDs are isoyearweek-based (calendar-based)", {
   expect_true(all(trial$data$tstop == trial$data$tstart + 4L))
 })
 
-test_that("tte_enroll per-band stratified comparator draw", {
+test_that("tte_enroll per-period stratified comparator draw", {
   set.seed(42)
   # Create data where all persons are eligible in week 1 AND week 5
-  # to ensure multiple bands have entries
+  # to ensure multiple enrollment periods have entries
   n_intervention <- 20
   n_comparator <- 80
   n_weeks <- 12
@@ -492,7 +495,7 @@ test_that("tte_enroll per-band stratified comparator draw", {
   n_int <- sum(trial_summary$exposed == TRUE)
   n_cmp <- sum(trial_summary$exposed == FALSE)
   expect_equal(n_int, n_intervention)
-  expect_true(n_cmp <= n_intervention * 2 + 5) # Allow some slack for per-band sampling
+  expect_true(n_cmp <= n_intervention * 2 + 5) # Allow some slack for per-period sampling
 })
 
 test_that("tte_enroll with period_width=1 produces weekly-level data", {
@@ -515,7 +518,7 @@ test_that("tte_enroll with period_width=1 produces weekly-level data", {
 
   trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 42)
 
-  # With period_width=1, each band is one week
+  # With period_width=1, each enrollment period is one week
   expect_true(all(trial$data$person_weeks == 1L))
   expect_true(all(trial$data$tstop - trial$data$tstart == 1L))
   # trial_week should be 0, 1, 2, ...
@@ -589,7 +592,7 @@ test_that("tte_enroll carries forward baseline treatment", {
 
   trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 123)
 
-  # Baseline treatment should be TRUE for all rows (from entry band)
+  # Baseline treatment should be TRUE for all rows (from enrollment period)
   expect_true(all(trial$data$exposed == TRUE))
 })
 
@@ -1015,7 +1018,8 @@ test_that("tte_enroll creates trial panels from person-week data", {
   expect_equal(trial$data_level, "trial")
   expect_true("enroll" %in% trial$steps_completed)
 
-  # Check enrollment_person_trial_id and trial_id (band) were created
+  # Check enrollment_person_trial_id and trial_id (enrollment period) were
+  # created
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
   expect_true("trial_id" %in% names(trial$data))
 
@@ -2096,8 +2100,9 @@ test_that(".assign_trial_ids() produces consistent trial IDs from isoyearweek", 
   # Should have trial_id column
   expect_true("trial_id" %in% names(dt))
 
-  # With period_width=4, there should be at most ceil(20/4)+1 = 6 unique trial_ids
-  # (band boundaries are global, so first/last bands may be partial)
+  # With period_width=4, there should be at most ceil(20/4)+1 = 6 unique
+  # trial_ids (enrollment period boundaries are global, so first/last enrollment
+  # periods may be partial)
   n_unique <- length(unique(dt$trial_id))
   expect_true(n_unique >= 4L && n_unique <= 6L)
 

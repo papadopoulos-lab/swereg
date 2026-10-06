@@ -1,32 +1,35 @@
 # Rendering one weighted discrete-time survival curve: its risk-table break
 # times, its two arm labels, and the figure itself.
 
-#' Pick the band times a risk table labels.
+#' Pick the stop times a risk table labels.
 #'
-#' The panel can hold one band per follow-up week, and a risk table with
-#' fifty-two columns is unreadable. This thins the observed band times down to
-#' at most `max_n` of them.
+#' The panel can hold one stop time per follow-up week, and a risk
+#' table with fifty-two columns is unreadable. This thins the observed stop
+#' time times down to at most `max_n` of them.
 #'
 #' The chosen times are ALSO the x breaks of both panels, so every labelled
 #' tick has a count under it and every count sits on a tick.
 #'
-#' The selection counts BACKWARDS from the last band, in steps of one fixed
-#' stride. Every gap between adjacent chosen bands is therefore the same
-#' number of bands wide, and the last band is always chosen.
+#' The selection counts BACKWARDS from the last stop time, in steps of
+#' one fixed stride. Every gap between adjacent chosen stop times is
+#' therefore the same number of stop times wide, and the last stop
+#' time is always chosen.
 #'
 #' The direction is the whole point, and it is a defect fix. Counting forwards
-#' from the first band and then adding the last one leaves a short final gap of
-#' `(n - 1) %% stride` bands. On a real 156-week national-registry panel that
-#' gap was 12 weeks against a 20-week stride. Two six-digit counts at adjacent
-#' labelled weeks then printed on top of each other, as one unreadable
-#' ten-digit run. Counting backwards cannot produce a short gap at either end,
-#' because the leftover bands are dropped rather than labelled.
+#' from the first stop time and then adding the last one leaves a short
+#' final gap of `(n - 1) %% stride` stop times. On a real 156-week
+#' national-registry panel that gap was 12 weeks against a 20-week stride. Two
+#' six-digit counts at adjacent labelled weeks then printed on top of each
+#' other, as one unreadable ten-digit run. Counting backwards cannot produce a
+#' short gap at either end, because the leftover stop times are dropped
+#' rather than labelled.
 #'
 #' Do not fix a collision by shrinking the font instead. The figure is a
 #' publication artefact, and a smaller font trades one legibility problem for
 #' another.
 #'
-#' @param times Numeric, the sorted unique band times present in the curve.
+#' @param times Numeric, the sorted unique stop times present in
+#'   the curve.
 #' @param max_n Integer, the most columns the table may carry.
 #' @return A numeric subset of `times`, always including the last element.
 #' @noRd

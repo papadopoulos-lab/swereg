@@ -20,7 +20,7 @@
     "A",
     n_persons = 20L,
     date_max = "2016-12-31",
-    n_init_bands = 4L
+    n_init_periods = 4L
   )
   skel <- file.path(dir_tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel)

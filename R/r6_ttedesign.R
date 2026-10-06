@@ -14,8 +14,8 @@
 #' @param treatment_var Character, name of the baseline treatment column. It
 #'   holds `TRUE` for the intervention arm, `FALSE` for the comparator arm, and
 #'   `NA` outside the two arms. Enrollment reads every eligible week of the
-#'   entry band, not only its first week. See the Baseline treatment section
-#'   of TTEEnrollment for the full rule.
+#'   enrollment period, not only its first week. See the Baseline treatment
+#'   section of TTEEnrollment for the full rule.
 #' @param outcome_vars Character vector, names of outcome event indicator columns.
 #' @param confounder_vars Character vector, names of confounder columns for
 #'   propensity/censoring models.
@@ -49,27 +49,34 @@
 #'   is computed internally as weeks from each trial's entry date to this
 #'   global study end date. Requires an `isoyearweek` column in the data.
 #'   Mutually exclusive with `admin_censor_var` (default: NULL).
-#' @param period_width Integer, band width in weeks for enrollment and
-#'   time aggregation (default: 4L). The input is a person-week skeleton, so
-#'   eligibility and treatment status are assessed weekly. `period_width` then
-#'   collapses consecutive weeks into bands, and each band opens exactly one
-#'   trial. With `period_width = 4L`, one trial opens every four weeks, not one
-#'   trial per week. Initiation in any week of a band is attributed to the
-#'   start of that band. Must be a positive integer.
+#' @param period_width Integer, the width in weeks of the enrollment period
+#'   (default: 4L). The same width sets each follow-up interval. The input is
+#'   a person-week skeleton, so eligibility and treatment status are assessed
+#'   weekly. `period_width` then groups consecutive weeks into enrollment
+#'   periods, and each enrollment period opens exactly one trial. With
+#'   `period_width = 4L`, one trial opens every four weeks, not one trial per
+#'   week. Initiation in any week of an enrollment period enrolls the person
+#'   in that period's trial. Follow-up starts at time zero, which the
+#'   interval convention section defines. Must be a positive integer.
 #'
 #' @section The interval convention:
+#'
+#' Time zero is a landmark: the first week after the enrollment period closes.
+#' A person enters the trial only if they reach that week under observation
+#' and free of every enrollment outcome. Follow-up starts there.
 #'
 #' Every interval is `[tstart, tstop)`. The stop is exclusive. The person
 #' leaves the risk set at `tstop`, and the row holds no part of that week.
 #'
 #' Every duration is `tstop - tstart`. It never adds one. Three complete
-#' four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
-#' 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+#' four-week follow-up intervals span `[0, 12)`. That is 12 person-weeks, and
+#' the intervals bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
 #'
-#' Every `weeks_to_*` column is a boundary on the same scale, counted from the
-#' landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-#' `weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
-#' the first week the person no longer contributes. A `weeks_to_record_end` of
+#' Every `weeks_to_*` column is a boundary on the same scale, counted from
+#' time zero at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+#' `weeks_to_loss`, `weeks_to_admin_end`, `weeks_to_record_end` and
+#' `weeks_to_observation_gap` each name the first week the person no longer
+#' contributes. A `weeks_to_record_end` of
 #' 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
 #'
 #' The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
@@ -79,7 +86,7 @@
 #'
 #' One place adds a week, and it converts a calendar reading into a stop.
 #' `admin_censor_isoyearweek` names the last week under study, and
-#' `difftime()` returns the whole weeks between that week and the landmark
+#' `difftime()` returns the whole weeks between that week and the time-zero
 #' week. The stop is one week later, because the person holds the whole of the
 #' administrative week.
 #'
@@ -121,7 +128,7 @@
 #'
 #' @family tte_classes
 #' @seealso [TTEEnrollment] for the trial class.
-#'   `vignette("tte-nomenclature")` for the enrollment band vocabulary.
+#'   `vignette("tte-nomenclature")` for the enrollment period vocabulary.
 #' @importFrom R6 R6Class
 #' @export
 TTEDesign <- R6::R6Class(
@@ -132,8 +139,8 @@ TTEDesign <- R6::R6Class(
     #' @field id_var Character, person-trial identifier column name.
     id_var = "enrollment_person_trial_id",
     #' @field treatment_var Character, treatment column name. Enrollment reads
-    #'   every eligible week of the entry band, not only its first week. See
-    #'   the Baseline treatment section of TTEEnrollment for the full rule.
+    #'   every eligible week of the enrollment period, not only its first week.
+    #'   See the Baseline treatment section of TTEEnrollment for the full rule.
     treatment_var = NULL,
     #' @field outcome_vars Character vector, outcome column names.
     outcome_vars = NULL,
@@ -168,11 +175,13 @@ TTEDesign <- R6::R6Class(
     admin_censor_var = NULL,
     #' @field admin_censor_isoyearweek Character or NULL, admin censoring date.
     admin_censor_isoyearweek = NULL,
-    #' @field period_width Integer, band width in weeks for enrollment and
-    #'   aggregation. Eligibility and treatment status are assessed weekly.
-    #'   `period_width` collapses consecutive weeks into bands, and each band
-    #'   opens exactly one trial. Initiation in any week of a band is
-    #'   attributed to the start of that band.
+    #' @field period_width Integer, the width in weeks of the enrollment
+    #'   period. The same width sets each follow-up interval. Eligibility and
+    #'   treatment status are assessed weekly. `period_width` groups
+    #'   consecutive weeks into enrollment periods, and each enrollment period
+    #'   opens exactly one trial. Initiation in any week of an enrollment
+    #'   period enrolls the person in that period's trial. Follow-up starts at
+    #'   time zero, which the interval convention section defines.
     period_width = 4L,
 
     #' @description Create a new TTEDesign object.
@@ -281,10 +290,11 @@ TTEDesign <- R6::R6Class(
 
     #' @description Check this object's schema version against the current
     #' class version. It stops when the object carries an older schema.
-    #' @details swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
-    #' row of a schema-2 object is an entry band row, and a 26.9.0 reader
-    #' takes it for a landmark row. The check refuses the object, so that
-    #' reinterpretation cannot happen in silence.
+    #' @details swereg 26.9.0 moved time zero to the first week after the
+    #' enrollment period. A `tstart == 0` row of a schema-2 object is a row of
+    #' the enrollment period. A 26.9.0 reader takes it for a time-zero row.
+    #' The check refuses the object, so that reinterpretation cannot happen in
+    #' silence.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_DESIGN_SCHEMA_VERSION

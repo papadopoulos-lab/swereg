@@ -1,19 +1,25 @@
 # =============================================================================
-# The landmark exclusions in the CONSORT Excluded box
+# The time-zero exclusions in the CONSORT Excluded box
 # =============================================================================
 #
-# `.tte_qualify_bands()` appends three landmark steps to the attrition table.
-# The landmark is the week after the entry band closes, and follow-up starts
-# there.
+# `.tte_qualify_candidates()` appends three `landmark_*` steps to the
+# attrition table. Time zero is a landmark: the first week after the
+# enrollment period closes. Follow-up starts there.
 #
-#   - `landmark_candidates`: every band reaches this step. Its mask is
-#     `rep(TRUE, nrow(bands))`, so the step excludes nobody.
-#   - `landmark_observed`: the person must hold a row at the landmark week.
+#   - `landmark_candidates`: every candidate person-trial reaches this step.
+#     Its mask is `rep(TRUE, nrow(candidates))`, so the step excludes nobody.
+#   - `landmark_observed`: the person must hold a row at the time-zero week.
 #   - `landmark_event_free`: the person must not already have had the outcome.
 #
+# Each label states what the step drops. `landmark_observed` drops a person
+# with no observed row at time zero, which on a trimmed skeleton is death,
+# emigration or end of data. No censoring is involved, so the label is "Not
+# under observation at time zero" and not "Censored before landmark".
+#
 # The two real exclusions carry a label, so the box shows prose and not a
-# column name. `landmark_candidates` carries no label and gets no bullet. A
-# step that excludes nobody is not a reason for exclusion.
+# column name. `landmark_candidates` carries a label too, so the attrition
+# sheet's `step_label` never repeats the raw step name. It still gets no
+# bullet. A step that excludes nobody is not a reason for exclusion.
 #
 # The landmark steps come from the qualification code and never from the spec.
 # Their labels therefore sit above the `spec = NULL` return of
@@ -25,8 +31,8 @@ skip_if_not_installed("cstime")
 
 .cll_period_width <- 4L
 
-# Eight consecutive ISO year-weeks that start on a band boundary. Under
-# `period_width = 4` they form two whole bands.
+# Eight consecutive ISO year-weeks that start on an enrollment period boundary.
+# Under `period_width = 4` they form two whole enrollment periods.
 .cll_weeks <- function(n_weeks = 8L) {
   wk <- data.table::copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -75,8 +81,8 @@ skip_if_not_installed("cstime")
 # `.s1a_worker_multi()` calls, so these three landmark rows are the rows the
 # pipeline writes.
 #
-# I1 and C1 qualify. IEV and CEV have the outcome inside the entry band. INR
-# holds no row at the landmark week. X1 loses eligibility from week 4 on.
+# I1 and C1 qualify. IEV and CEV have the outcome inside the enrollment period.
+# INR holds no row at the landmark week. X1 loses eligibility from week 4 on.
 .cll_attrition <- function() {
   weeks <- .cll_weeks()
   sk <- data.table::rbindlist(list(
@@ -171,21 +177,21 @@ skip_if_not_installed("cstime")
 
 # --- the label lookup -------------------------------------------------------
 
-test_that("the lookup labels both landmark exclusions when the spec is NULL", {
+test_that("the lookup labels both time-zero exclusions when the spec is NULL", {
   # The landmark steps never come from the spec, so the labels MUST sit above
   # the `spec = NULL` return. Below it they never reach a plan with no spec.
   labels <- .cll_labels(spec = NULL)
   expect_identical(
     unname(labels["landmark_observed"]),
-    "Censored before landmark"
+    "Not under observation at time zero"
   )
   expect_identical(
     unname(labels["landmark_event_free"]),
-    "Event before landmark"
+    "Event before time zero"
   )
 })
 
-test_that("the lookup labels both landmark exclusions from a populated spec", {
+test_that("the lookup labels both time-zero exclusions from a populated spec", {
   labels <- .cll_labels(spec = .cll_spec())
   # The spec reaches the lookup: this window comes from its age rule.
   expect_identical(
@@ -194,41 +200,56 @@ test_that("the lookup labels both landmark exclusions from a populated spec", {
   )
   expect_identical(
     unname(labels["landmark_observed"]),
-    "Censored before landmark"
+    "Not under observation at time zero"
   )
   expect_identical(
     unname(labels["landmark_event_free"]),
-    "Event before landmark"
+    "Event before time zero"
   )
 })
 
-test_that("the lookup gives landmark_candidates no label", {
-  expect_false("landmark_candidates" %in% names(.cll_labels(spec = NULL)))
-  expect_false(
-    "landmark_candidates" %in% names(.cll_labels(spec = .cll_spec()))
-  )
+test_that("the lookup labels the three count steps, so no step_label is raw", {
+  for (spec in list(NULL, .cll_spec())) {
+    labels <- .cll_labels(spec = spec)
+    expect_identical(
+      unname(labels["landmark_candidates"]),
+      "Candidate person-trials, before the time-zero checks"
+    )
+    expect_identical(
+      unname(labels["enrolled_after_comparator_draw"]),
+      "Enrolled after the comparator draw"
+    )
+    expect_identical(
+      unname(labels["analysis_dataset"]),
+      "Analysis dataset (per-protocol)"
+    )
+  }
 })
 
 
 # --- the rendered Excluded box ----------------------------------------------
 
-test_that("the Excluded box shows both landmark labels and no raw column name", {
+test_that("the Excluded box shows both time-zero labels and no raw column name", {
   lines <- .cll_box()
   expect_true(any(grepl(
-    "- Censored before landmark (n = ",
+    "- Not under observation at time zero (n = ",
     lines,
     fixed = TRUE
   )))
-  expect_true(any(grepl("- Event before landmark (n = ", lines, fixed = TRUE)))
-  expect_false(any(grepl("landmark_", lines, fixed = TRUE)))
+  expect_true(any(grepl("- Event before time zero (n = ", lines, fixed = TRUE)))
+  expect_false(any(grepl("landmark", lines, fixed = TRUE)))
 })
 
 test_that("the Excluded box lists no landmark_candidates line", {
   lines <- .cll_box()
   expect_length(grep("landmark_candidates", lines, fixed = TRUE), 0L)
-  # The filter drops one row, not all three. Both real landmark exclusions
+  expect_length(
+    grep("Candidate person-trials, before the time-zero checks", lines, fixed = TRUE),
+    0L
+  )
+  # The filter drops one row, not all three. Both real time-zero exclusions
   # keep their bullet.
-  expect_length(grep("landmark", lines, fixed = TRUE), 2L)
+  expect_length(grep("time zero", lines, fixed = TRUE), 2L)
 })
 
 test_that("landmark_candidates excludes nobody on the production path", {
@@ -254,7 +275,7 @@ test_that("the Excluded box totals still add up once the candidates row goes", {
 
 # --- the production render path ---------------------------------------------
 
-test_that("the production render path carries both landmark labels into the box", {
+test_that("the production render path carries both time-zero labels into the box", {
   skip_if_not_installed("DiagrammeR")
   skip_if_not_installed("DiagrammeRsvg")
   skip_if_not_installed("rsvg")
@@ -309,10 +330,10 @@ test_that("the production render path carries both landmark labels into the box"
   expect_true(file.exists(out$png))
   lines <- .cll_excluded_lines(seen$dot)
   expect_true(any(grepl(
-    "- Censored before landmark (n = ",
+    "- Not under observation at time zero (n = ",
     lines,
     fixed = TRUE
   )))
-  expect_true(any(grepl("- Event before landmark (n = ", lines, fixed = TRUE)))
-  expect_false(any(grepl("landmark_", lines, fixed = TRUE)))
+  expect_true(any(grepl("- Event before time zero (n = ", lines, fixed = TRUE)))
+  expect_false(any(grepl("landmark", lines, fixed = TRUE)))
 })

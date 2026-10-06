@@ -4,8 +4,9 @@
 # person holds no part of the week the stop names. Every duration is
 # `tstop - tstart`, and it never adds one.
 #
-# Three complete four-week bands span `[0, 12)`. That is 12 person-weeks, and
-# the bands bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+# Three complete four-week follow-up intervals span `[0, 12)`. That is 12
+# person-weeks, and the follow-up intervals bill 4, 4 and 4. The inclusive
+# convention bills 5, 5 and 5.
 #
 # The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
 # `4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
@@ -35,8 +36,9 @@ skip_if_not_installed("cstime")
 .ic_pw <- 4L
 .ic_n_fu <- 12L
 
-# Sixteen consecutive ISO year-weeks, starting on a band boundary. Under
-# `period_width = 4` they make one entry band and three follow-up bands.
+# Sixteen consecutive ISO year-weeks, starting on a follow-up interval boundary.
+# Under `period_width = 4` they make one enrollment period and three follow-up
+# intervals.
 .ic_weeks <- function(n_weeks = 16L) {
   wk <- data.table::copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -49,8 +51,8 @@ skip_if_not_installed("cstime")
 # One person, one row per week.
 #
 # `arm` is her assigned arm. `exposed` holds that arm in every week, and
-# `eligible` holds `TRUE` only inside the entry band. `on_tx` is the weekly
-# assessment, and it holds her assigned arm by default.
+# `eligible` holds `TRUE` only inside the enrollment period. `on_tx` is the
+# weekly assessment, and it holds her assigned arm by default.
 #
 # Three arguments move the assessment, and each one names 1-indexed FOLLOW-UP
 # weeks rather than rows of `weeks`. Follow-up week `f` is the interval
@@ -168,9 +170,9 @@ skip_if_not_installed("cstime")
 test_that("weeks_to_event is an exclusive stop, and the rows bill its weeks", {
   weeks <- .ic_weeks()
   # EVENT7 has the outcome in follow-up week 7. That week is the interval
-  # `[6, 7)`, so its right edge is week 7 and the boundary is week 7. Week 7
-  # falls inside band 2, which opens at week 4 and closes at week 8, so her
-  # terminal row is clipped at week 7 and bills three weeks.
+  # `[6, 7)`, so its right edge is week 7 and the boundary is week 7. Week 7 falls
+  # inside follow-up interval 2, which opens at week 4 and closes at week 8, so
+  # her terminal row is clipped at week 7 and bills three weeks.
   #
   # WHOLE has no outcome and no boundary of any kind. She is the plain
   # statement of the duration rule.
@@ -184,8 +186,8 @@ test_that("weeks_to_event is an exclusive stop, and the rows bill its weeks", {
   got <- .ic_rows(out, "EVENT7")
 
   # The boundary is the week the outcome falls in, and never the stop of the
-  # band that holds it. That band stops at 8, and reading it there would make
-  # every number below one higher.
+  # follow-up interval that holds it. That follow-up interval stops at 8, and
+  # reading it there would make every number below one higher.
   expect_identical(unique(got$weeks_to_event), 7L)
   expect_identical(nrow(got), 2L)
   expect_identical(got$tstart, c(0L, 4L))
@@ -195,16 +197,16 @@ test_that("weeks_to_event is an exclusive stop, and the rows bill its weeks", {
   # The stop is exclusive, so no row opens at or after it.
   expect_identical(nrow(got[tstart >= 7L]), 0L)
 
-  # One whole band and one clipped band bill 7 person-weeks, and the total
-  # equals the boundary. The inclusive rule would bill 9 over the same two
-  # rows.
+  # One whole follow-up interval and one clipped follow-up interval bill 7
+  # person-weeks, and the total equals the boundary. The inclusive rule would
+  # bill 9 over the same two rows.
   expect_identical(got$person_weeks, c(4L, 3L))
   expect_identical(sum(got$person_weeks), 7L)
   expect_identical(sum(got$person_weeks), unique(got$weeks_to_event))
   expect_identical(.ic_inclusive_weeks(got), 9L)
 
-  # Three complete four-week bands span `[0, 12)`, which is 12 person-weeks.
-  # The inclusive rule would bill 15.
+  # Three complete four-week follow-up intervals span `[0, 12)`, which is 12
+  # person-weeks. The inclusive rule would bill 15.
   whole <- .ic_rows(out, "WHOLE")
   expect_identical(whole$tstart, c(0L, 4L, 8L))
   expect_identical(whole$tstop, c(4L, 8L, 12L))
@@ -247,8 +249,9 @@ test_that("weeks_to_protocol_deviation is an exclusive stop at the right edge", 
   # The stop is exclusive, so no row opens at or after it.
   expect_identical(nrow(got[tstart >= 6L]), 0L)
 
-  # The terminal band is clipped to 2 of its 4 weeks, and the total equals the
-  # boundary. The inclusive rule would bill 8 over the same two rows.
+  # The terminal follow-up interval is clipped to 2 of its 4 weeks, and the
+  # total equals the boundary. The inclusive rule would bill 8 over the same two
+  # rows.
   expect_identical(got$person_weeks, c(4L, 2L))
   expect_identical(sum(got$person_weeks), 6L)
   expect_identical(
@@ -393,9 +396,9 @@ test_that("weeks_to_record_end is an exclusive stop written by enroll()", {
   # follow-up week 9. Week 9 is the interval `[8, 9)`, so the exclusive stop
   # is week 9.
   #
-  # Band 3 opens at week 8 and closes at week 12, so her record ends after 1
-  # of its 4 weeks. The inclusive reading names week 8, which would empty that
-  # band and drop the row.
+  # Follow-up interval 3 opens at week 8 and closes at week 12, so her record
+  # ends after 1 of its 4 weeks. The inclusive reading names week 8, which would
+  # empty that follow-up interval and drop the row.
   d <- data.table::rbindlist(list(
     .ic_person("REC9", weeks, arm = TRUE, absent_fu = 10L:12L),
     .ic_fillers(weeks)
@@ -422,8 +425,8 @@ test_that("weeks_to_record_end is an exclusive stop written by enroll()", {
   # The stop is exclusive, so no row opens at or after it.
   expect_identical(nrow(got[tstart >= 9L]), 0L)
 
-  # The terminal band bills the single week it holds. The inclusive rule would
-  # bill 12 over the same three rows.
+  # The terminal follow-up interval bills the single week it holds. The
+  # inclusive rule would bill 12 over the same three rows.
   expect_identical(got$person_weeks, c(4L, 4L, 1L))
   expect_identical(sum(got$person_weeks), 9L)
   expect_identical(sum(got$person_weeks), unique(got$weeks_to_record_end))

@@ -4,14 +4,14 @@
 
 #' Place the deviation boundary of every enrolled person-trial.
 #'
-#' The boundary is the week that follow-up stops at, counted from the landmark.
+#' The boundary is the week that follow-up stops at, counted from time zero.
 #' It is exact to the week, and it comes from the weekly assessments. It is an
 #' exclusive stop. See the interval convention section of [TTEDesign].
 #'
-#' `enroll()` collapses each band to one row, so the weekly sequence is gone by
-#' the time `s5_prepare_outcome()` runs. This function reads the sequence here,
-#' where it still exists. It returns one integer per person-trial, and never a
-#' weekly panel.
+#' `enroll()` collapses each follow-up interval to one row, so the weekly
+#' sequence is gone by the time `s5_prepare_outcome()` runs. This function reads
+#' the sequence here, where it still exists. It returns one integer per
+#' person-trial, and never a weekly panel.
 #'
 #' @section Discordance and the arm tolerance:
 #'
@@ -25,37 +25,35 @@
 #'
 #' For tolerance `k`, the boundary is the right edge of the `(k + 1)`th
 #' consecutive discordant week. A run that starts at week `u0` therefore gives
-#' `(u0 + k + 1) - L`, where `L` is the landmark week. A tolerance of 0 censors
+#' `(u0 + k + 1) - L`, where `L` is the time-zero week. A tolerance of 0 censors
 #' at the first discordant week.
 #'
-#' A run that starts before the landmark counts only its weeks at or after it.
+#' A run that starts before time zero counts only its weeks at or after it.
 #' The `u >= L + k` test below is what enforces that.
 #'
 #' @section Loss of observation:
 #'
-#' Loss of observation is not discordance, and no tolerance applies to it. An
-#' internal gap in the weekly sequence stops follow-up at the first absent
-#' week. The person may return in a later week. She is censored at the gap.
-#'
-#' A record that simply ends carries no internal gap. `s5_prepare_outcome()`
-#' already reports that case as `weeks_to_loss`, read from the panel itself.
+#' Loss of observation is not discordance, and this boundary does not hold it.
+#' `.tte_observation_gap_boundary()` places the first absent week, and
+#' `s5_prepare_outcome()` stops follow-up there under both estimands. The
+#' event-priority rule of a deviation therefore never applies to a gap.
 #'
 #' @section Runs are read over the observed weeks only:
 #'
 #' A run is a set of discordant weeks with consecutive week indices. An absent
-#' week therefore breaks a run, and the gap boundary always falls at or before
-#' the boundary the unbroken run would give.
+#' week therefore breaks a run. A run that ends after a gap starts after it,
+#' so its boundary falls after the gap boundary.
 #'
 #' @param entry_dt One row per enrolled person-trial. It MUST carry
-#'   `.tte_person_id`, `entry_band_id`, `baseline_tx` and `id_var`.
+#'   `.tte_person_id`, `enrollment_period_id`, `baseline_tx` and `id_var`.
 #' @param data_enrolled The person-week rows of the enrolled persons. It MUST
 #'   carry `person_id_col` and `isoyearweek`.
 #' @param design A [TTEDesign].
 #' @param person_id_col Character, the person identifier column of
 #'   `data_enrolled`.
 #' @param id_var Character, the person-trial identifier column.
-#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
-#'   holds. A boundary past the last band reads `NA`.
+#' @param n_follow_up_intervals Integer, the number of follow-up intervals the
+#'   panel holds. A boundary past the last interval reads `NA`.
 #' @return A data.table keyed by `id_var`, with one integer column
 #'   `weeks_to_protocol_deviation`. `NULL` when the design cannot support the
 #'   weekly read.
@@ -66,9 +64,9 @@
   design,
   person_id_col,
   id_var,
-  n_follow_up_bands
+  n_follow_up_intervals
 ) {
-  dv_pid <- dv_week <- dv_next <- dv_run <- dv_start <- NULL # nolint
+  dv_pid <- dv_week <- dv_run <- dv_start <- NULL # nolint
   dv_len <- dv_hit <- q_week <- NULL # nolint
 
   tx_col <- design$time_treatment_var
@@ -89,7 +87,7 @@
   }
 
   period_width <- as.integer(design$period_width)
-  span <- as.integer(n_follow_up_bands) * period_width
+  span <- as.integer(n_follow_up_intervals) * period_width
 
   # --- the observed weekly assessments -------------------------------------
   # A row that fails the observation test is dropped here, so a week is
@@ -110,41 +108,19 @@
   data.table::setkeyv(w, c("dv_pid", "dv_week"))
 
   # --- the person-trials ---------------------------------------------------
-  # The landmark of a person-band is the first week of the band after it.
-  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  # Time zero of a person-trial is the first week after its enrollment period.
+  lm_week <- (as.integer(entry_dt[["enrollment_period_id"]]) + 1L) *
+    period_width
   arm <- .tte_is_true(entry_dt[["baseline_tx"]])
   n_pt <- length(lm_week)
   stop_week <- rep(NA_integer_, n_pt)
 
-  # --- internal observation gaps -------------------------------------------
-  # `dv_next` is the next OBSERVED week of the same person. A gap opens at
-  # `dv_week + 1` when that next week is further away than one week. The last
-  # week of a record has no next week, so it opens no gap here.
-  w[, dv_next := data.table::shift(dv_week, type = "lead"), by = dv_pid]
-  gaps <- w[
-    !is.na(dv_next) & dv_next > dv_week + 1L,
-    list(dv_pid, dv_week = dv_week + 1L)
-  ]
-  w[, dv_next := NULL]
-  # A duplicated person-week would otherwise duplicate a gap, and a duplicate
-  # in the joined table below would return two rows for one person-trial.
-  gaps <- unique(gaps, by = c("dv_pid", "dv_week"))
-  if (nrow(gaps) > 0L) {
-    data.table::setkeyv(gaps, c("dv_pid", "dv_week"))
-    gaps[, dv_hit := dv_week]
-    q <- data.table::data.table(dv_pid = entry_dt[[".tte_person_id"]])
-    q[, q_week := lm_week]
-    stop_week <- gaps[
-      q,
-      on = c("dv_pid", dv_week = "q_week"),
-      roll = -Inf,
-      dv_hit
-    ]
-  }
+  # An observation gap is not read here. `.tte_observation_gap_boundary()`
+  # reads it, and `s5_prepare_outcome()` treats it as loss of observation.
 
-  # --- discordant runs, one arm at a time ----------------------------------
-  # A person can be an initiator in one band and a comparator in another, so
-  # the runs are read per arm and not per person.
+  # --- discordant runs, one arm at a time ---------------------------------- A
+  # person can be an initiator in one enrollment period and a comparator in
+  # another, so the runs are read per arm and not per person.
   for (this_arm in c(TRUE, FALSE)) {
     idx <- which(arm == this_arm)
     if (length(idx) == 0L) {
@@ -213,31 +189,245 @@
 }
 
 
+#' Find the first absent week at or after a query week.
+#'
+#' A gap opens at `u + 1` when the next observed week of the same person is
+#' later than `u + 1`. The last week of a record has no next week, so it opens
+#' no gap here.
+#'
+#' @param obs_pid,obs_week The person and the 0-based week index of every
+#'   observed person-week.
+#' @param query_pid,query_week One person and one week per query.
+#' @return An integer vector with one element per query. It holds the first
+#'   gap week at or after `query_week`, or `NA` when the person has none.
+#' @noRd
+.tte_first_gap_week <- function(obs_pid, obs_week, query_pid, query_week) {
+  gp_pid <- gp_week <- gp_next <- gp_hit <- NULL # nolint
+  out <- rep(NA_integer_, length(query_pid))
+  w <- data.table::data.table(gp_pid = obs_pid, gp_week = obs_week)
+  data.table::setkeyv(w, c("gp_pid", "gp_week"))
+  w[, gp_next := data.table::shift(gp_week, type = "lead"), by = gp_pid]
+  gaps <- w[
+    !is.na(gp_next) & gp_next > gp_week + 1L,
+    list(gp_pid, gp_week = gp_week + 1L)
+  ]
+  # A duplicated person-week would otherwise duplicate a gap, and a duplicate
+  # in the joined table below would return two rows for one query.
+  gaps <- unique(gaps, by = c("gp_pid", "gp_week"))
+  if (nrow(gaps) == 0L) {
+    return(out)
+  }
+  data.table::setkeyv(gaps, c("gp_pid", "gp_week"))
+  gaps[, gp_hit := gp_week]
+  q <- data.table::data.table(gp_pid = query_pid, gp_week = query_week)
+  out <- gaps[q, on = c("gp_pid", "gp_week"), roll = -Inf, gp_hit]
+  return(out)
+}
+
+
+#' Place the observation-gap boundary of every enrolled person-trial.
+#'
+#' The boundary is the first absent week after time zero, counted from time
+#' zero. It is an exclusive stop. See the interval convention section of
+#' [TTEDesign].
+#'
+#' A gap is loss of observation, and it stops follow-up under both estimands.
+#' This function reads it without the treatment variable, so an ITT design
+#' without `time_treatment_var` still finds it.
+#'
+#' @inheritParams .tte_record_end_boundary
+#' @return A data.table keyed by `id_var`, with one integer column
+#'   `weeks_to_observation_gap`. `NULL` when the design cannot support the
+#'   weekly read.
+#' @noRd
+.tte_observation_gap_boundary <- function(
+  entry_dt,
+  data_enrolled,
+  design,
+  person_id_col,
+  id_var,
+  n_follow_up_intervals
+) {
+  # The same gate as `.tte_record_end_boundary()`.
+  if (is.null(design$observed_var)) {
+    return(NULL)
+  }
+  if (!"isoyearweek" %in% names(data_enrolled)) {
+    return(NULL)
+  }
+  if (nrow(entry_dt) == 0L) {
+    return(NULL)
+  }
+
+  period_width <- as.integer(design$period_width)
+  span <- as.integer(n_follow_up_intervals) * period_width
+
+  observed_col <- .tte_observed_column(design$observed_var)
+  week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
+  keep <- !is.na(week_index)
+  if (!is.null(observed_col)) {
+    keep <- keep & .tte_is_true(data_enrolled[[observed_col]])
+  }
+
+  lm_week <- (as.integer(entry_dt[["enrollment_period_id"]]) + 1L) *
+    period_width
+  gap_week <- .tte_first_gap_week(
+    obs_pid = data_enrolled[[person_id_col]][keep],
+    obs_week = week_index[keep],
+    query_pid = entry_dt[[".tte_person_id"]],
+    query_week = lm_week
+  )
+
+  # The same cut as `.tte_deviation_boundary()`.
+  weeks <- gap_week - lm_week
+  weeks[!is.na(weeks) & weeks > span] <- NA_integer_
+
+  out <- data.table::data.table(weeks_to_observation_gap = weeks)
+  data.table::set(out, j = id_var, value = entry_dt[[id_var]])
+  data.table::setkeyv(out, id_var)
+  return(out[])
+}
+
+
+#' Write the observation-gap boundary into an enrolled panel
+#'
+#' Types the column first, so an empty panel still carries it and
+#' `tteenrollment_rbind()` sees one column set across the chunks.
+#'
+#' @param panel The enrolled panel. It is changed by reference.
+#' @param gap_dt The return of `.tte_observation_gap_boundary()`, or `NULL`.
+#' @param id_var Character, the person-trial identifier column.
+#' @return `panel`, invisibly.
+#' @noRd
+.tte_write_observation_gap <- function(panel, gap_dt, id_var) {
+  weeks_to_observation_gap <- i.weeks_to_observation_gap <- NULL # nolint
+  if (is.null(gap_dt)) {
+    return(invisible(panel))
+  }
+  data.table::set(panel, j = "weeks_to_observation_gap", value = NA_integer_)
+  if (nrow(panel) > 0L) {
+    panel[
+      gap_dt,
+      weeks_to_observation_gap := i.weeks_to_observation_gap,
+      on = id_var
+    ]
+  }
+  return(invisible(panel))
+}
+
+
+# The warning for a panel enrolled before swereg wrote
+# `weeks_to_observation_gap`. `qs2_read()` gives it on read, and
+# `.tte_gap_record_end()` gives it in `s5_prepare_outcome()`.
+.TTE_LEGACY_GAP_WARNING <- paste(
+  "This enrollment was enrolled before swereg 26.15.0, so its panel has no",
+  "`weeks_to_observation_gap` column. Gaps in observation cannot be detected",
+  "in it, and an outcome after such a gap may be counted. Re-run s1",
+  "(`$s1_generate_enrollments_and_ipw()`) to remove this limitation."
+)
+
+
+#' Test whether an enrollment panel predates `weeks_to_observation_gap`
+#'
+#' `enroll()` writes `weeks_to_observation_gap` whenever the design declares
+#' `observed_var`. A non-empty panel that `enroll()` built with
+#' `observed_var` and that lacks the column was enrolled before swereg
+#' 26.15.0.
+#'
+#' @param data The panel.
+#' @param design The [TTEDesign] of the enrollment, or `NULL`.
+#' @param steps_completed Character, the `steps_completed` of the enrollment.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_is_legacy_gap_panel <- function(data, design, steps_completed) {
+  if (!is.data.frame(data) || is.null(design)) {
+    return(FALSE)
+  }
+  return(
+    "enroll" %in% steps_completed &&
+      !is.null(design$observed_var) &&
+      nrow(data) > 0L &&
+      !"weeks_to_observation_gap" %in% names(data)
+  )
+}
+
+
+#' Stop follow-up at the first absent week
+#'
+#' Both estimands stop at the first absent week after time zero, with no
+#' tolerance. The gap is loss of observation, so this function moves the
+#' record end of `s5_prepare_outcome()` to it. A gap is not a deviation, so
+#' the event-priority rule never clears it. An outcome after the gap is never
+#' counted, even when it falls in the same follow-up interval as the gap.
+#'
+#' A whole missing follow-up interval has no panel row, and every later row
+#' is numbered one interval too early. All of those rows open at or after the
+#' gap, so `s5_prepare_outcome()` drops them.
+#'
+#' A panel enrolled before swereg 26.15.0 lacks `weeks_to_observation_gap`
+#' (see `.tte_is_legacy_gap_panel()`). Its weekly rows are gone, so swereg
+#' cannot recompute the gap. This function then leaves the record end alone,
+#' and warns once with `.TTE_LEGACY_GAP_WARNING`. The warning says three
+#' things:
+#'
+#' - Gaps in observation cannot be detected in the panel.
+#' - An outcome after such a gap may be counted.
+#' - A re-run of s1 removes the limitation.
+#'
+#' `qs2_read()` gives the same warning when it reads such an enrollment from
+#' a file. It then sets the private flag `.legacy_gap_warned`, and this
+#' function does not warn again for that object. An enrollment saved before
+#' 26.15.0 runs its saved method bodies and the old rules, so it warns on
+#' read only.
+#'
+#' @param data The panel inside `s5_prepare_outcome()`. It MUST carry
+#'   `.record_end`. It is changed by reference.
+#' @param design The [TTEDesign] of the enrollment.
+#' @param steps_completed Character, the `steps_completed` of the enrollment.
+#' @param warned Logical, `TRUE` when `qs2_read()` already gave the warning.
+#' @return `data`, invisibly.
+#' @noRd
+.tte_gap_record_end <- function(data, design, steps_completed, warned) {
+  .record_end <- weeks_to_observation_gap <- NULL # nolint
+  if (!"weeks_to_observation_gap" %in% names(data)) {
+    if (!warned && .tte_is_legacy_gap_panel(data, design, steps_completed)) {
+      warning(.TTE_LEGACY_GAP_WARNING, call. = FALSE)
+    }
+    return(invisible(data))
+  }
+  data[,
+    .record_end := pmin(.record_end, weeks_to_observation_gap, na.rm = TRUE)
+  ]
+  return(invisible(data))
+}
+
+
 #' Place the record-end boundary of every enrolled person-trial.
 #'
-#' The boundary is the week the weekly record stops at, counted from the
-#' landmark. It is exact to the week, and it comes from the weekly sequence. It
+#' The boundary is the week the weekly record stops at, counted from time
+#' zero. It is exact to the week, and it comes from the weekly sequence. It
 #' is an exclusive stop. See the interval convention section of [TTEDesign].
 #'
 #' A record that simply ends carries no internal gap, so
 #' `.tte_deviation_boundary()` never reports it. `s5_prepare_outcome()` reports
 #' it as `weeks_to_loss`, and reads `.max_tstop` for the value. `.max_tstop` is
-#' the stop of the LAST BAND, so a record that ends inside a band overshoots by
-#' up to `period_width - 1` weeks. This function reads the exact week instead.
+#' the stop of the LAST follow-up interval, so a record that ends inside an
+#' interval overshoots by up to `period_width - 1` weeks. This function reads
+#' the exact week instead.
 #'
 #' A record that reaches the end of the panel returns `NA`. Nothing is left for
 #' it to stop, and the person completed the follow-up the panel holds.
 #'
 #' @param entry_dt One row per enrolled person-trial. It MUST carry
-#'   `.tte_person_id`, `entry_band_id` and `id_var`.
+#'   `.tte_person_id`, `enrollment_period_id` and `id_var`.
 #' @param data_enrolled The person-week rows of the enrolled persons. It MUST
 #'   carry `person_id_col` and `isoyearweek`.
 #' @param design A [TTEDesign].
 #' @param person_id_col Character, the person identifier column of
 #'   `data_enrolled`.
 #' @param id_var Character, the person-trial identifier column.
-#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
-#'   holds.
+#' @param n_follow_up_intervals Integer, the number of follow-up intervals the
+#'   panel holds.
 #' @return A data.table keyed by `id_var`, with one integer column
 #'   `weeks_to_record_end`. `NULL` when the design cannot support the weekly
 #'   read.
@@ -248,7 +438,7 @@
   design,
   person_id_col,
   id_var,
-  n_follow_up_bands
+  n_follow_up_intervals
 ) {
   re_pid <- re_week <- NULL # nolint
   re_last <- NULL # nolint
@@ -267,7 +457,7 @@
   }
 
   period_width <- as.integer(design$period_width)
-  span <- as.integer(n_follow_up_bands) * period_width
+  span <- as.integer(n_follow_up_intervals) * period_width
 
   observed_col <- .tte_observed_column(design$observed_var)
   week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
@@ -285,7 +475,8 @@
   )[, list(re_last = max(re_week)), by = re_pid]
   data.table::setkeyv(last_week, "re_pid")
 
-  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  lm_week <- (as.integer(entry_dt[["enrollment_period_id"]]) + 1L) *
+    period_width
   hit <- last_week[
     data.table::data.table(re_pid = entry_dt[[".tte_person_id"]]),
     on = "re_pid",
@@ -306,12 +497,13 @@
 
 #' Place the outcome boundary of every enrolled person-trial.
 #'
-#' The boundary is the week the outcome falls in, counted from the landmark. It
+#' The boundary is the week the outcome falls in, counted from time zero. It
 #' is exact to the week, and it comes from the weekly sequence. It is an
 #' exclusive stop. See the interval convention section of [TTEDesign].
 #'
-#' The band collapse keeps one outcome flag per band. After it the week is
-#' gone, and the only boundary left to read is the stop of the band. That
+#' The collapse keeps one outcome flag per follow-up interval. After it the
+#' week is gone, and the only boundary left to read is the stop of the
+#' interval. That
 #' overshoots by up to `period_width - 1` weeks. It also disagrees with
 #' `weeks_to_record_end` and `weeks_to_protocol_deviation`, which are exact.
 #' The disagreement changes the winner. A woman whose record ends in week 10,
@@ -320,19 +512,20 @@
 #' The active outcome is chosen later, in `s5_prepare_outcome()`, so this
 #' returns one column per outcome the design names.
 #'
-#' An outcome week before the landmark is not a follow-up event and never
-#' becomes the boundary. A boundary past the last band of the panel reads `NA`.
+#' An outcome week before time zero is not a follow-up event and never
+#' becomes the boundary. A boundary past the last follow-up interval of the
+#' panel reads `NA`.
 #'
 #' @param entry_dt One row per enrolled person-trial. It MUST carry
-#'   `.tte_person_id`, `entry_band_id` and `id_var`.
+#'   `.tte_person_id`, `enrollment_period_id` and `id_var`.
 #' @param data_enrolled The person-week rows of the enrolled persons. It MUST
 #'   carry `person_id_col`, `isoyearweek` and the outcome columns.
 #' @param design A [TTEDesign].
 #' @param person_id_col Character, the person identifier column of
 #'   `data_enrolled`.
 #' @param id_var Character, the person-trial identifier column.
-#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
-#'   holds.
+#' @param n_follow_up_intervals Integer, the number of follow-up intervals the
+#'   panel holds.
 #' @return A data.table keyed by `id_var`, with one integer column
 #'   `weeks_to_event_<outcome>` per outcome column. `NULL` when the design
 #'   cannot support the weekly read.
@@ -343,7 +536,7 @@
   design,
   person_id_col,
   id_var,
-  n_follow_up_bands
+  n_follow_up_intervals
 ) {
   ev_pid <- ev_week <- ev_hit <- q_week <- NULL # nolint
 
@@ -366,7 +559,7 @@
   }
 
   period_width <- as.integer(design$period_width)
-  span <- as.integer(n_follow_up_bands) * period_width
+  span <- as.integer(n_follow_up_intervals) * period_width
 
   observed_col <- .tte_observed_column(design$observed_var)
   week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
@@ -380,7 +573,8 @@
 
   pid_kept <- data_enrolled[[person_id_col]][keep]
   week_kept <- week_index[keep]
-  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  lm_week <- (as.integer(entry_dt[["enrollment_period_id"]]) + 1L) *
+    period_width
   q <- data.table::data.table(
     ev_pid = entry_dt[[".tte_person_id"]],
     q_week = lm_week

@@ -1,11 +1,11 @@
 # Person-time is the exposure a woman contributed, and never the width of the
-# band she was censored in.
+# follow-up interval she was censored in.
 #
 # `enroll()` used to write `person_weeks` from the count of source weeks in the
-# band, and `$s4_prepare_for_analysis()` used to delete the censoring row. A
-# woman who deviated in week 2 of a four-week terminal band was billed for four
-# weeks, and then lost all four. Every rate and every Poisson offset read that
-# number.
+# follow-up interval, and `$s4_prepare_for_analysis()` used to delete the
+# censoring row. A woman who deviated in week 2 of a four-week terminal
+# follow-up interval was billed for four weeks, and then lost all four. Every
+# rate and every Poisson offset read that number.
 #
 # `s5_prepare_outcome()` now clips the terminal row at the exact boundary, and
 # sets `person_weeks` to the clipped width. The row stays. It carries the
@@ -13,10 +13,12 @@
 #
 # This file pins four properties.
 #
-# 1. `person_weeks` is the clipped duration, and not the band width.
+# 1. `person_weeks` is the clipped duration, and not the follow-up interval
+#   width.
 # 2. The terminal censoring row is retained, and carries only pre-censor
 #    exposure.
-# 3. An administrative or requested end is exact, and never rounded to a band.
+# 3. An administrative or requested end is exact, and never rounded to a
+#   follow-up interval.
 # 4. A zero-duration row never reaches the offset.
 
 skip_if_not_installed("data.table")
@@ -25,8 +27,9 @@ skip_if_not_installed("cstime")
 .lb_pw <- 4L
 .lb_n_fu <- 12L
 
-# Sixteen consecutive ISO year-weeks, starting on a band boundary. Under
-# `period_width = 4` they make one entry band and three follow-up bands.
+# Sixteen consecutive ISO year-weeks, starting on a follow-up interval boundary.
+# Under `period_width = 4` they make one enrollment period and three follow-up
+# intervals.
 .lb_weeks <- function(n_weeks = 16L) {
   wk <- data.table::copy(cstime::dates_by_isoyearweek[, list(isoyearweek)])
   wk[, idx := .I]
@@ -39,8 +42,8 @@ skip_if_not_installed("cstime")
 # One person, one row per week.
 #
 # `arm` is her assigned arm. `exposed` holds that arm in every week, and
-# `eligible` holds `TRUE` only inside the entry band. `on_tx` is the weekly
-# assessment, and it holds her assigned arm by default.
+# `eligible` holds `TRUE` only inside the enrollment period. `on_tx` is the
+# weekly assessment, and it holds her assigned arm by default.
 #
 # Three arguments move the assessment, and each one names 1-indexed FOLLOW-UP
 # weeks rather than rows of `weeks`.
@@ -148,25 +151,27 @@ skip_if_not_installed("cstime")
 # PROOF 1
 # ---------------------------------------------------------------------------
 
-test_that("person_weeks is the clipped duration, not the band width", {
+test_that("person_weeks is the clipped duration, not the follow-up interval width", {
   weeks <- .lb_weeks()
-  # MIDBAND is discordant in follow-up week 6, under a tolerance of 0. The
+  # MIDINTERVAL is discordant in follow-up week 6, under a tolerance of 0. The
   # boundary is the right edge of that week, which is week 6.
   #
-  # Follow-up band 2 opens at week 4 and closes at week 8, so week 6 falls
-  # squarely inside it. The boundary is week 2 of a four-week terminal band.
+  # Follow-up follow-up interval 2 opens at week 4 and closes at week 8, so week
+  # 6 falls squarely inside it. The boundary is week 2 of a four-week terminal
+  # follow-up interval.
   #
-  # WHOLE is never discordant. She shows what an unclipped band costs.
+  # WHOLE is never discordant. She shows what an unclipped follow-up interval
+  # costs.
   d <- data.table::rbindlist(list(
-    .lb_person("MIDBAND", weeks, arm = TRUE, discordant_fu = 6L),
+    .lb_person("MIDINTERVAL", weeks, arm = TRUE, discordant_fu = 6L),
     .lb_person("WHOLE", weeks, arm = TRUE),
     .lb_fillers(weeks)
   ))
 
   out <- .lb_prepare(.lb_enroll(d, .lb_design(intervention_k = 0L)))
-  got <- .lb_rows(out, "MIDBAND")
+  got <- .lb_rows(out, "MIDINTERVAL")
 
-  # The boundary is exact to the week, and it falls inside band 2.
+  # The boundary is exact to the week, and it falls inside follow-up interval 2.
   expect_identical(unique(got$weeks_to_protocol_deviation), 6L)
   expect_identical(got$tstart, c(0L, 4L))
   expect_identical(got$tstop, c(4L, 6L))
@@ -178,7 +183,8 @@ test_that("person_weeks is the clipped duration, not the band width", {
   # `person_weeks` is the width of every retained row, hers and everyone's.
   expect_identical(out$person_weeks, out$tstop - out$tstart)
 
-  # WHOLE keeps three complete bands, so the fixture clips MIDBAND alone.
+  # WHOLE keeps three complete follow-up intervals, so the fixture clips
+  # MIDINTERVAL alone.
   expect_identical(.lb_rows(out, "WHOLE")$person_weeks, c(4L, 4L, 4L))
 })
 
@@ -190,7 +196,7 @@ test_that("person_weeks is the clipped duration, not the band width", {
 test_that("the terminal censor row is retained and carries only pre-censor exposure", {
   weeks <- .lb_weeks()
   # RETAINED is discordant in follow-up week 6, so her boundary is week 6 and
-  # band 2 carries the censoring.
+  # follow-up interval 2 carries the censoring.
   d <- data.table::rbindlist(list(
     .lb_person("RETAINED", weeks, arm = TRUE, discordant_fu = 6L),
     .lb_fillers(weeks)
@@ -221,7 +227,7 @@ test_that("the terminal censor row is retained and carries only pre-censor expos
 # PROOF 3
 # ---------------------------------------------------------------------------
 
-test_that("an administrative or requested end is exact, not rounded to a band", {
+test_that("an administrative or requested end is exact, not rounded to a follow-up interval", {
   weeks <- .lb_weeks()
   # Nobody in this fixture ever deviates, so the requested end and the
   # administrative end are the only boundaries in play.
@@ -230,8 +236,8 @@ test_that("an administrative or requested end is exact, not rounded to a band", 
     .lb_fillers(weeks)
   ))
 
-  # A six-week requested follow-up stops at week six. Bands close at weeks 4,
-  # 8 and 12, so week 6 falls inside band 2.
+  # A six-week requested follow-up stops at week six. Follow-up intervals close
+  # at weeks 4, 8 and 12, so week 6 falls inside follow-up interval 2.
   out <- .lb_prepare(
     .lb_enroll(d, .lb_design(intervention_k = 0L)),
     follow_up = 6L
@@ -240,7 +246,8 @@ test_that("an administrative or requested end is exact, not rounded to a band", 
   expect_identical(got$tstop, c(4L, 6L))
   expect_identical(got$person_weeks, c(4L, 2L))
   expect_identical(sum(got$person_weeks), 6L)
-  # Rounding up to the band would give 8, and rounding down would give 4.
+  # Rounding up to the follow-up interval would give 8, and rounding down would
+  # give 4.
   expect_identical(max(out$tstop), 6L)
 
   # The administrative end is exact on the same scale. `weeks[10]` is
@@ -266,8 +273,9 @@ test_that("an administrative or requested end is exact, not rounded to a band", 
 test_that("a zero-duration row never reaches the offset", {
   weeks <- .lb_weeks()
   # EDGE is discordant in follow-up week 8, under a tolerance of 0, so her
-  # boundary is week 8. That is exactly where band 2 closes and band 3 opens.
-  # Band 3 would clip to `tstop == tstart` if it were retained.
+  # boundary is week 8. That is exactly where follow-up interval 2 closes and
+  # follow-up interval 3 opens. Follow-up interval 3 would clip to `tstop ==
+  # tstart` if it were retained.
   d <- data.table::rbindlist(list(
     .lb_person("EDGE", weeks, arm = TRUE, discordant_fu = 8L),
     .lb_fillers(weeks)
@@ -294,14 +302,14 @@ test_that("a zero-duration row never reaches the offset", {
 # PROOF 5
 # ---------------------------------------------------------------------------
 
-test_that("a record that ends mid-band bills only the weeks present", {
+test_that("a record that ends mid-interval bills only the weeks present", {
   weeks <- .lb_weeks()
-  # TAILCUT has no row for follow-up weeks 11 and 12, so her record stops at
-  # the end of follow-up week 10. Band 3 opens at week 8 and closes at week
-  # 12, so her record ends inside it and holds 2 of its 4 weeks.
+  # TAILCUT has no row for follow-up weeks 11 and 12, so her record stops at the
+  # end of follow-up week 10. Follow-up interval 3 opens at week 8 and closes at
+  # week 12, so her record ends inside it and holds 2 of its 4 weeks.
   #
   # A record that ends carries no internal gap, because no observed week
-  # follows it. The band stop alone would bill her for all four.
+  # follows it. The follow-up interval stop alone would bill her for all four.
   #
   # FULLOBS is the same woman with every week present. She shows that a
   # complete record is not censored by this boundary.
@@ -341,14 +349,14 @@ test_that("a record that ends mid-band bills only the weeks present", {
 # Supporting behaviour, tested and not mutation-proven
 # ---------------------------------------------------------------------------
 
-test_that("an event in the deviation band wins, and the row stops at the event week", {
+test_that("an event in the deviation follow-up interval wins, and the row stops at the event week", {
   weeks <- .lb_weeks()
   # COLLIDE deviates in follow-up week 6 and has the outcome in follow-up
-  # week 7. Both fall in band 2, which closes at week 8.
+  # week 7. Both fall in follow-up interval 2, which closes at week 8.
   #
-  # The event wins the band. The deviation in week 6 does not clip her, and
-  # her row is not flagged as censored. She stops at her own event week, which
-  # is week 7, so the terminal row bills three weeks and not four.
+  # The event wins the follow-up interval. The deviation in week 6 does not clip
+  # her, and her row is not flagged as censored. She stops at her own event
+  # week, which is week 7, so the terminal row bills three weeks and not four.
   d <- data.table::rbindlist(list(
     .lb_person(
       "COLLIDE",
@@ -372,13 +380,15 @@ test_that("an event in the deviation band wins, and the row stops at the event w
   expect_identical(got$censor_this_period, c(0L, 0L))
 })
 
-test_that("a whole missing follow-up band is censored before it can renumber", {
-  # `enroll()` numbers the follow-up bands by position, so a person-trial that
-  # loses a whole middle band gets its later bands numbered too early. The
-  # exposure of those rows would then be measured from the wrong week.
+test_that("a whole missing follow-up interval is censored before it can renumber", {
+  # `enroll()` numbers the follow-up intervals by position, so a person-trial
+  # that loses a whole middle follow-up interval gets its later follow-up
+  # intervals numbered too early. The exposure of those rows would then be
+  # measured from the wrong week.
   #
   # A design that declares `observed_var` cannot reach that state. The missing
-  # band is an observation gap, and follow-up stops at the first absent week.
+  # follow-up interval is an observation gap, and follow-up stops at the first
+  # absent week.
   weeks <- .lb_weeks()
   d <- data.table::rbindlist(list(
     .lb_person("MIDGAP", weeks, arm = TRUE, absent_fu = 5L:8L),
@@ -388,18 +398,23 @@ test_that("a whole missing follow-up band is censored before it can renumber", {
   trial <- .lb_enroll(d, .lb_design(intervention_k = 0L))
 
   # The renumbering is real, and this reads it off the enrolled panel. Her two
-  # rows are two bands apart on the calendar and one band apart in `tstop`.
+  # rows are two follow-up intervals apart on the calendar and one follow-up
+  # interval apart in `tstop`.
   panel <- trial$data[id == "MIDGAP"][order(trial_id)]
   expect_identical(nrow(panel), 2L)
   expect_identical(as.integer(diff(panel$trial_id)), 2L)
   expect_identical(panel$tstop, c(4L, 8L))
 
-  # The gap opens at follow-up week 5, so the boundary is week 4.
+  # The gap opens at follow-up week 5, so the boundary is week 4. The gap is
+  # loss of observation and not a deviation.
   out <- .lb_prepare(trial)
   got <- .lb_rows(out, "MIDGAP")
-  expect_identical(unique(got$weeks_to_protocol_deviation), 4L)
+  expect_identical(unique(got$weeks_to_observation_gap), 4L)
+  expect_identical(unique(got$weeks_to_loss), 4L)
+  expect_identical(unique(got$weeks_to_protocol_deviation), NA_integer_)
 
-  # Only the band before the gap survives, and the misnumbered row is gone.
+  # Only the follow-up interval before the gap survives, and the misnumbered row
+  # is gone.
   expect_identical(nrow(got), 1L)
   expect_identical(got$tstop, 4L)
   expect_identical(got$person_weeks, 4L)
@@ -407,7 +422,8 @@ test_that("a whole missing follow-up band is censored before it can renumber", {
 
 test_that("ITT retains its loss row with the width it holds", {
   weeks <- .lb_weeks()
-  # ITT never censors at a switch, so SWITCH keeps all three bands.
+  # ITT never censors at a switch, so SWITCH keeps all three follow-up
+  # intervals.
   d <- data.table::rbindlist(list(
     .lb_person("SWITCH", weeks, arm = TRUE, discordant_fu = 6L),
     .lb_fillers(weeks)

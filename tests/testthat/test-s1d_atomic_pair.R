@@ -86,7 +86,7 @@ s1d_fixture <- function(
     n_persons = 40L,
     date_min = "2018-01-01",
     date_max = "2019-06-30",
-    n_init_bands = 8L,
+    n_init_periods = 8L,
     seed = 4242L
   )
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")
@@ -273,8 +273,9 @@ test_that("a REAL s1d dispatch commits both outputs, and file_raw is the RAW pan
   conf <- fx$es$design$confounder_vars
   expect_true(all(conf %in% names(raw$data)))
   expect_true(all(swereg:::.tte_entry_col(conf) %in% names(raw$data)))
-  # Follow-up opens one band after the entry band, on every row.
-  expect_true(all(raw$data$trial_id > raw$data$entry_band_id))
+  # Follow-up opens at time zero, the first week after the enrollment period, on
+  # every row.
+  expect_true(all(raw$data$trial_id > raw$data$enrollment_period_id))
 
   # No staging litter survived the successful commit.
   expect_length(

@@ -399,5 +399,5 @@ test_that("the production render path fills inclusion_steps from the spec", {
       )
     )
   )
-  expect_identical(.ceg_steps_of(groups[[4L]]), "Has invalid treatment")
+  expect_identical(.ceg_steps_of(groups[[4L]]), "No week in either treatment arm")
 })

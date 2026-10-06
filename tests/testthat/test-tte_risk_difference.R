@@ -1,20 +1,20 @@
 # Cause-specific risk difference with a person-level percentile bootstrap.
 #
-# `$risk_difference()` returns, at each band,
+# `$risk_difference()` returns, at each follow-up interval,
 #
 #   RD(t) = Risk_intervention(t) - Risk_comparator(t)
 #         = [1 - S_intervention(t)] - [1 - S_comparator(t)]
 #         = S_comparator(t) - S_intervention(t)
 #
 # SIGNED. A protective intervention gives a negative risk difference, and that
-# minus sign is the answer. `abs()` has no place anywhere in this arithmetic.
-# An absolute risk difference has a correct-looking magnitude at every band, so
-# no assertion on the point estimate alone can see a stray one. TWO assertions
-# in this file can, and both are kept deliberately: the mirror test below, and
-# "person-trial aggregation is exactly person-level aggregation", whose
-# bootstrap replicates straddle zero even where the point estimate does not, so
-# `abs()` breaks 83 of its 600 bit-identical replicate comparisons. The sign
-# convention is therefore pinned in two unrelated places, not one.
+# minus sign is the answer. `abs()` has no place anywhere in this arithmetic. An
+# absolute risk difference has a correct-looking magnitude at every follow-up
+# interval, so no assertion on the point estimate alone can see a stray one. TWO
+# assertions in this file can, and both are kept deliberately: the mirror test
+# below, and "person-trial aggregation is exactly person-level aggregation",
+# whose bootstrap replicates straddle zero even where the point estimate does
+# not, so `abs()` breaks 83 of its 600 bit-identical replicate comparisons. The
+# sign convention is therefore pinned in two unrelated places, not one.
 #
 # Fixture (measured against the real `$survival_curve()`, not hand-waved):
 #
@@ -34,15 +34,15 @@
 #     same way. One multiplicity vector must therefore reach both arms; a
 #     separate draw per arm leaves the point estimate untouched and biases
 #     the interval, and nothing but assertion 5 can see it.
-#   * p1 carries an event in TWO of her trials (p1_tB at band 4, p1_tA at
-#     band 8). She is ONE person who had the outcome. Assertion 7 pins that the
-#     reported count is 1 and not 2.
+#   * p1 carries an event in TWO of her trials (p1_tB at follow-up interval 4,
+#     p1_tA at follow-up interval 8). She is ONE person who had the outcome.
+#     Assertion 7 pins that the reported count is 1 and not 2.
 #
 # A third structural property carries the zero-event block at the end of the
-# file. The comparator arm has NO event through band 4. It has one event,
-# weight 2, by band 8. So one arm is inestimable at the early horizon and
-# estimable at the late one, in a single fixture. That is what makes "per
-# horizon" testable against "per panel".
+# file. The comparator arm has NO event through follow-up interval 4. It has one
+# event, weight 2, by follow-up interval 8. So one arm is inestimable at the
+# early horizon and estimable at the late one, in a single fixture. That is what
+# makes "per horizon" testable against "per panel".
 #
 # Person blocks are unequal on purpose: p1 = 3 rows, p2 = 2, p3 = 5, p4 = 2.
 
@@ -297,7 +297,7 @@ test_that("person-trial aggregation is exactly person-level aggregation", {
   persons <- levels(factor(dt$id))
   pt_levels <- levels(factor(dt$enrollment_person_trial_id))
   owner <- dt$id[match(pt_levels, dt$enrollment_person_trial_id)]
-  bands <- sort(unique(dt$tstop))
+  intervals <- sort(unique(dt$tstop))
 
   # Person-indexed matrices, built here from the fixture and from nothing the
   # estimator computed.
@@ -305,10 +305,10 @@ test_that("person-trial aggregation is exactly person-level aggregation", {
     a <- dt[
       exposed == arm_value,
       .(num = sum(w * event), den = sum(w)),
-      keyby = .(p = match(id, persons), b = match(tstop, bands))
+      keyby = .(p = match(id, persons), b = match(tstop, intervals))
     ]
-    num <- matrix(0, length(persons), length(bands))
-    den <- matrix(0, length(persons), length(bands))
+    num <- matrix(0, length(persons), length(intervals))
+    den <- matrix(0, length(persons), length(intervals))
     num[cbind(a$p, a$b)] <- a$num
     den[cbind(a$p, a$b)] <- a$den
     list(num = num, den = den)
@@ -361,8 +361,9 @@ test_that("person-trial aggregation is exactly person-level aggregation", {
     }
   }
 
-  # Degenerate draws (an arm with no person drawn, or an emptied band) are in
-  # the comparison too, so the NA pattern is covered and not stepped around.
+  # Degenerate draws (an arm with no person drawn, or an emptied follow-up
+  # interval) are in the comparison too, so the NA pattern is covered and not
+  # stepped around.
   expect_gt(n_degenerate, 0L)
 })
 
@@ -375,9 +376,10 @@ test_that("the interval is the percentile of the stored replicates", {
   expect_identical(dim(boot), c(200L, 2L))
   expect_identical(attr(out, "conf_level"), conf_level)
 
-  # Band 4 has no comparator event, so its interval is suppressed and there is
-  # no percentile to compare against; see the zero-event block below. Band 8 is
-  # estimable and is what this assertion is about.
+  # Follow-up interval 4 has no comparator event, so its interval is suppressed
+  # and there is no percentile to compare against; see the zero-event block
+  # below. Follow-up interval 8 is estimable and is what this assertion is
+  # about.
   #
   # `"zero-event arm"` is the state that has NO interval. `"ok"` and
   # `"spans null"` both have one, and they differ only in where it sits
@@ -397,12 +399,12 @@ test_that("the interval is the percentile of the stored replicates", {
     )
   }
 
-  # A degenerate replicate (no person drawn for an arm, or an emptied band)
-  # must arrive as NA rather than as an error or a substituted number.
+  # A degenerate replicate (no person drawn for an arm, or an emptied follow-up
+  # interval) must arrive as NA rather than as an error or a substituted number.
   expect_true(anyNA(boot))
   # The suppression is the ONLY source of a missing bound on an estimable
-  # band: the percentile step drops degenerate replicates rather than
-  # propagating them.
+  # follow-up interval: the percentile step drops degenerate replicates rather
+  # than propagating them.
   expect_false(anyNA(out$rd_lo[estimable]))
   expect_false(anyNA(out$rd_hi[estimable]))
 })
@@ -417,16 +419,17 @@ test_that("the interval is the percentile of the stored replicates", {
 # not repair it, because the degeneracy is in the resampling scheme.
 #
 # The main fixture already carries the case, and carries it BOTH ways. The
-# comparator arm has no event by band 4 and one event (weight 2) by band 8.
-# Band 4 therefore has no interval and band 8 has one. That is what makes the
-# condition per horizon rather than per panel.
+# comparator arm has no event by follow-up interval 4 and one event (weight 2)
+# by follow-up interval 8. Follow-up interval 4 therefore has no interval and
+# follow-up interval 8 has one. That is what makes the condition per horizon
+# rather than per panel.
 
 test_that("a zero-event arm loses its interval and keeps its point estimate", {
   out <- rd_out()
   at4 <- out[tstop == 4L]
 
   # The witness, read off the fixture and not off the estimator: no comparator
-  # event carries a positive weight through band 4.
+  # event carries a positive weight through follow-up interval 4.
   dt <- rd_dt()
   expect_equal(sum(dt[exposed == FALSE & tstop <= 4L, w * event]), 0)
 
@@ -468,8 +471,8 @@ test_that("the zero-event condition is per horizon, not per panel", {
   at8 <- out[tstop == 8L]
 
   dt <- rd_dt()
-  # No comparator event through band 4; one comparator event, weight 2, by
-  # band 8. The same arm, two horizons, two answers.
+  # No comparator event through follow-up interval 4; one comparator event,
+  # weight 2, by follow-up interval 8. The same arm, two horizons, two answers.
   expect_equal(sum(dt[exposed == FALSE & tstop <= 4L, w * event]), 0)
   expect_equal(sum(dt[exposed == FALSE & tstop <= 8L, w * event]), 2)
 
@@ -477,22 +480,23 @@ test_that("the zero-event condition is per horizon, not per panel", {
   expect_true(is.na(at4$rd_hi))
   expect_identical(at4$interval_status, "zero-event arm")
 
-  # THE assertion a whole-panel condition cannot survive. Band 8 is estimable
-  # and must keep both bounds.
+  # THE assertion a whole-panel condition cannot survive. Follow-up interval 8
+  # is estimable and must keep both bounds.
   expect_false(is.na(at8$rd_lo))
   expect_false(is.na(at8$rd_hi))
   expect_true(is.finite(at8$rd_lo))
   expect_true(is.finite(at8$rd_hi))
-  # Band 8 HAS an interval, and that interval contains the null, so its status
-  # is `"spans null"` rather than `"zero-event arm"`. The two are different
-  # facts: no interval, against an interval that includes no effect.
+  # Follow-up interval 8 HAS an interval, and that interval contains the null,
+  # so its status is `"spans null"` rather than `"zero-event arm"`. The two are
+  # different facts: no interval, against an interval that includes no effect.
   expect_identical(at8$interval_status, "spans null")
 })
 
 test_that("the suppression reads the weights, not the raw event flag", {
   # A weight of zero removes the person-trial from both sums, so an event
-  # carrying no weight is not an event this estimator can resample. Band 8 has
-  # exactly one comparator event; zeroing its weight must suppress band 8 too.
+  # carrying no weight is not an event this estimator can resample. Follow-up
+  # interval 8 has exactly one comparator event; zeroing its weight must
+  # suppress follow-up interval 8 too.
   dt <- rd_dt()
   dt[exposed == FALSE & event == 1L, w := 0]
   out <- rd_out(dt, n_boot = 20L)
@@ -509,14 +513,15 @@ test_that("the suppression reads the weights, not the raw event flag", {
 
 test_that("both arms with events through the horizon keep the interval", {
   # The complement, so the guard cannot pass by blanking everything. Give the
-  # comparator an early event and band 4 becomes estimable.
+  # comparator an early event and follow-up interval 4 becomes estimable.
   dt <- rd_dt()
   dt[exposed == FALSE & tstop == 4L, event := c(1L, 0L, 0L)]
   out <- rd_out(dt, n_boot = 100L)
 
-  # Four persons give a wide percentile interval, so both bands land on
-  # `"spans null"`. The assertion is that neither is `"zero-event arm"`: both
-  # bands HAVE an interval, which is what the guard could wrongly blank.
+  # Four persons give a wide percentile interval, so both follow-up intervals
+  # land on `"spans null"`. The assertion is that neither is `"zero-event arm"`:
+  # both follow-up intervals HAVE an interval, which is what the guard could
+  # wrongly blank.
   expect_identical(out$interval_status, c("spans null", "spans null"))
   expect_false(anyNA(out$rd_lo))
   expect_false(anyNA(out$rd_hi))
@@ -534,7 +539,8 @@ test_that("event counts are distinct persons, not person-trials", {
   expect_equal(data.table::uniqueN(ev$id), 1L)
 
   out <- rd_out(dt)
-  # Cumulative distinct people with the outcome at or before the band.
+  # Cumulative distinct people with the outcome at or before the follow-up
+  # interval.
   expect_equal(out[tstop == 4L]$n_persons_with_event_intervention, 1L)
   expect_equal(out[tstop == 8L]$n_persons_with_event_intervention, 1L)
   expect_equal(out[tstop == 4L]$n_persons_with_event_comparator, 0L)
@@ -554,7 +560,8 @@ test_that("no events anywhere gives zeros and no warning", {
   expect_equal(out$n_persons_with_event_intervention, c(0L, 0L))
   expect_equal(out$n_persons_with_event_comparator, c(0L, 0L))
 
-  # Both arms are event-free at every horizon, so no band has an interval.
+  # Both arms are event-free at every horizon, so no follow-up interval has an
+  # interval.
   expect_identical(out$interval_status, c("zero-event arm", "zero-event arm"))
   expect_true(all(is.na(out$rd_lo)))
   expect_true(all(is.na(out$rd_hi)))
@@ -572,27 +579,27 @@ test_that("no events anywhere gives zeros and no warning", {
 # second fixture, sized so the interval strictly excludes the null.
 #
 # It is synthetic and deliberately blunt: 30 persons per arm, one trial each,
-# unit weights, and every event at band 4. The intervention arm loses 12 of 30
-# and the comparator arm 2 of 30, so RD(4) = 28/30 - 18/30 = 1/3 and
-# `-1/rd` is exactly -3. Both arms carry events, so neither band is a
-# zero-event arm.
+# unit weights, and every event at follow-up interval 4. The intervention arm
+# loses 12 of 30 and the comparator arm 2 of 30, so RD(4) = 28/30 - 18/30 = 1/3
+# and `-1/rd` is exactly -3. Both arms carry events, so neither follow-up
+# interval is a zero-event arm.
 
 rd_ok_dt <- function(ev_int = 12L, ev_cmp = 2L) {
   one_arm <- function(prefix, n, n_event, exposed) {
     ids <- sprintf("%s%02d", prefix, seq_len(n))
-    band4 <- data.table::data.table(
+    interval4 <- data.table::data.table(
       id = ids,
       exposed = exposed,
       tstop = 4L,
       event = c(rep(1L, n_event), rep(0L, n - n_event))
     )
-    band8 <- data.table::data.table(
+    interval8 <- data.table::data.table(
       id = ids[(n_event + 1L):n],
       exposed = exposed,
       tstop = 8L,
       event = 0L
     )
-    rbind(band4, band8)
+    rbind(interval4, interval8)
   }
   dt <- rbind(
     one_arm("i", 30L, ev_int, TRUE),
@@ -619,8 +626,9 @@ test_that("an interval that strictly excludes the null reads ok", {
 })
 
 test_that("an estimable interval that contains the null reads spans null", {
-  # The SAME estimator on the main fixture. Band 8 has both bounds, and they
-  # straddle zero, so the third state is reachable from a real computation.
+  # The SAME estimator on the main fixture. Follow-up interval 8 has both
+  # bounds, and they straddle zero, so the third state is reachable from a real
+  # computation.
   out <- rd_out()
   at8 <- out[tstop == 8L]
 
@@ -675,7 +683,7 @@ test_that("mirroring the arms flips the stored direction, not just the sign", {
   expect_identical(out$nnt_direction, c("benefit", "benefit"))
 })
 
-test_that("every band carries a direction unless the risk difference is zero", {
+test_that("every follow-up interval carries a direction unless the risk difference is zero", {
   # A risk difference of exactly zero has no reciprocal and no direction, so
   # both decision columns are missing there rather than guessed.
   dt <- rd_dt()
@@ -688,8 +696,8 @@ test_that("every band carries a direction unless the risk difference is zero", {
 })
 
 test_that("the stored direction agrees with the number needed to treat cell", {
-  # The whole chain, end to end: the curve decides, the cell reads. Band 4 of
-  # the strict fixture is `"ok"`, so the cell renders a label.
+  # The whole chain, end to end: the curve decides, the cell reads. Follow-up
+  # interval 4 of the strict fixture is `"ok"`, so the cell renders a label.
   out <- rd_out(rd_ok_dt(), n_boot = 200L)
   at4 <- out[tstop == 4L]
 
@@ -901,7 +909,7 @@ test_that("a replicate count that is not a multiple of 50 gives the same numbers
 # catches a change that moves one replicate.
 
 rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
-  . <- arm <- pt <- band <- num <- den <- NULL # nolint
+  . <- arm <- pt <- follow_up_interval <- num <- den <- NULL # nolint
 
   pt_f <- factor(dt$enrollment_person_trial_id)
   pt_code <- as.integer(pt_f)
@@ -909,9 +917,9 @@ rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
   person_raw <- as.character(dt$id)
   pt_person <- factor(person_raw[match(seq_len(n_pt), pt_code)])
 
-  band_vals <- sort(unique(dt$tstop))
-  n_band <- length(band_vals)
-  band_code <- match(dt$tstop, band_vals)
+  interval_vals <- sort(unique(dt$tstop))
+  n_interval <- length(interval_vals)
+  interval_code <- match(dt$tstop, interval_vals)
 
   tv <- dt$exposed
   w <- as.numeric(dt$w)
@@ -920,15 +928,15 @@ rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
   agg <- data.table::data.table(
     arm = tv,
     pt = pt_code,
-    band = band_code,
+    follow_up_interval = interval_code,
     num = w * as.numeric(ev),
     den = w
   )
-  agg <- agg[, .(num = sum(num), den = sum(den)), keyby = .(arm, pt, band)]
+  agg <- agg[, .(num = sum(num), den = sum(den)), keyby = .(arm, pt, follow_up_interval)]
   arm_mats <- function(sub) {
-    mn <- matrix(0, nrow = n_pt, ncol = n_band)
-    md <- matrix(0, nrow = n_pt, ncol = n_band)
-    ij <- cbind(sub$pt, sub$band)
+    mn <- matrix(0, nrow = n_pt, ncol = n_interval)
+    md <- matrix(0, nrow = n_pt, ncol = n_interval)
+    ij <- cbind(sub$pt, sub$follow_up_interval)
     mn[ij] <- sub$num
     md[ij] <- sub$den
     list(num = mn, den = md)
@@ -949,7 +957,7 @@ rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
   surv_int <- arm_surv(one, m_int)
   surv_cmp <- arm_surv(one, m_cmp)
 
-  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_band)
+  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_interval)
   mult_store <- matrix(0L, nrow = n_boot, ncol = n_pt)
   set.seed(seed)
   for (b in seq_len(n_boot)) {
@@ -970,16 +978,16 @@ rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
 
   cum_persons <- function(which_arm) {
     keep <- ev == 1L & tv == which_arm
-    n <- integer(n_band)
+    n <- integer(n_interval)
     if (any(keep)) {
-      first <- tapply(band_code[keep], person_raw[keep], min)
-      n <- tabulate(as.integer(first), nbins = n_band)
+      first <- tapply(interval_code[keep], person_raw[keep], min)
+      n <- tabulate(as.integer(first), nbins = n_interval)
     }
     cumsum(n)
   }
 
   list(
-    tstop = band_vals,
+    tstop = interval_vals,
     surv_comparator = surv_cmp,
     surv_intervention = surv_int,
     rd = surv_cmp - surv_int,

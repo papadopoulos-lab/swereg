@@ -882,7 +882,7 @@ utils::globalVariables("..keep_cols")
   #
   # `n_persons_at_risk` is a plain head count of distinct people, for the
   # risk table a reader expects under a survival panel. It is deliberately
-  # NOT `.N`: the panel is one row per person-trial-band, and a person
+  # NOT `.N`: the panel is one row per person-trial interval, and a person
   # contributes several sequential trials, so `.N` counts person-trials.
   # It is also not `at_risk`, which is the weighted risk set.
   times <- sort(unique(data[[time_var]]))
@@ -916,8 +916,8 @@ utils::globalVariables("..keep_cols")
   }
   curve[, hazard := events / at_risk]
   # Nobody at risk: the hazard is undefined and reads NA, and the survival
-  # carries its latest exact value forward. `cumprod` is valid over these
-  # exact event boundaries, and a band hazard over unequal intervals is
+  # carries its latest exact value forward. `cumprod` is valid over these exact
+  # event boundaries, and a follow-up interval hazard over unequal intervals is
   # not, so a time between two boundaries multiplies by exactly 1.
   curve[at_risk <= 0, hazard := NA_real_]
   curve[,
@@ -963,7 +963,7 @@ utils::globalVariables("..keep_cols")
 }
 
 
-#' Signed cause-specific risk difference at each band
+#' Signed cause-specific risk difference at each follow-up interval
 #'
 #' The body of `TTEEnrollment$risk_difference()`.
 #'
@@ -972,7 +972,7 @@ utils::globalVariables("..keep_cols")
 #' @param n_boot Integer(1), the number of bootstrap replicates.
 #' @param seed Integer(1) or NULL. A seed makes the draw reproducible.
 #' @param conf_level Numeric(1) in (0, 1), the percentile interval level.
-#' @return A data.table with one row per band.
+#' @return A data.table with one row per follow-up interval.
 #' @noRd
 .tte_est_risk_difference <- function(
   self,

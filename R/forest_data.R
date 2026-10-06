@@ -178,8 +178,9 @@
 #' Reduce one `$risk_difference()` curve to the single forest row it feeds.
 #'
 #' A forest row is one ETT, and an ETT has one follow-up horizon, so the row
-#' takes the LAST band of the curve: the risk difference at the end of
-#' follow-up. The person counts are already cumulative through that band.
+#' takes the LAST stop time of the curve: the risk difference at the
+#' end of follow-up. The person counts are already cumulative through that
+#' stop time.
 #'
 #' The row also carries `conf_level`, read from the curve's OWN `conf_level`
 #' attribute rather than from a value passed alongside it. That attribute is
@@ -205,11 +206,11 @@
 #'
 #' @param ett_id Character(1), the ETT the curve belongs to.
 #' @param curve A data.table as returned by `TTEEnrollment$risk_difference()`.
-#' @param time_var Character(1), the band column name (the design's
+#' @param time_var Character(1), the time column name (the design's
 #'   `tstop_var`).
 #' @return A one-row data.table with the columns
-#'   `.render_combined_forest_plot()` expects in `rd_lookup`, plus `band` and
-#'   `conf_level`.
+#'   `.render_combined_forest_plot()` expects in `rd_lookup`, plus
+#'   `follow_up_interval` and `conf_level`.
 #' @noRd
 .forest_rd_row <- function(ett_id, curve, time_var) {
   if (is.null(curve) || nrow(curve) == 0L) {
@@ -227,7 +228,7 @@
   }
   return(data.table::data.table(
     ett_id = as.character(ett_id),
-    band = curve[[time_var]][i],
+    follow_up_interval = curve[[time_var]][i],
     rd = as.numeric(curve$rd[i]),
     rd_lo = as.numeric(curve$rd_lo[i]),
     rd_hi = as.numeric(curve$rd_hi[i]),

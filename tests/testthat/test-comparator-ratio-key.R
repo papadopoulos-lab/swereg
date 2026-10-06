@@ -1,6 +1,6 @@
 # The spec key `treatment.implementation.matching_ratio` is retired.
 #
-# swereg draws comparators at random within the entry band and reads no
+# swereg draws comparators at random within the enrollment period and reads no
 # covariate, so the old key named a design swereg does not run. This release
 # renames it to `comparator_to_intervention_ratio` and makes the break hard.
 #

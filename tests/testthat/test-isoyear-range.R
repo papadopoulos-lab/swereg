@@ -3,8 +3,8 @@
 # enrollment's `age_range` still applies. A second `age_range` would overwrite
 # `eligible_age` and drop the age limit, so the reader refuses it.
 #
-# The range restricts enrollment only. A 4-week band that crosses the new year
-# recruits from the weeks inside the range, and from no other week.
+# The range restricts enrollment only. A 4-week enrollment period that crosses
+# the new year recruits from the weeks inside the range, and from no other week.
 
 skip_if_not_installed("data.table")
 skip_if_not_installed("yaml")
@@ -374,16 +374,19 @@ test_that("every week the preparation step keeps lies in the range", {
   expect_false(any(prepared[isoyear %in% c(2015L, 2018L)]$eligible))
 })
 
-# --- 6. a band that crosses the new year -------------------------------------
+# --- 6. an enrollment period that crosses the new year
+# -------------------------------------
 
-test_that("a band that crosses the new year recruits only from in-range weeks", {
-  # Band 1526 of a 4-week grid holds 2016-52, 2017-01, 2017-02 and 2017-03.
+test_that("an enrollment period that crosses the new year recruits only from in-range weeks", {
+  # Enrollment period 1526 of a 4-week grid holds 2016-52, 2017-01, 2017-02 and
+  # 2017-03.
   weeks <- c(sprintf("2016-%02d", 50:52), sprintf("2017-%02d", 1:3))
-  band <- data.table::data.table(isoyearweek = weeks)
-  swereg:::.assign_trial_ids(band, 4L)
-  expect_identical(band$trial_id, c(1525L, 1525L, rep(1526L, 4L)))
+  period <- data.table::data.table(isoyearweek = weeks)
+  swereg:::.assign_trial_ids(period, 4L)
+  expect_identical(period$trial_id, c(1525L, 1525L, rep(1526L, 4L)))
 
-  # Person 2 starts systemic MHT in 2017-02, the third week of the band.
+  # Person 2 starts systemic MHT in 2017-02, the third week of the enrollment
+  # period.
   sk <- .iyr_skeleton(weeks)
   sk[id == 2L & isoyearweek >= "2017-02", rd_approach1_single := "systemic_mht"]
 
@@ -425,15 +428,16 @@ test_that("a band that crosses the new year recruits only from in-range weeks", 
     prepared <- .iyr_prepare(built, i)
     swereg:::.assign_trial_ids(prepared, 4L)
 
-    # The band reads only the weeks inside the enrollment's own range.
-    in_band <- prepared[trial_id == 1526L & eligible == TRUE]
+    # The enrollment period reads only the weeks inside the enrollment's own
+    # range.
+    in_period <- prepared[trial_id == 1526L & eligible == TRUE]
     expect_identical(
-      sort(unique(in_band$isoyearweek)),
+      sort(unique(in_period$isoyearweek)),
       want$weeks,
       info = ids[i]
     )
 
-    # The attrition counts each person-band once.
+    # The attrition counts each candidate person-trial once.
     att <- swereg:::.s1_compute_attrition(
       prepared,
       attr(prepared, "eligible_cols"),
@@ -449,7 +453,7 @@ test_that("a band that crosses the new year recruits only from in-range weeks", 
     expect_identical(last$n_intervention, want$n_intervention, info = ids[i])
 
     # The recruiting week lies inside the enrollment's own range.
-    tuples <- swereg:::.band_baseline_treatment(
+    tuples <- swereg:::.enrollment_period_baseline_treatment(
       prepared,
       person_id_col = "id",
       treatment_col = "rd_intervention",
@@ -735,7 +739,7 @@ test_that("the CONSORT enrolled count equals the enrolled person-trials", {
     file_raw <- plan$ett[enrollment_id == eid]$file_raw[1]
     en <- swereg::qs2_read(file.path(plan$dir_tteplan, file_raw), nthreads = 1L)
     pid <- en$design$person_id_var
-    n_tuples <- data.table::uniqueN(en$data, by = c(pid, "entry_band_id"))
+    n_tuples <- data.table::uniqueN(en$data, by = c(pid, "enrollment_period_id"))
 
     expect_gt(n_tuples, 0L)
     expect_identical(n_consort, as.integer(n_tuples), info = eid)

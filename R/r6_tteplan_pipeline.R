@@ -630,20 +630,20 @@ TTEPlan$set(
 #' For each ETT: loads the analysis file, computes rates, IRR, and
 #' heterogeneity test with both truncated and untruncated weights.
 #'
-#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
-#' Two estimand and weight combinations carry it: per-protocol on
+#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
+#' estimand and weight combinations carry it: per-protocol on
 #' `analysis_weight_pp_trunc`, stored under `rd_pp_trunc`, and
-#' intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores
-#' one summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`,
-#' `nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each
-#' also stores the full band-by-band curve under `rd_curve_pp_trunc` or
+#' intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores one
+#' summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`, `nnt`,
+#' `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each also stores
+#' the full curve, one row per stop time, under `rd_curve_pp_trunc` or
 #' `rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside the
 #' risk difference.
 #'
 #' The curve also carries `n_persons_at_risk_comparator` and
-#' `n_persons_at_risk_intervention`. Each is a head count of distinct people
-#' in that arm and band. It is the count a numbers-at-risk row reports. The
-#' figure reads it rather than opening the analysis file again.
+#' `n_persons_at_risk_intervention`. Each is a head count of distinct people in
+#' that arm at that stop time. It is the count a numbers-at-risk row
+#' reports. The figure reads it rather than opening the analysis file again.
 #'
 #' The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 #' The confidence level is a STUDY property, read from

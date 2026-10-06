@@ -416,7 +416,7 @@ skip_if_not_installed("data.table")
     "seed", "conf_level"
   ),
   curves = c(
-    "ett_id", "estimand", "weights", "arm", "band", "surv",
+    "ett_id", "estimand", "weights", "arm", "follow_up_interval", "surv",
     "n_persons_at_risk"
   ),
   baselines = c(
@@ -444,7 +444,7 @@ skip_if_not_installed("data.table")
 # The key of each accessor's grain. Used by the uniqueness test.
 .ACC_KEYS <- list(
   estimates = c("ett_id", "estimand", "weights"),
-  curves = c("ett_id", "estimand", "weights", "arm", "band"),
+  curves = c("ett_id", "estimand", "weights", "arm", "follow_up_interval"),
   baselines = c(
     "enrollment_id", "imputation", "weighting", "variant", "variable", "level"
   ),
@@ -560,24 +560,24 @@ test_that("get_estimates returns one row per ETT, estimand and weighting", {
   expect_identical(first$conf_level, 0.95)
 })
 
-test_that("get_curves returns one row per ETT, estimand, weighting, arm, band", {
+test_that("get_curves returns one row per ETT, estimand, weighting, arm, follow-up interval", {
   cv <- .acc_fix_plan()$get_curves()
   # ETT00001 carries both curves, ETT00002 carries the ITT curve only.
-  # 2 arms x 2 bands x 3 stored curves.
+  # 2 arms x 2 follow-up intervals x 3 stored curves.
   expect_identical(nrow(cv), 12L)
   expect_setequal(cv$arm, c("comparator", "intervention"))
-  expect_setequal(cv$band, c(26, 52))
+  expect_setequal(cv$follow_up_interval, c(26, 52))
   expect_identical(
     cv[
       ett_id == "ETT00001" & estimand == "pp" &
-        arm == "intervention" & band == 52
+        arm == "intervention" & follow_up_interval == 52
     ]$surv,
     0.990
   )
   expect_identical(
     cv[
       ett_id == "ETT00001" & estimand == "pp" &
-        arm == "comparator" & band == 52
+        arm == "comparator" & follow_up_interval == 52
     ]$surv,
     0.980
   )
@@ -713,7 +713,7 @@ test_that("effect and decision fields carry no formatting", {
       "irr_hi", "irr_pvalue", "rd", "rd_lo", "rd_hi", "nnt", "nnt_lo",
       "nnt_hi", "n_boot", "seed", "conf_level"
     ),
-    cv = c("band", "surv", "n_persons_at_risk"),
+    cv = c("follow_up_interval", "surv", "n_persons_at_risk"),
     sg = c(
       "irr", "irr_lo", "irr_hi", "irr_pvalue", "em_pvalue", "ratio_of_irrs",
       "ratio_lo", "ratio_hi"

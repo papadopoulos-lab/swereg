@@ -119,10 +119,10 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
     )
   }
 
-  # Fit on the ENTRY-WINDOW snapshot. `tstart == 0` is the LANDMARK band
-  # row, so the confounder columns there hold follow-up values and not
-  # baseline ones. `fit_dt` is local, and the rename inside it never
-  # reaches the panel.
+  # Fit on the ENTRY-WINDOW snapshot. `tstart == 0` is the row of the first
+  # follow-up interval, which starts at time zero. The confounder columns there
+  # therefore hold follow-up values and not baseline ones. `fit_dt` is local,
+  # and the rename inside it never reaches the panel.
   use_entry <- .tte_has_entry_snapshot(baseline, confounder_vars)
   entry_cols <- .tte_entry_col(confounder_vars)
   fit_cols <- unique(c(
@@ -347,15 +347,16 @@ TTEEnrollment$set("public", "weight_summary", function() {
 #
 # so the probability of staying uncensored over the row is
 # `q_i = exp(-exp(eta_i) * person_weeks_i)`. One linear predictor then
-# gives `q(4) = q(1)^4`, which is what makes a four-week band and a
-# one-week band comparable. A logit link carries no such identity, so a
-# clipped terminal band would take a whole band's censoring risk.
+# gives `q(4) = q(1)^4`, which is what makes a four-week follow-up interval
+# and a one-week follow-up interval comparable. A logit link carries no
+# such identity, so a clipped terminal follow-up interval would take a whole
+# interval's censoring risk.
 #
-# The weight is LAGGED. It is the probability of remaining uncensored
-# through the START of the row, so the product stops at the row before.
-# The first row of every person-trial then weighs exactly 1. A censored
-# band stays in the risk set (`s5_prepare_outcome()` clips it and keeps
-# it), and an inclusive product would count that band's own censoring
+# The weight is LAGGED. It is the probability of remaining uncensored through
+# the START of the row, so the product stops at the row before. The first row of
+# every person-trial then weighs exactly 1. A censored follow-up interval stays
+# in the risk set (`s5_prepare_outcome()` clips it and keeps it), and an
+# inclusive product would count that follow-up interval's own censoring
 # probability inside its own weight.
 #
 # The numerator is a second fitted model. It carries the same follow-up
@@ -653,10 +654,11 @@ TTEEnrollment$set(
       )
     }
 
-    # The weight on the row of band k is the probability of remaining
-    # uncensored through the START of band k, so the product stops at band
-    # k - 1. `shift()` supplies the empty product of 1 on the first row of
-    # each person-trial, which makes that row weigh exactly 1.
+    # The weight on the row of follow-up interval k is the probability of
+    # remaining uncensored through the START of follow-up interval k, so the
+    # product stops at follow-up interval k - 1. `shift()` supplies the empty
+    # product of 1 on the first row of each person-trial, which makes that row
+    # weigh exactly 1.
     data.table::setorderv(working_data, c(id_var, tstart_var))
     working_data[,
       cum_q_denominator := cumprod(
@@ -675,8 +677,9 @@ TTEEnrollment$set(
     if ("ipcw_pp" %in% names(self$data)) {
       self$data[, ipcw_pp := NULL]
     }
-    # The band, not the band stop. A zero-width row shares its stop with the
-    # row before it, so a stop alone does not name one row.
+    # The follow-up interval, not the follow-up interval stop. A zero-width row
+    # shares its stop with the row before it, so a stop alone does not name one
+    # row.
     join_on <- c(design$id_var, design$tstart_var, design$tstop_var)
     self$data[
       working_data,

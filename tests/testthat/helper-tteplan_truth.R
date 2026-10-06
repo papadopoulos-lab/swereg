@@ -1,14 +1,15 @@
 # Shared DGP + spec + pipeline-driver helpers for the PLAN-layer truth matrix
 # (test-tteplan_truth_matrix.R).
 #
-# Everything here drives the full TTEPlan sequential-trials pipeline --
-# spec YAML -> skeleton .qs2 -> $s1_generate_enrollments_and_ipw() (eligibility,
-# the per-band comparator draw, IPW) -> $s2_generate_analysis_files_and_ipcw_pp()
-# (PP + ITT files, IPCW) -> $s3_analyze() (svyglm IRR) -- against
-# a synthetic skeleton with KNOWN planted truth. The TTEEnrollment layer is
-# already truth-validated (helper-tte_itt.R / helper-tte_scenarios.R); these
-# helpers validate the *plan* layer on top: trial-band assignment, sequential
-# enrollment, the comparator draw, pooling across bands, and the worker chain.
+# Everything here drives the full TTEPlan sequential-trials pipeline -- spec
+# YAML -> skeleton .qs2 -> $s1_generate_enrollments_and_ipw() (eligibility, the
+# per-period comparator draw, IPW) -> $s2_generate_analysis_files_and_ipcw_pp()
+# (PP + ITT files, IPCW) -> $s3_analyze() (svyglm IRR) -- against a synthetic
+# skeleton with KNOWN planted truth. The TTEEnrollment layer is already
+# truth-validated (helper-tte_itt.R / helper-tte_scenarios.R); these helpers
+# validate the *plan* layer on top: trial-enrollment period assignment,
+# sequential enrollment, the comparator draw, pooling across enrollment periods,
+# and the worker chain.
 #
 # Planted truth: constant per-week outcome hazard, TTM_H0 untreated and
 # TTM_H0 * TTM_IRR_TRUE while treated => the marginal per-week rate ratio
@@ -22,15 +23,17 @@ TTM_RR_HR <- 2.0 # highrisk hazard multiplier (scenario "B")
 # ---- DGP ---------------------------------------------------------------------
 # Two disjoint populations; switching only via optional discontinuation:
 #   * never-treaters : rd_tx = "control" every week -> comparator pool
-#   * initiators     : rd_tx = "none" until a random initiation band start,
-#                      then "treated" for dur ~ 1 + Geom(disc_hazard) weeks,
-#                      then "none" again. Post-discontinuation "none" maps to
-#                      rd_intervention = NA, which s5_prepare_outcome() counts
-#                      as a protocol deviation: PP censors there, ITT does not.
-# "none" also fails eligible_valid_treatment, and the spec's new-user
-# (no_prior_value, lifetime) exclusion blocks re-enrollment, so each
-# initiator enrolls exactly once, as intervention, at their initiation band.
-# disc_hazard = 0 -> full persistence -> PP truth == ITT truth == TTM_IRR_TRUE.
+#   * initiators : rd_tx = "none" until a random initiation enrollment period
+#                      start, then "treated" for dur ~ 1 + Geom(disc_hazard)
+#                      weeks, then "none" again. Post-discontinuation "none"
+#                      maps to rd_intervention = NA, which s5_prepare_outcome()
+#                      counts as a protocol deviation: PP censors there, ITT
+#                      does not. "none" also fails eligible_valid_treatment, and
+#                      the spec's new-user (no_prior_value, lifetime) exclusion
+#                      blocks re-enrollment, so each initiator enrolls exactly
+#                      once, as intervention, at their initiation enrollment
+#                      period. disc_hazard = 0 -> full persistence -> PP truth
+#                      == ITT truth == TTM_IRR_TRUE.
 #
 # scenario "B" adds a baseline confounder ri_highrisk (30% prevalence) that
 # doubles BOTH the initiation probability and the outcome hazard. The
@@ -53,7 +56,7 @@ ttm_skeleton <- function(
   disc_hazard = 0,
   date_min = "2016-01-01",
   date_max = "2021-06-30",
-  n_init_bands = 56L,
+  n_init_periods = 56L,
   seed = 2026L
 ) {
   scenario <- match.arg(scenario)
@@ -77,11 +80,11 @@ ttm_skeleton <- function(
       cstime::dates_by_isoyearweek$isoyearweek
     )
   ]
-  wk[, trial_id := (week_index - 1L) %/% 4L] # .assign_trial_ids banding rule
+  wk[, trial_id := (week_index - 1L) %/% 4L] # .assign_trial_ids enrollment-period rule
   wk[, wrank := seq_len(.N)] # 1-based week rank within the study window
   sk[wk, `:=`(trial_id = i.trial_id, .wrank = i.wrank), on = "isoyearweek"]
-  min_band <- min(wk$trial_id)
-  band_start <- wk[, .(start_rank = min(wrank)), by = trial_id]
+  min_period <- min(wk$trial_id)
+  period_start <- wk[, .(start_rank = min(wrank)), by = trial_id]
 
   highrisk <- stats::rbinom(n_persons, 1L, 0.30)
   p_init <- if (scenario == "A") {
@@ -90,9 +93,9 @@ ttm_skeleton <- function(
     data.table::fifelse(highrisk == 1L, 0.90, 0.45) # highrisk ~2x initiation
   }
   is_init <- stats::rbinom(n_persons, 1L, p_init)
-  init_band <- min_band +
-    (sample.int(n_init_bands, n_persons, replace = TRUE) - 1L)
-  init_rank <- band_start$start_rank[match(init_band, band_start$trial_id)]
+  init_period <- min_period +
+    (sample.int(n_init_periods, n_persons, replace = TRUE) - 1L)
+  init_rank <- period_start$start_rank[match(init_period, period_start$trial_id)]
   # dur is numeric so that Inf (never discontinue) survives `.ir + .dur`
   # without integer overflow
   dur <- if (disc_hazard > 0) {

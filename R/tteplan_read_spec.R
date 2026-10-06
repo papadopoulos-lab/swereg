@@ -816,10 +816,17 @@ tteplan_read_spec <- function(spec_path) {
 #' at all. "No prior X other than Y" is therefore true of a person with no
 #' prior observation.
 #'
+#' The `"rule"` voice states the condition a person-week MUST meet to stay. The
+#' `"failure"` voice states what the dropped person-weeks had. An exclusion
+#' list counts the failures, so it uses the failure voice: "Prior X equal to
+#' Y" under "Meeting exclusion criteria".
+#'
 #' @param impl An implementation list.
+#' @param voice `"rule"` (default) or `"failure"`.
 #' @return A single string, or `NULL` when the implementation is not a washout.
 #' @noRd
-.tte_washout_prose <- function(impl) {
+.tte_washout_prose <- function(impl, voice = c("rule", "failure")) {
+  voice <- match.arg(voice)
   type <- impl[["type"]]
   if (!isTRUE(type %in% .TTE_WASHOUT_TYPES)) {
     return(NULL)
@@ -831,7 +838,8 @@ tteplan_read_spec <- function(spec_path) {
   } else {
     " equal to "
   }
-  return(paste0("No prior ", sv, relation, impl[["value"]]))
+  lead <- if (identical(voice, "failure")) "Prior " else "No prior "
+  return(paste0(lead, sv, relation, impl[["value"]]))
 }
 
 

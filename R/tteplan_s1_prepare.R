@@ -114,29 +114,29 @@
 #' use. Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
 #'
 #' `recruit_week_index` names the week that recruited each person into each
-#' band. It travels the whole scout chain: these tuples reach `.s1b_worker()`,
-#' the comparator draw keeps it, and it lands in `enrolled_ids` on disk. The
-#' s1c enrollment then reads it back on `entry_dt`.
+#' enrollment period. It travels the whole scout chain: these tuples reach
+#' `.s1b_worker()`, the comparator draw keeps it, and it lands in `enrolled_ids`
+#' on disk. The s1c enrollment then reads it back on `entry_dt`.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
   if (!"trial_id" %in% names(skeleton)) {
     .assign_trial_ids(skeleton, design$period_width)
   }
-  # `.band_baseline_treatment()` is the single source of truth for the
-  # (person, band) -> baseline treatment mapping, and `enroll()` Phase C
-  # calls the same function. It drops the weeks that are not eligible or
-  # not in an arm, then uses any() and not first() over the weeks that are
-  # left: treatment can start at any week within a trial period, not just
-  # the first. first() silently drops ~75% of intervention people whose
-  # treatment initiation falls mid-period. The washout criterion
-  # (no_prior_value or only_prior_value) handles the new-user restriction
-  # (one-time initiation) separately.
+  # `.enrollment_period_baseline_treatment()` is the single source of truth for
+  # the (person, enrollment period) -> baseline treatment mapping, and
+  # `enroll()` Phase C calls the same function. It drops the weeks that are not
+  # eligible or not in an arm, then uses any() and not first() over the weeks
+  # that are left: treatment can start at any week within a trial period, not
+  # just the first. first() silently drops ~75% of intervention people whose
+  # treatment initiation falls mid-period. The washout criterion (no_prior_value
+  # or only_prior_value) handles the new-user restriction (one-time initiation)
+  # separately.
   #
   # No setorderv() before the group-by: the scout path has already
   # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
   # subsetting preserves order, and any() is order-independent regardless.
   # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
-  return(.band_baseline_treatment(
+  return(.enrollment_period_baseline_treatment(
     data = skeleton,
     person_id_col = design$person_id_var,
     treatment_col = "rd_intervention",

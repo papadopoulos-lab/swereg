@@ -5,8 +5,9 @@
 # matching first-event-IRR truth. All cells are deterministic (fixed seeds), so
 # tolerances are set directly from the observed single-dataset numbers recorded
 # beside each assertion (single-dataset Monte Carlo noise is ~0.03-0.05 on the
-# log-IRR scale). PP numbers were re-measured AFTER the same-band event/deviation
-# collision fix in R/r6_tteenrollment.R; ITT cells are unaffected by it.
+# log-IRR scale). PP numbers were re-measured AFTER the same-interval
+# event/deviation collision fix in R/r6_tteenrollment.R; ITT cells are
+# unaffected by it.
 #
 # The file has two tiers:
 #   ALWAYS-ON  (skip_on_cran + survey/mgcv): a fast subset, ~30s total.
@@ -128,7 +129,8 @@ test_that("stress [opt-in]: harmful-effect ITT bias is estimand, not defect", {
   }
   # depletion of susceptibles: the DGP's marginal log-HR declines over
   # follow-up, so the person-time-weighted ITT IRR legitimately runs ABOVE the
-  # cumulative-rate truth. observed mean bias 0.075 (seeds 1-3); band (0, 0.14).
+  # cumulative-rate truth. observed mean bias 0.075 (seeds 1-3); range (0,
+  # 0.14).
   expect_gt(mean(biases), 0)
   expect_lt(mean(biases), 0.14)
   # and this is NOT a swereg defect: swereg and TrialEmulation agree within 0.05

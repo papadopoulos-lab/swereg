@@ -63,7 +63,7 @@ s1a_fixture <- function(env = parent.frame(), n_skel = 2L) {
     n_persons = 40L,
     date_min = "2018-01-01",
     date_max = "2019-06-30",
-    n_init_bands = 8L,
+    n_init_periods = 8L,
     seed = 4242L
   )
   skel_paths <- file.path(

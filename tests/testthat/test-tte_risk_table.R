@@ -4,13 +4,13 @@
 # numbers-at-risk table beneath it. Only two things about that table are worth
 # a mechanical check, and both are checked here.
 #
-#   1. WHICH NUMBER IT PRINTS. Three quantities live in the same arm-band cell
-#      and are easy to confuse: the row count (person-trials), `at_risk` (the
-#      WEIGHTED risk set, sum(w), which is the hazard denominator) and
-#      `n_persons_at_risk` (distinct people). A risk table reports people.
-#      Reading the table off `at_risk` is the plausible wrong turn: it is the
-#      column sitting next door, it is already on the curve object, and on a
-#      figure it prints numbers that look like counts.
+#   1. WHICH NUMBER IT PRINTS. Three quantities live in the same arm-follow-up
+#      interval cell and are easy to confuse: the row count (person-trials),
+#      `at_risk` (the WEIGHTED risk set, sum(w), which is the hazard
+#      denominator) and `n_persons_at_risk` (distinct people). A risk table
+#      reports people. Reading the table off `at_risk` is the plausible wrong
+#      turn: it is the column sitting next door, it is already on the curve
+#      object, and on a figure it prints numbers that look like counts.
 #
 #   2. WHETHER THE COLUMNS LINE UP. A risk table whose columns do not sit
 #      under the curve's ticks is worse than no risk table: it invites the
@@ -27,7 +27,8 @@
 #   p3 -> p3_trialC, p3_trialD      (unexposed)
 #
 # and the weights are 0.5 for the exposed trials and 2 for the unexposed ones,
-# giving four arm-band cells in which the two candidate sources never agree:
+# giving four arm-follow-up interval cells in which the two candidate sources
+# never agree:
 #
 #   exposed  tstop   n_persons_at_risk   at_risk (weighted)
 #   FALSE        4                   1                  4.0
@@ -220,19 +221,20 @@ risk_table_built <- function(p) {
 
 # --- assertion 6: the labelled times are evenly spaced ----------------------
 #
-# Six-digit counts are wide. Two of them collide unless the gap between
-# adjacent labelled times is wide enough to hold them. A rule that keeps every
-# k-th band and then adds the last band leaves a final gap of `(n - 1) %% k`
-# bands, which is shorter than every other gap by construction. On a real
-# 156-week national-registry panel that final gap was 12 weeks against a
-# 20-week stride. Two six-digit counts then printed on top of each other.
+# Six-digit counts are wide. Two of them collide unless the gap between adjacent
+# labelled times is wide enough to hold them. A rule that keeps every k-th
+# follow-up interval and then adds the last follow-up interval leaves a final
+# gap of `(n - 1) %% k` follow-up intervals, which is shorter than every other
+# gap by construction. On a real 156-week national-registry panel that final gap
+# was 12 weeks against a 20-week stride. Two six-digit counts then printed on
+# top of each other.
 #
 # The assertions below pin the PROPERTY, not the numbers: every gap is the same
-# width, and the last band is always labelled. Neither depends on how many
-# columns the rule picks or on how long the follow-up is.
+# width, and the last follow-up interval is always labelled. Neither depends on
+# how many columns the rule picks or on how long the follow-up is.
 
 test_that("no labelled time is closer to its neighbour than the stride", {
-  # Three follow-up horizons a real study uses, in 4-week bands.
+  # Three follow-up horizons a real study uses, in 4-week follow-up intervals.
   for (last in c(52L, 156L, 260L)) {
     times <- seq(4L, last, by = 4L)
     brk <- swereg:::.risk_table_break_times(times)
@@ -240,16 +242,18 @@ test_that("no labelled time is closer to its neighbour than the stride", {
 
     # No short gap anywhere, including the final one.
     expect_equal(min(gaps), max(gaps))
-    # The last band carries the number readers look up, so it is never dropped.
+    # The last follow-up interval carries the number readers look up, so it is
+    # never dropped.
     expect_equal(brk[length(brk)], last)
     expect_lte(length(brk), 8L)
   }
 })
 
-test_that("the labelled bands are equally spaced by index, whatever the bands", {
+test_that("the labelled follow-up intervals are equally spaced by index, whatever the follow-up intervals", {
   # Unconditional form of the same property: the selection is an arithmetic
   # sequence of INDICES ending at the last index. It holds even if the observed
-  # band times are not equally spaced, which the loop above cannot show.
+  # follow-up interval times are not equally spaced, which the loop above cannot
+  # show.
   times <- as.numeric(c(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233))
   brk <- swereg:::.risk_table_break_times(times, max_n = 4L)
   idx <- match(brk, times)
@@ -259,7 +263,7 @@ test_that("the labelled bands are equally spaced by index, whatever the bands", 
   expect_lte(length(brk), 4L)
 })
 
-test_that("a follow-up short enough to label in full keeps every band", {
+test_that("a follow-up short enough to label in full keeps every follow-up interval", {
   times <- seq(4L, 32L, by = 4L)
   expect_equal(swereg:::.risk_table_break_times(times), times)
 })
@@ -273,7 +277,8 @@ test_that("the fixture's person counts and weighted risk sets share no value", {
   expect_equal(curve$tstop, c(4L, 8L, 4L, 8L))
   expect_equal(curve$n_persons_at_risk, c(1L, 1L, 2L, 2L))
   expect_equal(curve$at_risk, c(4, 4, 1.5, 1))
-  # Cell by cell, never equal: no arm-band can pass assertion 1 by coincidence.
+  # Cell by cell, never equal: no arm-follow-up interval can pass assertion 1 by
+  # coincidence.
   expect_false(any(curve$n_persons_at_risk == curve$at_risk))
 })
 
@@ -306,8 +311,8 @@ test_that("the risk table panel shares the curve panel's x limits and breaks", {
   expect_equal(xp$breaks_table, xp$breaks_curve)
 
   # Pinned, so "identical to each other" cannot be satisfied by both panels
-  # drifting together. Bands are 4 and 8; the limits are 0 to 8 with the
-  # default 5% continuous expansion on each side.
+  # drifting together. Follow-up intervals are 4 and 8; the limits are 0 to 8
+  # with the default 5% continuous expansion on each side.
   expect_equal(xp$range_curve, c(-0.4, 8.4))
   expect_equal(xp$breaks_curve, c(4, 8))
 })

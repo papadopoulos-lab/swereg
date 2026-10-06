@@ -507,8 +507,8 @@ test_that("the exported table1 CSV carries SMD and not smd_numeric", {
 # =============================================================================
 # Table 1 reads the entry-window snapshot on both routes
 # =============================================================================
-# Time zero is the landmark, so the `tstart == 0` row holds the confounder
-# value of the LANDMARK band. `.tte_entry__<v>` holds the value at the
+# Time zero is the landmark, so the `tstart == 0` row holds the confounder value
+# of the first follow-up interval. `.tte_entry__<v>` holds the value at the
 # recruiting week, and Table 1 MUST describe that instant.
 #
 # The fixture below repeats the hand-computed values at the top of this file in
@@ -524,7 +524,8 @@ entry_snapshot_enrollment <- function() {
     id = 1:8,
     tstart = 0L,
     trt = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE),
-    # The landmark-band values: a route that reads these gets 99 everywhere.
+    # The first follow-up interval values: a route that reads these gets 99
+    # everywhere.
     age = 99,
     edu = factor("b", levels = lv_edu),
     smoke = factor("no", levels = lv_smoke),

@@ -31,11 +31,11 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #' (unlike `survey::svycoxph()`). This is computationally equivalent to
 #' the pooled logistic approach used by Danaei et al. (2013).
 #'
-#' **Calendar-time adjustment**: When `trial_id` is present in the data
-#' (from band-based enrollment), it is included in the model to adjust for
-#' calendar-time variation in outcome rates across enrollment bands
-#' (Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
-#' trial IDs, linear term for 2-4, omitted for 1.
+#' **Calendar-time adjustment**: When `trial_id` is present in the data, the
+#' model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
+#' Danaei 2013). In the panel, `trial_id` indexes the calendar period of each
+#' follow-up interval. Uses natural splines for >=5 unique trial IDs, linear
+#' term for 2-4, omitted for 1.
 #'
 #' **Estimand (marginal)**: confounding is removed by the supplied `weights`,
 #' not by adjusting for confounders in this model, so the coefficient is a
@@ -56,7 +56,8 @@ TTEEnrollment$set("public", "irr", function(weight_col) {
 #'
 #' Fits a model with a `trial_id x treatment` interaction term and returns
 #' the Wald test p-value. This tests whether the treatment effect varies
-#' across enrollment bands (Hernan 2008, Danaei 2013).
+#' across the calendar periods that `trial_id` indexes (Hernan 2008, Danaei
+#' 2013).
 #'
 #' @param weight_col Character, required. Column name for weights.
 #' @return A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
@@ -162,7 +163,7 @@ TTEEnrollment$set(
 #'   denominator of the hazard. `n_persons_at_risk` is an unweighted count
 #'   of distinct people, taken over `design$person_id_var`, and is the
 #'   number a risk table under a survival panel reports. It is not a row
-#'   count: the panel holds one row per person-trial-band and a person
+#'   count: the panel holds one row per person-trial interval and a person
 #'   contributes several sequential trials, so rows exceed people.
 #'   `$rates()` reports the same idea at whole-arm grain under the name
 #'   `n_persons`; the two names differ because the grain differs.
@@ -191,8 +192,8 @@ TTEEnrollment$set(
   }
 )
 
-#' @description Signed cause-specific risk difference at each band, with a
-#' percentile bootstrap interval resampled at the person level.
+#' @description Signed cause-specific risk difference at each follow-up
+#' interval, with a percentile bootstrap interval resampled at the person level.
 #'
 #' The two arm-specific curves are the ones `$survival_curve()` builds, from
 #' the same weighted discrete-time hazard, so the point estimate here and
@@ -215,8 +216,9 @@ TTEEnrollment$set(
 #' discard the covariance between the two arms and bias the interval while
 #' leaving the point estimate untouched.
 #'
-#' A replicate that draws no person for an arm, or that empties a band,
-#' yields `NA` for that band and onwards. The percentile step drops those.
+#' A replicate that draws no person for an arm, or that empties a stop time,
+#' yields `NA` at that stop time and every later one. The percentile
+#' step drops those.
 #'
 #' A zero-event arm gets no interval. When either arm has no
 #' positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
@@ -226,7 +228,7 @@ TTEEnrollment$set(
 #' percentiles then describe the other arm alone, which is
 #' anti-conservative, and more replicates do not repair it. The condition is
 #' evaluated per horizon and per arm, on the events up to and including that
-#' band.
+#' stop time.
 #'
 #' Deaths are censored, not modelled as a competing risk, so this is a
 #' cause-specific risk difference under independent censoring, not a
@@ -238,11 +240,11 @@ TTEEnrollment$set(
 #'   caller's random stream is restored afterwards.
 #' @param conf_level Numeric in (0, 1), percentile interval level
 #'   (default 0.95).
-#' @return A data.table with one row per band and columns `tstop` (named
-#'   after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
+#' @return A data.table with one row per distinct stop time of the panel rows,
+#'   and columns `tstop`
+#'   (named after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
 #'   `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
-#'   `n_persons_with_event_comparator` and
-#'   `n_persons_with_event_intervention`.
+#'   `n_persons_with_event_comparator` and `n_persons_with_event_intervention`.
 #'
 #'   `interval_status` takes one of three values. `"ok"` means the interval
 #'   is estimable and strictly excludes the null. `"spans null"` means the
@@ -254,18 +256,18 @@ TTEEnrollment$set(
 #'   reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
 #'   decision every formatter reads. No formatter re-derives the direction
 #'   from a sign, so a figure and a results sheet cannot disagree about one
-#'   band.
+#'   stop time.
 #'
 #'   The two event columns count distinct PEOPLE who had the outcome at or
-#'   before that band, in that arm. They are deliberately not row counts and
-#'   not person-trial counts: the panel holds one row per
-#'   person-trial-band, and one woman can carry the event in two of her
-#'   sequential trials, which is one person who had the outcome. `$rates()`
-#'   and `$summary()` report the event ROW count instead, and on real data
-#'   the two numbers differ.
+#'   before that stop time, in that arm. They are deliberately not row
+#'   counts and not person-trial counts: the panel holds one row per
+#'   person-trial interval, and one woman can carry the event in two of her
+#'   sequential trials, which is one person who had the outcome. `$rates()` and
+#'   `$summary()` report the event ROW count instead, and on real data the two
+#'   numbers differ.
 #'
-#'   The replicate matrix the interval was read off is attached as the
-#'   `rd_boot` attribute (`n_boot` rows by one column per band), alongside
+#'   The replicate matrix the interval was read off is attached as the `rd_boot`
+#'   attribute (`n_boot` rows by one column per stop time), alongside
 #'   `conf_level` and `n_boot`.
 TTEEnrollment$set(
   "public",

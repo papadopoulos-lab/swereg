@@ -619,8 +619,8 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
   } else {
     seq_len(nrow(skeleton))
   }
-  # Enrollments repeat the same treatment column and level, once per age
-  # band. Index the prevalent weeks at each level once.
+  # Enrollments repeat the same treatment column and level, once per
+  # age band. Index the prevalent weeks at each level once.
   prevalent_at <- list()
   for (enr in spec$enrollments) {
     tx_impl <- enr$treatment$implementation

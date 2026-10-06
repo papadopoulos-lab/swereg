@@ -190,7 +190,7 @@
     estimand = "character",
     weights = "character",
     arm = "character",
-    band = "numeric",
+    follow_up_interval = "numeric",
     surv = "numeric",
     n_persons_at_risk = "numeric"
   ),
@@ -616,10 +616,12 @@
 }
 
 
-#' Column names the stored risk-difference curve carries beside its band.
+#' Column names the stored risk-difference curve carries beside its time
+#' column.
 #'
-#' `$get_curves()` finds the band column by elimination, because the design
-#' names it. It is `tstop` in every current study.
+#' `$get_curves()` finds the time column by elimination, because the design
+#' names it. It is `tstop` in every current study. Each value is a stop time,
+#' in weeks from time zero.
 #' @noRd
 .ACC_CURVE_KNOWN_COLS <- c(
   "surv_comparator",
@@ -645,17 +647,17 @@
 )
 
 
-#' Melt one stored curve into one row per arm per band.
+#' Melt one stored curve into one row per arm per stop time.
 #' @noRd
 .acc_curve_rows <- function(ett_id, combo, curve) {
   if (!data.table::is.data.table(curve) || nrow(curve) == 0L) {
     return(NULL)
   }
-  band_col <- setdiff(names(curve), .ACC_CURVE_KNOWN_COLS)
-  if (length(band_col) == 0L) {
+  time_col <- setdiff(names(curve), .ACC_CURVE_KNOWN_COLS)
+  if (length(time_col) == 0L) {
     return(NULL)
   }
-  band_col <- if ("tstop" %in% band_col) "tstop" else band_col[1L]
+  time_col <- if ("tstop" %in% time_col) "tstop" else time_col[1L]
   arms <- list(
     list(
       arm = "comparator",
@@ -669,9 +671,9 @@
     )
   )
   # `n_persons_at_risk` is the head count a numbers-at-risk row reports.
-  # `$s3_analyze()` stores it per arm per band and this method melts it. It is
-  # READ and never derived: survival is a weighted probability, and no head
-  # count follows from one.
+  # `$s3_analyze()` stores it per arm per stop time and this method
+  # melts it. It is READ and never derived: survival is a weighted probability,
+  # and no head count follows from one.
   #
   # A curve stored before the producer carried those columns gives `NA`. Every
   # other accessor gives that same answer for a slot that predates a column. A
@@ -691,7 +693,7 @@
       estimand = combo$estimand,
       weights = combo$weights,
       arm = a$arm,
-      band = as.numeric(curve[[band_col]]),
+      follow_up_interval = as.numeric(curve[[time_col]]),
       surv = as.numeric(curve[[a$surv]]),
       n_persons_at_risk = at_risk
     ))
@@ -701,7 +703,7 @@
 
 
 #' Every stored survival curve, one row per ETT, estimand, weighting, arm and
-#' band.
+#' stop time.
 #' @param plan A TTEPlan.
 #' @return A data.table with the `curves` schema.
 #' @noRd

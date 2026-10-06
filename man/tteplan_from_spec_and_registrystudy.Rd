@@ -48,9 +48,9 @@ re-apply it after a host transfer.}
 from \code{max(isoyearweek)} in the first skeleton file. Also runs
 \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} on that skeleton.}
 
-\item{period_width}{Integer, band width in weeks for enrollment and
-time aggregation (default: 4L). Stored on the plan and passed through
-to TTEDesign.}
+\item{period_width}{Integer, the width in weeks of the enrollment period
+(default: 4L). The same width sets each follow-up interval. Stored on the
+plan and passed through to TTEDesign.}
 
 \item{check_skeletons}{Logical (default \code{TRUE}). Run
 \link{RegistryStudy}\verb{$assert_skeletons_consistent()} before reading any

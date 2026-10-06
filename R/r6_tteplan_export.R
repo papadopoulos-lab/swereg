@@ -77,7 +77,7 @@ TTEPlan$set(
 #' which scale it is measured on, so `ylim` requires a companion
 #' `ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
 #' survival-scale window is translated onto the plotted scale:
-#' `c(0.95, 1)` becomes `c(0, 0.05)` and shows the same band of the figure
+#' `c(0.95, 1)` becomes `c(0, 0.05)` and shows the same region of the figure
 #' it always did. An undeclared window is an error, not a guess. Left
 #' undeclared and applied as given, a survival-scale window clips the whole
 #' cumulative-failure curve out of view and produces a blank panel with no

@@ -324,7 +324,15 @@ test_that("the protocol table emulation cell names the rule", {
 })
 
 test_that("the CONSORT lookup labels the eligibility column with the rule", {
-  for (block in c("global_exclusion", "additional_inclusion")) {
+  # An inclusion block sits under "Not meeting inclusion criteria", so its
+  # label states the rule. An exclusion block sits under "Meeting exclusion
+  # criteria" and counts the people who failed the rule, so its label states
+  # what they had: "Prior ..." and not "No prior ...".
+  want <- c(
+    global_exclusion = sub("^No prior ", "Prior ", .opv_rule_text),
+    additional_inclusion = .opv_rule_text
+  )
+  for (block in names(want)) {
     spec <- .opv_read(
       block,
       .opv_entry("only_prior_value", "local_or_none_mht")
@@ -336,7 +344,7 @@ test_that("the CONSORT lookup labels the eligibility column with the rule", {
     )
     expect_identical(
       unname(labels["eligible_only_rd_approach1_single_everbefore"]),
-      paste0(.opv_rule_text, "\\n(lifetime before baseline)"),
+      paste0(want[[block]], "\\n(lifetime before baseline)"),
       info = block
     )
   }

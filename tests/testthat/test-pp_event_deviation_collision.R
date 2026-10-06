@@ -1,19 +1,21 @@
-# Regression: an outcome event that falls in the SAME band as the protocol
-# deviation must count as an event, not be dropped as a censoring. Before the
-# fix, s5_prepare_outcome flagged the collision row censor_this_period == 1 and
-# s4_prepare_for_analysis deleted it, silently losing ~10% of PP events in
-# switching-heavy data (probe: 368/3849 events at persist_coef = 2).
+# Regression: an outcome event that falls in the SAME follow-up interval as the
+# protocol deviation must count as an event, not be dropped as a censoring.
+# Before the fix, s5_prepare_outcome flagged the collision row
+# censor_this_period == 1 and s4_prepare_for_analysis deleted it, silently
+# losing ~10% of PP events in switching-heavy data (probe: 368/3849 events at
+# persist_coef = 2).
 #
-# Since 26.9.0 the censoring row is retained instead of deleted, clipped at
-# its exact boundary. The collision rule is what still keeps the event row out
-# of that set: an event that stops in the deviation band is never censored.
+# Since 26.9.0 the censoring row is retained instead of deleted, clipped at its
+# exact boundary. The collision rule is what still keeps the event row out of
+# that set: an event that stops in the deviation follow-up interval is never
+# censored.
 
-test_that("PP keeps an event that collides with protocol deviation in the same band", {
-  n_band <- 4L
+test_that("PP keeps an event that collides with protocol deviation in the same follow-up interval", {
+  n_interval <- 4L
   ids <- 1:40
   long <- data.table::CJ(
     enrollment_person_trial_id = ids,
-    tstop = seq_len(n_band)
+    tstop = seq_len(n_interval)
   )
   long[, tstart := tstop - 1L]
   long[, treatment_baseline := enrollment_person_trial_id <= 20L]
@@ -22,7 +24,8 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
   long[, person_weeks := 1L]
   long[, baseline_L0 := (enrollment_person_trial_id %% 5L) - 2]
 
-  # id 1 (intervention): deviates at band 3 AND has the event at band 3
+  # id 1 (intervention): deviates at follow-up interval 3 AND has the event at
+  # follow-up interval 3
   long[
     enrollment_person_trial_id == 1L & tstop == 3L,
     `:=`(
@@ -31,13 +34,14 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
     )
   ]
   long[enrollment_person_trial_id == 1L & tstop == 4L, time_treatment := FALSE]
-  # id 2 (intervention): clean event at band 2, no deviation
+  # id 2 (intervention): clean event at follow-up interval 2, no deviation
   long[enrollment_person_trial_id == 2L & tstop == 2L, event := 1L]
-  # id 3 (intervention): deviates at band 4, no event
+  # id 3 (intervention): deviates at follow-up interval 4, no event
   long[enrollment_person_trial_id == 3L & tstop == 4L, time_treatment := FALSE]
-  # id 21 (comparator): clean event at band 3, no deviation
+  # id 21 (comparator): clean event at follow-up interval 3, no deviation
   long[enrollment_person_trial_id == 21L & tstop == 3L, event := 1L]
-  # id 22 (comparator): deviates (starts treatment) at band 4, no event
+  # id 22 (comparator): deviates (starts treatment) at follow-up interval 4, no
+  # event
   long[enrollment_person_trial_id == 22L & tstop == 4L, time_treatment := TRUE]
 
   design <- TTEDesign$new(
@@ -47,7 +51,7 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
     time_treatment_var = "time_treatment",
     outcome_vars = "event",
     confounder_vars = "baseline_L0",
-    follow_up_time = n_band
+    follow_up_time = n_interval
   )
   trial <- TTEEnrollment$new(long, design)
   # toy deterministic data: the tiny censoring glm separates -> benign warning
@@ -56,7 +60,7 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
     trial$s3_truncate_weights(lower = 0.01, upper = 0.99)
     trial$s4_prepare_for_analysis(
       outcome = "event",
-      follow_up = n_band,
+      follow_up = n_interval,
       estimate_ipcw_pp_with_gam = FALSE
     )
   })
@@ -77,7 +81,8 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
   # censoring rows are retained now, but never at the price of an event row
   expect_gt(sum(d$censor_this_period), 0L)
   expect_identical(sum(d[censor_this_period == 1L]$event), 0L)
-  # id 3 deviates at band 4 with no event, so band 4 carries her censoring
+  # id 3 deviates at follow-up interval 4 with no event, so follow-up interval 4
+  # carries her censoring
   expect_identical(
     d[enrollment_person_trial_id == 3L & tstop == 4L, censor_this_period],
     1L
@@ -85,10 +90,10 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
 })
 
 test_that("ITT is unaffected by the collision rule (no deviation censoring)", {
-  n_band <- 4L
+  n_interval <- 4L
   long <- data.table::CJ(
     enrollment_person_trial_id = 1:40,
-    tstop = seq_len(n_band)
+    tstop = seq_len(n_interval)
   )
   long[, tstart := tstop - 1L]
   long[, treatment_baseline := enrollment_person_trial_id <= 20L]
@@ -112,14 +117,14 @@ test_that("ITT is unaffected by the collision rule (no deviation censoring)", {
     time_treatment_var = "time_treatment",
     outcome_vars = "event",
     confounder_vars = "baseline_L0",
-    follow_up_time = n_band
+    follow_up_time = n_interval
   )
   trial <- TTEEnrollment$new(long, design)
   trial$s2_ipw(stabilize = TRUE)
   trial$s3_truncate_weights(lower = 0.01, upper = 0.99)
   trial$s4_prepare_for_analysis(
     outcome = "event",
-    follow_up = n_band,
+    follow_up = n_interval,
     estimand = "itt"
   )
   expect_identical(sum(trial$data$event), 2L)

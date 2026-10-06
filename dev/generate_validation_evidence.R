@@ -65,7 +65,7 @@ for (s in c("s1", "s2", "s3")) {
     pct_periods_lost = 100 * (1 - nrow(d) / (20000 * 20)),
     pct_initiators = 100 * d[period == 0, mean(A_t)],
     first_event_persons = d[Y_t == 1, uniqueN(id)],
-    event_risk_band_pct = 100 * mean(d$Y_t)
+    event_risk_follow_up_interval_pct = 100 * mean(d$Y_t)
   )
 }
 ev$triangle_desc <- rbindlist(rows)
@@ -158,7 +158,7 @@ ev$stress <- rbind(
     "pp",
     stress_truth("pp", 20L, lor = -0.7, out_int = -6.0),
     scen_fit_swereg(d_rare, "pp"),
-    sprintf("event risk %.2f%%/band", 100 * mean(d_rare$Y_t))
+    sprintf("event risk %.2f%%/follow-up interval", 100 * mean(d_rare$Y_t))
   ),
   cell(
     "rare_outcome",

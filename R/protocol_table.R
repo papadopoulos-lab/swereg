@@ -104,15 +104,17 @@
 #' Render the stratum of the comparator draw
 #'
 #' The draw runs inside one `trial_id` group, and `trial_id` is the week index
-#' divided by `period_width`. The stratum is therefore the entry band, and the
-#' band is the only stratum. A width of 1 makes the band one week.
+#' divided by `period_width`. The stratum is therefore the enrollment period,
+#' and the enrollment period is the only stratum. A width of 1 makes the
+#' enrollment period one week.
 #'
-#' @param period_width Integer band width in weeks, or `NULL`.
+#' @param period_width Integer width of the enrollment period in weeks, or
+#'   `NULL`.
 #' @return A length-1 character string.
 #' @noRd
 .protocol_draw_stratum <- function(period_width) {
   if (is.null(period_width) || length(period_width) == 0L) {
-    return("Comparator draw stratum: the entry band, and nothing else")
+    return("Comparator draw stratum: the enrollment period, and nothing else")
   }
   pw <- as.integer(period_width)[1]
   if (is.na(pw) || pw <= 1L) {
@@ -121,7 +123,7 @@
   return(paste0(
     "Comparator draw stratum: the ",
     pw,
-    "-week entry band, and nothing else"
+    "-week enrollment period, and nothing else"
   ))
 }
 
@@ -202,7 +204,7 @@
     follow_up_weeks = weeks,
     follow_up_label = fu_label,
     # The assignment row names the stratum of the comparator draw, and the
-    # stratum is the entry band. Its width comes from the plan.
+    # stratum is the enrollment period. Its width comes from the plan.
     period_width = plan$period_width
   ))
 }
@@ -338,6 +340,7 @@
         character(1)
       )
       c(
+        "Start: time zero, which the emulation column defines",
         paste0("Horizons in the spec: ", paste(labels, collapse = ", ")),
         paste0(
           "This sheet documents the ",
@@ -513,6 +516,12 @@
         numeric(1)
       )
       c(
+        .TTE_TIME_ZERO_DEFINITION,
+        paste0(
+          "Follow-up stops at the earliest of the outcome event, loss to ",
+          "follow-up, the administrative end of the data and the horizon. ",
+          "Per-protocol follow-up also stops at protocol deviation"
+        ),
         paste0("Horizon on this sheet: ", ctx$follow_up_weeks, " weeks"),
         paste0(
           "Horizons in the ETT grid: ",
@@ -522,6 +531,9 @@
       )
     },
     causal_contrast = c(
+      # `.TTE_ESTIMANDS` is the set s2 and s3 build, so the cell cannot name
+      # an estimand the pipeline does not estimate.
+      paste0("Estimands: ", paste(.TTE_ESTIMANDS, collapse = ", ")),
       paste0("ETT: ", ctx$ett_id),
       paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
       paste0(
@@ -536,7 +548,33 @@
       paste0("Horizon: ", ctx$follow_up_weeks, " weeks")
     ),
     analysis_plan = {
-      out <- character()
+      # The fixed lines state what s1 to s3 fit. Item 6h of the TARGET
+      # checklist states the same model in full.
+      out <- c(
+        paste0(
+          "Treatment weights: stabilized inverse probability weights from a ",
+          "logistic model fitted on the baseline rows"
+        ),
+        paste0(
+          "Censoring weights (per-protocol): inverse probability of ",
+          "censoring weights for protocol deviation and loss to follow-up"
+        ),
+        paste0(
+          "Truncation: the intention-to-treat weight, and the per-protocol ",
+          "product of the treatment and censoring weights, at the 1st and ",
+          "99th percentiles"
+        ),
+        paste0(
+          "Outcome model: survey-weighted quasi-Poisson regression with a ",
+          "person-time offset and person-level clustered standard errors"
+        ),
+        paste0(
+          "Absolute scale: cause-specific risk difference, with a percentile ",
+          "interval from ",
+          .S3_RD_N_BOOT,
+          " bootstrap replicates that resample persons"
+        )
+      )
       for (conf in spec[["confounders"]]) {
         impl <- conf[["implementation"]]
         v <- .protocol_impl_variable(impl)

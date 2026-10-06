@@ -1,9 +1,9 @@
 # A survival risk set spans the time point. A rate uses exact exposure.
 #
 # `s5_prepare_outcome()` clips the terminal row at the exact censoring week, so
-# a stop no longer has to sit on the band grid. Two rows can then close inside
-# one nominal band: one at week 6 and one at week 8 of the band that runs from
-# week 4 to week 8.
+# a stop no longer has to sit on the follow-up interval grid. Two rows can then
+# close inside one nominal follow-up interval: one at week 6 and one at week 8
+# of the follow-up interval that runs from week 4 to week 8.
 #
 # The risk set at week 6 must hold every row that COVERS week 6, and not only
 # the row that stops there. Before the clipping every stop sat on the grid, the
@@ -24,7 +24,8 @@
 # `sum(person_weeks * w)`, and is untouched here.
 #
 # FIXTURE 1, hand computed. Five person-trials held by three people, and two
-# event boundaries inside the band that runs from week 4 to week 8.
+# event boundaries inside the follow-up interval that runs from week 4 to week
+# 8.
 #
 #   trial  person  arm    rows                        w
 #   i1     p1      TRUE   (0,4] ; (4,6] event         1
@@ -45,10 +46,10 @@
 #
 # and the risk difference S_FALSE - S_TRUE is 0, 0.4, 0.3, 0.3.
 #
-# The band-grouped risk set that stops at the row's own `tstop` gives
-# S_TRUE = 1, 0, 0, 0 instead, because at week 6 it holds i1 alone and her
-# hazard is then 1. The fixture is therefore not decorative: the two
-# definitions disagree in every value after week 4.
+# The follow-up interval-grouped risk set that stops at the row's own `tstop`
+# gives S_TRUE = 1, 0, 0, 0 instead, because at week 6 it holds i1 alone and her
+# hazard is then 1. The fixture is therefore not decorative: the two definitions
+# disagree in every value after week 4.
 
 skip_if_not_installed("data.table")
 
@@ -113,10 +114,10 @@ skip_if_not_installed("data.table")
 
 # --- the definition the code replaced, written out -------------------------
 #
-# The band-grouped risk set: a row counts at the time it STOPS at, and nowhere
-# else. Every value it returns is a value the spanning definition must not
-# return, so this function is what makes the fixture non-decorative.
-.le_band_grouped_surv <- function(dt, arm_value, times) {
+# The follow-up interval-grouped risk set: a row counts at the time it STOPS at,
+# and nowhere else. Every value it returns is a value the spanning definition
+# must not return, so this function is what makes the fixture non-decorative.
+.le_interval_grouped_surv <- function(dt, arm_value, times) {
   sub <- dt[exposed == arm_value]
   haz <- vapply(
     times,
@@ -196,11 +197,11 @@ test_that("a row spanning a time point is in the risk set at that point", {
   expect_equal(int$events, c(0, 1, 1, 0))
   expect_equal(int$surv, c(1, 0.6, 0.2, 0.2))
 
-  # The band-grouped definition disagrees at every time after week 4, and it
-  # reports certain death from week 6 onwards.
-  band <- .le_band_grouped_surv(.le_panel(), TRUE, .le_times)
-  expect_equal(band, c(1, 0, 0, 0))
-  expect_false(isTRUE(all.equal(int$surv, band)))
+  # The follow-up interval-grouped definition disagrees at every time after week
+  # 4, and it reports certain death from week 6 onwards.
+  follow_up_interval <- .le_interval_grouped_surv(.le_panel(), TRUE, .le_times)
+  expect_equal(follow_up_interval, c(1, 0, 0, 0))
+  expect_false(isTRUE(all.equal(int$surv, follow_up_interval)))
 })
 
 
@@ -332,8 +333,8 @@ test_that("survival carries forward between event boundaries", {
   expect_equal(cmp$surv[2], 1)
 
   # It is neither of the two plausible wrong answers. A hazard recomputed over
-  # the whole band from week 4 to week 8 gives 2/4, and so 0.5. Interpolating
-  # between the neighbouring exact values gives 0.75.
+  # the whole follow-up interval from week 4 to week 8 gives 2/4, and so 0.5.
+  # Interpolating between the neighbouring exact values gives 0.75.
   expect_false(isTRUE(all.equal(cmp$surv[2], 0.5)))
   expect_false(isTRUE(all.equal(cmp$surv[2], 0.75)))
 
@@ -358,8 +359,9 @@ test_that("survival carries forward between event boundaries", {
 #
 # Fixture 1 is hand built. This block builds the panel the way production does,
 # through `$s4_prepare_for_analysis()`, and shows that it holds stops off the
-# band grid and that the risk set at such a stop spans. `s5_prepare_outcome()`
-# and `s6_ipcw_pp()` are private, so the public method is what runs.
+# follow-up interval grid and that the risk set at such a stop spans.
+# `s5_prepare_outcome()` and `s6_ipcw_pp()` are private, so the public method is
+# what runs.
 #
 # The person builder is the one `test-landmark-boundaries.R` uses, kept in step
 # with it: each test file carries its own copy, because testthat gives a file
@@ -444,10 +446,11 @@ test_that("survival carries forward between event boundaries", {
 test_that("the pipeline panel holds off-grid stops and the risk set spans them", {
   skip_if_not_installed("cstime")
   weeks <- .le_weeks()
-  # OFFGRID has no row for follow-up weeks 11 and 12, so her record ends at
-  # week 10. Week 10 is week 2 of the band that runs from week 8 to week 12,
-  # so her terminal row is clipped there and week 10 joins the reporting grid.
-  # ONGRID has the outcome in follow-up week 12, at the band boundary.
+  # OFFGRID has no row for follow-up weeks 11 and 12, so her record ends at week
+  # 10. Week 10 is week 2 of the follow-up interval that runs from week 8 to
+  # week 12, so her terminal row is clipped there and week 10 joins the
+  # reporting grid. ONGRID has the outcome in follow-up week 12, at the
+  # follow-up interval boundary.
   #
   # The off-grid boundary here is a record end. `weeks_to_event` is exact to
   # the week too, so an event also lands off the grid, and the block after
@@ -482,8 +485,8 @@ test_that("the pipeline panel holds off-grid stops and the risk set spans them",
   expect_equal(at10$at_risk, sum(spans10$ipw))
   expect_identical(at10$n_persons_at_risk, data.table::uniqueN(spans10$id))
   # Every intervention woman still under follow-up, and not the clipped one
-  # alone. The band-grouped risk set at week 10 holds her row and nothing else,
-  # so a risk table read off it would print one person out of ten.
+  # alone. The follow-up interval-grouped risk set at week 10 holds her row and
+  # nothing else, so a risk table read off it would print one person out of ten.
   expect_gt(at10$n_persons_at_risk, 1L)
   expect_gt(at10$at_risk, sum(panel[exposed == TRUE & tstop == 10L]$ipw))
 
@@ -506,25 +509,27 @@ test_that("the pipeline panel holds off-grid stops and the risk set spans them",
 #
 # `weeks_to_event` is exact to the week, like the other four boundaries.
 #
-# It was the stop of the BAND the outcome fell in. Every stop was a band stop
-# before phase 11 clipped the terminal row, so `tstop == weeks_to_event` always
-# held and the event indicator was safe. A clipped row compares week 10 against
-# band stop 12, the indicator reads 0, and the woman leaves as a loss.
+# It was the stop of the follow-up interval the outcome fell in. Every stop was
+# a follow-up interval stop before phase 11 clipped the terminal row, so `tstop
+# == weeks_to_event` always held and the event indicator was safe. A clipped row
+# compares week 10 against follow-up interval stop 12, the indicator reads 0,
+# and the woman leaves as a loss.
 #
 # The production skeleton deletes every person-week after death and keeps the
-# death week, so a death IS a record end inside a partial band. That is this
-# case, and it removed real events from the numerator.
+# death week, so a death IS a record end inside a partial follow-up interval.
+# That is this case, and it removed real events from the numerator.
 #
 # The priority rule is (1) outcome event, (2) protocol deviation or observed
 # loss, (3) administrative or requested end. The event and the record end share
 # one weekly boundary here, and the event wins.
 
-test_that("an outcome in a partial terminal band is an event, not a loss", {
+test_that("an outcome in a partial terminal follow-up interval is an event, not a loss", {
   skip_if_not_installed("cstime")
   weeks <- .le_weeks()
   # DIED_LATE has the outcome in follow-up week 10 and no row for follow-up
   # weeks 11 and 12. Her record ends at week 10 and her event lands at week 10.
-  # Week 10 is week 2 of the band that runs from week 8 to week 12.
+  # Week 10 is week 2 of the follow-up interval that runs from week 8 to week
+  # 12.
   d <- data.table::rbindlist(list(
     .le_person(
       "DIED_LATE",
@@ -544,7 +549,8 @@ test_that("an outcome in a partial terminal band is an event, not a loss", {
   ))
   got <- trial$data[id == "DIED_LATE"][order(tstart)]
 
-  # The boundary is the week, and not the stop of the band that holds it.
+  # The boundary is the week, and not the stop of the follow-up interval that
+  # holds it.
   expect_identical(unique(got$weeks_to_event), 10L)
   expect_identical(got$tstop, c(4L, 8L, 10L))
   expect_identical(got$person_weeks, c(4L, 4L, 2L))

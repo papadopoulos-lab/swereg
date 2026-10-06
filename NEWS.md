@@ -1,3 +1,38 @@
+# swereg 26.15.0
+
+## Breaking changes
+
+* **The panel column `entry_band_id` is now `enrollment_period_id`.** It is a column of the `TTEEnrollment` panel, `$data`.
+* **The `band` column of `$get_curves()` and of the stored risk-difference rows is now `follow_up_interval`.** The stored rows are the `rd_*` slots of `results_ett` in a `TTEPlan`. The `rd_curve_*` slots keep their `tstop` column.
+* **Downstream code that reads `entry_band_id`, or the `band` column of `$get_curves()` or of the stored risk-difference rows, MUST change to the new name.** `qs2_read()` renames the columns in a saved file, as "New features" states.
+* **Both estimands censor at the first missing week after time zero.** A gap in observation is loss of observation, and an outcome at or after the gap is never counted. Intention-to-treat used to continue through a gap. After a gap of a whole follow-up interval, it also moved the later rows one interval early on the follow-up axis. Per-protocol used to count an outcome after a gap in the same follow-up interval. Under per-protocol, a treatment deviation keeps its event priority.
+* **The CONSORT and attrition labels changed, as the next five entries state.** The CONSORT diagrams, the `step_label` column of the `$export_tables()` attrition sheets and TARGET item 8 show these labels.
+* **"Censored before landmark" is now "Not under observation at time zero".** The old label was false, because a death is not censoring.
+* **"Event before landmark" is now "Event before time zero".**
+* **"Has invalid treatment" is now "No week in either treatment arm".**
+* **A washout exclusion label now names what the step drops, `"Prior <variable> ..."`, in place of the rule `"No prior <variable> ..."`.** The protocol table and TARGET item 6a keep the rule.
+* **Three steps that printed their raw step name now have labels.** `landmark_candidates` is "Candidate person-trials, before the time-zero checks". `enrolled_after_comparator_draw` is "Enrolled after the comparator draw". `analysis_dataset` is "Analysis dataset (per-protocol)".
+* **The comparator-draw box of the CONSORT diagram says "stratified by the 4-week enrollment period", not "entry band".** The number is the design's `period_width`.
+* **The `landmark_*` step names are unchanged.** They are `landmark_candidates`, `landmark_observed` and `landmark_event_free`.
+
+## New features
+
+* **`qs2_read()` loads a plan or an enrollment that swereg 26.14.0 saved, with the columns above renamed.** It acts on a `TTEPlan` at schema 3 and a `TTEEnrollment` at schema 4, before the schema check. Every number is unchanged.
+* **An enrollment with an `observed_var`, enrolled before swereg 26.15.0, warns once per file per R process that gaps cannot be detected in it.** Its panel has no `weeks_to_observation_gap` column, so an outcome after a gap may count. Re-run `$s1_generate_enrollments_and_ipw()` to remove the limitation.
+
+## Bug fixes
+
+* **TARGET items 6d and 7d state the time-zero definition.** Item 7d said follow-up began at the start of the enrollment period. Both items now say that time zero is the first week after the enrollment period closes.
+* **TARGET item 6h states its censoring model as the default settings of the pipeline.** The plan does not record the arguments that s2 ran with, so the old sentence stated the model as a fact that nothing checked.
+* **TARGET items 6f, 6h and 7 state the per-protocol censoring rule.** They said that per-protocol follow-up stopped at treatment switching. Follow-up stops when the run of weeks off the assigned strategy exceeds the arm's tolerance, and a missing treatment status counts as off the strategy.
+* **TARGET item 6c states a seed only when the specification states one.** It printed "The draw ran from a stated seed." for every plan.
+
+## Documentation
+
+* **`vignette("tte-methods")` follows the step-3 protocol.** Section 1 opens with the values the protocol must state, follows TARGET items 6a to 6h in order, and holds no code.
+* **The help pages, the vignettes and the generated text use one vocabulary: enrollment period, follow-up interval and time zero.** "Landmark" is now a defined term: time zero is a landmark.
+* **The cross-references between the vignettes point to the renumbered sections of `vignette("tte-methods")`.**
+
 # swereg 26.14.0
 
 ## Breaking changes

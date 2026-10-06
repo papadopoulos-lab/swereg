@@ -102,7 +102,8 @@
 #'   - `selection` : the comparator draw (a sampling step; a comparator the
 #'                   draw did not take is NOT "excluded", and persons are not
 #'                   cleanly removed). The draw is incidence density sampling
-#'                   inside one entry band, and it reads no other variable.
+#'                   inside one enrollment period, and it reads no other
+#'                   variable.
 #'   - `analysis`  : the per-protocol analysis dataset (the enrolled
 #'                   person-trials minus those censored in the first period
 #'                   for protocol deviation or loss to follow-up). This is
@@ -224,12 +225,12 @@
 #' than local") and a failure-voiced exclusion label both read correctly.
 #'
 #' A step is "other" when the pipeline drops it for a reason the protocol does
-#' not state: the treatment-validity drop, and the landmark steps. Otherwise a
+#' not state: the treatment-validity drop, and the time-zero steps. Otherwise a
 #' step is an inclusion criterion when `inclusion_steps` names it, and an
 #' exclusion criterion when it does not.
 #'
 #' `landmark_candidates` gets no bullet at all. It is the base count of the
-#' landmark cascade, and it excludes nobody.
+#' time-zero qualification cascade, and it excludes nobody.
 #'
 #' THE GROUP NEVER COMES FROM THE COLUMN-NAME PREFIX. A `no_prior_value` rule
 #' builds an `eligible_no_` column from either an inclusion block or an
@@ -246,10 +247,10 @@
 #' @noRd
 .consort_excluded_label <- function(elig, labels_inline, inclusion_steps, fmt) {
   rows <- elig[-1L]
-  # The mask of `landmark_candidates` in `.tte_qualify_bands()` is
-  # `rep(TRUE, nrow(bands))`, so the step excludes nobody and is not a reason.
-  # Drop it before the grouping runs, so each heading total stays the sum of
-  # the bullets under it.
+  # The mask of `landmark_candidates` in `.tte_qualify_candidates()` is
+  # `rep(TRUE, nrow(candidates))`, so the step excludes nobody and is not a
+  # reason. Drop it before the grouping runs, so each heading total stays the
+  # sum of the bullets under it.
   rows <- rows[!as.character(rows$step) %in% "landmark_candidates"]
   step <- as.character(rows$step)
   group <- data.table::fcase(
@@ -326,9 +327,10 @@
 #'   build, from `.tte_inclusion_step_names()`. A step named here sits under
 #'   "Not meeting inclusion criteria". The default is empty, which puts every
 #'   criterion under "Meeting exclusion criteria" except the treatment-validity
-#'   and landmark steps. A hand-built flow with bare step names takes that
+#'   and time-zero steps. A hand-built flow with bare step names takes that
 #'   default.
-#' @param period_width Integer band width in weeks, or `NULL`. `NULL` drops
+#' @param period_width Integer width of the enrollment period in weeks, or
+#'   `NULL`. `NULL` drops
 #'   the stratum line from the comparator-draw box.
 #' @noRd
 .build_consort_dot <- function(
@@ -450,9 +452,9 @@
     prev_node <- "n2"
   }
 
-  # The comparator draw: distinct (non-red) selection box. The draw is
-  # sampling, not exclusion. The box names the sampling scheme and the band it
-  # stratifies on. Naming both stops a reader of the figure taking the draw
+  # The comparator draw: distinct (non-red) selection box. The draw is sampling,
+  # not exclusion. The box names the sampling scheme and the enrollment period
+  # it stratifies on. Naming both stops a reader of the figure taking the draw
   # for matching on a covariate, or for matching on the week.
   sel <- flow[kind == "selection"]
   if (nrow(sel) > 0L) {
@@ -466,7 +468,7 @@
       "\\nincidence density sampling, stratified by the entry week"
     } else {
       sprintf(
-        "\\nincidence density sampling, stratified by the %d-week entry band",
+        "\\nincidence density sampling, stratified by the %d-week enrollment period",
         as.integer(period_width)[1]
       )
     }
@@ -706,16 +708,32 @@
     return(paste0(name, "\\n(", window_line, ")"))
   }
 
-  # The two landmark exclusions come from `.tte_qualify_bands()` and never
-  # from the spec, so they sit above the `spec = NULL` return. Phase 5 reuses
-  # both strings verbatim.
+  # The two time-zero exclusions come from `.tte_qualify_candidates()` and
+  # never from the spec, so they sit above the `spec = NULL` return. Phase 5
+  # reuses both strings verbatim.
+  #
+  # Each label states what the step drops:
+  #   * `eligible_valid_treatment` drops a candidate person-trial with no week
+  #     that holds either arm value. A week outside both arms is a valid value,
+  #     so the label does not call it invalid.
+  #   * `landmark_observed` drops a candidate with no observed row at time
+  #     zero. On a trimmed skeleton that is death, emigration or end of data.
+  #     No censoring is involved.
+  #   * `landmark_event_free` drops a candidate with an outcome in any week
+  #     before time zero. An outcome in the time-zero week is a follow-up
+  #     event.
+  # The last three steps are counts, not exclusions. Their labels exist so
+  # that `step_label` never repeats a raw step name.
   labels <- c(
     before_exclusions = "Before exclusions",
     eligible_isoyears = fmt_line("Outside of study years", isoyear_range),
-    eligible_valid_treatment = "Has invalid treatment",
+    eligible_valid_treatment = "No week in either treatment arm",
     eligible_age = fmt_line("Outside of age range", age_range),
-    landmark_observed = "Censored before landmark",
-    landmark_event_free = "Event before landmark"
+    landmark_observed = "Not under observation at time zero",
+    landmark_event_free = "Event before time zero",
+    landmark_candidates = "Candidate person-trials, before the time-zero checks",
+    enrolled_after_comparator_draw = "Enrolled after the comparator draw",
+    analysis_dataset = "Analysis dataset (per-protocol)"
   )
   if (is.null(spec)) {
     return(labels)
@@ -768,7 +786,7 @@
     spec_cores[[length(spec_cores) + 1L]] <- list(
       sv = sv,
       sv_norm = normalise(sv),
-      name = .tte_washout_prose(impl) %||% ec$name %||% sv,
+      name = .tte_washout_prose(impl, voice = "failure") %||% ec$name %||% sv,
       window_line = window_line
     )
   }

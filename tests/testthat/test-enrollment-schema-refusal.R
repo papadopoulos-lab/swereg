@@ -2,8 +2,10 @@
 # load, and the refusal names the remedy.
 #
 # 26.10.18 still wrote schema 3, so the break is not the 26.10.17 field
-# addition. `.TTE_ENROLLMENT_SCHEMA_VERSION` is 4L from 26.10.19, and
-# `$check_version()` stops on any lower number. The message must therefore
+# addition. `.TTE_ENROLLMENT_SCHEMA_VERSION` is 4L from 26.10.19 and 5L from
+# 26.15.0, and `$check_version()` stops on any lower number. `qs2_read()`
+# migrates a schema-4 object to schema 5 first, so schema 3 is the highest
+# number that is refused. The message must therefore
 # say that an earlier swereg wrote the object, and must send the reader to
 # s1. It must not attribute the refusal to the 26.9.0 landmark move, which is
 # a different break.
@@ -75,7 +77,7 @@ test_that("a schema-3 TTEEnrollment is refused at load", {
   qs2::qs_save(.esr_downgrade(.esr_enrollment(), 3L), path)
 
   expect_error(qs2_read(path), "schema version 3")
-  expect_error(qs2_read(path), "requires version 4")
+  expect_error(qs2_read(path), "requires version 5")
 
   # A warning is not enough. The caller must get no object at all, because an
   # object that loads is an object whose `fill_summary` reads NULL.

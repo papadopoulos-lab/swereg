@@ -1,16 +1,16 @@
 # The per-protocol censoring weight, pinned.
 #
-# The invariant: the weight on the row of band k is the stabilised probability
-# of remaining uncensored through the START of band k. It is not the
-# probability through the end of band k.
+# The invariant: the weight on the row of follow-up interval k is the stabilised
+# probability of remaining uncensored through the START of follow-up interval k.
+# It is not the probability through the end of follow-up interval k.
 #
 # Three properties follow, and this file holds one proof of each.
 #
-# 1. The censoring model is complementary log-log with a person-time offset,
-#    so one linear predictor gives `q(4) = q(1)^4`. Unequal band widths are
-#    then comparable.
-# 2. The cumulative product is LAGGED. It stops at band `k - 1`, so the first
-#    row of every person-trial weighs exactly 1.
+# 1. The censoring model is complementary log-log with a person-time offset, so
+#    one linear predictor gives `q(4) = q(1)^4`. Unequal follow-up interval
+#    widths are then comparable.
+# 2. The cumulative product is LAGGED. It stops at follow-up interval `k - 1`,
+#    so the first row of every person-trial weighs exactly 1.
 # 3. The numerator is a second fitted model, and not the empirical mean of the
 #    denominator predictions.
 #
@@ -25,17 +25,19 @@ skip_if_not_installed("data.table")
 
 .ipcw_follow_up <- 12L
 
-# One person-trial, band by band. `edges` names the band boundaries, so
-# `edges = c(0, 4, 8, 12)` makes the bands `[0, 4)`, `[4, 8)` and `[8, 12)`.
+# One person-trial, follow-up interval by follow-up interval. `edges` names the
+# follow-up interval boundaries, so `edges = c(0, 4, 8, 12)` makes the follow-up
+# intervals `[0, 4)`, `[4, 8)` and `[8, 12)`.
 #
-# `deviate_band` names the 1-indexed band the person switches arm in. The
-# switch censors that band, and `s5_prepare_outcome()` then deletes every band
-# after it. `NA` keeps the person on the assigned arm throughout.
-.ipcw_trial <- function(id, edges, arm, age, deviate_band = NA_integer_) {
+# `deviate_interval` names the 1-indexed follow-up interval the person switches
+# arm in. The switch censors that follow-up interval, and `s5_prepare_outcome()`
+# then deletes every follow-up interval after it. `NA` keeps the person on the
+# assigned arm throughout.
+.ipcw_trial <- function(id, edges, arm, age, deviate_interval = NA_integer_) {
   n <- length(edges) - 1L
   on_tx <- rep(arm, n)
-  if (!is.na(deviate_band)) {
-    on_tx[deviate_band:n] <- !arm
+  if (!is.na(deviate_interval)) {
+    on_tx[deviate_interval:n] <- !arm
   }
   data.table::data.table(
     enrollment_person_trial_id = id,
@@ -82,10 +84,10 @@ skip_if_not_installed("data.table")
 
 # The cohort every proof but the fourth reads.
 #
-# `PROBE1W` and `PROBE4W` are the pair the offset is measured on. They carry
-# the same arm, the same confounder value and the same calendar position, and
-# they differ only in the width of their first band: one week against four.
-# Neither is censored, so each has a second row to carry the first row's
+# `PROBE1W` and `PROBE4W` are the pair the offset is measured on. They carry the
+# same arm, the same confounder value and the same calendar position, and they
+# differ only in the width of their first follow-up interval: one week against
+# four. Neither is censored, so each has a second row to carry the first row's
 # contribution.
 #
 # Censoring rises with age in both arms, so the denominator model, which reads
@@ -97,12 +99,13 @@ skip_if_not_installed("data.table")
     .ipcw_trial("PROBE1W", c(0, 1, 5, 9, 12), arm = TRUE, age = probe_age),
     .ipcw_trial("PROBE4W", full, arm = TRUE, age = probe_age)
   )
-  # Intervention arm, ages 51 to 70. `switch_band` names the band each person
-  # switches in, and `NA` names a person who never switches. Switching rises
-  # with age, and it falls in every band, so no band start is free of
-  # censoring. A band start with no censored row at all would drive both models
-  # to the same floor, and the ratio would be exactly 1 under any link.
-  switch_band <- c(
+  # Intervention arm, ages 51 to 70. `switch_interval` names the follow-up
+  # interval each person switches in, and `NA` names a person who never
+  # switches. Switching rises with age, and it falls in every follow-up
+  # interval, so no follow-up interval start is free of censoring. A follow-up
+  # interval start with no censored row at all would drive both models to the
+  # same floor, and the ratio would be exactly 1 under any link.
+  switch_interval <- c(
     NA, 1L, NA, NA, 2L, NA, NA, NA, NA, 3L,
     3L, 3L, 2L, 2L, 2L, 2L, 1L, 1L, 1L, 1L
   )
@@ -112,13 +115,13 @@ skip_if_not_installed("data.table")
       full,
       arm = TRUE,
       age = 50 + i,
-      deviate_band = switch_band[i]
+      deviate_interval = switch_interval[i]
     )
   }
-  # Comparator arm. Ages 46 to 65, and the switches fall in every band, so no
-  # band start is free of censoring.
+  # Comparator arm. Ages 46 to 65, and the switches fall in every follow-up
+  # interval, so no follow-up interval start is free of censoring.
   for (i in 1:20) {
-    band <- if (i >= 16L) 1L else if (i >= 13L) 2L else if (i == 3L) 3L else {
+    follow_up_interval <- if (i >= 16L) 1L else if (i >= 13L) 2L else if (i == 3L) 3L else {
       NA_integer_
     }
     trials[[length(trials) + 1L]] <- .ipcw_trial(
@@ -126,7 +129,7 @@ skip_if_not_installed("data.table")
       full,
       arm = FALSE,
       age = 45 + i,
-      deviate_band = band
+      deviate_interval = follow_up_interval
     )
   }
   data.table::rbindlist(trials)
@@ -137,8 +140,8 @@ skip_if_not_installed("data.table")
 # and the confounder in the denominator only. It is the ground truth the fitted
 # weights are compared against.
 #
-# The caller MUST check that the arm holds four or more distinct band starts,
-# because that is what selects `splines::ns(tstart, df = 3)`.
+# The caller MUST check that the arm holds four or more distinct follow-up
+# interval starts, because that is what selects `splines::ns(tstart, df = 3)`.
 .ipcw_reference <- function(out, arm) {
   d <- data.table::copy(out[exposed == arm])
   data.table::setorderv(d, c("enrollment_person_trial_id", "tstart"))
@@ -180,7 +183,7 @@ skip_if_not_installed("data.table")
 
 
 # ---------------------------------------------------------------------------
-# PROOF 1 -- the offset makes unequal band widths comparable
+# PROOF 1 -- the offset makes unequal follow-up interval widths comparable
 # ---------------------------------------------------------------------------
 
 test_that("a four-week row's uncensoring probability is a one-week row's to the fourth power", {
@@ -224,8 +227,8 @@ test_that("the weight is through the start of the row, and the first row's weigh
   expect_gt(nrow(first), 40L)
   expect_identical(first$ipcw_pp, rep(1, nrow(first)))
 
-  # C16 switches arm in her first band, so she keeps exactly one row and that
-  # row is censored. No follow-up precedes it, so her weight is 1.
+  # C16 switches arm in her first follow-up interval, so she keeps exactly one
+  # row and that row is censored. No follow-up precedes it, so her weight is 1.
   alone <- out[enrollment_person_trial_id == "C16"]
   expect_identical(nrow(alone), 1L)
   expect_identical(alone$censor_this_period, 1L)
@@ -257,10 +260,10 @@ test_that("the weight is through the start of the row, and the first row's weigh
 test_that("the numerator is a fitted model, not an empirical mean", {
   out <- .ipcw_run(.ipcw_cohort())
 
-  # PROBE1W stops her bands at weeks 1, 5 and 9. No other intervention row
-  # stops there, so each of those band stops holds exactly one row of the arm.
-  # An empirical mean of that one row returns the row's own denominator, which
-  # makes every one of her weights exactly 1.
+  # PROBE1W stops her follow-up intervals at weeks 1, 5 and 9. No other
+  # intervention row stops there, so each of those follow-up interval stops
+  # holds exactly one row of the arm. An empirical mean of that one row returns
+  # the row's own denominator, which makes every one of her weights exactly 1.
   intervention <- out[exposed == TRUE]
   for (stop_week in c(1L, 5L, 9L)) {
     expect_identical(sum(intervention$tstop == stop_week), 1L)
@@ -270,8 +273,8 @@ test_that("the numerator is a fitted model, not an empirical mean", {
   expect_identical(nrow(probe), 4L)
   expect_gt(max(abs(probe$ipcw_pp[-1] - 1)), 0.005)
 
-  # A fitted numerator reads the band start and the offset, so it takes a
-  # different value from the denominator on the same row.
+  # A fitted numerator reads the follow-up interval start and the offset, so it
+  # takes a different value from the denominator on the same row.
   ref <- .ipcw_reference(out, arm = TRUE)
   expect_identical(data.table::uniqueN(ref$tstart), 6L)
   ref_probe <- ref[enrollment_person_trial_id == "PROBE1W"]
@@ -292,19 +295,19 @@ test_that("a non-estimable stratum fails loudly", {
       c(0, 4, 8, 12),
       arm = TRUE,
       age = 50 + i,
-      deviate_band = if (i >= 17L) 2L else NA_integer_
+      deviate_interval = if (i >= 17L) 2L else NA_integer_
     )
   }
-  # Every comparator switches arm in her first band, so the comparator arm
-  # holds one row per person-trial and every one of them is censored. The
-  # model has no uncensored row to contrast them with.
+  # Every comparator switches arm in her first follow-up interval, so the
+  # comparator arm holds one row per person-trial and every one of them is
+  # censored. The model has no uncensored row to contrast them with.
   for (i in 1:20) {
     trials[[length(trials) + 1L]] <- .ipcw_trial(
       paste0("C", i),
       c(0, 4, 8, 12),
       arm = FALSE,
       age = 45 + i,
-      deviate_band = 1L
+      deviate_interval = 1L
     )
   }
   d <- data.table::rbindlist(trials)
@@ -329,7 +332,7 @@ test_that("a stratum with no censoring takes a weight of one on every row", {
       c(0, 4, 8, 12),
       arm = TRUE,
       age = 50 + i,
-      deviate_band = if (i >= 17L) 2L else NA_integer_
+      deviate_interval = if (i >= 17L) 2L else NA_integer_
     )
   }
   # No comparator switches arm, and every comparator panel reaches the end of
@@ -351,8 +354,8 @@ test_that("a stratum with no censoring takes a weight of one on every row", {
 
 test_that("a zero-width row stays out of the offset and weighs one", {
   d <- .ipcw_cohort()
-  # A degenerate band. `log(0)` is `-Inf`, so this row MUST NOT reach the
-  # offset. It holds no person-time, so it cannot be censored either.
+  # A degenerate follow-up interval. `log(0)` is `-Inf`, so this row MUST NOT
+  # reach the offset. It holds no person-time, so it cannot be censored either.
   d <- data.table::rbindlist(list(
     d,
     .ipcw_trial("ZERO", c(0, 4, 4, 8, 12), arm = TRUE, age = 58)
@@ -362,7 +365,8 @@ test_that("a zero-width row stays out of the offset and weighs one", {
   zero <- out[enrollment_person_trial_id == "ZERO"]
   expect_identical(zero$person_weeks, c(4L, 0L, 4L, 4L))
   expect_true(all(is.finite(zero$ipcw_pp)))
-  # The empty band contributes nothing, so the weight does not move across it.
+  # The empty follow-up interval contributes nothing, so the weight does not
+  # move across it.
   expect_identical(zero$ipcw_pp[2], zero$ipcw_pp[3])
   expect_true(all(is.finite(out$ipcw_pp)))
 })
