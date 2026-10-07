@@ -14,12 +14,14 @@
 # 1. ITT stops at the first absent week, and the stop row is censored.
 # 2. PP stops at the first absent week, and an outcome after the gap is never
 #    counted, even in the same follow-up interval.
-# 3. A treatment deviation never stops ITT. Under PP, an outcome in the same
-#    follow-up interval as a deviation is still counted.
+# 3. A treatment deviation never stops ITT. Under PP it stops follow-up at
+#    the start of the deviation week, so an outcome later in the same
+#    follow-up interval is not counted.
 # 4. A panel without `weeks_to_observation_gap` warns once, and is read as
 #    having no gap.
-# 5. Without a gap, ITT and PP output is unchanged. The fingerprints were
-#    measured on swereg before this change.
+# 5. Without a gap, ITT and PP output is unchanged. The ITT fingerprint was
+#    measured on swereg before this change. The PP fingerprint was measured
+#    again under the left-edge deviation rule of 27.1.1.
 
 skip_if_not_installed("data.table")
 skip_if_not_installed("cstime")
@@ -236,7 +238,7 @@ test_that("PP stops at the first absent week and never counts an outcome after i
   expect_identical(unique(got$weeks_to_protocol_deviation), NA_integer_)
 
   # The gap at week 5 and the outcome at week 7 share follow-up interval 2.
-  # The event-priority rule does not apply to a gap, so she stops at week 5.
+  # An outcome after the gap never counts, so she stops at week 5.
   got <- .ig_rows(out, "PARTGAP")
   expect_identical(got$tstop, c(4L, 5L))
   expect_identical(got$person_weeks, c(4L, 1L))
@@ -250,22 +252,23 @@ test_that("PP stops at the first absent week and never counts an outcome after i
 # Supporting behaviour
 # ---------------------------------------------------------------------------
 
-test_that("a deviation keeps its PP event priority and never stops ITT", {
+test_that("a deviation stops PP at the start of its week and never stops ITT", {
   pp <- .ig_run(.ig_gap_data(), "pp")
 
-  # The deviation at week 2 comes before the gap at week 8, so PP stops there.
+  # The deviation in follow-up week 2 stops PP at week 1, the start of that
+  # week. It comes before the gap at week 8, so PP stops there.
   got <- .ig_rows(pp, "SWGAP")
-  expect_identical(got$tstop, 2L)
+  expect_identical(got$tstop, 1L)
   expect_identical(got$censor_this_period, 1L)
-  expect_identical(unique(got$weeks_to_protocol_deviation), 2L)
+  expect_identical(unique(got$weeks_to_protocol_deviation), 1L)
 
-  # The outcome at week 7 shares follow-up interval 2 with the deviation at
-  # week 6, so the outcome wins and is counted.
+  # The deviation in follow-up week 6 stops PP at week 5. The outcome in week
+  # 7 shares follow-up interval 2 with it, and is not counted.
   got <- .ig_rows(pp, "COLLIDE")
-  expect_identical(got$tstop, c(4L, 7L))
-  expect_identical(got$event, c(0L, 1L))
-  expect_identical(got$censor_this_period, c(0L, 0L))
-  expect_identical(unique(got$weeks_to_protocol_deviation), 6L)
+  expect_identical(got$tstop, c(4L, 5L))
+  expect_identical(got$event, c(0L, 0L))
+  expect_identical(got$censor_this_period, c(0L, 1L))
+  expect_identical(unique(got$weeks_to_protocol_deviation), 5L)
 
   # ITT ignores the deviation, and counts the outcome at week 7.
   itt <- .ig_run(.ig_gap_data(), "itt")
@@ -348,5 +351,5 @@ test_that("without a gap, ITT and PP output is unchanged", {
 
   pp <- .ig_run(d, "pp")
   expect_identical(nrow(pp), 64L)
-  expect_identical(.ig_fingerprint(pp), "c070fe93072bf58afc74fb681c9b6ea7")
+  expect_identical(.ig_fingerprint(pp), "fba27a21c3ea6ad6ee4f4ac1deadfd42")
 })

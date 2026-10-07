@@ -405,13 +405,13 @@ TTEEnrollment <- R6::R6Class(
     #' treatment. Releases before 26.9.0 deleted the row instead, which threw
     #' away every valid week it held.
     #'
-    #' Event-priority convention: an outcome event that stops in the deviation
-    #' follow-up interval wins. The row then counts as an event and not as a
-    #' censoring. The deviation does not clip it, `censor_this_period` is 0, and
-    #' the censoring model does not treat it as censored (since 26.7.3). The row
-    #' still stops at the exact event week, which can fall inside the follow-up
-    #' interval. The convention applies to a treatment deviation only, and
-    #' never to an observation gap.
+    #' Per-protocol follow-up stops at the start of the first discordant week
+    #' beyond tolerance, as it stops at the first absent week. That week is
+    #' not adherent follow-up, so an outcome in it or later does not count.
+    #' On a tie the other boundary labels the stop. An outcome in the week
+    #' before the deviation counts, and the row is not censored. A gap or a
+    #' record end at the same week is loss. A planned end at the same week is
+    #' complete follow-up.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
     #' @param estimand Character, `"pp"` (per-protocol, default) or `"itt"`
@@ -1140,7 +1140,8 @@ TTEEnrollment <- R6::R6Class(
           # cannot see a switch inside an interval, and it is why
           # `.tte_deviation_boundary()`
           # exists. It stays here for a caller who hands in trial data
-          # directly.
+          # directly. It stops at the start of the first discordant interval,
+          # the left edge, as the weekly read does.
           data[,
             .protocol_deviated := data.table::fcase(
               get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
@@ -1153,7 +1154,7 @@ TTEEnrollment <- R6::R6Class(
           data[,
             weeks_to_protocol_deviation := {
               if (any(.protocol_deviated)) {
-                min(get(design$tstop_var)[.protocol_deviated])
+                min(get(design$tstart_var)[.protocol_deviated])
               } else {
                 NA_integer_
               }
@@ -1161,56 +1162,6 @@ TTEEnrollment <- R6::R6Class(
             by = c(design$id_var)
           ]
         }
-      }
-
-      # The follow-up interval that carries the censoring.
-      # `weeks_to_protocol_deviation` is exact to the week, so it can fall
-      # INSIDE an interval. The interval that censors is then the first one
-      # that reaches it, and every earlier interval is complete follow-up. A
-      # boundary that already sits on an interval edge picks that interval, so
-      # the fallback above keeps the behaviour of every earlier release.
-      # A boundary past the last interval of the panel reads NA. There is no row
-      # left for it to censor, and `weeks_to_loss` reports the short panel.
-      data[, .deviation_interval := get(design$tstop_var)[NA_integer_]]
-      # data.table evaluates `j` once on an empty table to learn its types, so
-      # an estimand or a cohort with no deviation at all would reach
-      # `min(integer(0))` and warn. Test the rows first instead.
-      dev_rows <- !is.na(data[["weeks_to_protocol_deviation"]]) &
-        data[[design$tstop_var]] >= data[["weeks_to_protocol_deviation"]]
-      if (any(dev_rows)) {
-        dev_interval <- data[
-          dev_rows,
-          list(dev_interval_stop = min(get(design$tstop_var))),
-          by = c(design$id_var)
-        ]
-        data[
-          dev_interval,
-          .deviation_interval := i.dev_interval_stop,
-          on = c(design$id_var)
-        ]
-      }
-
-      # The follow-up interval that carries the event, read the same way.
-      # `weeks_to_event` is exact to the week now, so comparing it against
-      # `.deviation_interval` would compare a week against an interval stop
-      # and almost never meet. The two intervals are on one footing here, so
-      # the same-interval rule below keeps the meaning it had. On the
-      # collapsed fallback the event already sits on an interval stop, and
-      # this returns that stop.
-      data[, .event_interval := get(design$tstop_var)[NA_integer_]]
-      ev_interval_rows <- !is.na(data[["weeks_to_event"]]) &
-        data[[design$tstop_var]] >= data[["weeks_to_event"]]
-      if (any(ev_interval_rows)) {
-        ev_interval <- data[
-          ev_interval_rows,
-          list(ev_interval_stop = min(get(design$tstop_var))),
-          by = c(design$id_var)
-        ]
-        data[
-          ev_interval,
-          .event_interval := i.ev_interval_stop,
-          on = c(design$id_var)
-        ]
       }
 
       # weeks_to_admin_end
@@ -1281,33 +1232,7 @@ TTEEnrollment <- R6::R6Class(
         )
       ]
 
-      # Boundary priority 1 beats priority 2 inside one follow-up interval.
-      # `.deviation_interval` names the interval the deviation falls in and
-      # `.event_interval` names the interval the event falls in. When the two
-      # are the same interval, the event wins: the deviation does not clip the
-      # row, and `censor_this_period` stays 0 below. The row still stops at
-      # the exact event week, which can fall inside the interval. A woman who
-      # deviates in week 6 and has the outcome in week 7 stops at week 7, and
-      # the interval runs to week 8.
-      #
-      # Every other deviation clips at its own exact week.
-      data[, .deviation_clip := weeks_to_protocol_deviation]
-      data[
-        !is.na(.event_interval) &
-          !is.na(.deviation_interval) &
-          .deviation_interval == .event_interval,
-        .deviation_clip := NA_integer_
-      ]
-
       data[, .max_tstop := max(get(design$tstop_var)), by = c(design$id_var)]
-      data[,
-        .first_planned_stop := pmin(
-          weeks_to_event,
-          .deviation_clip,
-          .planned_end,
-          na.rm = TRUE
-        )
-      ]
       # Boundary priority 2: the week the record stops at. `.max_tstop` is the
       # stop of the LAST follow-up interval, so it credits a record that ends
       # inside an interval with weeks the person was never observed for.
@@ -1327,6 +1252,34 @@ TTEEnrollment <- R6::R6Class(
         design = design,
         steps_completed = self$steps_completed
       )
+
+      # The deviation clips at its own exact week, the start of the first
+      # discordant week beyond tolerance. That week is not per-protocol
+      # follow-up, so an event in it or later never counts. A woman who
+      # deviates in week 6 stops at week 5, and an event in week 6 or 7 is
+      # not counted.
+      #
+      # The deviation clips only when it comes strictly before every other
+      # boundary. On a tie the other boundary labels the stop:
+      # - an event at the same week counts, and the row is not censored;
+      # - a record end or a gap at the same week is loss, because a person
+      #   who is not observed cannot be seen to deviate;
+      # - a planned end at the same week is complete follow-up, because the
+      #   discordant week falls after it.
+      data[, .deviation_clip := weeks_to_protocol_deviation]
+      data[
+        .deviation_clip >=
+          pmin(weeks_to_event, .planned_end, .record_end, na.rm = TRUE),
+        .deviation_clip := NA_integer_
+      ]
+      data[,
+        .first_planned_stop := pmin(
+          weeks_to_event,
+          .deviation_clip,
+          .planned_end,
+          na.rm = TRUE
+        )
+      ]
       data[,
         weeks_to_loss := data.table::fifelse(
           .record_end < .first_planned_stop,
@@ -1374,14 +1327,10 @@ TTEEnrollment <- R6::R6Class(
         )
       ]
       data[is.na(censor_this_period), censor_this_period := 0L]
-      # Event takes precedence over same-interval protocol deviation: in
-      # discrete time the outcome is measured over the interval before
-      # within-interval censoring is applied, so a person-trial whose first
-      # event falls in the same interval as its deviation exits the risk set
-      # through the event. `.deviation_clip` above already stops the deviation
-      # clipping that interval, and the row then stops at the exact event week.
-      # This line makes the label agree, so the IPCW model never sees a spurious
-      # censoring where the trial actually ended in an event.
+      # An event row is never a censoring. `.deviation_clip` and
+      # `weeks_to_loss` above both stop strictly before the event, so no event
+      # row matches them. This line keeps the IPCW model from seeing a
+      # censoring where the trial ended in an event.
       data[event == 1L, censor_this_period := 0L]
 
       # Clean up (.protocol_deviated only exists for the fallback read)
@@ -1391,8 +1340,6 @@ TTEEnrollment <- R6::R6Class(
           ".record_end",
           ".first_planned_stop",
           ".protocol_deviated",
-          ".deviation_interval",
-          ".event_interval",
           ".deviation_clip",
           ".planned_end"
         ),

@@ -30,8 +30,10 @@ skip_if_not_installed("data.table")
 # intervals `[0, 4)`, `[4, 8)` and `[8, 12)`.
 #
 # `deviate_interval` names the 1-indexed follow-up interval the person switches
-# arm in. The switch censors that follow-up interval, and `s5_prepare_outcome()`
-# then deletes every follow-up interval after it. `NA` keeps the person on the
+# arm in. This panel has no weekly rows, so `s5_prepare_outcome()` stops
+# follow-up at the `tstart` of that interval. The follow-up interval before it
+# carries the censoring, and every later follow-up interval is deleted. A
+# switch in follow-up interval 1 leaves no row. `NA` keeps the person on the
 # assigned arm throughout.
 .ipcw_trial <- function(id, edges, arm, age, deviate_interval = NA_integer_) {
   n <- length(edges) - 1L
@@ -101,13 +103,16 @@ skip_if_not_installed("data.table")
   )
   # Intervention arm, ages 51 to 70. `switch_interval` names the follow-up
   # interval each person switches in, and `NA` names a person who never
-  # switches. Switching rises with age, and it falls in every follow-up
-  # interval, so no follow-up interval start is free of censoring. A follow-up
-  # interval start with no censored row at all would drive both models to the
-  # same floor, and the ratio would be exactly 1 under any link.
+  # switches. Switching rises with age. A switch in follow-up interval 2 or 3
+  # censors the follow-up interval before it, so the starts 0 and 4 both hold
+  # censored rows. A follow-up interval start with no censored row at all
+  # would drive both models to the same floor, and the ratio would be exactly
+  # 1 under any link. The last start, 8, cannot hold a switch censoring,
+  # because no later follow-up interval shows the switch. No weight reads the
+  # last start, because the product is lagged.
   switch_interval <- c(
-    NA, 1L, NA, NA, 2L, NA, NA, NA, NA, 3L,
-    3L, 3L, 2L, 2L, 2L, 2L, 1L, 1L, 1L, 1L
+    NA, 2L, NA, NA, 3L, NA, NA, NA, NA, 3L,
+    3L, 3L, 3L, 3L, 3L, 3L, 2L, 2L, 2L, 2L
   )
   for (i in 1:20) {
     trials[[length(trials) + 1L]] <- .ipcw_trial(
@@ -118,10 +123,10 @@ skip_if_not_installed("data.table")
       deviate_interval = switch_interval[i]
     )
   }
-  # Comparator arm. Ages 46 to 65, and the switches fall in every follow-up
-  # interval, so no follow-up interval start is free of censoring.
+  # Comparator arm. Ages 46 to 65, and the switches censor the starts 0 and 4,
+  # as in the intervention arm.
   for (i in 1:20) {
-    follow_up_interval <- if (i >= 16L) 1L else if (i >= 13L) 2L else if (i == 3L) 3L else {
+    follow_up_interval <- if (i >= 16L) 2L else if (i >= 13L || i == 3L) 3L else {
       NA_integer_
     }
     trials[[length(trials) + 1L]] <- .ipcw_trial(
@@ -227,7 +232,7 @@ test_that("the weight is through the start of the row, and the first row's weigh
   expect_gt(nrow(first), 40L)
   expect_identical(first$ipcw_pp, rep(1, nrow(first)))
 
-  # C16 switches arm in her first follow-up interval, so she keeps exactly one
+  # C16 switches arm in her second follow-up interval, so she keeps exactly one
   # row and that row is censored. No follow-up precedes it, so her weight is 1.
   alone <- out[enrollment_person_trial_id == "C16"]
   expect_identical(nrow(alone), 1L)
@@ -298,7 +303,7 @@ test_that("a non-estimable stratum fails loudly", {
       deviate_interval = if (i >= 17L) 2L else NA_integer_
     )
   }
-  # Every comparator switches arm in her first follow-up interval, so the
+  # Every comparator switches arm in her second follow-up interval, so the
   # comparator arm holds one row per person-trial and every one of them is
   # censored. The model has no uncensored row to contrast them with.
   for (i in 1:20) {
@@ -307,7 +312,7 @@ test_that("a non-estimable stratum fails loudly", {
       c(0, 4, 8, 12),
       arm = FALSE,
       age = 45 + i,
-      deviate_interval = 1L
+      deviate_interval = 2L
     )
   }
   d <- data.table::rbindlist(trials)

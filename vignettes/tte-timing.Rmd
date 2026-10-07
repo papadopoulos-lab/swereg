@@ -384,7 +384,11 @@ assigned arm of that person-trial. `NA` is discordant in both arms.
 
 A tolerance is the number of CONSECUTIVE discordant assessments an arm allows.
 A concordant assessment resets the run. For tolerance `k`, follow-up stops at
-the right edge of the `(k + 1)`th consecutive discordant week.
+the left edge of the `(k + 1)`th consecutive discordant week. That week is not
+per-protocol follow-up, so an outcome in it does not count. An observation gap
+stops follow-up the same way. This is the standard rule. Danaei et al. (2013,
+p. 77) stop following a person-trial when it deviates. The TrialEmulation
+function `expand_until_switch()` keeps only the rows before the first switch.
 
 ## Switch and return
 
@@ -408,11 +412,11 @@ merge(boundary(0L), boundary(1L), by = "id", suffixes = c("_tol0", "_tol1"))
 ```
 
 RETURN_2 is discordant in one week and returns. Tolerance 0 stops her at week
-2. Tolerance 1 allows the single week, so she reaches the end of follow-up and
-her boundary is `NA`.
+1, the start of follow-up week 2. Tolerance 1 allows the single week, so she
+reaches the end of follow-up and her boundary is `NA`.
 
 RETURN_2_3 is discordant in two consecutive weeks. Tolerance 1 allows the
-first and stops her at the right edge of the second, which is week 3.
+first and stops her at the left edge of the second, which is week 2.
 
 LATE_9 is discordant in week 9 only. Tolerance 1 allows it, and no second
 discordant week follows, so she is never censored for deviation. A run that
@@ -514,29 +518,33 @@ her with twelve, because it read the stop of the last interval.
 
 ## The tie, and the priority order
 
-Follow-up stops at the earliest of five events, and priority runs in three
-levels.
+Follow-up stops at the earliest boundary. Every boundary is a week on one
+scale, so two of them can fall on the same week. One rule then labels the row.
 
-1. The first outcome event beats everything.
-2. A protocol deviation and an observed loss come next.
-3. An administrative end and a requested follow-up end come last.
-
-An event that stops in the deviation interval wins that interval. The row
-counts as an event and not as a censoring, and the deviation does not clip it.
-This exception never applies to a gap in observation.
+1. An outcome event counts, and the row is not censored.
+2. An administrative end or a requested follow-up end is complete follow-up.
+   A loss or a deviation on the same week does not censor.
+3. A loss of observation beats a protocol deviation, because a person who is
+   not observed cannot be seen to deviate.
 
 ```{r tie}
 tie <- rbindlist(list(
-  tte_person("TIE", rep(TRUE, n), discordant_fu = 6L, event_fu = 6L),
+  tte_person("SAME_WEEK", rep(TRUE, n), discordant_fu = 6L, event_fu = 6L),
+  tte_person("WEEK_BEFORE", rep(TRUE, n), discordant_fu = 6L, event_fu = 5L),
   tte_fillers()
 ))
 tte_prepare(tte_enroll(tie, tte_design(ik = 0L)))[
-  id == "TIE"
-][order(tstart), .(tstart, tstop, person_weeks, event, censor_this_period)]
+  id %chin% c("SAME_WEEK", "WEEK_BEFORE")
+][order(id, tstart), .(id, tstart, tstop, person_weeks, event, censor_this_period)]
 ```
 
-TIE has both boundaries at week 6. She exits as an event, her terminal row
-stops at 6, and `censor_this_period` reads 0.
+SAME_WEEK deviates and has the outcome in follow-up week 6. Her deviation
+stops follow-up at week 5, the start of that week, so the outcome falls after
+the stop. It does not count, and `censor_this_period` reads 1.
+
+WEEK_BEFORE has the outcome in follow-up week 5 and deviates in week 6. Both
+boundaries are week 5. She exits as an event, and `censor_this_period` reads
+0.
 
 ## The administrative end, exactly
 
@@ -593,7 +601,8 @@ rbind(
 )
 ```
 
-SWITCH is discordant from follow-up week 5 onward. Per-protocol bills 5 weeks.
+SWITCH is discordant from follow-up week 5 onward. Per-protocol bills 4 weeks,
+because the discordant week 5 is not per-protocol follow-up.
 Intention-to-treat bills the whole 12.
 
 ## Two spec versions are not comparable
@@ -617,8 +626,9 @@ was made in isolation.
   A boundary inside an interval is exact in the person-time, and the censoring
   probability that covers it is still an interval-level quantity.
 * **Within-week ordering is unidentifiable.** A week is the finest resolution
-  the source data carries. Two things in one week have no order, and swereg
-  resolves them at the weekly right boundary by convention.
+  the source data carries. Two things in one week have no order. swereg orders
+  them by convention: a discordant week ends per-protocol follow-up at its
+  start, so an outcome in the same week does not count.
 * **Timing is weekly, and not date-level.** A registry date is known to the
   day. The skeleton is a person-week grid, so every boundary rounds to a week.
 * **Trials still open every `period_width` weeks.** Time zero after the

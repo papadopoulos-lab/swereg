@@ -13,7 +13,7 @@
 # This file pins four properties.
 #
 # 1. A concordant assessment resets the tolerance run.
-# 2. Censoring is at the right edge of the `(k + 1)`th consecutive discordant
+# 2. Censoring is at the left edge of the `(k + 1)`th consecutive discordant
 #    week, and not at the start of the run.
 # 3. An internal observation gap censors, whatever the tolerance is.
 # 4. Each arm reads its own tolerance.
@@ -181,14 +181,15 @@ test_that("a concordant week resets the tolerance run", {
   expect_identical(nrow(out[id == "RESET"]), 3L)
 
   # PAIRED censors. Her run starts at follow-up week 5, which is week index
-  # `L + 4`, so the boundary is `(u0 + k + 1) - L` = 4 + 1 + 1 = 6.
+  # `L + 4`, so the boundary is `(u0 + k) - L` = 4 + 1 = 5. That is the left
+  # edge of follow-up week 6, her second discordant week.
   #
   # The second follow-up interval carries the censoring, and it is clipped to
-  # week 6. It bills the 2 weeks before the boundary and nothing after.
-  expect_identical(.ld_boundary(out, "PAIRED"), 6L)
+  # week 5. It bills the 1 week before the boundary and nothing after.
+  expect_identical(.ld_boundary(out, "PAIRED"), 5L)
   expect_identical(nrow(out[id == "PAIRED"]), 2L)
-  expect_identical(out[id == "PAIRED"]$tstop, c(4L, 6L))
-  expect_identical(out[id == "PAIRED"]$person_weeks, c(4L, 2L))
+  expect_identical(out[id == "PAIRED"]$tstop, c(4L, 5L))
+  expect_identical(out[id == "PAIRED"]$person_weeks, c(4L, 1L))
 
   # RESET holds MORE discordant weeks than PAIRED, and still does not censor.
   # A rule that counted them cumulatively would censor RESET first.
@@ -205,7 +206,7 @@ test_that("censoring is at the (k+1)th discordant week, not at the run start", {
   weeks <- .ld_weeks()
   landmark <- .ld_landmark(weeks)
   # One discordant run of three weeks, starting at follow-up week 5. With
-  # tolerance 1 the boundary is the right edge of the SECOND discordant week.
+  # tolerance 1 the boundary is the left edge of the SECOND discordant week.
   d <- data.table::rbindlist(list(
     .ld_person("RUN", weeks, arm = TRUE, discordant_fu = c(5L, 6L, 7L)),
     .ld_fillers(weeks)
@@ -217,16 +218,16 @@ test_that("censoring is at the (k+1)th discordant week, not at the run start", {
   k <- 1L
   u0 <- landmark + 5L - 1L
   # The contract, written out rather than reduced to a number.
-  expect_identical(.ld_boundary(out, "RUN"), (u0 + k + 1L) - landmark)
+  expect_identical(.ld_boundary(out, "RUN"), (u0 + k) - landmark)
   # The boundary MUST sit later than the start of the run.
   expect_gt(.ld_boundary(out, "RUN"), u0 - landmark)
-  # 6 falls inside the second follow-up interval, so the first follow-up
+  # 5 falls inside the second follow-up interval, so the first follow-up
   # interval is complete follow-up and the second one carries the censoring. The
-  # second follow-up interval is clipped to week 6, and bills the 2 weeks it
+  # second follow-up interval is clipped to week 5, and bills the 1 week it
   # holds.
-  expect_identical(.ld_boundary(out, "RUN"), 6L)
-  expect_identical(out[id == "RUN"]$tstop, c(4L, 6L))
-  expect_identical(out[id == "RUN"]$person_weeks, c(4L, 2L))
+  expect_identical(.ld_boundary(out, "RUN"), 5L)
+  expect_identical(out[id == "RUN"]$tstop, c(4L, 5L))
+  expect_identical(out[id == "RUN"]$person_weeks, c(4L, 1L))
 })
 
 
@@ -303,21 +304,20 @@ test_that("each arm uses its own tolerance", {
   expect_true("OFFARM" %in% out$id)
 
   u0 <- landmark + 7L - 1L
-  # Intervention tolerance 0 censors at the right edge of the first discordant
-  # week. Comparator tolerance 2 censors at the right edge of the third.
-  expect_identical(.ld_boundary(out, "ONARM"), (u0 + 0L + 1L) - landmark)
-  expect_identical(.ld_boundary(out, "OFFARM"), (u0 + 2L + 1L) - landmark)
-  expect_identical(.ld_boundary(out, "ONARM"), 7L)
-  expect_identical(.ld_boundary(out, "OFFARM"), 9L)
+  # Intervention tolerance 0 censors at the left edge of the first discordant
+  # week. Comparator tolerance 2 censors at the left edge of the third.
+  expect_identical(.ld_boundary(out, "ONARM"), (u0 + 0L) - landmark)
+  expect_identical(.ld_boundary(out, "OFFARM"), (u0 + 2L) - landmark)
+  expect_identical(.ld_boundary(out, "ONARM"), 6L)
+  expect_identical(.ld_boundary(out, "OFFARM"), 8L)
 
-  # The two boundaries fall in different follow-up intervals, so the retained
-  # follow-up differs as well as the reported week. Each terminal follow-up
-  # interval is clipped at its own boundary, so the two also bill different
-  # person-time.
-  expect_identical(out[id == "ONARM"]$tstop, c(4L, 7L))
-  expect_identical(out[id == "ONARM"]$person_weeks, c(4L, 3L))
-  expect_identical(out[id == "OFFARM"]$tstop, c(4L, 8L, 9L))
-  expect_identical(out[id == "OFFARM"]$person_weeks, c(4L, 4L, 1L))
+  # The terminal follow-up interval is clipped at each woman's own boundary,
+  # so the two bill different person-time. ONARM stops inside the second
+  # follow-up interval, and OFFARM keeps all of it.
+  expect_identical(out[id == "ONARM"]$tstop, c(4L, 6L))
+  expect_identical(out[id == "ONARM"]$person_weeks, c(4L, 2L))
+  expect_identical(out[id == "OFFARM"]$tstop, c(4L, 8L))
+  expect_identical(out[id == "OFFARM"]$person_weeks, c(4L, 4L))
 })
 
 
@@ -349,24 +349,23 @@ test_that("the five weekly patterns each get their own exact boundary", {
   trial <- .ld_enroll(d, .ld_design(intervention_k = 0L, comparator_k = 3L))
   out <- .ld_prepare(trial)
 
-  # Every one of the five censors, and the week is the right edge of her own
+  # Every one of the five censors, and the week is the left edge of her own
   # first discordant week.
-  expect_identical(.ld_boundary(out, "TTFF"), 7L)
-  expect_identical(.ld_boundary(out, "TFTT"), 6L)
-  expect_identical(.ld_boundary(out, "TFFT"), 6L)
-  expect_identical(.ld_boundary(out, "TNATT"), 6L)
-  expect_identical(.ld_boundary(out, "TTTNA"), 8L)
+  expect_identical(.ld_boundary(out, "TTFF"), 6L)
+  expect_identical(.ld_boundary(out, "TFTT"), 5L)
+  expect_identical(.ld_boundary(out, "TFFT"), 5L)
+  expect_identical(.ld_boundary(out, "TNATT"), 5L)
+  expect_identical(.ld_boundary(out, "TTTNA"), 7L)
 
   # The second follow-up interval reaches every one of the five boundaries, so
   # all five keep the first follow-up interval and a second follow-up interval
-  # clipped at their own week. The clipped width is what separates them: four
-  # boundaries fall inside the follow-up interval, and TTTNA sits on its edge.
+  # clipped at their own week. The clipped width is what separates them.
   billed <- list(
-    TTFF = c(4L, 3L),
-    TFTT = c(4L, 2L),
-    TFFT = c(4L, 2L),
-    TNATT = c(4L, 2L),
-    TTTNA = c(4L, 4L)
+    TTFF = c(4L, 2L),
+    TFTT = c(4L, 1L),
+    TFFT = c(4L, 1L),
+    TNATT = c(4L, 1L),
+    TTTNA = c(4L, 3L)
   )
   for (who in names(billed)) {
     expect_identical(out[id == who]$tstop, c(4L, .ld_boundary(out, who)))
@@ -383,7 +382,7 @@ test_that("ITT keeps follow-up through a discordant run", {
 
   trial <- .ld_enroll(d, .ld_design(intervention_k = 1L, comparator_k = 3L))
   # ITT never censors at a switch, so the carried boundary MUST drop out.
-  expect_identical(unique(trial$data[id == "SWITCH"]$weeks_to_protocol_deviation), 6L)
+  expect_identical(unique(trial$data[id == "SWITCH"]$weeks_to_protocol_deviation), 5L)
   trial$s2_ipw(stabilize = TRUE)
   trial$s4_prepare_for_analysis(
     outcome = "died",
@@ -434,13 +433,13 @@ test_that("a trial panel built outside enroll() keeps the follow-up interval-col
   })
   out <- trial$data
   # The follow-up interval is one week wide here, so the collapsed value and the
-  # weekly value agree. Person-trial 1 deviates at follow-up interval 3, and
-  # follow-up interval 3 carries her censoring. A one-week follow-up interval
-  # cannot be clipped, so it bills its whole week.
+  # weekly value agree. Person-trial 1 deviates in follow-up interval 3, which
+  # is `[2, 3)`. The fallback reads its `tstart`, so follow-up stops at week 2
+  # and follow-up interval 2 carries her censoring.
   keep <- out[enrollment_person_trial_id == 1L]
-  expect_identical(unique(keep$weeks_to_protocol_deviation), 3L)
-  expect_identical(keep$tstop, c(1L, 2L, 3L))
-  expect_identical(keep$person_weeks, c(1L, 1L, 1L))
-  expect_identical(keep$censor_this_period, c(0L, 0L, 1L))
+  expect_identical(unique(keep$weeks_to_protocol_deviation), 2L)
+  expect_identical(keep$tstop, c(1L, 2L))
+  expect_identical(keep$person_weeks, c(1L, 1L))
+  expect_identical(keep$censor_this_period, c(0L, 1L))
   expect_identical(sum(out$censor_this_period), 1L)
 })

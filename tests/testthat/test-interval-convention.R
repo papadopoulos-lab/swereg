@@ -223,13 +223,13 @@ test_that("weeks_to_event is an exclusive stop, and the rows bill its weeks", {
 # PROOF 2 -- weeks_to_protocol_deviation
 # ---------------------------------------------------------------------------
 
-test_that("weeks_to_protocol_deviation is an exclusive stop at the right edge", {
+test_that("weeks_to_protocol_deviation is an exclusive stop at the left edge", {
   weeks <- .ic_weeks()
   # DEV6 is discordant in follow-up week 6, under a tolerance of 0. Follow-up
-  # week 6 is the interval `[5, 6)`, so its right edge is week 6.
+  # week 6 is the interval `[5, 6)`, so its left edge is week 5.
   #
-  # The boundary is that right edge. She holds the whole of week 6, and she
-  # holds nothing after it.
+  # The boundary is that left edge. The discordant week is not per-protocol
+  # follow-up, so she holds follow-up weeks 1 to 5 and nothing after them.
   d <- data.table::rbindlist(list(
     .ic_person("DEV6", weeks, arm = TRUE, discordant_fu = 6L),
     .ic_fillers(weeks)
@@ -238,27 +238,27 @@ test_that("weeks_to_protocol_deviation is an exclusive stop at the right edge", 
   out <- .ic_prepare(.ic_enroll(d, .ic_design(intervention_k = 0L)))
   got <- .ic_rows(out, "DEV6")
 
-  # The right edge of follow-up week 6 is week 6. The inclusive reading names
-  # week 5, which is the left edge of the same week.
-  expect_identical(unique(got$weeks_to_protocol_deviation), 6L)
+  # The left edge of follow-up week 6 is week 5. A right-edge reading names
+  # week 6, and it counts the discordant week as follow-up.
+  expect_identical(unique(got$weeks_to_protocol_deviation), 5L)
   expect_identical(nrow(got), 2L)
   expect_identical(got$tstart, c(0L, 4L))
-  expect_identical(got$tstop, c(4L, 6L))
+  expect_identical(got$tstop, c(4L, 5L))
   expect_identical(got$censor_this_period, c(0L, 1L))
 
   # The stop is exclusive, so no row opens at or after it.
-  expect_identical(nrow(got[tstart >= 6L]), 0L)
+  expect_identical(nrow(got[tstart >= 5L]), 0L)
 
-  # The terminal follow-up interval is clipped to 2 of its 4 weeks, and the
-  # total equals the boundary. The inclusive rule would bill 8 over the same two
+  # The terminal follow-up interval is clipped to 1 of its 4 weeks, and the
+  # total equals the boundary. The inclusive rule would bill 7 over the same two
   # rows.
-  expect_identical(got$person_weeks, c(4L, 2L))
-  expect_identical(sum(got$person_weeks), 6L)
+  expect_identical(got$person_weeks, c(4L, 1L))
+  expect_identical(sum(got$person_weeks), 5L)
   expect_identical(
     sum(got$person_weeks),
     unique(got$weeks_to_protocol_deviation)
   )
-  expect_identical(.ic_inclusive_weeks(got), 8L)
+  expect_identical(.ic_inclusive_weeks(got), 7L)
 
   expect_identical(out$person_weeks, out$tstop - out$tstart)
 })

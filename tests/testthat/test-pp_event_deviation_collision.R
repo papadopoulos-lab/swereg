@@ -1,16 +1,15 @@
-# Regression: an outcome event that falls in the SAME follow-up interval as the
-# protocol deviation must count as an event, not be dropped as a censoring.
-# Before the fix, s5_prepare_outcome flagged the collision row
-# censor_this_period == 1 and s4_prepare_for_analysis deleted it, silently
-# losing ~10% of PP events in switching-heavy data (probe: 368/3849 events at
-# persist_coef = 2).
+# An outcome event in the SAME follow-up interval as the protocol deviation.
 #
-# Since 26.9.0 the censoring row is retained instead of deleted, clipped at its
-# exact boundary. The collision rule is what still keeps the event row out of
-# that set: an event that stops in the deviation follow-up interval is never
-# censored.
+# Per-protocol follow-up stops at the start of the deviation interval, so the
+# deviation interval is not adherent follow-up. An event in it does not count,
+# and the interval before it carries the censoring. This is the rule of
+# TrialEmulation and of Danaei et al. (2013). Releases 26.7.3 to 26.15.0
+# counted that event instead.
+#
+# These panels are built outside `enroll()`, so `s5_prepare_outcome()` reads
+# the deviation from the collapsed treatment value at `tstart`.
 
-test_that("PP keeps an event that collides with protocol deviation in the same follow-up interval", {
+test_that("PP does not count an event in the deviation follow-up interval", {
   n_interval <- 4L
   ids <- 1:40
   long <- data.table::CJ(
@@ -66,30 +65,25 @@ test_that("PP keeps an event that collides with protocol deviation in the same f
   })
 
   d <- trial$data
-  # the collision event row survives and is an event
-  expect_identical(
-    d[enrollment_person_trial_id == 1L & tstop == 3L, event],
-    1L
-  )
-  # all three events are retained (ids 1, 2, 21)
-  expect_identical(sum(d$event), 3L)
-  # the collision row is not one of the censoring rows
-  expect_identical(
-    d[enrollment_person_trial_id == 1L & tstop == 3L, censor_this_period],
-    0L
-  )
-  # censoring rows are retained now, but never at the price of an event row
+  # id 1 stops at the start of follow-up interval 3, so her event in it is not
+  # counted and follow-up interval 2 carries her censoring.
+  id1 <- d[enrollment_person_trial_id == 1L][order(tstop)]
+  expect_identical(id1$tstop, c(1L, 2L))
+  expect_identical(id1$event, c(0L, 0L))
+  expect_identical(id1$censor_this_period, c(0L, 1L))
+  # only the two events without a deviation are retained (ids 2, 21)
+  expect_identical(sum(d$event), 2L)
+  # censoring rows are retained, and no censoring row is an event row
   expect_gt(sum(d$censor_this_period), 0L)
   expect_identical(sum(d[censor_this_period == 1L]$event), 0L)
-  # id 3 deviates at follow-up interval 4 with no event, so follow-up interval 4
-  # carries her censoring
-  expect_identical(
-    d[enrollment_person_trial_id == 3L & tstop == 4L, censor_this_period],
-    1L
-  )
+  # id 3 deviates in follow-up interval 4 with no event, so follow-up interval
+  # 3 carries her censoring and follow-up interval 4 is gone
+  id3 <- d[enrollment_person_trial_id == 3L][order(tstop)]
+  expect_identical(id3$tstop, c(1L, 2L, 3L))
+  expect_identical(id3$censor_this_period, c(0L, 0L, 1L))
 })
 
-test_that("ITT is unaffected by the collision rule (no deviation censoring)", {
+test_that("ITT counts an event in a deviation follow-up interval", {
   n_interval <- 4L
   long <- data.table::CJ(
     enrollment_person_trial_id = 1:40,

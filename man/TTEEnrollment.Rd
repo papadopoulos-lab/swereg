@@ -822,13 +822,13 @@ the row cannot attribute a post-deviation outcome to the baseline
 treatment. Releases before 26.9.0 deleted the row instead, which threw
 away every valid week it held.
 
-Event-priority convention: an outcome event that stops in the deviation
-follow-up interval wins. The row then counts as an event and not as a
-censoring. The deviation does not clip it, \code{censor_this_period} is 0, and
-the censoring model does not treat it as censored (since 26.7.3). The row
-still stops at the exact event week, which can fall inside the follow-up
-interval. The convention applies to a treatment deviation only, and
-never to an observation gap.
+Per-protocol follow-up stops at the start of the first discordant week
+beyond tolerance, as it stops at the first absent week. That week is
+not adherent follow-up, so an outcome in it or later does not count.
+On a tie the other boundary labels the stop. An outcome in the week
+before the deviation counts, and the row is not censored. A gap or a
+record end at the same week is loss. A planned end at the same week is
+complete follow-up.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s4_prepare_for_analysis(

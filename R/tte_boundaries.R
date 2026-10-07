@@ -23,10 +23,13 @@
 #' tolerance: `design$intervention_tolerance_weeks` and
 #' `design$comparator_tolerance_weeks`.
 #'
-#' For tolerance `k`, the boundary is the right edge of the `(k + 1)`th
+#' For tolerance `k`, the boundary is the left edge of the `(k + 1)`th
 #' consecutive discordant week. A run that starts at week `u0` therefore gives
-#' `(u0 + k + 1) - L`, where `L` is the time-zero week. A tolerance of 0 censors
-#' at the first discordant week.
+#' `(u0 + k) - L`, where `L` is the time-zero week. A tolerance of 0 stops
+#' follow-up at the start of the first discordant week. That week is not
+#' per-protocol follow-up, and an outcome in it does not count. This is the
+#' rule of TrialEmulation and of Danaei et al. (2013), and the rule for an
+#' observation gap.
 #'
 #' A run that starts before time zero counts only its weeks at or after it.
 #' The `u >= L + k` test below is what enforces that.
@@ -35,8 +38,10 @@
 #'
 #' Loss of observation is not discordance, and this boundary does not hold it.
 #' `.tte_observation_gap_boundary()` places the first absent week, and
-#' `s5_prepare_outcome()` stops follow-up there under both estimands. The
-#' event-priority rule of a deviation therefore never applies to a gap.
+#' `s5_prepare_outcome()` stops follow-up there under both estimands. When a
+#' gap and a deviation give the same boundary, `s5_prepare_outcome()` labels
+#' the stop as loss, because a person who is not observed cannot be seen to
+#' deviate.
 #'
 #' @section Runs are read over the observed weeks only:
 #'
@@ -163,9 +168,10 @@
     dw[, dv_len := seq_len(.N), by = dv_run]
 
     # A week qualifies when the run ending there is at least `k + 1` weeks
-    # long. The boundary is the right edge of the earliest qualifying week
+    # long. The boundary is the left edge of the earliest qualifying week
     # that is at or after `L + k`, which is the earliest week whose whole run
-    # of `k + 1` sits inside follow-up.
+    # of `k + 1` sits inside follow-up. Follow-up stops at the start of that
+    # week, so the week itself is not per-protocol follow-up.
     qk <- dw[dv_len >= k + 1L, list(dv_pid, dv_week)]
     if (nrow(qk) == 0L) {
       next
@@ -175,7 +181,7 @@
     q <- data.table::data.table(dv_pid = entry_dt[[".tte_person_id"]][idx])
     q[, q_week := lm_week[idx] + k]
     hit <- qk[q, on = c("dv_pid", dv_week = "q_week"), roll = -Inf, dv_hit]
-    stop_week[idx] <- pmin(stop_week[idx], hit + 1L, na.rm = TRUE)
+    stop_week[idx] <- pmin(stop_week[idx], hit, na.rm = TRUE)
   }
 
   # --- the boundary, counted from the landmark -----------------------------
@@ -356,9 +362,9 @@
 #'
 #' Both estimands stop at the first absent week after time zero, with no
 #' tolerance. The gap is loss of observation, so this function moves the
-#' record end of `s5_prepare_outcome()` to it. A gap is not a deviation, so
-#' the event-priority rule never clears it. An outcome after the gap is never
-#' counted, even when it falls in the same follow-up interval as the gap.
+#' record end of `s5_prepare_outcome()` to it. An outcome after the gap is
+#' never counted, even when it falls in the same follow-up interval as the
+#' gap.
 #'
 #' A whole missing follow-up interval has no panel row, and every later row
 #' is numbered one interval too early. All of those rows open at or after the

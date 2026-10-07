@@ -1336,7 +1336,8 @@ test_that("tte_s5_prepare_outcome computes weeks_to_event correctly", {
 })
 
 test_that("tte_s5_prepare_outcome computes weeks_to_protocol_deviation correctly", {
-  # Trial 1: exposed=TRUE, current_exposed switches to FALSE at tstop = 8 (deviation)
+  # Trial 1: exposed=TRUE, current_exposed switches to FALSE in the interval
+  # [4, 8) (deviation). Follow-up stops at its start, week 4.
   # Trial 2: exposed=TRUE, stays TRUE (no deviation)
   dt <- data.table::data.table(
     enrollment_person_trial_id = rep(1:2, each = 4),
@@ -1359,10 +1360,10 @@ test_that("tte_s5_prepare_outcome computes weeks_to_protocol_deviation correctly
   trial <- TTEEnrollment$new(dt, design)
   trial$.__enclos_env__$private$s5_prepare_outcome(outcome = "death")
 
-  # Trial 1: weeks_to_protocol_deviation should be 8
+  # Trial 1: weeks_to_protocol_deviation should be 4, the left edge
   expect_equal(
     trial$data[enrollment_person_trial_id == 1, weeks_to_protocol_deviation[1]],
-    8L
+    4L
   )
 
   # Trial 2: weeks_to_protocol_deviation should be NA
@@ -1467,13 +1468,14 @@ test_that("tte_s5_prepare_outcome creates event indicator correctly", {
 })
 
 test_that("tte_s5_prepare_outcome creates censor_this_period indicator correctly", {
-  # Trial deviates at tstop = 8 (current_exposed becomes FALSE)
+  # Trial deviates in the interval [8, 12) (current_exposed becomes FALSE), so
+  # follow-up stops at its start, week 8.
   dt <- data.table::data.table(
     enrollment_person_trial_id = rep(1, 4),
     tstart = c(0, 4, 8, 12),
     tstop = c(4, 8, 12, 16),
     exposed = TRUE,
-    current_exposed = c(TRUE, FALSE, FALSE, FALSE),
+    current_exposed = c(TRUE, TRUE, FALSE, FALSE),
     age = 50,
     death = 0L
   )

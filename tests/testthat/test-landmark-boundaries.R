@@ -154,11 +154,10 @@ skip_if_not_installed("cstime")
 test_that("person_weeks is the clipped duration, not the follow-up interval width", {
   weeks <- .lb_weeks()
   # MIDINTERVAL is discordant in follow-up week 6, under a tolerance of 0. The
-  # boundary is the right edge of that week, which is week 6.
+  # boundary is the left edge of that week, which is week 5.
   #
-  # Follow-up follow-up interval 2 opens at week 4 and closes at week 8, so week
-  # 6 falls squarely inside it. The boundary is week 2 of a four-week terminal
-  # follow-up interval.
+  # Follow-up interval 2 opens at week 4 and closes at week 8, so week 5
+  # falls inside it. The terminal follow-up interval holds 1 of its 4 weeks.
   #
   # WHOLE is never discordant. She shows what an unclipped follow-up interval
   # costs.
@@ -172,13 +171,13 @@ test_that("person_weeks is the clipped duration, not the follow-up interval widt
   got <- .lb_rows(out, "MIDINTERVAL")
 
   # The boundary is exact to the week, and it falls inside follow-up interval 2.
-  expect_identical(unique(got$weeks_to_protocol_deviation), 6L)
+  expect_identical(unique(got$weeks_to_protocol_deviation), 5L)
   expect_identical(got$tstart, c(0L, 4L))
-  expect_identical(got$tstop, c(4L, 6L))
+  expect_identical(got$tstop, c(4L, 5L))
 
-  # The terminal row is billed for the two weeks it holds, and not for four.
-  expect_identical(got$person_weeks, c(4L, 2L))
-  expect_identical(sum(got$person_weeks), 6L)
+  # The terminal row is billed for the one week it holds, and not for four.
+  expect_identical(got$person_weeks, c(4L, 1L))
+  expect_identical(sum(got$person_weeks), 5L)
 
   # `person_weeks` is the width of every retained row, hers and everyone's.
   expect_identical(out$person_weeks, out$tstop - out$tstart)
@@ -195,7 +194,7 @@ test_that("person_weeks is the clipped duration, not the follow-up interval widt
 
 test_that("the terminal censor row is retained and carries only pre-censor exposure", {
   weeks <- .lb_weeks()
-  # RETAINED is discordant in follow-up week 6, so her boundary is week 6 and
+  # RETAINED is discordant in follow-up week 6, so her boundary is week 5 and
   # follow-up interval 2 carries the censoring.
   d <- data.table::rbindlist(list(
     .lb_person("RETAINED", weeks, arm = TRUE, discordant_fu = 6L),
@@ -211,8 +210,8 @@ test_that("the terminal censor row is retained and carries only pre-censor expos
 
   # It carries the exposure before the boundary, and nothing after it.
   expect_identical(got[censor_this_period == 1L]$tstart, 4L)
-  expect_identical(got[censor_this_period == 1L]$tstop, 6L)
-  expect_identical(got[censor_this_period == 1L]$person_weeks, 2L)
+  expect_identical(got[censor_this_period == 1L]$tstop, 5L)
+  expect_identical(got[censor_this_period == 1L]$person_weeks, 1L)
 
   # The deviated regime contributes no outcome, so the retained row cannot
   # attribute one to the baseline treatment.
@@ -272,12 +271,12 @@ test_that("an administrative or requested end is exact, not rounded to a follow-
 
 test_that("a zero-duration row never reaches the offset", {
   weeks <- .lb_weeks()
-  # EDGE is discordant in follow-up week 8, under a tolerance of 0, so her
-  # boundary is week 8. That is exactly where follow-up interval 2 closes and
-  # follow-up interval 3 opens. Follow-up interval 3 would clip to `tstop ==
-  # tstart` if it were retained.
+  # EDGE is discordant in follow-up week 9, under a tolerance of 0, so her
+  # boundary is the left edge of that week, week 8. That is exactly where
+  # follow-up interval 2 closes and follow-up interval 3 opens. Follow-up
+  # interval 3 would clip to `tstop == tstart` if it were retained.
   d <- data.table::rbindlist(list(
-    .lb_person("EDGE", weeks, arm = TRUE, discordant_fu = 8L),
+    .lb_person("EDGE", weeks, arm = TRUE, discordant_fu = 9L),
     .lb_fillers(weeks)
   ))
 
@@ -349,14 +348,14 @@ test_that("a record that ends mid-interval bills only the weeks present", {
 # Supporting behaviour, tested and not mutation-proven
 # ---------------------------------------------------------------------------
 
-test_that("an event in the deviation follow-up interval wins, and the row stops at the event week", {
+test_that("an event after the deviation in the same follow-up interval does not count", {
   weeks <- .lb_weeks()
   # COLLIDE deviates in follow-up week 6 and has the outcome in follow-up
   # week 7. Both fall in follow-up interval 2, which closes at week 8.
   #
-  # The event wins the follow-up interval. The deviation in week 6 does not clip
-  # her, and her row is not flagged as censored. She stops at her own event
-  # week, which is week 7, so the terminal row bills three weeks and not four.
+  # Follow-up stops at the left edge of the deviation week, which is week 5.
+  # The event in week 7 falls after it, so it does not count, and her row is
+  # flagged as censored. The terminal row bills one week and not four.
   d <- data.table::rbindlist(list(
     .lb_person(
       "COLLIDE",
@@ -371,13 +370,13 @@ test_that("an event in the deviation follow-up interval wins, and the row stops 
   out <- .lb_prepare(.lb_enroll(d, .lb_design(intervention_k = 0L)))
   got <- .lb_rows(out, "COLLIDE")
 
-  expect_identical(unique(got$weeks_to_protocol_deviation), 6L)
+  expect_identical(unique(got$weeks_to_protocol_deviation), 5L)
   expect_identical(unique(got$weeks_to_event), 7L)
-  expect_identical(got$tstop, c(4L, 7L))
-  expect_identical(got$person_weeks, c(4L, 3L))
-  expect_identical(sum(got$person_weeks), 7L)
-  expect_identical(got$event, c(0L, 1L))
-  expect_identical(got$censor_this_period, c(0L, 0L))
+  expect_identical(got$tstop, c(4L, 5L))
+  expect_identical(got$person_weeks, c(4L, 1L))
+  expect_identical(sum(got$person_weeks), 5L)
+  expect_identical(got$event, c(0L, 0L))
+  expect_identical(got$censor_this_period, c(0L, 1L))
 })
 
 test_that("a whole missing follow-up interval is censored before it can renumber", {

@@ -495,9 +495,10 @@ test_that("imputation receives the entry-snapshot names", {
 
 # A trial-level panel, 60 person-trials over 3 enrollment periods.
 # `.tte_entry__age` is always present, so the entry snapshot cannot stand in for
-# the follow-up value. Every fourth person-trial deviates at the third
-# enrollment period, so censoring really fires and the model is fitted rather
-# than falling back to the marginal rate.
+# the follow-up value. Every fourth person-trial deviates in the third
+# follow-up interval, so censoring really fires and the model is fitted rather
+# than falling back to the marginal rate. Follow-up stops at the start of that
+# interval, so those 15 person-trials keep 2 rows and the panel fits 165.
 .lpb_ipcw_panel <- function(n = 60L) {
   d <- data.table::rbindlist(lapply(seq_len(n), function(i) {
     tx <- i <= (n %/% 2L)
@@ -529,7 +530,9 @@ test_that("imputation receives the entry-snapshot names", {
 
 test_that("IPCW fails loudly on a missing time-updated confounder", {
   d <- .lpb_ipcw_panel()
-  # 12 of 180 rows lose their follow-up `age`, across 12 of 60 person-trials.
+  # 12 of 180 panel rows lose their follow-up `age`, across 12 of 60
+  # person-trials. All 12 are at `tstart == 4`, so all 12 reach the 165 rows
+  # the censoring model fits.
   # The entry snapshot stays complete, so nothing can quietly stand in.
   d[
     tstart == 4L & as.integer(enrollment_person_trial_id) %% 5L == 0L,
@@ -561,7 +564,7 @@ test_that("IPCW fails loudly on a missing time-updated confounder", {
   # The message names the step, the confounder, the rows and the
   # person-trials, so a user can act on it without reading the source.
   expect_match(msg, "s6_ipcw_pp() cannot fit the censoring model", fixed = TRUE)
-  expect_match(msg, "age: 12 of 180 rows, 12 of 60 person-trials", fixed = TRUE)
+  expect_match(msg, "age: 12 of 165 rows, 12 of 60 person-trials", fixed = TRUE)
   expect_match(
     msg,
     "swereg MUST NOT overwrite an observed follow-up value with the entry-window value",

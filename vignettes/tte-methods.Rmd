@@ -251,8 +251,7 @@ as the enrollment period. Their number is the horizon divided by the width,
 rounded up. The first interval opens at time zero, and the last one is clipped
 at the horizon. Follow-up time counts weeks from time zero.
 
-For each person-trial, follow-up stops at the first of these events, with
-one exception for the per-protocol estimand:
+For each person-trial, follow-up stops at the first of these events:
 
 1. the first outcome at or after time zero;
 2. loss of observation: the first week after time zero without observation,
@@ -261,19 +260,29 @@ one exception for the per-protocol estimand:
 4. the administrative end of study;
 5. the analysis horizon.
 
-The exception: under the per-protocol estimand, an outcome can fall in the
-same follow-up interval as an earlier deviation. The person-trial then exits
-through the outcome, at its exact week. The row counts as an event and not as
-a censoring, in the censoring model and in the analysis data. The opposite
-convention discards real events and undercounts per-protocol outcomes in data
-with frequent switching.
+A protocol deviation stops per-protocol follow-up at the start of the first
+discordant week beyond the tolerance of the arm. That week is not per-protocol
+follow-up, so an outcome in it or later is not counted, even in the same
+follow-up interval. The row that reaches the deviation is clipped there and
+marked as censored by deviation. This is the rule of Danaei et al. (2013,
+p. 77) and of `expand_until_switch()` in TrialEmulation (Su et al. 2024).
+Releases 26.9.0 to 26.15.0 counted the deviation week as follow-up. Releases
+26.7.3 to 26.15.0 also counted an outcome later in the follow-up interval of
+the deviation.
 
-The exception never applies to a loss of observation. A gap is a week without
-observation between two observed weeks. It stops follow-up under both
-estimands at the start of its first absent week, and no tolerance applies. An
-outcome in that week or later is never counted, even in the same follow-up
-interval. The row that reaches the gap is clipped there and marked as censored
-by loss of observation.
+A gap is a week without observation between two observed weeks. It stops
+follow-up under both estimands at the start of its first absent week, and no
+tolerance applies. An outcome in that week or later is never counted, even in
+the same follow-up interval. The row that reaches the gap is clipped there and
+marked as censored by loss of observation.
+
+Two stops can fall on the same week. One rule then labels the row:
+
+- an outcome counts, and the row is not censored;
+- an administrative end or the horizon is complete follow-up, so a loss or a
+  deviation on the same week does not censor;
+- a loss of observation is labelled loss and not deviation, because a person
+  who is not observed cannot be seen to deviate.
 
 Every stop is exact to the week. None is rounded to the edge of a follow-up
 interval. A trial whose time zero falls after the administrative end
@@ -1003,8 +1012,8 @@ or 3, and absent with 1. The numerator keeps the follow-up term alone (1.8.9).
 
 TARGET item 16 and RECORD item 19.1 (Benchimol et al. 2015).
 
-- No grace periods and no cloning. Deviation censors at the right edge of the
-  first discordant run that exceeds the tolerance of the arm (1.4).
+- No grace periods and no cloning. Deviation censors at the start of the
+  first discordant week beyond the tolerance of the arm (1.4).
 - The estimand conditions on reaching time zero. It says nothing about people
   who die, or have an outcome, before time zero (1.6).
 - Trials open once per enrollment period, so a person who becomes eligible
@@ -1098,9 +1107,10 @@ we did not model them as competing risks.
 
 Per-protocol follow-up also ended at protocol deviation: a run of consecutive
 weeks off the assigned strategy longer than `[tolerance]` weeks. A missing
-treatment status counted as a week off the strategy. When `[outcome]` fell in
-the same follow-up interval as an earlier deviation, the person-trial ended
-with the outcome. A deviation did not end intention-to-treat follow-up.
+treatment status counted as a week off the strategy. Follow-up ended at the
+start of the first week beyond the tolerance. An `[outcome]` event in that
+week or later was not counted (Danaei et al. 2013). A deviation did not end
+intention-to-treat follow-up.
 
 ## Causal contrasts and identifying assumptions
 
@@ -2371,8 +2381,8 @@ validation evidence.
 | 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; `tteplan_read_spec()` stops without it) and `seed` (required; `tteplan_read_spec()` stops without it) come from the YAML spec's `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
 | 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` ("Candidate person-trials, before the time-zero checks"), `landmark_observed` ("Not under observation at time zero") and `landmark_event_free` ("Event before time zero"). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
-| 1.4 | Follow-up stop events, event priority | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
-| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss` and `censor_this_period = 1`. The event-priority rule clears `.deviation_clip` only, never the gap. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `qs2_read()` gives the warning when it reads such an enrollment from a file, and `.tte_gap_record_end()` gives it for a panel that was not read. An enrollment saved before 26.15.0 runs its saved method bodies and the old rules, so it warns on read only |
+| 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
+| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `qs2_read()` gives the warning when it reads such an enrollment from a file, and `.tte_gap_record_end()` gives it for a panel that was not read. An enrollment saved before 26.15.0 runs its saved method bodies and the old rules, so it warns on read only |
 | 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
 | 1.8.2 | IPCW censoring model | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. GAM engine `mgcv::bam(..., discrete = TRUE)`; `mgcv::s()` asks for 10 basis functions. Denominator `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`: `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1, counted per fitted stratum after zero-width rows leave. `$ipcw_formulas` records both formulas of each stratum |
 | 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |

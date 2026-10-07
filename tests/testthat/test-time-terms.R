@@ -329,6 +329,12 @@ test_that("the IRR fits with 2, 3 and 4 trials, and the trial term follows the l
 # interval, so its censoring stratum sees one calendar period and one start.
 # The comparator arm holds two trials, so the pooled panel holds two calendar
 # periods.
+#
+# A deviator carries `weeks_to_protocol_deviation = 2`, the weekly boundary
+# `enroll()` would write for a switch in follow-up week 3. Her one row is
+# clipped to `[0, 2)` and censored. Without the weekly value, the collapsed
+# read stops her at the start of her only follow-up interval, so she would
+# keep no row and the stratum would hold no censoring.
 .tt_one_period_panel <- function() {
   rows <- list()
   for (i in 1:30) {
@@ -338,6 +344,7 @@ test_that("the IRR fits with 2, 3 and 4 trials, and the trial term follows the l
       tstop = 4L,
       exposed = TRUE,
       on_tx = !(i %% 3L == 0L),
+      weeks_to_protocol_deviation = if (i %% 3L == 0L) 2L else NA_integer_,
       died = FALSE,
       age = 40 + i,
       enrollment_period_id = 0L,
@@ -352,6 +359,7 @@ test_that("the IRR fits with 2, 3 and 4 trials, and the trial term follows the l
       tstop = 4L,
       exposed = FALSE,
       on_tx = (i %% 4L == 0L),
+      weeks_to_protocol_deviation = if (i %% 4L == 0L) 2L else NA_integer_,
       died = FALSE,
       age = 40 + i,
       enrollment_period_id = k,
