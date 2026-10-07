@@ -1,0 +1,49 @@
+# The full validation tier: tests/testthat/test-validation-full.R, the
+# coverage study and the opt-in stress cells. They run only when
+# SWEREG_RUN_VALIDATION=true. The fast tier runs on every push inside
+# R CMD check (r-package.yml).
+#
+# This workflow is standalone. The shared pptemplate workflow is
+# workflow_call only and fails on any NOTE, and this job runs no R CMD check.
+# The repository has no tags today, so the tag trigger covers the v* form.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+name: Validation
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: "true"
+      SWEREG_RUN_VALIDATION: "true"
+      # The full factorial of test-tteplan_truth_matrix.R keeps its own gate.
+      SWEREG_RUN_PLAN_MATRIX: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The snapshot r-package.yml pins: RcppParallel 6.1.1 dropped a TBB
+      # symbol that stringfish 0.19.0 references, so qs2 fails at dyn.load.
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: false
+          cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat, any::pkgload, any::TrialEmulation
+
+      - name: Run every test, the full validation tier included
+        run: Rscript -e 'testthat::test_local(".", reporter = "summary", stop_on_failure = TRUE)'

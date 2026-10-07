@@ -11,12 +11,14 @@
 #
 # The file has two tiers:
 #   ALWAYS-ON  (skip_on_cran + survey/mgcv): a fast subset, ~30s total.
-#   OPT-IN     (SWEREG_RUN_STRESS=true): the full battery incl. TrialEmulation
-#              cross-checks and the multi-seed replication. Run with:
-#     SWEREG_RUN_STRESS=true Rscript -e 'devtools::test(filter="tte_stress")'
+#   OPT-IN     the full battery incl. TrialEmulation cross-checks and the
+#              multi-seed replication. It is part of the full validation tier,
+#              so it runs only when SWEREG_RUN_VALIDATION=true. The three cells
+#              share one describe() block, so they skip as one. Run with:
+#     SWEREG_RUN_VALIDATION=true Rscript -e 'devtools::test(filter="tte_stress")'
 
 .stress_optin <- function() {
-  identical(Sys.getenv("SWEREG_RUN_STRESS"), "true")
+  identical(Sys.getenv("SWEREG_RUN_VALIDATION"), "true")
 }
 
 # ===========================================================================
@@ -98,102 +100,94 @@ test_that("stress: time-varying confounding -- updated confounder beats frozen; 
 })
 
 # ===========================================================================
-# OPT-IN FULL MATRIX  (SWEREG_RUN_STRESS=true)
+# OPT-IN FULL MATRIX  (SWEREG_RUN_VALIDATION=true)
 # ===========================================================================
-
-test_that("stress [opt-in]: harmful-effect ITT bias is estimand, not defect", {
+describe("stress [opt-in]", {
   skip_on_cran()
   skip_if_not(
     .stress_optin(),
-    "set SWEREG_RUN_STRESS=true for the full stress matrix"
+    "set SWEREG_RUN_VALIDATION=true to run the full validation tier"
   )
-  skip_if_not_installed("survey")
-  skip_if_not_installed("mgcv")
-  skip_if_not_installed("TrialEmulation")
 
-  tr <- stress_truth("itt", 20L, lor = +0.7)
-  biases <- numeric(3)
-  sw_vs_te <- numeric(3)
-  for (s in 1:3) {
+  it("harmful-effect ITT bias is estimand, not defect", {
+    skip_if_not_installed("survey")
+    skip_if_not_installed("mgcv")
+    skip_if_not_installed("TrialEmulation")
+
+    tr <- stress_truth("itt", 20L, lor = +0.7)
+    biases <- numeric(3)
+    sw_vs_te <- numeric(3)
+    for (s in 1:3) {
+      d <- stress_sim(
+        N = 20000L,
+        T_periods = 20L,
+        lor = +0.7,
+        loss = "independent",
+        seed = 3000L + s
+      )
+      fit <- scen_fit_swereg(d, "itt")
+      te <- scen_fit_te(d, "itt", attr(tr, "p0"))
+      biases[s] <- fit[["est"]] - as.numeric(tr)
+      sw_vs_te[s] <- fit[["est"]] - te[["est"]]
+    }
+    # depletion of susceptibles: the DGP's marginal log-HR declines over
+    # follow-up, so the person-time-weighted ITT IRR legitimately runs ABOVE the
+    # cumulative-rate truth. observed mean bias 0.075 (seeds 1-3); range (0,
+    # 0.14).
+    expect_gt(mean(biases), 0)
+    expect_lt(mean(biases), 0.14)
+    # and this is NOT a swereg defect: swereg and TrialEmulation agree within 0.05
+    # (observed max |diff| 0.023) -- both target the same legitimate estimand.
+    expect_lt(max(abs(sw_vs_te)), 0.05)
+  })
+
+  it("near-positivity violation -- tighter truncation, more attenuation", {
+    skip_if_not_installed("survey")
+
     d <- stress_sim(
       N = 20000L,
       T_periods = 20L,
-      lor = +0.7,
-      loss = "independent",
-      seed = 3000L + s
+      lor = -0.7,
+      a0_L0 = 2.5,
+      loss = "none"
     )
-    fit <- scen_fit_swereg(d, "itt")
-    te <- scen_fit_te(d, "itt", attr(tr, "p0"))
-    biases[s] <- fit[["est"]] - as.numeric(tr)
-    sw_vs_te[s] <- fit[["est"]] - te[["est"]]
-  }
-  # depletion of susceptibles: the DGP's marginal log-HR declines over
-  # follow-up, so the person-time-weighted ITT IRR legitimately runs ABOVE the
-  # cumulative-rate truth. observed mean bias 0.075 (seeds 1-3); range (0,
-  # 0.14).
-  expect_gt(mean(biases), 0)
-  expect_lt(mean(biases), 0.14)
-  # and this is NOT a swereg defect: swereg and TrialEmulation agree within 0.05
-  # (observed max |diff| 0.023) -- both target the same legitimate estimand.
-  expect_lt(max(abs(sw_vs_te)), 0.05)
-})
+    tr <- as.numeric(stress_truth("itt", 20L, lor = -0.7))
+    fits <- lapply(
+      list(c(0.005, 0.995), c(0.01, 0.99), c(0.05, 0.95)),
+      function(bd) stress_fit_itt_trunc(d, bd[1], bd[2])
+    )
+    bias <- vapply(fits, function(f) f[["est"]] - tr, numeric(1))
+    # a0_L0=2.5 pushes the propensity score to the boundary -> extreme raw
+    # stabilised weights (observed max ~1325).
+    expect_gt(fits[[1]][["wmax"]], 100)
+    # weight truncation trades variance for bias TOWARD THE NULL; tighter bounds
+    # discard more weight mass -> more attenuation. observed bias monotone
+    # increasing 0.079 < 0.114 < 0.218. Assert monotonicity, not unbiasedness.
+    expect_lt(bias[1], bias[2])
+    expect_lt(bias[2], bias[3])
+  })
 
-test_that("stress [opt-in]: near-positivity violation -- tighter truncation, more attenuation", {
-  skip_on_cran()
-  skip_if_not(
-    .stress_optin(),
-    "set SWEREG_RUN_STRESS=true for the full stress matrix"
-  )
-  skip_if_not_installed("survey")
+  it("heavy informative attrition -- PP recovers via IPCW, ITT biased by design", {
+    skip_if_not_installed("survey")
+    skip_if_not_installed("mgcv")
 
-  d <- stress_sim(
-    N = 20000L,
-    T_periods = 20L,
-    lor = -0.7,
-    a0_L0 = 2.5,
-    loss = "none"
-  )
-  tr <- as.numeric(stress_truth("itt", 20L, lor = -0.7))
-  fits <- lapply(
-    list(c(0.005, 0.995), c(0.01, 0.99), c(0.05, 0.95)),
-    function(bd) stress_fit_itt_trunc(d, bd[1], bd[2])
-  )
-  bias <- vapply(fits, function(f) f[["est"]] - tr, numeric(1))
-  # a0_L0=2.5 pushes the propensity score to the boundary -> extreme raw
-  # stabilised weights (observed max ~1325).
-  expect_gt(fits[[1]][["wmax"]], 100)
-  # weight truncation trades variance for bias TOWARD THE NULL; tighter bounds
-  # discard more weight mass -> more attenuation. observed bias monotone
-  # increasing 0.079 < 0.114 < 0.218. Assert monotonicity, not unbiasedness.
-  expect_lt(bias[1], bias[2])
-  expect_lt(bias[2], bias[3])
-})
-
-test_that("stress [opt-in]: heavy informative attrition -- PP recovers via IPCW, ITT biased by design", {
-  skip_on_cran()
-  skip_if_not(
-    .stress_optin(),
-    "set SWEREG_RUN_STRESS=true for the full stress matrix"
-  )
-  skip_if_not_installed("survey")
-  skip_if_not_installed("mgcv")
-
-  # ~73% of person-periods lost, drop-out hazard driven by the confounder L0.
-  d <- stress_sim(
-    N = 30000L,
-    T_periods = 20L,
-    lor = -0.7,
-    loss = "informative",
-    loss_int = -1.3,
-    loss_L0 = 0.9
-  )
-  # PP: per-protocol IPCW models the (informative) loss -> recovers truth.
-  # observed bias +0.010. tol 0.10.
-  tr_pp <- as.numeric(stress_truth("pp", 20L, lor = -0.7))
-  expect_lt(abs(scen_fit_swereg(d, "pp")[["est"]] - tr_pp), 0.10)
-  # ITT: carries NO loss weight by design, so the informative drop-out biases
-  # it away from the truth. observed bias -0.126. assert |bias| > 0.05
-  # (mirrors the s3 informative-loss cell in test-tte_validation_matrix.R).
-  tr_itt <- as.numeric(stress_truth("itt", 20L, lor = -0.7))
-  expect_gt(abs(scen_fit_swereg(d, "itt")[["est"]] - tr_itt), 0.05)
+    # ~73% of person-periods lost, drop-out hazard driven by the confounder L0.
+    d <- stress_sim(
+      N = 30000L,
+      T_periods = 20L,
+      lor = -0.7,
+      loss = "informative",
+      loss_int = -1.3,
+      loss_L0 = 0.9
+    )
+    # PP: per-protocol IPCW models the (informative) loss -> recovers truth.
+    # observed bias +0.010. tol 0.10.
+    tr_pp <- as.numeric(stress_truth("pp", 20L, lor = -0.7))
+    expect_lt(abs(scen_fit_swereg(d, "pp")[["est"]] - tr_pp), 0.10)
+    # ITT: carries NO loss weight by design, so the informative drop-out biases
+    # it away from the truth. observed bias -0.126. assert |bias| > 0.05
+    # (mirrors the s3 informative-loss cell in test-tte_validation_matrix.R).
+    tr_itt <- as.numeric(stress_truth("itt", 20L, lor = -0.7))
+    expect_gt(abs(scen_fit_swereg(d, "itt")[["est"]] - tr_itt), 0.05)
+  })
 })

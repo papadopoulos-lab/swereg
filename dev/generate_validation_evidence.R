@@ -4,6 +4,11 @@
 # (tests/testthat/helper-tte_*.R), so the vignette numbers cannot drift from
 # what the tests enforce. Rerun after any estimator change:
 #   Rscript dev/generate_validation_evidence.R      (~30-60 min; uses ~10 cores)
+#
+# `$meta$estimator_hash` is val_estimator_hash() over the estimator source
+# files. test-validation-full.R fails when it differs from the current source,
+# and test-validation-evidence-version.R fails when `$meta$swereg` differs from
+# DESCRIPTION.
 
 library(data.table)
 devtools::load_all(".")
@@ -11,15 +16,83 @@ options(swereg.warn_prevalent_user = FALSE)
 for (f in list.files("tests/testthat", "^helper-", full.names = TRUE)) {
   source(f)
 }
+EVIDENCE_PATH <- "vignettes/tte-validation-evidence.rds"
 
 ev <- list(
   meta = list(
     generated_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
     swereg = as.character(utils::packageVersion("swereg")),
+    estimator_hash = val_estimator_hash("."),
     trialemulation = as.character(utils::packageVersion("TrialEmulation")),
     r = R.version.string
   )
 )
+
+# PART 0 -- EXACT-TRUTH VALIDATION (the fast and full test tiers)==============
+# The cells of test-validation-fast.R and test-validation-full.R: s1 to s4,
+# both estimands, 20 replicates at seeds 2100 + r, N = 20,000, truncated and
+# untruncated weights. Each replicate holds the log-IRR and the risk
+# difference at h = 5, 10 and 20; the truths are exact (val_truth()).
+R_VAL <- 20L
+val_cells <- CJ(scenario = c("s1", "s2", "s3", "s4"), estimand = c("pp", "itt"))
+ev$validation_truth <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
+  g <- val_cells[i]
+  tr <- val_truth(g$scenario, g$estimand)
+  tr[, `:=`(
+    scenario = g$scenario,
+    estimand = g$estimand,
+    truth_uncensored = c(
+      as.numeric(scen_truth_irr_exact(g$scenario, g$estimand, "uncensored")),
+      rep(NA_real_, length(.VAL_HORIZONS))
+    )
+  )]
+  tr[]
+}))
+ev$validation_reps <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
+  g <- val_cells[i]
+  val_replicates(
+    g$scenario,
+    g$estimand,
+    R = R_VAL,
+    weights = c("truncated", "untruncated"),
+    cores = val_cores(6L)
+  )
+}))
+ev$validation_summary <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
+  g <- val_cells[i]
+  val_summary(ev$validation_reps[
+    scenario == g$scenario & estimand == g$estimand
+  ])
+}))
+ev$validation_summary
+saveRDS(ev, EVIDENCE_PATH, version = 2)
+
+## risk-difference coverage: 200 replicates x 200 bootstrap replicates ====
+# The coverage cells of test-validation-full.R: per-protocol in s1, s2 and
+# s4, seeds 3100 + r, untruncated weights.
+R_COV <- 200L
+cov_cells <- list(
+  list(scenario = "s1", weight = "untruncated"),
+  list(scenario = "s2", weight = "untruncated"),
+  list(scenario = "s4", weight = "untruncated")
+)
+ev$rd_coverage_reps <- rbindlist(lapply(cov_cells, function(cl) {
+  val_rd_coverage(
+    cl$scenario,
+    "pp",
+    R = R_COV,
+    n_boot = 200L,
+    seed0 = 3100L,
+    weight = cl$weight,
+    cores = val_cores(6L)
+  )[, weight := cl$weight]
+}))
+ev$rd_coverage <- ev$rd_coverage_reps[,
+  .(R = .N, covered_n = sum(covered), coverage = mean(covered)),
+  by = .(scenario, estimand, weight, h)
+]
+ev$rd_coverage
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 # PART 1 -- CROSS-PACKAGE TRIANGLE (truth vs swereg vs TrialEmulation)=========
 # The three escalating scenarios of test-tte_validation_matrix.R, both
@@ -39,6 +112,7 @@ tri <- parallel::mclapply(
         n = 20000L,
         seed = 2026L,
         truth = as.numeric(tr),
+        truth_exact = as.numeric(scen_truth_irr_exact(s, est)),
         sw_est = sw[["est"]],
         sw_lo = sw[["lo"]],
         sw_hi = sw[["hi"]],
@@ -76,9 +150,11 @@ ev$triangle_desc
 # replicated matrix shows the MEAN bias converging to zero (or, for the s3
 # ITT cell, to its systematic displacement) with MC error ~ sd/sqrt(20).
 tru <- list()
+tru_exact <- list()
 for (s in c("s1", "s2", "s3")) {
   for (est in c("pp", "itt")) {
     tru[[paste0(s, "_", est)]] <- scen_truth(s, est)
+    tru_exact[[paste0(s, "_", est)]] <- as.numeric(scen_truth_irr_exact(s, est))
   }
 }
 R_TRI <- 20L
@@ -99,6 +175,7 @@ reps <- parallel::mclapply(
         seed = 2100L + g$rep,
         estimand = est,
         truth = as.numeric(tr),
+        truth_exact = tru_exact[[paste0(g$scenario, "_", est)]],
         sw_est = sw[["est"]],
         sw_est_untrunc = sw[["est_untrunc"]],
         te_est = te[["est"]]
@@ -113,7 +190,7 @@ ev$triangle_reps[,
   .(mean_bias_sw = mean(sw_est - truth), mean_bias_te = mean(te_est - truth)),
   by = .(scenario, estimand)
 ]
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 # PART 2 -- STRESS MATRIX======================================================
 # The adversarial cells of test-tte_stress_matrix.R (always-on + opt-in tiers).
@@ -263,7 +340,7 @@ ev$stress_tv <- data.table(
   hi = c(f_up[["hi"]], f_fr[["hi"]], f_it[["hi"]])
 )
 ev$stress_tv
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 ## truncation-tradeoff grid: does the s3-PP pattern generalize? ====
 # One knob at a time off the s3 design: informativeness dose (0.45/0.9/1.5 on
@@ -453,7 +530,7 @@ ev$trunc_grid[,
   ),
   by = cell
 ]
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 ## feedback grid: censoring driven by a time-varying, treatment-affected L_t ====
 tr_tvg <- tv_truth("pp", 20L)
@@ -487,7 +564,7 @@ ev$feedback_grid[, .(
   frozen = mean(b_sw_frozen),
   te_baseline = mean(b_te_baseline)
 )]
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 # PART 3 -- PLAN-LAYER FULL PIPELINE===========================================
 # The full-N factorial + discontinuation cells of test-tteplan_truth_matrix.R
@@ -596,7 +673,7 @@ for (cl in plan_cells) {
 }
 ev$plan <- rbindlist(rows)
 ev$plan
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 ## 8-seed Monte Carlo per scenario at N = 6000 ====
 mc_grid <- CJ(scenario = c("A", "B"), seed = 5000L + 1:8)
@@ -629,18 +706,19 @@ mc <- parallel::mclapply(
 )
 ev$plan_mc <- rbindlist(mc)
 ev$plan_mc
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)
 
 # PART 4 -- MONTE CARLO COVERAGE (PP and ITT, M = 200 per cell)===============
 # The opt-in coverage study of test-tte_coverage.R, extended to both
 # estimands, with per-replicate estimates retained so the vignette can report
-# bias, MC sd, and coverage x/M. Primary truncated weights throughout.
+# bias, MC sd, and coverage x/M. Primary truncated weights throughout. The
+# truth is the exact log-IRR, as in scen_coverage().
 M <- 200L
 rows <- list()
 rows_reps <- list()
 for (est_nm in c("pp", "itt")) {
   for (s in c("s1", "s2", "s3")) {
-    truth <- as.numeric(scen_truth(s, est_nm))
+    truth <- as.numeric(scen_truth_irr_exact(s, est_nm))
     fits <- parallel::mclapply(
       seq_len(M),
       function(m) {
@@ -681,4 +759,4 @@ ev$coverage_reps <- rbindlist(rows_reps)
 ev$coverage <- rbindlist(rows)
 ev$coverage
 
-saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+saveRDS(ev, EVIDENCE_PATH, version = 2)

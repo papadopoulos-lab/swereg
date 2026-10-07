@@ -184,7 +184,10 @@ scen_fit_swereg <- function(d, estimand) {
 
 # Monte Carlo coverage: over M replicates (each a fresh draw), what fraction of
 # 95% CIs cover the population truth? Validates the SE is calibrated, not just
-# that swereg and TE agree. Returns the empirical coverage.
+# that swereg and TE agree. Returns the empirical coverage. The truth is the
+# exact log-IRR of swereg's own outcome model, scen_truth_irr_exact(). The
+# attributes `truth` and `est` hold that truth and the estimates of the
+# replicates that fitted.
 scen_coverage <- function(
   scenario,
   estimand,
@@ -192,8 +195,9 @@ scen_coverage <- function(
   N = 3000L,
   seed0 = 1000L
 ) {
-  truth <- as.numeric(scen_truth(scenario, estimand))
+  truth <- as.numeric(scen_truth_irr_exact(scenario, estimand))
   covered <- logical(M)
+  est <- rep(NA_real_, M)
   for (m in seq_len(M)) {
     d <- scen_simulate(scenario, N = N, seed = seed0 + m)
     fit <- tryCatch(scen_fit_swereg(d, estimand), error = function(e) NULL)
@@ -202,8 +206,14 @@ scen_coverage <- function(
     } else {
       truth >= fit[["lo"]] && truth <= fit[["hi"]]
     }
+    if (!is.null(fit)) {
+      est[m] <- fit[["est"]]
+    }
   }
-  mean(covered, na.rm = TRUE)
+  out <- mean(covered, na.rm = TRUE)
+  attr(out, "truth") <- truth
+  attr(out, "est") <- est[!is.na(est)]
+  out
 }
 
 # TrialEmulation estimate, OR converted to the IRR scale (Zhang & Yu) with the
@@ -486,4 +496,196 @@ scen_truth_risk_exact_s4 <- function(estimand, n_grid = 401L) {
     risk1 = risk[, 2],
     rd = risk[, 2] - risk[, 1]
   )
+}
+
+# --- exact log-IRR truth -------------------------------------------------------
+#
+# swereg's outcome model is a weighted quasi-Poisson fit of
+# `event ~ treatment + flex(tstart) + offset(log(person_weeks))`. These panels
+# hold one trial, so the `enrollment_period_id` term drops out, and 20 distinct
+# `tstart` values give `splines::ns(tstart, df = 3)`. The exact truth is the
+# treatment coefficient of that model, fitted to the exact expected events and
+# person-time of each (arm, interval) cell. Each cell is computed by the same
+# quadrature and forward recursion as the risk truth, so it has no Monte Carlo
+# error.
+#
+# The model has one rate ratio for all of follow-up, and the marginal rate
+# ratio of these scenarios changes over follow-up. So the coefficient depends
+# on how the cells are weighted. Two weightings are available.
+#
+#   "stabilised"  each cell is weighted by the marginal probability of
+#                 remaining uncensored at the interval start, in its arm. That
+#                 is the numerator of the stabilised censoring weights: time
+#                 zero, loss and deviation for per-protocol, and loss for ITT.
+#                 It is the limit of swereg's fit when the treatment and
+#                 censoring weights are correct, so it is the default.
+#   "uncensored"  no censoring at all.
+#
+#
+# The two coincide in s1, where the hazard ratio is constant over follow-up.
+# In s2 to s4 they differ by 0.006 to 0.064 on the log-IRR scale, the most in
+# s3 ITT (measured 2026-10-07). The arm weights are the marginal arm
+# proportions, the numerator of the stabilised treatment weight.
+
+# The quadrature grid of one scenario, with the per-point probabilities that
+# the recursions read:
+#   p_arm    P(arm = 1)
+#   p_a0(a)  P(A_0 = 1 | arm a)
+#   s0, s1   P(A_t = 1 | A_t-1 = 0), P(A_t = 1 | A_t-1 = 1)
+#   h0, h1   the outcome hazard when A_t = 0, when A_t = 1
+#   hl       the loss hazard of one row
+scen_grid_exact <- function(scenario) {
+  if (identical(scenario, "s4")) {
+    p <- .SCEN_S4
+    n_grid <- 401L
+    x <- seq(-8, 8, length.out = n_grid)
+    w1 <- stats::dnorm(x)
+    w1 <- w1 / sum(w1)
+    L0 <- rep(x, times = n_grid)
+    L1 <- rep(x, each = n_grid)
+    lp <- -3.5 + p$Y_L0 * L0 + p$Y_L1 * L1
+    return(list(
+      wq = rep(w1, times = n_grid) * rep(w1, each = n_grid),
+      p_arm = stats::plogis(p$a0_c + p$a0_L0 * L0),
+      p_a0 = function(a) stats::plogis(p$tz_c + p$tz_arm * a + p$tz_L0 * L0),
+      s0 = stats::plogis(p$sw_c + p$sw_L0 * L0),
+      s1 = stats::plogis(p$sw_c + p$sw_L0 * L0 + p$sw_persist),
+      h0 = stats::plogis(lp),
+      h1 = stats::plogis(lp + .SCEN_LOR),
+      hl = stats::plogis(p$loss_c + p$loss_L1 * L1)
+    ))
+  }
+  p <- scen_cfg(scenario)
+  n_grid <- 4001L
+  x <- seq(-8, 8, length.out = n_grid)
+  wq <- stats::dnorm(x)
+  list(
+    wq = wq / sum(wq),
+    p_arm = stats::plogis(-0.3 + p$a0_L0 * x),
+    p_a0 = function(a) rep(a, n_grid),
+    s0 = stats::plogis(-3.0 + p$sw_L0 * x),
+    s1 = stats::plogis(-3.0 + p$sw_L0 * x + .SCEN_PERSIST),
+    h0 = stats::plogis(-3.5 + p$L0_Y * x),
+    h1 = stats::plogis(-3.5 + .SCEN_LOR + p$L0_Y * x),
+    hl = switch(
+      p$loss,
+      none = rep(0, n_grid),
+      independent = rep(0.06, n_grid),
+      informative = stats::plogis(-2.4 + 0.9 * x)
+    )
+  )
+}
+
+# The exact (arm, interval) cells. `pt` and `events` are the expected
+# person-time and events of the target population. `rows` is the expected
+# number of panel rows per person that the observed data hold in that cell.
+# The rows set the spline knots, as the rows of a real panel do. Per-protocol
+# rows stop at the first week with A_t != arm and at loss; ITT rows stop at
+# loss.
+scen_irr_cells_exact <- function(
+  scenario,
+  estimand,
+  person_time = c("stabilised", "uncensored")
+) {
+  person_time <- match.arg(person_time)
+  g <- scen_grid_exact(scenario)
+  wq <- g$wq
+  out <- vector("list", 2L * .SCEN_T)
+  for (a in 0:1) {
+    p_a <- if (a == 1L) g$p_arm else 1 - g$p_arm
+    pi_a <- sum(wq * p_a)
+    v1 <- g$p_a0(a) # P(alive, A_t = 1) under the target treatment
+    v0 <- 1 - v1
+    if (estimand == "pp") {
+      h_a <- if (a == 1L) g$h1 else g$h0
+      stay <- if (a == 1L) g$s1 else 1 - g$s0
+      surv <- rep(1, length(wq))
+      obs <- p_a * (if (a == 1L) v1 else v0) # observed, uncensored, event-free
+    } else {
+      obs <- p_a
+    }
+    num <- sum(wq * obs) / pi_a # time-zero numerator (1 unless s4 per-protocol)
+    for (t in 0:(.SCEN_T - 1L)) {
+      if (estimand == "pp") {
+        if (t > 0L) {
+          obs <- obs * stay
+        }
+        pt <- surv
+        ev <- surv * h_a
+        free <- obs * (1 - h_a)
+        surv <- surv * (1 - h_a)
+      } else {
+        if (t > 0L) {
+          n1 <- v0 * g$s0 + v1 * g$s1
+          n0 <- v0 * (1 - g$s0) + v1 * (1 - g$s1)
+          v0 <- n0
+          v1 <- n1
+          obs <- p_a * (v0 + v1) * (1 - g$hl)^t
+        }
+        pt <- v0 + v1
+        ev <- v0 * g$h0 + v1 * g$h1
+        free <- p_a * (v0 * (1 - g$h0) + v1 * (1 - g$h1)) * (1 - g$hl)^t
+        v0 <- v0 * (1 - g$h0)
+        v1 <- v1 * (1 - g$h1)
+      }
+      w_t <- if (person_time == "stabilised") num else 1
+      out[[a * .SCEN_T + t + 1L]] <- data.table::data.table(
+        arm = a,
+        tstart = t,
+        pt = pi_a * w_t * sum(wq * pt),
+        events = pi_a * w_t * sum(wq * ev),
+        rows = sum(wq * obs)
+      )
+      # The numerator hazards are marginal and sequential: loss among the
+      # event-free rows, then deviation among those not lost.
+      kept <- free * (1 - g$hl)
+      if (estimand == "pp") {
+        num <- num * sum(wq * kept * stay) / sum(wq * free)
+        obs <- kept
+      } else {
+        num <- num * sum(wq * kept) / sum(wq * free)
+      }
+    }
+  }
+  data.table::rbindlist(out)
+}
+
+# The knots `splines::ns(tstart, df = 3)` places on a large panel: the
+# 1/3 and 2/3 quantiles of the row distribution of `tstart`. On a panel of
+# integer `tstart` the quantile is the smallest value whose cumulative share
+# reaches the probability. Measured 2026-10-07 at N = 20,000 and seed 2101,
+# the panel knots equal these in all eight scenario and estimand cells. The
+# coefficient moves by less than 1e-6 when the knots move by one week.
+scen_irr_knots_exact <- function(cells) {
+  m <- cells[, list(rows = sum(rows)), by = "tstart"][order(tstart)]
+  cdf <- cumsum(m$rows) / sum(m$rows)
+  vapply(
+    c(1, 2) / 3,
+    function(pr) m$tstart[which(cdf >= pr - 1e-12)[1L]],
+    numeric(1)
+  )
+}
+
+# The treatment coefficient of swereg's outcome model on exact cells. Returns
+# the log-IRR, with the knots and the cells as attributes.
+scen_truth_irr_exact <- function(
+  scenario,
+  estimand,
+  person_time = c("stabilised", "uncensored")
+) {
+  person_time <- match.arg(person_time)
+  cells <- scen_irr_cells_exact(scenario, estimand, person_time)
+  knots <- scen_irr_knots_exact(cells)
+  fit <- stats::glm(
+    events ~ arm +
+      splines::ns(tstart, knots = knots, Boundary.knots = c(0, .SCEN_T - 1L)) +
+      offset(log(pt)),
+    data = cells,
+    family = stats::quasipoisson(),
+    control = stats::glm.control(epsilon = 1e-14, maxit = 100L)
+  )
+  out <- unname(stats::coef(fit)[["arm"]])
+  attr(out, "knots") <- knots
+  attr(out, "cells") <- cells
+  out
 }
