@@ -1,3 +1,55 @@
+# swereg 27.1.1
+
+## Version numbers
+
+* **The version scheme returns to `YY.M.D`.** This release bumps the version ahead of the calendar to restore the scheme, so every release until 2027-01-01 is 27.1.x.
+
+## Breaking changes
+
+* **The outcome models now adjust for the trial and the time since time zero, and the censoring models change with them.** Before, the outcome models read `trial_id`, which on a follow-up row is the calendar period of that row and not the trial. Danaei 2013, Caniglia 2023 and the TrialEmulation package adjust the outcome model for the trial and the follow-up time. Every IRR, subgroup IRR, effect-modification test, heterogeneity test and censoring weight can change. The offset `offset(log(person_weeks))`, the family, the engine and the stratification by arm are unchanged. Section 1.8.9 of `vignette("tte-methods")` gives the reason for each term.
+
+  | Model | Time terms in 26.15.0 | Time terms in 27.1.1 |
+  |:--|:--|:--|
+  | IRR and subgroup IRRs | `tx + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values | `tx + term(tstart) + term(enrollment_period_id)` |
+  | Effect-modification test | `tx * factor(sg) + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values | `tx * factor(sg) + term(tstart) + term(enrollment_period_id)` |
+  | Heterogeneity test | `tx * ns(trial_id, df = min(3, n - 1)) + ns(tstop, df = 3)` | `tx * ns(enrollment_period_id, df = min(3, n - 1)) + term(tstart)` |
+  | IPCW denominator | `term(tstart) + s(trial_id) + confounders`, with a linear `trial_id` outside `mgcv::bam()` or below 10 values | `term(tstart) + term(period_id) + confounders` |
+  | IPCW numerator | `term(tstart) + s(trial_id)`, with a linear `trial_id` outside `mgcv::bam()` or below 10 values | `term(tstart)` |
+
+* **One helper, `.tte_time_term()`, builds every time term.** The table shows it as `term(x)`. For `n` distinct values of `x` in the rows of the fit, it returns:
+  * `s(x)` when `n` is 10 or more and the fit is the IPCW `mgcv::bam()` fit;
+  * `splines::ns(x, df = 3)` when `n` is 4 or more and `s(x)` does not apply;
+  * `factor(x)` when `n` is 2 or 3;
+  * no term when `n` is 1.
+
+  For IPCW, `n` counts the rows of each fitted stratum after the rows of zero width are removed.
+* **The column `trial_id` is renamed by what it holds.** The calendar period of a skeleton week or a panel row is `period_id`. The trial of a person-trial is `enrollment_period_id`.
+* **The `trial_id` column of `get_attrition()` and `get_matching()` is now `enrollment_period_id`.** The global attrition row holds `NA` in that column.
+* **`TTEEnrollment$new()` stops when `enrolled_ids` has a `trial_id` column.** The error names `enrollment_period_id`.
+* **`qs2_read()` refuses a stored `TTEEnrollment` below schema 6 and a stored `TTEPlan` below schema 5.** A saved R6 object runs the method bodies it was saved with, so a migrated object can fit the earlier time terms with no warning. The column migrations of 26.15.0 are removed.
+* **Every project MUST run s0, s1, s2 and s3 again.** Rebuild the plan with s0, then run s1, s2 and s3. An s1 work directory from an earlier release MUST NOT be resumed, because its files hold the retired column.
+* **`tteplan_read_spec()` stops when an enrollment has no `treatment$implementation$seed`.** The error names the enrollment.
+
+## New features
+
+* **`$irr()`, `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`, with the default 0.95.** s3 passes `study$implementation$conf_level` to each. Before, only the risk-difference intervals followed it.
+* **Each fit records the formula that it fitted.** The results of `$irr()`, `$effect_modification_test()` and `$heterogeneity_test()` hold it in `attr(x, "model_formula")`. The field `$ipcw_formulas` of an enrollment holds the IPCW denominator and numerator formulas of each stratum.
+
+## Bug fixes
+
+* **The global attrition rows no longer count rows with no trial, such as annual rows, as person-trials.** The global person-trials now equal the sum of the per-trial person-trials at every step. The global "Before exclusions" and "Outside of study years" person-trial counts fall, and a global person count can fall.
+* **A `no_prior_value` washout no longer counts a missing week in its window as the value.**
+* **The CONSORT analysis step reads "censored (administrative end of follow-up)".** It read "censored (per-protocol)".
+* **TARGET item 6c states that the draw ran from a stated seed, because every specification now states one.** Its sentences for a plan with no seed, or a seed in some enrollments only, are removed.
+* **TARGET item 6h states the time terms of the censoring models and the outcome model in this release.**
+* **TARGET item 7a lists the inclusion criteria of the specification, with the helper that item 6a uses.**
+
+## Documentation
+
+* **`vignette("tte-methods")` has a new subsection, 1.8.9 "Time terms".** It names the three time axes and the two axes that each model uses, gives the reason for each choice, and has three figures.
+* **`vignette("tte-nomenclature")`, `vignette("tte-timing")` and `vignette("tte-methodology")` use `period_id` and `enrollment_period_id`.**
+* **The validation evidence in `vignette("tte-methods")` is regenerated with swereg 27.1.1.** It came from swereg 26.7.4.
+
 # swereg 26.15.0
 
 ## Breaking changes
