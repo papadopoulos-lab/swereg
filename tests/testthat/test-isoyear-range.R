@@ -638,8 +638,9 @@ test_that("the spec workbook states where swereg adjusts for calendar time", {
     paste(
       "Adjusted for in the outcome model through a term in the trial:",
       "a natural spline for 4 or more trials, a factor for 2 or 3 trials,",
-      "and no term for 1 trial. Also adjusted for in the denominator of",
-      "the censoring weights. Not in the treatment weights."
+      "and no term for 1 trial. Also adjusted for in the denominators of",
+      "the loss and deviation censoring models. Not in the time-zero",
+      "censoring model or the treatment weights."
     )
   )
 })

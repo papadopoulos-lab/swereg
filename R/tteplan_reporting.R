@@ -388,7 +388,9 @@
           " Follow-up ended at the earliest of the outcome ",
           "event, loss to follow-up, the administrative end of the data, and ",
           "the end of the follow-up horizon. Per-protocol follow-up also ended ",
-          "at protocol deviation."
+          "at protocol deviation, at the start of the first week beyond the ",
+          "arm's tolerance. A person-trial whose deviation fell at time zero ",
+          "contributed no per-protocol follow-up."
         ),
         paste0("Horizon: ", parts)
       ),
@@ -536,21 +538,31 @@
     paste0(
       "Treatment weights were estimated using stabilized inverse probability weights derived from a logistic regression model ",
       "for the probability of treatment assignment conditional on measured baseline covariates, fitted on baseline rows only. ",
-      "Per-protocol effects were estimated by censoring individuals at protocol deviation, a run of discordant weeks longer than the arm's tolerance, ",
-      "or at loss to follow-up, and applying inverse probability of censoring weights to account for informative censoring. ",
+      "Per-protocol follow-up was censored at protocol deviation, a run of discordant weeks longer than the arm's tolerance, and at loss to follow-up. ",
+      "Inverse probability of censoring weights adjusted for informative censoring. ",
       "The estimator follows Hern\u00e1n and Robins (2016) and Danaei et al. (2013). ",
-      # The plan does not record the two s2 arguments that choose this model,
-      # so the sentence names the default settings and says so.
-      "Under the default settings of the pipeline, censoring probabilities were modelled by a complementary log-log generalized additive model with a person-time offset, ",
-      "fitted separately for the intervention and comparator arms. ",
+      # The plan does not record the two s2 arguments that choose these
+      # models, so the sentence names the default settings and says so.
+      "Under the default settings of the pipeline, the censoring weight was the product of three factors, each fitted separately in each arm. ",
+      # `s6_ipcw_pp()`: loss on the rows without an event, deviation on the
+      # rows without an event that were not lost, and the time-zero model on
+      # `$time_zero_deviation`.
+      "The first factor came from a model for loss to follow-up, fitted on the follow-up intervals without an outcome event. ",
+      "The second factor came from a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up. ",
+      "Both were complementary log-log generalized additive models with a person-time offset. ",
       # The censoring and outcome time terms come from `.tte_time_term()`.
       # The thresholds below are its thresholds.
-      "It included the most recently updated confounder values and two time terms: the time since time zero, and the calendar period of follow-up. ",
-      "A time term was a smooth function when it had 10 or more distinct values in the arm. ",
+      "Each included the most recently updated confounder values and two time terms: the time since time zero, and the calendar period of follow-up. ",
+      "A time term was a smooth function when it had 10 or more distinct values in the model's data. ",
       "With 4 to 9 distinct values it was a natural cubic spline with 3 degrees of freedom. ",
       "With 2 or 3 it was a categorical term, and with one value it was omitted. ",
-      "The numerator of the stabilized censoring weight came from a second model that included only the time since time zero. ",
+      "The numerator of each of these two factors came from a second model that included only the time since time zero. ",
       "A numerator covariate must also be in the outcome model, which did not include the calendar period of follow-up. ",
+      "The third factor came from a logistic model for a deviation at time zero, conditional on the baseline confounders. ",
+      "It was fitted on every person-trial of the arm, including those whose deviation at time zero left them no follow-up. ",
+      "Its numerator was the proportion of the arm's person-trials that deviated at time zero. ",
+      "The deviation model was fitted only on intervals not lost to follow-up. ",
+      "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored. ",
       "The primary outcome model was a weighted Poisson regression (quasipoisson family) with a person-time offset. ",
       "It adjusted for two time terms: the time since time zero, and the trial index, which numbers the enrollment period of each trial. ",
       "Each of these terms was a natural cubic spline with 3 degrees of freedom when it had 4 or more distinct values. ",
@@ -658,7 +670,8 @@
       .TTE_TIME_ZERO_DEFINITION,
       " ",
       "Follow-up ended at the earliest of the outcome event, loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
-      "Per-protocol follow-up also ended at protocol deviation, the week in which the run of consecutive weeks off the assigned strategy exceeded the arm's tolerance. ",
+      "Per-protocol follow-up also ended at protocol deviation, at the start of the week in which the run of consecutive weeks off the assigned strategy exceeded the arm's tolerance. ",
+      "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up, and the censoring weights included it (6h). ",
       # 7e: Outcomes
       "Outcomes (6e): Outcome events were identified from registry data using the variables specified in the study configuration. ",
       "An event was recorded at the first time period in which the outcome indicator was observed. ",
@@ -679,8 +692,9 @@
       "The count of filled rows and person-trials was reported per enrollment by tteenrollment_fill_summary(). ",
       # 7h: Analysis
       "Analysis (6h): The analysis followed the two-stage weighting approach described in items 6c and 6f. ",
-      "It combined baseline inverse probability of treatment weights with time-varying censoring weights for the per-protocol estimand ",
-      "(Hern\u00e1n and Robins, 2016; Danaei et al., 2013)."
+      "It combined baseline inverse probability of treatment weights with censoring weights for the per-protocol estimand ",
+      "(Hern\u00e1n and Robins, 2016; Danaei et al., 2013). ",
+      "The censoring weight had one factor each for loss to follow-up, protocol deviation and deviation at time zero."
     )
   )
 

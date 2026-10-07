@@ -129,3 +129,405 @@
   }
   return(out)
 }
+
+#' Record whether per-protocol follow-up stops at time zero.
+#'
+#' Under the left-edge rule, a person-trial that is discordant in its first
+#' follow-up week stops at time zero. It keeps no row, so the row-level
+#' censoring models cannot see it. This record keeps it for the time-zero model
+#' of `s6_ipcw_pp()`.
+#'
+#' The record holds one row for each person-trial with a known arm that is
+#' under follow-up at time zero apart from the deviation. Its outcome, its
+#' record end and its planned end all fall after time zero. A person-trial
+#' whose follow-up is empty for one of those reasons cannot be seen to deviate,
+#' so the record leaves it out.
+#'
+#' @param data The panel inside `s5_prepare_outcome()`. The tie rule has set
+#'   `.deviation_clip`, and the rows after the stop are still present.
+#' @param design The [TTEDesign].
+#' @param estimand `"pp"` or `"itt"`.
+#' @return `NULL` for `"itt"`. Otherwise a data.table with the identifier, the
+#'   arm, each confounder at the recruiting week under its design name, and
+#'   `deviation_time_zero`. That column is 1 when the deviation stops follow-up
+#'   at time zero, and 0 otherwise.
+#' @noRd
+.tte_time_zero_record <- function(data, design, estimand) {
+  if (!identical(estimand, "pp")) {
+    return(NULL)
+  }
+  id_var <- design$id_var
+  tstart_var <- design$tstart_var
+  treatment_var <- design$treatment_var
+  # A grouped lookup. Base `order()` on a character identifier does not use
+  # the radix sort, and it took 69 s against 5.9 s for 20 million rows.
+  first <- data[, .I[which.min(get(tstart_var))], by = c(id_var)][["V1"]]
+  base <- data[first]
+  start <- base[[tstart_var]]
+  other_stop <- pmin(
+    base[["weeks_to_event"]],
+    base[[".planned_end"]],
+    base[[".record_end"]],
+    na.rm = TRUE
+  )
+  at_risk <- !is.na(base[[treatment_var]]) &
+    (is.na(other_stop) | other_stop > start)
+  clip <- base[[".deviation_clip"]][at_risk]
+  tz <- .tte_entry_view(
+    base[at_risk],
+    design$confounder_vars,
+    keep_cols = c(id_var, treatment_var)
+  )
+  data.table::set(
+    tz,
+    j = "deviation_time_zero",
+    value = as.integer(!is.na(clip) & clip <= start[at_risk])
+  )
+  keep <- c(
+    id_var,
+    treatment_var,
+    intersect(design$confounder_vars, names(tz)),
+    "deviation_time_zero"
+  )
+  return(tz[, keep, with = FALSE])
+}
+
+#' Fit one row-level censoring model and predict its uncensoring probability.
+#'
+#' The model is complementary log-log with a person-time offset. It predicts on
+#' the rows it was fitted to.
+#'
+#' @param fit_data The rows of the risk set.
+#' @param cause_col The censoring indicator of the cause.
+#' @param terms Character vector of right-hand-side terms. Empty strings are
+#'   dropped.
+#' @param role `"denominator"` or `"numerator"`.
+#' @param cause `"loss"` or `"deviation"`.
+#' @param label The stratum label.
+#' @param use_gam Logical. `TRUE` fits with `mgcv::bam()`.
+#' @return `list(q = , formula = )`.
+#' @noRd
+.tte_ipcw_fit_one <- function(
+  fit_data,
+  cause_col,
+  terms,
+  role,
+  cause,
+  label,
+  use_gam
+) {
+  terms <- terms[nzchar(terms)]
+  rhs <- if (length(terms) == 0L) "1" else paste(terms, collapse = " + ")
+  # The namespace is the environment, so the stored formula holds no
+  # reference to the panel.
+  model_formula <- stats::as.formula(
+    paste0(cause_col, " ~ ", rhs, " + offset(log(person_weeks))"),
+    env = topenv()
+  )
+  what <- paste0("the ", cause, " ", role, " model for ", label)
+  counts <- paste0(
+    "  rows: ",
+    nrow(fit_data),
+    ", censored by ",
+    cause,
+    ": ",
+    sum(fit_data[[cause_col]]),
+    "\n"
+  )
+  fit <- tryCatch(
+    if (use_gam) {
+      mgcv::bam(
+        model_formula,
+        data = fit_data,
+        family = stats::binomial(link = "cloglog"),
+        discrete = TRUE
+      )
+    } else {
+      stats::glm(
+        model_formula,
+        data = fit_data,
+        family = stats::binomial(link = "cloglog")
+      )
+    },
+    error = function(e) {
+      stop(
+        "s6_ipcw_pp() cannot fit ",
+        what,
+        ".\n",
+        "  formula: ",
+        deparse1(model_formula),
+        "\n",
+        counts,
+        "  the model reported: ",
+        conditionMessage(e),
+        "\n",
+        "swereg substitutes no marginal censoring rate here.",
+        call. = FALSE
+      )
+    }
+  )
+  q <- 1 -
+    as.numeric(stats::predict(fit, newdata = fit_data, type = "response"))
+  if (anyNA(q) || any(!is.finite(q)) || any(q <= 0)) {
+    stop(
+      "s6_ipcw_pp() fitted ",
+      what,
+      ", and it predicts an uncensoring probability that is not usable.\n",
+      "  formula: ",
+      deparse1(model_formula),
+      "\n",
+      counts,
+      "  not finite: ",
+      sum(is.na(q) | !is.finite(q)),
+      ", not positive: ",
+      sum(!is.na(q) & is.finite(q) & q <= 0),
+      "\n",
+      "A weight divides by this probability, so swereg stops rather than ",
+      "carry an infinite or missing weight into the analysis.",
+      call. = FALSE
+    )
+  }
+  return(list(q = q, formula = model_formula))
+}
+
+#' Fit the censoring model of one cause in one stratum.
+#'
+#' The caller passes the risk set of the cause. A risk set with no censoring by
+#' the cause fits no model, and every row stays uncensored by it with
+#' probability 1. A risk set in which every row is censored stops.
+#'
+#' Each time term counts the distinct values of the risk set. A panel without
+#' `period_id` takes no calendar term.
+#'
+#' @param fit_data The rows of the risk set.
+#' @param cause_col The censoring indicator of the cause.
+#' @param cause `"loss"` or `"deviation"`.
+#' @param label The stratum label.
+#' @param confounder_vars Character vector of confounder names.
+#' @param tstart_var The column of the interval start.
+#' @param use_gam Logical. `TRUE` fits with `mgcv::bam()`.
+#' @return `list(q_denominator = , q_numerator = , record = )`. `record` is
+#'   `list(fitted = TRUE, denominator = , numerator = )` for a fitted cause,
+#'   and `list(fitted = FALSE, reason = )` otherwise.
+#' @noRd
+.tte_ipcw_fit_cause <- function(
+  fit_data,
+  cause_col,
+  cause,
+  label,
+  confounder_vars,
+  tstart_var,
+  use_gam
+) {
+  n_rows <- nrow(fit_data)
+  n_censor <- sum(fit_data[[cause_col]])
+  if (n_censor == 0L) {
+    reason <- if (n_rows == 0L) {
+      paste0(label, " has no follow-up row at risk of ", cause, ".")
+    } else {
+      paste0(
+        "No row of ",
+        label,
+        " is censored by ",
+        cause,
+        ", so every row stays uncensored by it with probability 1."
+      )
+    }
+    return(list(
+      q_denominator = rep(1, n_rows),
+      q_numerator = rep(1, n_rows),
+      record = list(fitted = FALSE, reason = reason)
+    ))
+  }
+  if (n_censor == n_rows) {
+    stop(
+      "s6_ipcw_pp() cannot estimate the ",
+      cause,
+      " censoring model for ",
+      label,
+      ".\n",
+      "Every one of its ",
+      n_rows,
+      " rows is censored, so the model has no uncensored row to ",
+      "contrast them with.\n",
+      "swereg substitutes no marginal censoring rate here. A weight ",
+      "built from one is not the weight the analysis reports.\n",
+      "Widen the stratum, or drop it from the analysis.",
+      call. = FALSE
+    )
+  }
+  time_term <- .tte_time_term(
+    tstart_var,
+    data.table::uniqueN(fit_data[[tstart_var]]),
+    use_gam
+  )
+  period_term <- ""
+  if ("period_id" %in% names(fit_data)) {
+    period_term <- .tte_time_term(
+      "period_id",
+      data.table::uniqueN(fit_data[["period_id"]]),
+      use_gam
+    )
+  }
+  den <- .tte_ipcw_fit_one(
+    fit_data,
+    cause_col,
+    c(time_term, period_term, confounder_vars),
+    "denominator",
+    cause,
+    label,
+    use_gam
+  )
+  num <- .tte_ipcw_fit_one(
+    fit_data,
+    cause_col,
+    time_term,
+    "numerator",
+    cause,
+    label,
+    use_gam
+  )
+  return(list(
+    q_denominator = den$q,
+    q_numerator = num$q,
+    record = list(
+      fitted = TRUE,
+      denominator = den$formula,
+      numerator = num$formula
+    )
+  ))
+}
+
+#' Fit the time-zero deviation model of one stratum.
+#'
+#' A logistic model of `deviation_time_zero` on the confounders at the
+#' recruiting week, fitted on every person-trial of the stratum in the
+#' time-zero record. The numerator is the marginal proportion of the stratum,
+#' which is the fitted value of the intercept-only logistic model.
+#'
+#' A stratum with no deviation at time zero fits no model. A stratum in which
+#' every person-trial deviates at time zero fits no model either, and it does
+#' not stop. It has no follow-up row, so no row needs the factor.
+#'
+#' @param tz The rows of the time-zero record for the stratum.
+#' @param id_var The person-trial identifier.
+#' @param confounder_vars Character vector of confounder names.
+#' @param label The stratum label.
+#' @return `list(factor = , record = )`. `factor` is `NULL` or a data.table of
+#'   the identifier and `ipcw_pp_time_zero`, which is
+#'   `(1 - p_bar) / (1 - p0)`.
+#' @noRd
+.tte_ipcw_fit_time_zero <- function(tz, id_var, confounder_vars, label) {
+  n <- nrow(tz)
+  n_dev <- sum(tz[["deviation_time_zero"]])
+  if (n_dev == 0L || n_dev == n) {
+    reason <- if (n == 0L) {
+      paste0(label, " has no person-trial under follow-up at time zero.")
+    } else if (n_dev == 0L) {
+      paste0(
+        "No person-trial of ",
+        label,
+        " deviates at time zero, so the time-zero factor is 1."
+      )
+    } else {
+      paste0(
+        "Every one of the ",
+        n,
+        " person-trials of ",
+        label,
+        " deviates at time zero, so ",
+        label,
+        " has no follow-up row to weight."
+      )
+    }
+    return(list(factor = NULL, record = list(fitted = FALSE, reason = reason)))
+  }
+  rhs <- if (length(confounder_vars) == 0L) {
+    "1"
+  } else {
+    paste(confounder_vars, collapse = " + ")
+  }
+  den_formula <- stats::as.formula(
+    paste0("deviation_time_zero ~ ", rhs),
+    env = topenv()
+  )
+  num_formula <- stats::as.formula("deviation_time_zero ~ 1", env = topenv())
+  fit <- tryCatch(
+    stats::glm(den_formula, data = tz, family = stats::binomial()),
+    error = function(e) {
+      stop(
+        "s6_ipcw_pp() cannot fit the time-zero deviation model for ",
+        label,
+        ".\n",
+        "  formula: ",
+        deparse1(den_formula),
+        "\n",
+        "  person-trials: ",
+        n,
+        ", deviating at time zero: ",
+        n_dev,
+        "\n",
+        "  the model reported: ",
+        conditionMessage(e),
+        call. = FALSE
+      )
+    }
+  )
+  p0 <- as.numeric(stats::predict(fit, newdata = tz, type = "response"))
+  if (anyNA(p0) || any(p0 >= 1)) {
+    stop(
+      "s6_ipcw_pp() fitted the time-zero deviation model for ",
+      label,
+      ", and it predicts a probability that is not usable.\n",
+      "  formula: ",
+      deparse1(den_formula),
+      "\n",
+      "  person-trials: ",
+      n,
+      ", missing: ",
+      sum(is.na(p0)),
+      ", equal to 1: ",
+      sum(!is.na(p0) & p0 >= 1),
+      "\n",
+      "A weight divides by one minus this probability, so swereg stops.",
+      call. = FALSE
+    )
+  }
+  p_bar <- n_dev / n
+  out <- data.table::data.table(
+    id = tz[[id_var]],
+    ipcw_pp_time_zero = (1 - p_bar) / (1 - p0)
+  )
+  data.table::setnames(out, "id", id_var)
+  return(list(
+    factor = out,
+    record = list(
+      fitted = TRUE,
+      denominator = den_formula,
+      numerator = num_formula
+    )
+  ))
+}
+
+#' Stop on a censoring indicator the per-protocol weights cannot use.
+#'
+#' The per-protocol weights fit one model per cause. They read `censor_loss`
+#' and `censor_deviation`, which `s5_prepare_outcome()` writes, so one custom
+#' indicator for both causes cannot select them.
+#'
+#' @param censoring_var `NULL` or `"censor_this_period"`.
+#' @return `invisible(NULL)`, or an error.
+#' @noRd
+.tte_check_censoring_var <- function(censoring_var) {
+  if (is.null(censoring_var) || identical(censoring_var, "censor_this_period")) {
+    return(invisible(NULL))
+  }
+  stop(
+    "censoring_var = '",
+    censoring_var,
+    "' is not supported. The per-protocol censoring weights fit one model ",
+    "per cause, and they read censor_loss and censor_deviation, which ",
+    "s5_prepare_outcome() writes.",
+    call. = FALSE
+  )
+}

@@ -341,49 +341,71 @@ TTEEnrollment$set("public", "weight_summary", function() {
 # =========================================================================
 # --- s6_ipcw_pp: inverse probability of censoring weights (per-protocol) ----
 #
-# The censoring model is complementary log-log with a person-time offset:
+# Three censoring models, fitted in each stratum in the order the data imply.
+#
+# 1. Loss. Loss is observed at the end of a row, after its outcome, so the
+#    model fits on the rows without an event. An event row cannot be lost.
+# 2. Deviation. A deviation is observed at the start of the next row, and a
+#    person who is lost cannot be seen to deviate. The model fits on the rows
+#    without an event that were not lost.
+# 3. Time zero. A person-trial that is discordant in its first follow-up week
+#    stops at time zero and keeps no row. A logistic model of that deviation
+#    on the confounders at the recruiting week fits on every person-trial in
+#    `self$time_zero_deviation`, the record `s5_prepare_outcome()` writes.
+#
+# The deviation model conditions on not being lost, so the product of the
+# three uncensoring probabilities is the joint probability of remaining
+# uncensored.
+#
+# The two row-level models are complementary log-log with a person-time
+# offset:
 #
 #   cloglog{Pr(C_i = 1)} = eta_i + log(person_weeks_i)
 #
 # so the probability of staying uncensored over the row is
-# `q_i = exp(-exp(eta_i) * person_weeks_i)`. One linear predictor then
-# gives `q(4) = q(1)^4`, which is what makes a four-week follow-up interval
-# and a one-week follow-up interval comparable. A logit link carries no
-# such identity, so a clipped terminal follow-up interval would take a whole
-# interval's censoring risk.
+# `q_i = exp(-exp(eta_i) * person_weeks_i)`. One linear predictor then gives
+# `q(4) = q(1)^4`, which is what makes a four-week follow-up interval and a
+# one-week follow-up interval comparable.
 #
-# The weight is LAGGED. It is the probability of remaining uncensored through
-# the START of the row, so the product stops at the row before. The first row of
-# every person-trial then weighs exactly 1. A censored follow-up interval stays
-# in the risk set (`s5_prepare_outcome()` clips it and keeps it), and an
-# inclusive product would count that follow-up interval's own censoring
-# probability inside its own weight.
+# The row-level weights are LAGGED. Each is the probability of remaining
+# uncensored through the START of the row, so the product stops at the row
+# before. A censored follow-up interval stays in the risk set
+# (`s5_prepare_outcome()` clips it and keeps it), and an inclusive product
+# would count its own censoring probability inside its own weight.
 #
-# The two models take their time terms from `.tte_time_term()`, and each
-# stratum counts its own distinct values after the zero-width rows leave:
+# Each row-level model takes its time terms from `.tte_time_term()`, and each
+# counts the distinct values of its own risk set after the zero-width rows
+# leave:
 #
 #   denominator: flex(tstart) + flex(period_id) + confounders
 #   numerator:   flex(tstart)
 #
-# `tstart` is the time since time zero at the interval start, and `period_id`
-# is the calendar period of the follow-up interval. The numerator is a second
-# fitted model. A covariate of the stabilised-weight numerator MUST also be in
-# the outcome model (Su et al. 2024, eq. 3). The outcome model carries
+# A covariate of the stabilised-weight numerator MUST also be in the outcome
+# model (Su et al. 2024, eq. 3). The outcome model carries
 # `flex(tstart) + flex(enrollment_period_id)`, and a nonlinear `period_id`
-# term is not in the span of those two. The numerator therefore reads `tstart`
-# only. The cost is more variable weights, and not bias.
+# term is not in the span of those two. The numerator therefore reads
+# `tstart` only. The time-zero numerator is the marginal proportion of the
+# stratum.
 #
-# `self$ipcw_formulas` records the two formulas of each fitted stratum.
+# The weight of a row is
 #
-# A stratum that cannot be estimated stops. swereg substitutes no marginal
-# censoring rate for a model it could not fit.
+#   ipcw_pp = ipcw_pp_time_zero * ipcw_pp_loss * ipcw_pp_deviation
+#
+# and all four columns stay on the panel.
+#
+# `self$ipcw_formulas[[stratum]][[cause]]` records each model, with `cause`
+# one of `loss`, `deviation` and `time_zero`. A fitted cause holds
+# `list(fitted = TRUE, denominator = , numerator = )`. A cause that fits no
+# model holds `list(fitted = FALSE, reason = )`, and its factor is 1.
+#
+# A row-level risk set in which every row is censored stops. swereg
+# substitutes no marginal censoring rate for a model it could not fit.
 TTEEnrollment$set(
   "private",
   "s6_ipcw_pp",
   function(
     estimate_ipcw_pp_separately_by_treatment = TRUE,
-    estimate_ipcw_pp_with_gam = TRUE,
-    censoring_var = NULL
+    estimate_ipcw_pp_with_gam = TRUE
   ) {
     if (self$data_level != "trial") {
       stop(
@@ -404,39 +426,31 @@ TTEEnrollment$set(
     }
 
     design <- self$design
-
-    if (is.null(censoring_var)) {
-      if ("prepare_outcome" %in% self$steps_completed) {
-        censoring_var <- "censor_this_period"
-      } else {
-        censoring_var <- "censored"
-      }
-    }
-
-    if (!censoring_var %in% names(self$data)) {
-      stop(
-        "censoring_var '",
-        censoring_var,
-        "' not found. Run $s4_prepare_for_analysis() first.",
-        call. = FALSE
-      )
-    }
-
-    working_data <- self$data[!is.na(get(design$treatment_var))]
-
-    # --- Inline calculate_ipcw logic ---
     treatment_var <- design$treatment_var
     confounder_vars <- design$confounder_vars
     id_var <- design$id_var
     tstart_var <- design$tstart_var
     tstop_var <- design$tstop_var
     use_gam <- estimate_ipcw_pp_with_gam
-    separate_by_treatment <- estimate_ipcw_pp_separately_by_treatment
 
-    # The censoring model reads the TIME-UPDATED confounder, and never the
+    needed <- c("event", "censor_loss", "censor_deviation")
+    if (
+      !all(needed %in% names(self$data)) || is.null(self$time_zero_deviation)
+    ) {
+      stop(
+        "s6_ipcw_pp() needs the columns ",
+        paste(needed, collapse = ", "),
+        " and the time-zero record. Run $s4_prepare_for_analysis() first.",
+        call. = FALSE
+      )
+    }
+
+    working_data <- self$data[!is.na(get(treatment_var))]
+
+    # The censoring models read the TIME-UPDATED confounder, and never the
     # entry-window snapshot. A missing value there makes `predict()` return
-    # NA, `p_uncensored` becomes NA, and `cumprod()` below carries that NA
-    # through the rest of the person-trial. Stop, and name what is missing.
+    # NA, and `cumprod()` below carries that NA through the rest of the
+    # person-trial. Stop, and name what is missing.
     #
     # swereg MUST NOT overwrite an observed follow-up value with the
     # entry-window value here. That value describes the recruiting week.
@@ -466,246 +480,133 @@ TTEEnrollment$set(
       ]
     }
     # `log(0)` is `-Inf`, so a zero-width row MUST NOT enter the offset. It
-    # holds no person-time, so nothing can censor it, and its uncensoring
-    # probability is exactly 1 in both models.
-    working_data[,
-      .ipcw_has_time := !is.na(person_weeks) & person_weeks > 0
-    ]
+    # holds no person-time, so nothing can censor it. A row outside the risk
+    # set of a cause cannot be censored by that cause either. Each such row
+    # keeps an uncensoring probability of exactly 1.
+    has_time <- !is.na(working_data$person_weeks) &
+      working_data$person_weeks > 0
+    no_event <- working_data$event == 0L
+    not_lost <- working_data$censor_loss == 0L
+    q_cols <- c("q_den_loss", "q_num_loss", "q_den_dev", "q_num_dev")
+    working_data[, (q_cols) := 1]
 
-    # The formulas of each fitted stratum, keyed by the stratum label.
+    tz_all <- self$time_zero_deviation
+    if (estimate_ipcw_pp_separately_by_treatment) {
+      strata <- list(
+        "the intervention arm" = TRUE,
+        "the comparator arm" = FALSE
+      )
+    } else {
+      strata <- list("the pooled cohort" = NA)
+    }
+
     ipcw_formulas <- list()
+    tz_factor <- list()
+    for (label in names(strata)) {
+      arm <- strata[[label]]
+      in_stratum <- is.na(arm) | working_data[[treatment_var]] == arm
+      tz <- tz_all[is.na(arm) | tz_all[[treatment_var]] == arm]
 
-    # One stratum: fit the denominator and the numerator, and write the two
-    # per-row uncensoring probabilities. `label` names the stratum in every
-    # error message, because a stratum that stops must say which one it was.
-    fit_stratum <- function(mask, label) {
-      keep <- mask & working_data[[".ipcw_has_time"]]
-      rows <- which(keep)
-      n_rows <- length(rows)
-      if (n_rows == 0L) {
-        return(invisible(NULL))
-      }
-      fit_data <- working_data[rows]
-      n_censor <- sum(fit_data[[censoring_var]], na.rm = TRUE)
-
-      # No censoring anywhere in the stratum. Every row stays uncensored
-      # with probability 1, in the numerator and in the denominator, so the
-      # weight is 1. That is the exact answer and not a fallback.
-      if (n_censor == 0L) {
-        data.table::set(
-          working_data,
-          i = rows,
-          j = "q_denominator",
-          value = 1
-        )
-        data.table::set(working_data, i = rows, j = "q_numerator", value = 1)
-        return(invisible(NULL))
-      }
-      if (n_censor == n_rows) {
-        stop(
-          "s6_ipcw_pp() cannot estimate the censoring model for ",
-          label,
-          ".\n",
-          "Every one of its ",
-          n_rows,
-          " rows is censored, so the model has no uncensored row to ",
-          "contrast them with.\n",
-          "swereg substitutes no marginal censoring rate here. A weight ",
-          "built from one is not the weight the analysis reports.\n",
-          "Widen the stratum, or drop it from the analysis.",
-          call. = FALSE
-        )
-      }
-
-      # Each term counts the distinct values of this stratum, after the
-      # zero-width rows leave. A panel without `period_id` takes no
-      # calendar term.
-      time_term <- .tte_time_term(
+      # 1. Loss, on the rows without an event.
+      rows <- which(in_stratum & has_time & no_event)
+      loss <- .tte_ipcw_fit_cause(
+        working_data[rows],
+        "censor_loss",
+        "loss",
+        label,
+        confounder_vars,
         tstart_var,
-        data.table::uniqueN(fit_data[[tstart_var]]),
         use_gam
       )
-      period_term <- if ("period_id" %in% names(fit_data)) {
-        .tte_time_term(
-          "period_id",
-          data.table::uniqueN(fit_data[["period_id"]]),
-          use_gam
-        )
-      } else {
-        ""
-      }
-      stratum_formulas <- list()
+      data.table::set(working_data, rows, "q_den_loss", loss$q_denominator)
+      data.table::set(working_data, rows, "q_num_loss", loss$q_numerator)
 
-      # `role` is "denominator" or "numerator". The denominator carries the
-      # calendar period term and the confounders, and the numerator carries
-      # neither.
-      fit_one <- function(terms, role) {
-        terms <- terms[nzchar(terms)]
-        rhs <- if (length(terms) == 0L) {
-          "1"
-        } else {
-          paste(terms, collapse = " + ")
-        }
-        # The namespace is the environment, so the stored formula holds no
-        # reference to the panel.
-        model_formula <- stats::as.formula(
-          paste0(
-            censoring_var,
-            " ~ ",
-            rhs,
-            " + offset(log(person_weeks))"
-          ),
-          env = topenv()
-        )
-        stratum_formulas[[role]] <<- model_formula
-        fit <- tryCatch(
-          if (use_gam) {
-            mgcv::bam(
-              model_formula,
-              data = fit_data,
-              family = stats::binomial(link = "cloglog"),
-              discrete = TRUE
-            )
-          } else {
-            stats::glm(
-              model_formula,
-              data = fit_data,
-              family = stats::binomial(link = "cloglog")
-            )
-          },
-          error = function(e) {
-            stop(
-              "s6_ipcw_pp() cannot fit the ",
-              role,
-              " censoring model for ",
-              label,
-              ".\n",
-              "  formula: ",
-              deparse1(model_formula),
-              "\n",
-              "  rows: ",
-              n_rows,
-              ", censored: ",
-              n_censor,
-              "\n",
-              "  the model reported: ",
-              conditionMessage(e),
-              "\n",
-              "swereg substitutes no marginal censoring rate here.",
-              call. = FALSE
-            )
-          }
-        )
-        q <- 1 -
-          as.numeric(stats::predict(
-            fit,
-            newdata = fit_data,
-            type = "response"
-          ))
-        rm(fit)
-        if (anyNA(q) || any(!is.finite(q)) || any(q <= 0)) {
-          stop(
-            "s6_ipcw_pp() fitted the ",
-            role,
-            " censoring model for ",
-            label,
-            ", and it predicts an uncensoring probability that is not ",
-            "usable.\n",
-            "  formula: ",
-            deparse1(model_formula),
-            "\n",
-            "  rows: ",
-            n_rows,
-            ", not finite: ",
-            sum(is.na(q) | !is.finite(q)),
-            ", not positive: ",
-            sum(!is.na(q) & is.finite(q) & q <= 0),
-            "\n",
-            "A weight divides by this probability, so swereg stops rather ",
-            "than carry an infinite or missing weight into the analysis.",
-            call. = FALSE
-          )
-        }
-        return(q)
-      }
-
-      data.table::set(
-        working_data,
-        i = rows,
-        j = "q_denominator",
-        value = fit_one(
-          c(time_term, period_term, confounder_vars),
-          "denominator"
-        )
+      # 2. Deviation, on the rows without an event that were not lost.
+      rows <- which(in_stratum & has_time & no_event & not_lost)
+      dev <- .tte_ipcw_fit_cause(
+        working_data[rows],
+        "censor_deviation",
+        "deviation",
+        label,
+        confounder_vars,
+        tstart_var,
+        use_gam
       )
-      data.table::set(
-        working_data,
-        i = rows,
-        j = "q_numerator",
-        value = fit_one(time_term, "numerator")
-      )
-      ipcw_formulas[[label]] <<- stratum_formulas
-      rm(fit_data)
-      return(gc())
-    }
+      data.table::set(working_data, rows, "q_den_dev", dev$q_denominator)
+      data.table::set(working_data, rows, "q_num_dev", dev$q_numerator)
 
-    working_data[, q_denominator := NA_real_]
-    working_data[, q_numerator := NA_real_]
-    if (separate_by_treatment) {
-      tx_mask <- working_data[[treatment_var]] == TRUE
-      fit_stratum(tx_mask, "the intervention arm")
-      fit_stratum(!tx_mask, "the comparator arm")
-    } else {
-      fit_stratum(rep(TRUE, nrow(working_data)), "the pooled cohort")
+      # 3. Time zero, on every person-trial of the stratum in the record.
+      zero <- .tte_ipcw_fit_time_zero(tz, id_var, confounder_vars, label)
+      tz_factor[[label]] <- zero$factor
+
+      ipcw_formulas[[label]] <- list(
+        loss = loss$record,
+        deviation = dev$record,
+        time_zero = zero$record
+      )
+      rm(loss, dev, zero)
+      gc()
     }
     self$ipcw_formulas <- ipcw_formulas
-    # A zero-width row was held out of both fits. Nothing happens over an
-    # empty interval, so it stays uncensored with probability 1.
-    working_data[.ipcw_has_time == FALSE, q_denominator := 1]
-    working_data[.ipcw_has_time == FALSE, q_numerator := 1]
-    if (anyNA(working_data$q_denominator) || anyNA(working_data$q_numerator)) {
+
+    # The weight on the row of follow-up interval k is the probability of
+    # remaining uncensored through the START of follow-up interval k, so each
+    # product stops at follow-up interval k - 1. `shift()` supplies the empty
+    # product of 1 on the first row of each person-trial.
+    lagged_ratio <- function(q_num, q_den) {
+      return(
+        cumprod(data.table::shift(q_num, n = 1L, fill = 1)) /
+          cumprod(data.table::shift(q_den, n = 1L, fill = 1))
+      )
+    }
+    data.table::setorderv(working_data, c(id_var, tstart_var))
+    working_data[,
+      `:=`(
+        ipcw_pp_loss = lagged_ratio(q_num_loss, q_den_loss),
+        ipcw_pp_deviation = lagged_ratio(q_num_dev, q_den_dev)
+      ),
+      by = c(id_var)
+    ]
+    working_data[, ipcw_pp_time_zero := 1]
+    tz_factor <- data.table::rbindlist(tz_factor)
+    if (nrow(tz_factor) > 0L) {
+      working_data[
+        tz_factor,
+        ipcw_pp_time_zero := i.ipcw_pp_time_zero,
+        on = id_var
+      ]
+    }
+    working_data[,
+      ipcw_pp := ipcw_pp_time_zero * ipcw_pp_loss * ipcw_pp_deviation
+    ]
+    if (anyNA(working_data$ipcw_pp)) {
       stop(
         "s6_ipcw_pp() left ",
-        sum(
-          is.na(working_data$q_denominator) | is.na(working_data$q_numerator)
-        ),
+        sum(is.na(working_data$ipcw_pp)),
         " of ",
         nrow(working_data),
-        " rows without an uncensoring probability.",
+        " rows without a censoring weight.",
         call. = FALSE
       )
     }
 
-    # The weight on the row of follow-up interval k is the probability of
-    # remaining uncensored through the START of follow-up interval k, so the
-    # product stops at follow-up interval k - 1. `shift()` supplies the empty
-    # product of 1 on the first row of each person-trial, which makes that row
-    # weigh exactly 1.
-    data.table::setorderv(working_data, c(id_var, tstart_var))
-    working_data[,
-      cum_q_denominator := cumprod(
-        data.table::shift(q_denominator, n = 1L, fill = 1)
-      ),
-      by = c(id_var)
-    ]
-    working_data[,
-      cum_q_numerator := cumprod(
-        data.table::shift(q_numerator, n = 1L, fill = 1)
-      ),
-      by = c(id_var)
-    ]
-    working_data[, ipcw_pp := cum_q_numerator / cum_q_denominator]
-
-    if ("ipcw_pp" %in% names(self$data)) {
-      self$data[, ipcw_pp := NULL]
+    out_cols <- c(
+      "ipcw_pp_time_zero",
+      "ipcw_pp_loss",
+      "ipcw_pp_deviation",
+      "ipcw_pp"
+    )
+    old <- intersect(out_cols, names(self$data))
+    if (length(old) > 0L) {
+      self$data[, (old) := NULL]
     }
     # The follow-up interval, not the follow-up interval stop. A zero-width row
     # shares its stop with the row before it, so a stop alone does not name one
     # row.
-    join_on <- c(design$id_var, design$tstart_var, design$tstop_var)
+    join_on <- c(id_var, tstart_var, tstop_var)
     self$data[
       working_data,
-      ipcw_pp := i.ipcw_pp,
+      (out_cols) := mget(paste0("i.", out_cols)),
       on = join_on
     ]
 

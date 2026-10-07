@@ -7,6 +7,9 @@
 #   treatment weights   exposed ~ confounders                   (no time term)
 #   IPCW denominator    flex(tstart) + flex(period_id) + confounders
 #   IPCW numerator      flex(tstart)
+#   time-zero model     deviation_time_zero ~ confounders       (no time term)
+#
+# The two IPCW rows hold for each row-level cause, loss and deviation.
 #   IRR                 exposed + flex(tstart) + flex(enrollment_period_id)
 #   effect modification exposed * factor(sg) + flex(tstart)
 #                         + flex(enrollment_period_id)
@@ -44,9 +47,10 @@ skip_if_not_installed("withr")
 # A person-week skeleton. Each person is eligible in the four weeks of one
 # enrollment period, so each enrollment period holds one trial with both arms.
 # About a third of the people switch arm during follow-up, which censors them
-# under the per-protocol estimand in both arms. An outcome falls in the second
-# or third week of a follow-up interval, so `s5_prepare_outcome()` clips the
-# event row short of the interval end.
+# under the per-protocol estimand in both arms. Every fifth person's record
+# ends after follow-up week 13, which censors them by loss. An outcome falls in
+# the second or third week of a follow-up interval, so `s5_prepare_outcome()`
+# clips the event row short of the interval end.
 .tt_skeleton <- function(
   n_periods,
   n_fu = .tt_n_fu,
@@ -81,6 +85,9 @@ skip_if_not_installed("withr")
           age = 40 + sample(0:30, 1) + seq_len(n) / 52,
           grp = i %% 2L
         )
+        if (i %% 5L == 0L) {
+          out[[id]] <- out[[id]][fu <= 13L]
+        }
       }
     }
   }
@@ -205,15 +212,23 @@ test_that("each censoring stratum: tstart and period_id in the denominator, tsta
   forms <- .tt_six()$ipcw_formulas
   expect_setequal(names(forms), c("the intervention arm", "the comparator arm"))
   for (label in names(forms)) {
-    den <- forms[[label]]$denominator
-    num <- forms[[label]]$numerator
-    expect_identical(.tt_labels(den), c(.tt_ns_tstart, .tt_ns_period, "age"), label = label)
-    expect_identical(.tt_labels(num), .tt_ns_tstart, label = label)
-    expect_identical(.tt_offsets(den), .tt_offset)
-    expect_identical(.tt_offsets(num), .tt_offset)
-    expect_false("period_id" %in% all.vars(num))
-    expect_false("enrollment_period_id" %in% all.vars(den))
-    expect_false("tstop" %in% all.vars(den))
+    for (cause in c("loss", "deviation")) {
+      rec <- forms[[label]][[cause]]
+      what <- paste(label, cause)
+      expect_true(isTRUE(rec$fitted), label = what)
+      den <- rec$denominator
+      num <- rec$numerator
+      expect_identical(.tt_labels(den), c(.tt_ns_tstart, .tt_ns_period, "age"), label = what)
+      expect_identical(.tt_labels(num), .tt_ns_tstart, label = what)
+      expect_identical(.tt_offsets(den), .tt_offset)
+      expect_identical(.tt_offsets(num), .tt_offset)
+      expect_false("period_id" %in% all.vars(num))
+      expect_false("enrollment_period_id" %in% all.vars(den))
+      expect_false("tstop" %in% all.vars(den))
+    }
+    # No person-trial of the fixture deviates at time zero, so the time-zero
+    # model is not fitted.
+    expect_identical(forms[[label]]$time_zero$fitted, FALSE)
   }
   expect_true(all(is.finite(.tt_six()$data$ipcw_pp)))
 })
@@ -235,16 +250,19 @@ test_that("the penalised censoring model uses s() for 10 or more distinct values
     c("the intervention arm", "the comparator arm")
   )
   for (label in names(trial$ipcw_formulas)) {
-    expect_identical(
-      .tt_labels(trial$ipcw_formulas[[label]]$denominator),
-      c("s(tstart)", "s(period_id)", "age"),
-      label = label
-    )
-    expect_identical(
-      .tt_labels(trial$ipcw_formulas[[label]]$numerator),
-      "s(tstart)",
-      label = label
-    )
+    for (cause in c("loss", "deviation")) {
+      rec <- trial$ipcw_formulas[[label]][[cause]]
+      expect_identical(
+        .tt_labels(rec$denominator),
+        c("s(tstart)", "s(period_id)", "age"),
+        label = paste(label, cause)
+      )
+      expect_identical(
+        .tt_labels(rec$numerator),
+        "s(tstart)",
+        label = paste(label, cause)
+      )
+    }
   }
   expect_true(all(is.finite(trial$data$ipcw_pp)))
 })
@@ -390,8 +408,10 @@ test_that("a censoring stratum with one calendar period drops that term and fits
     )
   })
   forms <- trial$ipcw_formulas
-  tx <- forms[["the intervention arm"]]
-  cmp <- forms[["the comparator arm"]]
+  # Every panel reaches the planned end, so only deviation censors.
+  expect_identical(forms[["the intervention arm"]]$loss$fitted, FALSE)
+  tx <- forms[["the intervention arm"]]$deviation
+  cmp <- forms[["the comparator arm"]]$deviation
   # One start and one calendar period in the intervention stratum: both terms
   # drop, and the numerator is the intercept and the offset.
   expect_identical(.tt_labels(tx$denominator), "age")

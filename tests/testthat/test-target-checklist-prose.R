@@ -233,6 +233,35 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
 })
 
 
+test_that("checklist items 6d and 6h describe the three censoring models", {
+  lines <- .tcp_lines()
+  it6h <- .tcp_item(lines, "6h", "7a-h")
+  expect_false(is.na(it6h))
+
+  # One model per cause, in the order `s6_ipcw_pp()` fits them, each on its
+  # own risk set.
+  expect_match(it6h, "the censoring weight was the product of three factors, each fitted separately in each arm", fixed = TRUE)
+  expect_match(it6h, "a model for loss to follow-up, fitted on the follow-up intervals without an outcome event", fixed = TRUE)
+  expect_match(it6h, "a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up", fixed = TRUE)
+  expect_match(it6h, "a logistic model for a deviation at time zero, conditional on the baseline confounders", fixed = TRUE)
+  expect_match(it6h, "including those whose deviation at time zero left them no follow-up", fixed = TRUE)
+  expect_match(it6h, "Its numerator was the proportion of the arm's person-trials that deviated at time zero", fixed = TRUE)
+  expect_match(it6h, "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored.", fixed = TRUE)
+  # The retired claim: one censoring model for both causes.
+  expect_false(grepl("censoring probabilities were modelled by a complementary log-log", it6h, fixed = TRUE))
+
+  it6d <- .tcp_item(lines, "6d", "6e")
+  expect_match(it6d, "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up.", fixed = TRUE)
+  expect_match(it6d, "at the start of the first week beyond the arm's tolerance", fixed = TRUE)
+
+  seg <- .tcp_seg(lines, "Analysis \\(6h\\):[^\n]*")
+  expect_match(seg, "one factor each for loss to follow-up, protocol deviation and deviation at time zero", fixed = TRUE)
+  expect_false(grepl("time-varying censoring weights", seg, fixed = TRUE))
+  seg7d <- .tcp_seg(lines, "Follow-up \\(6d\\):.*?(?=Outcomes \\(6e\\):)")
+  expect_match(seg7d, "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up", fixed = TRUE)
+})
+
+
 test_that("checklist items 6h and 13 name the absolute scale", {
   # s3 computes a risk difference and a number needed to treat for every ETT.
   # A checklist that names only the IRR leaves both out of a methods section.

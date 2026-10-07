@@ -154,7 +154,7 @@ tte_enroll <- function(d, design, ratio = 2, seed = 4) {
   )
 }
 
-# The fixtures are small, so the censoring model separates and warns. That
+# The fixtures are small, so the censoring models separate and warn. That
 # warning is about the toy data and not about a boundary.
 tte_prepare <- function(trial, estimand = "pp") {
   suppressWarnings({
@@ -235,8 +235,10 @@ tte_enroll(three, tte_design())$data[
 Entry covariates are therefore read in the **same** week treatment starts for
 an initiator, and not strictly before it. The rule is symmetric across the
 arms: no rule keyed to initiation can be, because a comparator never initiates.
-`$s2_ipw()` and `$table1()` read `.tte_entry__<v>`. `$s6_ipcw_pp()` reads the
-time-updated `<v>`, because censoring depends on what is true during follow-up.
+`$s2_ipw()`, `$table1()` and the time-zero censoring model read
+`.tte_entry__<v>`. The loss and deviation censoring models read the
+time-updated `<v>`, because censoring during follow-up depends on what is true
+during follow-up.
 
 ## Enrollment period boundaries are anchored to the calendar
 
@@ -605,6 +607,32 @@ SWITCH is discordant from follow-up week 5 onward. Per-protocol bills 4 weeks,
 because the discordant week 5 is not per-protocol follow-up.
 Intention-to-treat bills the whole 12.
 
+The censoring weight has one model for each way that per-protocol follow-up
+stops. `censor_loss` marks the row that a loss stops, and `censor_deviation`
+marks the row that a deviation stops. A woman who is discordant in follow-up
+week 1 stops at time zero, so she keeps no row. `$time_zero_deviation` keeps
+her, and the time-zero model of the censoring weight fits on that record.
+
+```{r pp-causes}
+zs <- rbindlist(list(
+  tte_person("ZERO", rep(TRUE, n), discordant_fu = 1:12),
+  tte_person("SWITCH", rep(TRUE, n), discordant_fu = 5:12),
+  tte_fillers()
+))
+trial <- tte_enroll(zs, tte_design())
+out <- tte_prepare(trial, "pp")
+out[id %in% c("ZERO", "SWITCH"), .(id, tstart, tstop, censor_loss, censor_deviation)]
+trial$time_zero_deviation[,
+  .(person_trials = .N, deviate_at_time_zero = sum(deviation_time_zero)),
+  keyby = exposed
+]
+```
+
+SWITCH's last row carries `censor_deviation = 1`. ZERO has no row, and the
+record counts her as the one intervention person-trial that deviates at time
+zero. `vignette("tte-methods")` section 1.8.2 states the three models and the
+rows each one fits on.
+
 ## Two spec versions are not comparable
 
 A result built on a spec version before swereg 26.9.0, for example `v011`, and
@@ -622,7 +650,7 @@ was made in isolation.
 # Limitations
 
 * **The censoring approximation is compressed.** The panel is one row per
-  follow-up interval, so the censoring model reads an interval and not a week.
+  follow-up interval, so a censoring model reads an interval and not a week.
   A boundary inside an interval is exact in the person-time, and the censoring
   probability that covers it is still an interval-level quantity.
 * **Within-week ordering is unidentifiable.** A week is the finest resolution
@@ -638,11 +666,11 @@ was made in isolation.
 * **The estimand is now landmark-survivor.** It conditions on reaching `L`.
   People who die or have the outcome inside the enrollment period are not in
   the population. The estimate says nothing about them (Dafni 2011).
-* **The censoring model carries no adherence history.** It reads the
-  time-updated confounders, the start of the follow-up interval and its
-  calendar period. It carries no
-  lagged treatment term, so a person whose adherence has been failing for
-  months looks like one who fails for the first time.
+* **The censoring models carry no adherence history.** The loss and
+  deviation models read the time-updated confounders, the start of the
+  follow-up interval and its calendar period. No model carries a lagged
+  treatment term. A person whose adherence has been failing for months
+  therefore looks like one who fails for the first time.
 * **swereg implements no grace period.** A grace period allows initiation
   within a fixed window after assignment without counting it as a deviation,
   and it requires cloning, censoring and weighting (Hernán 2018; Maringe 2020).

@@ -188,13 +188,25 @@ TTEEnrollment <- R6::R6Class(
     #'   `converged`, `n_boundary` and `n_dropped_na_snapshot`. It stays
     #'   `NULL` until `$s2_ipw()` runs.
     ps_fit = NULL,
-    #' @field ipcw_formulas A list or NULL. It holds the two censoring-model
-    #'   formulas that `s6_ipcw_pp()` fitted in each stratum, keyed by the
-    #'   stratum label, such as `"the intervention arm"`. Each element is
-    #'   `list(denominator = , numerator = )`. A stratum with no censoring
-    #'   fits no model and has no element. It stays `NULL` until the censoring
-    #'   weights are estimated.
+    #' @field ipcw_formulas A list or NULL. It records the three censoring
+    #'   models of each stratum, keyed by the stratum label, such as
+    #'   `"the intervention arm"`. Each stratum holds one element per cause:
+    #'   `loss`, `deviation` and `time_zero`. A fitted cause is
+    #'   `list(fitted = TRUE, denominator = , numerator = )`, which holds the
+    #'   two formulas. A cause that fits no model is
+    #'   `list(fitted = FALSE, reason = )`, and its factor is 1. It stays
+    #'   `NULL` until the per-protocol censoring weights are estimated.
     ipcw_formulas = NULL,
+    #' @field time_zero_deviation A data.table or NULL. `s5_prepare_outcome()`
+    #'   writes it for the per-protocol estimand. It holds one row for each
+    #'   person-trial with a known arm whose follow-up no other stop ends at
+    #'   time zero. Its columns are the identifier, the
+    #'   arm, each confounder at the recruiting week, and
+    #'   `deviation_time_zero`. That column is 1 when a deviation stops
+    #'   follow-up at time zero, so the person-trial keeps no row. The
+    #'   time-zero censoring model fits on this table. It is `NULL` for the
+    #'   intention-to-treat estimand.
+    time_zero_deviation = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made
@@ -412,6 +424,22 @@ TTEEnrollment <- R6::R6Class(
     #' before the deviation counts, and the row is not censored. A gap or a
     #' record end at the same week is loss. A planned end at the same week is
     #' complete follow-up.
+    #'
+    #' The per-protocol censoring weight `ipcw_pp` is the product of three
+    #' factors. By default each is fitted in each arm.
+    #' \itemize{
+    #'   \item `ipcw_pp_loss` comes from a loss model fitted on the rows
+    #'     without an outcome. Loss is observed after the outcome of a row.
+    #'   \item `ipcw_pp_deviation` comes from a deviation model fitted on the
+    #'     rows without an outcome that were not lost. A person who is not
+    #'     observed cannot be seen to deviate.
+    #'   \item `ipcw_pp_time_zero` comes from a logistic model of a deviation
+    #'     at time zero on the confounders at the recruiting week. It is fitted
+    #'     on every person-trial in `$time_zero_deviation`, including those
+    #'     that keep no row.
+    #' }
+    #' The columns `censor_loss` and `censor_deviation` mark the rows that each
+    #' row-level cause censors.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
     #' @param estimand Character, `"pp"` (per-protocol, default) or `"itt"`
@@ -421,7 +449,10 @@ TTEEnrollment <- R6::R6Class(
     #'   `$irr(weight_col = "ipw_trunc")`.
     #' @param estimate_ipcw_pp_separately_by_treatment Logical, default TRUE.
     #' @param estimate_ipcw_pp_with_gam Logical, default TRUE.
-    #' @param censoring_var Character or NULL. Defaults to `"censor_this_period"`.
+    #' @param censoring_var `NULL` or `"censor_this_period"`. Any other value
+    #'   stops. The per-protocol weights fit one model per cause, and they read
+    #'   `censor_loss` and `censor_deviation`, which `s5_prepare_outcome()`
+    #'   writes.
     s4_prepare_for_analysis = function(
       outcome,
       follow_up = NULL,
@@ -431,24 +462,22 @@ TTEEnrollment <- R6::R6Class(
       censoring_var = NULL
     ) {
       estimand <- match.arg(estimand)
+      .tte_check_censoring_var(censoring_var)
       self$estimand <- estimand
       private$s5_prepare_outcome(
         outcome = outcome,
         follow_up = follow_up,
         estimand = estimand
       )
-      if (is.null(censoring_var)) {
-        censoring_var <- "censor_this_period"
-      }
       # Per-protocol censors at switching and models the resulting informative
-      # censoring (switch + loss) with IPCW. ITT never censors at switching and
-      # treats loss as independent, so it needs no IPCW: baseline IPW is the
-      # valid weight on its own.
+      # censoring with one model per cause: loss, deviation, and deviation at
+      # time zero. ITT never censors at switching and treats loss as
+      # independent, so it needs no IPCW: baseline IPW is the valid weight on
+      # its own.
       if (estimand == "pp") {
         private$s6_ipcw_pp(
           estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
-          estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
-          censoring_var = censoring_var
+          estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam
         )
       }
       # The censoring row is retained. `s5_prepare_outcome()` has already
@@ -1288,6 +1317,10 @@ TTEEnrollment <- R6::R6Class(
         )
       ]
 
+      # A person-trial that deviates at time zero keeps no row after the
+      # filter below. `s6_ipcw_pp()` fits its time-zero model on this record.
+      self$time_zero_deviation <- .tte_time_zero_record(data, design, estimand)
+
       # censor_week
       data[,
         censor_week := pmin(
@@ -1319,19 +1352,28 @@ TTEEnrollment <- R6::R6Class(
       data[, event := as.integer(get(design$tstop_var) == weeks_to_event)]
       data[is.na(event), event := 0L]
 
-      # censor_this_period indicator
+      # The censoring indicator of each cause. The tie rule above leaves
+      # `.deviation_clip` NA when a record end or a gap falls on the same
+      # week, and `weeks_to_loss` is then set. `is.na(weeks_to_loss)` states
+      # that rule again here, so the two causes never mark the same row.
       data[,
-        censor_this_period := as.integer(
-          get(design$tstop_var) == .deviation_clip |
-            get(design$tstop_var) == weeks_to_loss
+        censor_loss := as.integer(
+          !is.na(weeks_to_loss) & get(design$tstop_var) == weeks_to_loss
         )
       ]
-      data[is.na(censor_this_period), censor_this_period := 0L]
+      data[,
+        censor_deviation := as.integer(
+          !is.na(.deviation_clip) &
+            is.na(weeks_to_loss) &
+            get(design$tstop_var) == .deviation_clip
+        )
+      ]
       # An event row is never a censoring. `.deviation_clip` and
       # `weeks_to_loss` above both stop strictly before the event, so no event
-      # row matches them. This line keeps the IPCW model from seeing a
+      # row matches them. This line keeps the IPCW models from seeing a
       # censoring where the trial ended in an event.
-      data[event == 1L, censor_this_period := 0L]
+      data[event == 1L, `:=`(censor_loss = 0L, censor_deviation = 0L)]
+      data[, censor_this_period := censor_loss + censor_deviation]
 
       # Clean up (.protocol_deviated only exists for the fallback read)
       tmp_cols <- intersect(

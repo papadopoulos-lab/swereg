@@ -542,6 +542,17 @@
   for (fu in spec$follow_up) {
     add_kv(fu$label, paste0(fu$weeks, " weeks"))
   }
+  # The three censoring models of `s6_ipcw_pp()`, in the order it fits them.
+  add_kv(
+    "Per-protocol censoring weights:",
+    paste(
+      "Three models in each arm.",
+      "Loss: fitted on the intervals without an outcome.",
+      "Deviation: fitted on the intervals without an outcome that were not lost.",
+      "Deviation at time zero: a logistic model fitted on every person-trial,",
+      "including those that deviate at time zero and have no follow-up."
+    )
+  )
   add_blank()
 
   # -- Inclusion criteria ---------------------------------------------------
@@ -585,10 +596,11 @@
   add_header("Confounders")
   # standing_methods.calendar_time is the first confounder entry. The outcome
   # model adjusts for calendar time through a term in the trial
-  # (`enrollment_period_id`, from `.tte_time_term()`). The denominator of the
-  # censoring weights adjusts for it through a term in the calendar period
-  # (`period_id`). The treatment weights do not include it. An authored `note`
-  # replaces this text.
+  # (`enrollment_period_id`, from `.tte_time_term()`). The denominators of the
+  # loss and deviation censoring models adjust for it through a term in the
+  # calendar period (`period_id`). The time-zero censoring model and the
+  # treatment weights do not include it. An authored `note` replaces this
+  # text.
   sm_ct <- spec$standing_methods$calendar_time
   if (!is.null(sm_ct) && identical(sm_ct$handling, "auto-adjusted")) {
     add_item("Calendar time at trial registration")
@@ -598,8 +610,9 @@
         paste(
           "Adjusted for in the outcome model through a term in the trial:",
           "a natural spline for 4 or more trials, a factor for 2 or 3 trials,",
-          "and no term for 1 trial. Also adjusted for in the denominator of",
-          "the censoring weights. Not in the treatment weights."
+          "and no term for 1 trial. Also adjusted for in the denominators of",
+          "the loss and deviation censoring models. Not in the time-zero",
+          "censoring model or the treatment weights."
         )
     )
   }

@@ -293,9 +293,9 @@ week is discordant when it does not hold the value of the assigned arm. A week w
 and a week outside both arms are discordant in both arms.
 
 Each arm has a tolerance ${k}$, the number of consecutive discordant weeks it
-allows. A concordant week resets the run. The deviation falls at the right
-edge of week $({k}+1)$ of a run of consecutive discordant weeks. A tolerance
-of 0 therefore places it at the first discordant week.
+allows. A concordant week resets the run. The deviation falls at the start
+of week $({k}+1)$ of a run of consecutive discordant weeks. A tolerance of 0
+therefore places it at the start of the first discordant week.
 
 A run that starts before time zero counts only its weeks from time zero. An
 absent week breaks a run. No grace period applies, and the pipeline does not
@@ -307,7 +307,9 @@ at that week, so it holds the person-time before the stop and none after it.
 The outcome sits at its exact week: the row that holds it is clipped there and
 carries the event. Person-time is the stop minus the start, in weeks, on a
 half-open interval. A time-updated confounder takes its value in the first
-week of the interval. The censoring model of 1.8.2 fits on the clipped rows.
+week of the interval. The loss and deviation models of 1.8.2 fit on the
+clipped rows. A deviation at time zero leaves the person-trial no row, and the
+time-zero model of 1.8.2 keeps it in the weights.
 
 ## 1.5 Outcomes
 
@@ -396,7 +398,7 @@ biased under informative loss, in swereg and TrialEmulation alike.
 
 The per-protocol estimand rests on two further assumptions:
 
-5. the censoring model of 1.8.2 captures all common causes of deviation or
+5. the censoring models of 1.8.2 capture all common causes of deviation or
    loss and of the outcome, including their time-varying values in the data;
 6. positivity of continued adherence.
 
@@ -404,8 +406,8 @@ The variables behind assumptions 2 and 5 are the confounders that the protocol
 lists. Assumption 2 reads them at the recruiting week. Assumption 5 reads
 their most recent value in each follow-up interval (1.8.7).
 
-Under strong feedback between treatment and confounders, the single-model
-censoring weights keep residual bias. Time-updated censoring covariates remove
+Under strong feedback between treatment and confounders, the censoring
+weights keep residual bias. Time-updated censoring covariates remove
 part of the deviation selection bias, relative to covariates frozen at
 baseline, and not all of it. Section 3 measures that residual bias. Where
 feedback is central, g-methods are indicated: the parametric g-formula, or
@@ -433,8 +435,9 @@ intervals of a trial by ${j} = 0, \ldots, {K}-1$. Here ${K}$ is the horizon
 divided by the width of the enrollment period, rounded up. $A_{i,m,0}$ is the
 assigned arm, 1 for the intervention. $L_{i,m,j}$ is the confounder vector as
 most recently updated in interval ${j}$, and $L_{i,m,0}$ is its value at the
-recruiting week. $Y_{i,m,j}$ is the outcome indicator. $C_{i,m,j}$ marks
-censoring by deviation or loss in interval ${j}$.
+recruiting week. $Y_{i,m,j}$ is the outcome indicator. $C^{\mathrm{L}}_{i,m,j}$
+and $C^{\mathrm{D}}_{i,m,j}$ mark censoring by loss and by deviation in
+interval ${j}$, and $D_{i,m,0}$ marks a deviation at time zero (1.8.2).
 
 $c_{m,j}$ is the calendar period of interval ${j}$. Calendar periods are the
 blocks of calendar time that define the enrollment periods, so each follow-up
@@ -472,30 +475,51 @@ interactions as derived confounders.
 
 ### 1.8.2 Censoring weights
 
-The censoring indicator marks the row at which a deviation or a loss of
-observation stops follow-up. The row of an outcome is never marked as censored
-(1.4). The model fits on the data that keep the censoring row. By default
-it fits separately in each arm ${a}$, as a discrete-time complementary log-log
-generalised additive model with a person-time offset:
+Two causes censor per-protocol follow-up: loss of observation and protocol
+deviation (1.4). $C^{\mathrm{L}}_{m,j}$ marks the row that a loss stops, and
+$C^{\mathrm{D}}_{m,j}$ marks the row that a deviation stops. The row of an
+outcome is never marked as censored (1.4). A deviation at time zero stops
+follow-up before the first row, and $D_{m,0}$ marks it.
+
+swereg fits one model for each cause, by default separately in each arm
+${a}$. Each model fits on the rows where its cause can be observed:
+
+1. Loss is observed at the end of a row, after the outcome of that row. The
+   loss model fits on the rows without an outcome.
+2. A deviation is observed at the start of the next row, and a person who is
+   lost cannot be seen to deviate. The deviation model fits on the rows
+   without an outcome that were not lost.
+3. The time-zero model fits on every person-trial under follow-up at time
+   zero, including those that deviate there and keep no row.
+   `$s4_prepare_for_analysis()` keeps them in `$time_zero_deviation`.
+
+Releases before 27.1.1 fitted one model for both causes, on every row
+including the rows with an outcome. A row with an outcome cannot be censored,
+so that model read it as evidence of staying uncensored.
+
+The two row-level models are discrete-time complementary log-log generalised
+additive models with a person-time offset. For cause ${r}$, loss L or
+deviation D:
 
 $$
-\mathrm{cloglog}\,\mathrm{Pr}(C_{m,j} = 1 \mid \text{at risk},\ A_{m,0}=a)
-  = s_{a}(u_{m,j}) + g_{a}(c_{m,j}) + \alpha_{a}^\top L_{m,j}
+\mathrm{cloglog}\,\mathrm{Pr}(C^{r}_{m,j} = 1 \mid \text{at risk of } r,\ A_{m,0}=a)
+  = s^{r}_{a}(u_{m,j}) + g^{r}_{a}(c_{m,j}) + \alpha^{r\top}_{a} L_{m,j}
   + \log \Delta_{m,j}.
 $$
 
 Here $u_{m,j}$ is the start of interval ${j}$ in weeks from time zero.
-$\Delta_{m,j}$ is the width of the row in weeks, and $\eta_{m,j}$ is the
+$\Delta_{m,j}$ is the width of the row in weeks, and $\eta^{r}_{m,j}$ is the
 linear predictor without the offset. The uncensoring probability is then
-$q_{m,j} = \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot) = \exp\{-\exp(\eta_{m,j})\Delta_{m,j}\}$.
-One linear predictor therefore gives ${q}(4) = {q}(1)^{4}$.
+$q^{r}_{m,j} = \exp\{-\exp(\eta^{r}_{m,j})\Delta_{m,j}\}$. One linear
+predictor therefore gives ${q}(4) = {q}(1)^{4}$.
 
 That identity makes a four-week row and a one-week row comparable. It matters
 because the last row is clipped at its exact stop, so it can be narrower than
 a whole interval. A logit link carries no such identity.
 
-Both time terms follow the term ladder of 1.8.9. The follow-up term $s_{a}$
-depends on the number of distinct interval starts in the data of the arm:
+Both time terms follow the term ladder of 1.8.9. The follow-up term
+$s^{r}_{a}$ depends on the number of distinct interval starts in the risk set
+of the cause in the arm:
 
 - 10 or more: a penalised spline;
 - 4 to 9: a natural cubic spline of 3 degrees of freedom;
@@ -503,43 +527,64 @@ depends on the number of distinct interval starts in the data of the arm:
 - 1: no term.
 
 A penalised spline asks for 10 basis functions, so it needs 10 distinct
-values. The calendar term $g_{a}$ follows the same ladder on the number of
-distinct calendar periods in the data of the arm. Both counts exclude the rows
+values. The calendar term $g^{r}_{a}$ follows the same ladder on the number of
+distinct calendar periods in the same risk set. Both counts exclude the rows
 of zero width, which hold no person-time.
 
 The confounders carry their updated value in each interval. Time-varying
-confounders, where the data hold them, therefore inform the censoring model.
-Section 1.8.7 states how a missing value is filled.
+confounders, where the data hold them, therefore inform the loss and deviation
+models. Section 1.8.7 states how a missing value is filled.
 
-A stratum with no censored row takes an uncensoring probability of exactly 1
-on every row, and so a weight of 1. A stratum with no uncensored row stops the
-run, and so does a model that cannot be fit. swereg substitutes no marginal
+The time-zero model is a logistic regression on the confounders at the
+recruiting week, as the treatment-weight model is (1.8.1):
+
+$$
+\mathrm{logit}\,\mathrm{Pr}(D_{m,0} = 1 \mid A_{m,0}=a,\ L_{m,0})
+  = \delta_{a} + \beta_{a}^\top L_{m,0}.
+$$
+
+$p_{m,0}$ is its fitted probability, and $\bar{p}_{a}$ is the proportion of
+the person-trials of arm ${a}$ that deviate at time zero.
+
+A cause with no censoring in its risk set fits no model, and its factor is
+exactly 1. `$ipcw_formulas` then records `list(fitted = FALSE, reason = )` for
+that cause. A row-level risk set with no uncensored row stops the run, and so
+does a model that cannot be fit. An arm in which every person-trial deviates at
+time zero keeps no row, so no row needs its time-zero factor. Its three models
+are not fitted, and the run does not stop. swereg substitutes no marginal
 censoring rate for a model it could not fit.
 
-The stabilised weight for the row in interval ${k}$ is a ratio of cumulative
-uncensoring probabilities through the start of that interval:
+The stabilised weight for the row in interval ${k}$ is
 
 $$
 SW^{C}_{m,k}
- = \frac{\prod_{j=0}^{k-1} \bar{q}_{a}(j)}
-        {\prod_{j=0}^{k-1} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)}.
+ = \frac{1 - \bar{p}_{a}}{1 - p_{m,0}}
+   \prod_{j=0}^{k-1} \frac{\bar{q}^{\mathrm{L}}_{a}(j)}{q^{\mathrm{L}}_{m,j}}
+   \prod_{j=0}^{k-1} \frac{\bar{q}^{\mathrm{D}}_{a}(j)}{q^{\mathrm{D}}_{m,j}}.
 $$
 
-Here $\bar{q}_{a}(j)$ is the numerator: a second fit in the same arm, which
-keeps the follow-up term $s_{a}$ and drops the calendar term and the
-confounders (1.8.9). Two rules govern the ratio.
+Here $\bar{q}^{r}_{a}(j)$ is the numerator of cause ${r}$. It is a second fit
+on the same risk set, with the follow-up term $s^{r}_{a}$ and without the
+calendar term or the confounders (1.8.9). The deviation model conditions on
+not being lost, so $q^{\mathrm{L}}_{m,j}\,q^{\mathrm{D}}_{m,j}$ is the
+probability of remaining uncensored over row ${j}$. The denominator of
+$SW^{C}_{m,k}$ is therefore the joint probability of remaining uncensored
+through the start of interval ${k}$. The panel keeps the three factors as
+`ipcw_pp_time_zero`, `ipcw_pp_loss` and `ipcw_pp_deviation`, and `ipcw_pp` is
+their product. Two rules govern the ratio.
 
 - The product is lagged. It stops at interval ${k}-1$, so the uncensoring
   probability of a row does not enter its own weight. A censored interval
   stays in the risk set. The empty product gives the first interval of every
-  person-trial a weight of exactly 1. An inclusive product belongs to data
-  that delete the censoring row, and the two conventions are not mixed.
-- The numerator is marginal. Canonical stabilisation (Danaei et al. 2013)
+  person-trial its time-zero factor alone. An inclusive product belongs to
+  data that delete the censoring row, and the two conventions are not mixed.
+- The numerators are marginal. Canonical stabilisation (Danaei et al. 2013)
   uses a numerator model conditional on baseline covariates, which then enter
   the outcome model too. Here the outcome model holds no confounders (1.8.4),
-  so the numerator model carries the follow-up term alone. This keeps the
-  marginal estimand consistent. It stabilises less when baseline covariates
-  strongly predict censoring.
+  so each row-level numerator carries the follow-up term alone, and the
+  time-zero numerator is the proportion $\bar{p}_{a}$. This keeps the marginal
+  estimand consistent. It stabilises less when baseline covariates strongly
+  predict censoring.
 
 ### 1.8.3 Truncation
 
@@ -804,13 +849,17 @@ trials.
 | Model | Time terms | Other terms | Offset | Family | Engine |
 |:--|:--|:--|:--|:--|:--|
 | Treatment weights (1.8.1) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
-| Censoring denominator (1.8.2) | flex(`tstart`) + flex(`period_id`) | time-updated confounders | log person-weeks | binomial, cloglog link | penalised GAM, or GLM (1.9) |
-| Censoring numerator (1.8.2) | flex(`tstart`) | none | log person-weeks | binomial, cloglog link | as the denominator |
+| Loss and deviation denominators (1.8.2) | flex(`tstart`) + flex(`period_id`) | time-updated confounders | log person-weeks | binomial, cloglog link | penalised GAM, or GLM (1.9) |
+| Loss and deviation numerators (1.8.2) | flex(`tstart`) | none | log person-weeks | binomial, cloglog link | as the denominator |
+| Time-zero deviation (1.8.2) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
 | IRR and subgroup IRR (1.8.4, 1.8.8) | flex(`tstart`) + flex(`enrollment_period_id`) | arm | log person-weeks | quasi-Poisson | survey-weighted GLM |
 | Effect modification (1.8.8) | flex(`tstart`) + flex(`enrollment_period_id`) | arm × factor(subgroup) | log person-weeks | quasi-Poisson | survey-weighted GLM |
 | Heterogeneity across trials (1.8.8) | flex(`tstart`) | arm × ns(`enrollment_period_id`, df = min(3, ${n}$ − 1)) | log person-weeks | quasi-Poisson | survey-weighted GLM |
 
 The person-weeks of the offset are the width of the row after clipping (1.8.4).
+The loss and deviation models each count the distinct values of their own risk
+set. The time-zero numerator is the proportion of the arm that deviates at
+time zero, and it needs no model.
 
 ```{r time-term-models, fig.width = 8, fig.height = 3, fig.cap = "Figure B. Each panel is the Lexis diagram of Figure A. Coloured lines are the two axes that the model holds, and grey lines are the axis it leaves out."}
 w <- 4
@@ -841,7 +890,7 @@ lexis_panel <- function(title, used, x_title = NULL, y_title = NULL, note = NULL
 }
 patchwork::wrap_plots(
   # The shared axis titles are drawn once: y on the left panel, x on the middle.
-  lexis_panel("Censoring denominator", c("period_id", "tstart"), y_title = "Weeks since time zero"),
+  lexis_panel("Censoring denominators", c("period_id", "tstart"), y_title = "Weeks since time zero"),
   lexis_panel("Outcome model", c("enrollment_period_id", "tstart"), x_title = "Calendar period"),
   lexis_panel("Heterogeneity test", c("enrollment_period_id", "tstart"), note = "treatment × trial"),
   nrow = 1
@@ -852,9 +901,9 @@ patchwork::wrap_plots(
 
 #### At most two axes in each model
 
-The outcome models and the censoring denominator each hold two of the three
-axes. The censoring numerator holds `tstart` only, and the treatment-weight
-model holds no time term. The identity makes the third axis a linear function
+The outcome models and the loss and deviation denominators each hold two of
+the three axes. Their numerators hold `tstart` only. The treatment-weight model
+and the time-zero model hold no time term. The identity makes the third axis a linear function
 of the other two. This is the age–period–cohort identity of
 Lexis-diagram analysis. A linear term in the third axis therefore adds
 nothing to a model that holds the other two. Only the curvature of the third
@@ -888,10 +937,10 @@ is "the follow-up visit number within trials" (p. 16).
 The trial term adjusts for differences in the event rate between trials. One
 treatment coefficient is then shared by every trial.
 
-#### Censoring denominator: the calendar period and the time since time zero
+#### Censoring denominators: the calendar period and the time since time zero
 
-The censoring denominator holds the calendar period of the row and the time
-since time zero. Deviation and loss respond to the time on the protocol, for
+The loss and deviation denominators hold the calendar period of the row and
+the time since time zero. Deviation and loss respond to the time on the protocol, for
 example a stop early in treatment. They also respond to calendar time, for
 example a change in prescribing practice. Such a change acts on every open
 trial in the same calendar period, so the calendar period is its axis.
@@ -901,9 +950,10 @@ selection that the artificial censoring causes. Their model for treatment use
 included "calendar month of follow-up and its squared term". The same model
 also included the baseline calendar year.
 
-#### Censoring numerator: the time since time zero only
+#### Censoring numerators: the time since time zero only
 
-The numerator model holds the time since time zero and nothing else. Su et al.
+The loss and deviation numerator models hold the time since time zero and
+nothing else. Su et al.
 (2024, p. 6–7, the text after equation 3) state the condition. Covariates
 "conditioned upon in the numerator terms of the stabilised weights must be
 included as covariates in the marginal structural model". The outcome model
@@ -962,7 +1012,8 @@ ggplot(rows) +
 flex(${x}$) depends on the number of distinct values of ${x}$ in the rows the
 model fits.
 
-- 10 or more, in a censoring model fit as a penalised GAM: a penalised spline.
+- 10 or more, in a loss or deviation model fit as a penalised GAM: a
+  penalised spline.
   It asks for 10 basis functions, mgcv's default, so it needs 10 distinct
   values.
 - 4 or more otherwise: a natural cubic spline of 3 degrees of freedom. With the
@@ -971,9 +1022,10 @@ model fits.
 - 1: no term.
 
 The penalised spline fits only inside the GAM engine. Every outcome model and
-the GLM censoring model of 1.9 therefore start the ladder at the natural
-spline. A censoring model counts the distinct values in each stratum it fits,
-by default each arm, after the rows of zero width leave. An outcome model
+the GLM loss and deviation models of 1.9 therefore start the ladder at the
+natural spline. A loss or deviation model counts the distinct values in its
+own risk set. It counts them in each stratum, by default each arm, after the
+rows of zero width leave. An outcome model
 counts them in the rows it fits, so a subgroup IRR counts the rows of its
 subgroup level.
 
@@ -1003,10 +1055,11 @@ the raw weight distribution, and the positivity of treatment and censoring.
 Where the extreme weights are structural, restrict the eligible population
 rather than truncate harder.
 
-The censoring model can also be refit as a generalised linear model, which
-drops the penalised splines. Each time term of 1.8.2 is then a natural cubic
-spline of 3 degrees of freedom with 4 or more distinct values, a factor with 2
-or 3, and absent with 1. The numerator keeps the follow-up term alone (1.8.9).
+The loss and deviation models can also be refit as generalised linear models,
+which drops the penalised splines. Each time term of 1.8.2 is then a natural
+cubic spline of 3 degrees of freedom with 4 or more distinct values. It is a
+factor with 2 or 3, and absent with 1. Each numerator keeps the follow-up term alone
+(1.8.9). The time-zero model is a logistic regression under both settings.
 
 ## 1.10 Limitations
 
@@ -1018,7 +1071,7 @@ TARGET item 16 and RECORD item 19.1 (Benchimol et al. 2015).
   who die, or have an outcome, before time zero (1.6).
 - Trials open once per enrollment period, so a person who becomes eligible
   inside an enrollment period waits for the next time zero.
-- The censoring model carries no lagged treatment term, so it holds no
+- The censoring models carry no lagged treatment term, so they hold no
   adherence history.
 - There is no as-treated estimand.
 - The absolute risk is cause-specific. Death censors follow-up, and no
@@ -1029,9 +1082,10 @@ TARGET item 16 and RECORD item 19.1 (Benchimol et al. 2015).
   uncertainty into the variance (1.8.7).
 - Comparator sampling discards comparator information, which costs precision
   (1.3).
-- The propensity model holds main effects only. The censoring model holds main
-  effects and time terms, which are smooth only with enough distinct values
-  (1.8.2). Non-linearities need derived variables.
+- The propensity model and the time-zero model hold main effects only. The
+  loss and deviation models hold main effects and time terms, which are smooth
+  only with enough distinct values (1.8.2). Non-linearities need derived
+  variables.
 
 Each study adds its own limitations, such as misclassification and
 unmeasured confounding in the registers.
@@ -1128,7 +1182,7 @@ the number needed to treat for benefit (NNTB) or for harm (NNTH) (Altman
 
 Identification relied on consistency, positivity, and no unmeasured
 confounding of assignment given `[confounders]`. The per-protocol effect also
-relied on the censoring model capturing the common causes of deviation, loss
+relied on the censoring models capturing the common causes of deviation, loss
 and the outcome.
 
 ## Statistical analysis
@@ -1137,12 +1191,19 @@ We adjusted for `[confounders]` by stabilised inverse probability of treatment
 weights from a logistic model (Hernán et al. 2008). The model read each
 confounder at the recruiting week, the first eligible week of the enrollment
 period with an arm value. For the per-protocol effect, we added stabilised
-inverse probability of censoring weights from discrete-time censoring models,
-fitted separately by arm. These models included the most recent values of
-`[confounders]`, the time since time zero and the calendar period of follow-up
-(Danaei et al. 2013). Each time term was a penalised spline where enough
-distinct values allowed one, and simpler otherwise. The numerator models
-included the time since time zero only.
+inverse probability of censoring weights, fitted separately by arm. The weight
+was the product of three factors, one for each way that per-protocol
+follow-up could be censored. A discrete-time model for loss of observation was
+fitted on the intervals without an outcome. A discrete-time model for
+protocol deviation was fitted on the intervals without an outcome that were
+not lost. Both models included the most recent values of `[confounders]`, the
+time since time zero and the calendar period of follow-up (Danaei et al.
+2013). Each time term was a penalised spline where enough distinct values
+allowed one, and simpler otherwise. Their numerator models included the time
+since time zero only. A logistic model of `[confounders]` at the recruiting
+week gave the probability of a deviation at time zero. It was fitted on every
+person-trial, including those that the deviation left with no follow-up. Its
+numerator was the proportion that deviated at time zero.
 
 We truncated the weights at the 1st and 99th percentiles (Danaei et al.
 2013). We fitted a weighted quasi-Poisson marginal structural model of the
@@ -1186,8 +1247,8 @@ estimates as a sign of unstable weights.
 ## Software
 
 Analyses used R with the swereg package, which provided the sequential
-enrollment, weighting and estimation described above. The censoring models
-were fitted with mgcv, and the weighted outcome regression with
+enrollment, weighting and estimation described above. The loss and deviation
+models were fitted with mgcv, and the weighted outcome regression with
 `survey::svyglm()`. The implementation was validated against simulated data
 with known true effects, and against the TrialEmulation package (Su et al.
 2024). The validation suite of the package ran in continuous integration.
@@ -2382,15 +2443,15 @@ validation evidence.
 | 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` ("Candidate person-trials, before the time-zero checks"), `landmark_observed` ("Not under observation at time zero") and `landmark_event_free` ("Event before time zero"). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
 | 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
-| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `qs2_read()` gives the warning when it reads such an enrollment from a file, and `.tte_gap_record_end()` gives it for a panel that was not read. An enrollment saved before 26.15.0 runs its saved method bodies and the old rules, so it warns on read only |
+| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `qs2_read()` gives the warning when it reads such an enrollment from a file, and `.tte_gap_record_end()` gives it for a panel that was not read. An enrollment saved before 26.15.0 runs its saved method bodies and the old rules, so it warns on read only |
 | 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
-| 1.8.2 | IPCW censoring model | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. GAM engine `mgcv::bam(..., discrete = TRUE)`; `mgcv::s()` asks for 10 basis functions. Denominator `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`: `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1, counted per fitted stratum after zero-width rows leave. `$ipcw_formulas` records both formulas of each stratum |
+| 1.8.2 | IPCW censoring models | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`, denominator `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum's proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. |
 | 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |
 | 1.8.4, 1.8.6 | Outcome model and inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level` |
 | 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it on every ETT at 500 replicates and seed 1, on `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`) and on `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name |
 | 1.8.7 | Missing data | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan's `impute_fn`, whose default `tteenrollment_impute_confounders()` draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and `tteenrollment_fill_summary()` counts the filled rows |
 | 1.8.8 | Subgroups and heterogeneity | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it |
-| 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the censoring model as a cloglog GLM, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1 |
+| 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the loss and deviation models as cloglog GLMs, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1 |
 | 1.8 | Pre-specification | YAML spec parsed by `tteplan_read_spec()`; full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()` |
 
 ## 4.2 Where the validation numbers come from

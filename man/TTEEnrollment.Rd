@@ -203,12 +203,24 @@ from the propensity model \verb{$s2_ipw()} fits: \code{n_fit}, \code{rank},
 \code{converged}, \code{n_boundary} and \code{n_dropped_na_snapshot}. It stays
 \code{NULL} until \verb{$s2_ipw()} runs.}
 
-    \item{\code{ipcw_formulas}}{A list or NULL. It holds the two censoring-model
-formulas that \code{s6_ipcw_pp()} fitted in each stratum, keyed by the
-stratum label, such as \code{"the intervention arm"}. Each element is
-\code{list(denominator = , numerator = )}. A stratum with no censoring
-fits no model and has no element. It stays \code{NULL} until the censoring
-weights are estimated.}
+    \item{\code{ipcw_formulas}}{A list or NULL. It records the three censoring
+models of each stratum, keyed by the stratum label, such as
+\code{"the intervention arm"}. Each stratum holds one element per cause:
+\code{loss}, \code{deviation} and \code{time_zero}. A fitted cause is
+\code{list(fitted = TRUE, denominator = , numerator = )}, which holds the
+two formulas. A cause that fits no model is
+\code{list(fitted = FALSE, reason = )}, and its factor is 1. It stays
+\code{NULL} until the per-protocol censoring weights are estimated.}
+
+    \item{\code{time_zero_deviation}}{A data.table or NULL. \code{s5_prepare_outcome()}
+writes it for the per-protocol estimand. It holds one row for each
+person-trial with a known arm whose follow-up no other stop ends at
+time zero. Its columns are the identifier, the
+arm, each confounder at the recruiting week, and
+\code{deviation_time_zero}. That column is 1 when a deviation stops
+follow-up at time zero, so the person-trial keeps no row. The
+time-zero censoring model fits on this table. It is \code{NULL} for the
+intention-to-treat estimand.}
   }
   \if{html}{\out{</div>}}
 }
@@ -829,6 +841,22 @@ On a tie the other boundary labels the stop. An outcome in the week
 before the deviation counts, and the row is not censored. A gap or a
 record end at the same week is loss. A planned end at the same week is
 complete follow-up.
+
+The per-protocol censoring weight \code{ipcw_pp} is the product of three
+factors. By default each is fitted in each arm.
+\itemize{
+\item \code{ipcw_pp_loss} comes from a loss model fitted on the rows
+without an outcome. Loss is observed after the outcome of a row.
+\item \code{ipcw_pp_deviation} comes from a deviation model fitted on the
+rows without an outcome that were not lost. A person who is not
+observed cannot be seen to deviate.
+\item \code{ipcw_pp_time_zero} comes from a logistic model of a deviation
+at time zero on the confounders at the recruiting week. It is fitted
+on every person-trial in \verb{$time_zero_deviation}, including those
+that keep no row.
+}
+The columns \code{censor_loss} and \code{censor_deviation} mark the rows that each
+row-level cause censors.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s4_prepare_for_analysis(
@@ -853,7 +881,10 @@ baseline IPW only (no IPCW); analyse it with
 \verb{$irr(weight_col = "ipw_trunc")}.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
-      \item{\code{censoring_var}}{Character or NULL. Defaults to \code{"censor_this_period"}.}
+      \item{\code{censoring_var}}{\code{NULL} or \code{"censor_this_period"}. Any other value
+stops. The per-protocol weights fit one model per cause, and they read
+\code{censor_loss} and \code{censor_deviation}, which \code{s5_prepare_outcome()}
+writes.}
     }
     \if{html}{\out{</div>}}
   }

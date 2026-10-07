@@ -6,17 +6,23 @@
 #
 # Three properties follow, and this file holds one proof of each.
 #
-# 1. The censoring model is complementary log-log with a person-time offset, so
-#    one linear predictor gives `q(4) = q(1)^4`. Unequal follow-up interval
-#    widths are then comparable.
+# 1. Each row-level censoring model is complementary log-log with a person-time
+#    offset, so one linear predictor gives `q(4) = q(1)^4`. Unequal follow-up
+#    interval widths are then comparable.
 # 2. The cumulative product is LAGGED. It stops at follow-up interval `k - 1`,
-#    so the first row of every person-trial weighs exactly 1.
+#    so the first row of every person-trial weighs exactly its time-zero
+#    factor. No person-trial of this file's cohort deviates at time zero, so
+#    that factor is 1.
 # 3. The numerator is a second fitted model, and not the empirical mean of the
 #    denominator predictions.
 #
-# The fourth proof covers what happens when the model cannot be estimated. A
-# stratum with no uncensored row stops. swereg substitutes no marginal
+# The fourth proof covers what happens when a model cannot be estimated. A
+# risk set with no uncensored row stops. swereg substitutes no marginal
 # censoring rate.
+#
+# The weight is one model per cause: loss, deviation and deviation at time
+# zero. `test-ipcw-per-cause.R` pins the risk sets and the records. Every
+# censoring in this cohort is a deviation after time zero.
 #
 # `$s5_prepare_outcome()` and `$s6_ipcw_pp()` are private, so every test drives
 # the public `$s4_prepare_for_analysis()`.
@@ -140,46 +146,79 @@ skip_if_not_installed("data.table")
   data.table::rbindlist(trials)
 }
 
-# The censoring model, written out again from its own description: complementary
-# log-log, a person-time offset, a natural cubic spline of the interval START,
-# and the confounder in the denominator only. It is the ground truth the fitted
-# weights are compared against.
+# The censoring weight, written out again from its own description. In each
+# arm there are three models:
+#
+#   loss       complementary log-log with a person-time offset, on the rows
+#              without an outcome, indicator `censor_loss`
+#   deviation  the same, on the rows without an outcome that were not lost,
+#              indicator `censor_deviation`
+#   time zero  logistic, on every person-trial of the arm in the INPUT panel
+#              `d_in`, indicator "discordant on the first row"
+#
+# Each row-level denominator is a natural cubic spline of the interval START
+# plus the confounder, and each numerator is the spline alone. A cause with no
+# censoring in its risk set keeps an uncensoring probability of 1. The
+# time-zero factor is the arm's proportion over the fitted probability, both
+# as uncensoring probabilities. `q_numerator` and `q_denominator` are the
+# products of the two row-level causes, so their lagged cumulative ratio times
+# the time-zero factor is the weight. It is the ground truth the fitted weights
+# are compared against.
 #
 # The caller MUST check that the arm holds four or more distinct follow-up
 # interval starts, because that is what selects `splines::ns(tstart, df = 3)`.
-.ipcw_reference <- function(out, arm) {
+.ipcw_reference <- function(out, arm, d_in) {
   d <- data.table::copy(out[exposed == arm])
   data.table::setorderv(d, c("enrollment_person_trial_id", "tstart"))
-  fit <- function(rhs) {
-    suppressWarnings(stats::glm(
-      stats::as.formula(paste0(
-        "censor_this_period ~ ",
-        rhs,
-        " + offset(log(person_weeks))"
-      )),
-      data = d,
+  time_term <- "splines::ns(tstart, df = 3)"
+  fit_q <- function(rows, y, rhs) {
+    q <- rep(1, nrow(d))
+    if (sum(d[[y]][rows]) == 0L) {
+      return(q)
+    }
+    m <- suppressWarnings(stats::glm(
+      stats::as.formula(paste0(y, " ~ ", rhs, " + offset(log(person_weeks))")),
+      data = d[rows],
       family = stats::binomial(link = "cloglog")
     ))
+    q[rows] <- 1 -
+      as.numeric(suppressWarnings(stats::predict(
+        m,
+        newdata = d[rows],
+        type = "response"
+      )))
+    return(q)
   }
-  time_term <- "splines::ns(tstart, df = 3)"
+  loss_rows <- d$event == 0L & d$person_weeks > 0L
+  dev_rows <- loss_rows & d$censor_loss == 0L
   d[,
-    q_denominator := 1 -
-      as.numeric(suppressWarnings(stats::predict(
-        fit(paste(time_term, "+ age")),
-        newdata = d,
-        type = "response"
-      )))
+    q_denominator := fit_q(loss_rows, "censor_loss", paste(time_term, "+ age")) *
+      fit_q(dev_rows, "censor_deviation", paste(time_term, "+ age"))
   ]
   d[,
-    q_numerator := 1 -
-      as.numeric(suppressWarnings(stats::predict(
-        fit(time_term),
-        newdata = d,
-        type = "response"
-      )))
+    q_numerator := fit_q(loss_rows, "censor_loss", time_term) *
+      fit_q(dev_rows, "censor_deviation", time_term)
   ]
+
+  # Time zero, read off the input panel, which still holds the person-trials
+  # that deviate there.
+  first <- data.table::copy(d_in[exposed == arm])
+  data.table::setorderv(first, c("enrollment_person_trial_id", "tstart"))
+  first <- first[, .SD[1L], by = "enrollment_person_trial_id"]
+  first[, dev0 := as.integer(on_tx != exposed)]
+  first[, time_zero := 1]
+  if (sum(first$dev0) > 0L && sum(first$dev0) < nrow(first)) {
+    m <- stats::glm(dev0 ~ age, data = first, family = stats::binomial())
+    first[,
+      time_zero := (1 - mean(dev0)) /
+        (1 - as.numeric(stats::predict(m, newdata = first, type = "response")))
+    ]
+  }
+  d[first, reference_time_zero := i.time_zero, on = "enrollment_person_trial_id"]
+
   d[,
-    reference_ipcw := cumprod(data.table::shift(q_numerator, 1L, fill = 1)) /
+    reference_ipcw := reference_time_zero *
+      cumprod(data.table::shift(q_numerator, 1L, fill = 1)) /
       cumprod(data.table::shift(q_denominator, 1L, fill = 1)),
     by = "enrollment_person_trial_id"
   ]
@@ -241,7 +280,7 @@ test_that("the weight is through the start of the row, and the first row's weigh
 
   # Every later row carries the rows before it, and nothing else. The
   # reference builds the same lagged product from its own fits.
-  ref <- .ipcw_reference(out, arm = TRUE)
+  ref <- .ipcw_reference(out, arm = TRUE, d_in = .ipcw_cohort())
   expect_identical(data.table::uniqueN(ref$tstart), 6L)
   expect_equal(ref$ipcw_pp, ref$reference_ipcw, tolerance = 1e-8)
 
@@ -280,7 +319,7 @@ test_that("the numerator is a fitted model, not an empirical mean", {
 
   # A fitted numerator reads the follow-up interval start and the offset, so it
   # takes a different value from the denominator on the same row.
-  ref <- .ipcw_reference(out, arm = TRUE)
+  ref <- .ipcw_reference(out, arm = TRUE, d_in = .ipcw_cohort())
   expect_identical(data.table::uniqueN(ref$tstart), 6L)
   ref_probe <- ref[enrollment_person_trial_id == "PROBE1W"]
   expect_equal(probe$ipcw_pp, ref_probe$reference_ipcw, tolerance = 1e-8)
