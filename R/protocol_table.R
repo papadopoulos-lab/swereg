@@ -558,7 +558,9 @@
         ),
         paste0(
           "Censoring weights (per-protocol): inverse probability of ",
-          "censoring weights for protocol deviation and loss to follow-up"
+          "censoring weights from three models in each arm, one each for ",
+          "loss to follow-up, protocol deviation and protocol deviation at ",
+          "time zero"
         ),
         paste0(
           "Truncation: the intention-to-treat weight, and the per-protocol ",

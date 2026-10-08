@@ -16,6 +16,12 @@ knitr::opts_chunk$set(
 library(data.table)
 library(ggplot2)
 ev <- readRDS("tte-validation-evidence.rds")
+# Each validation claim of this vignette is a named predicate on `ev` in
+# validation-claims.R. A hidden chunk next to each claim stops the build
+# when its predicate is FALSE. tests/testthat/test-vignette-claims.R checks
+# the same predicates.
+source("validation-claims.R", local = TRUE)
+claim <- function(name) validation_claims[[name]](ev)
 ci3 <- function(est, lo, hi) sprintf("%.3f [%.3f, %.3f]", est, lo, hi)
 ci2 <- function(est, lo, hi) sprintf("%.2f [%.2f, %.2f]", est, lo, hi)
 sg3 <- function(x) sprintf("%+.3f", x)
@@ -406,6 +412,11 @@ The variables behind assumptions 2 and 5 are the confounders that the protocol
 lists. Assumption 2 reads them at the recruiting week. Assumption 5 reads
 their most recent value in each follow-up interval (1.8.7).
 
+```{r, include = FALSE}
+stopifnot(claim("stress_tv"))
+stopifnot(claim("feedback_boundary"))
+```
+
 Under strong feedback between treatment and confounders, the censoring
 weights keep residual bias. Time-updated censoring covariates remove
 part of the deviation selection bias, relative to covariates frozen at
@@ -604,19 +615,28 @@ components, so extreme components can offset each other. Primary analyses use
 truncated weights. The untruncated per-protocol result is reported beside them
 as a sensitivity analysis (1.9).
 
+```{r, include = FALSE}
+stopifnot(claim("stress_trunc_monotone"))
+stopifnot(claim("grid_dose_truncated"))
+stopifnot(claim("pp_spread"))
+stopifnot(claim("pp_rmse"))
+```
+
 Truncation trades bias for variance. Clipping the weight tails reduces the
 variance of the estimator. It also under-corrects the confounding or selection
 that the clipped weights carried, and that moves the estimate. Under
 near-violations of treatment positivity, it moves the estimate toward the
-null. The shift grows with how strongly measured covariates drive censoring.
+null. In the simulations of Section 3.8, the bias of the truncated
+per-protocol fit grew with how strongly a measured covariate drove the loss.
 
 The truncated weight is the primary analysis on simulation evidence, which
 section 3 reports. The scenarios included heavy loss to follow-up strongly
-driven by covariates. In most per-protocol scenarios, the truncated fit had
-the smaller sampling spread and the lower root-mean-squared error. Its
-advantage was largest where the untruncated censoring weights were unstable.
-In the other scenarios, the untruncated fit had the lower root-mean-squared
-error because it was less biased. Section 3.8 gives the counts.
+driven by covariates. In no per-protocol scenario did the truncated fit have
+the larger sampling spread, and in most it had the lower root-mean-squared
+error. Its advantage was largest where the untruncated censoring weights were
+unstable. In the remaining scenarios, the untruncated fit had the lower
+root-mean-squared error because it was less biased. Section 3.8 gives the
+counts.
 
 ### 1.8.4 Outcome model
 
@@ -1271,29 +1291,37 @@ Provenance: generated `r ev$meta$generated_utc` with swereg
 
 ## 3.1 Design of the validation battery
 
+```{r, include = FALSE}
+stopifnot(claim("tri_s3_itt_design"))
+```
+
 The battery is organised around one principle: an estimator is validated by
 recovering a truth that is *known by construction*, not by agreeing with
 another implementation. Agreement between two packages is used as
 corroborating evidence only: two correct implementations of the same
 estimand must agree, but two implementations can also agree while both miss
-the truth, and the battery deliberately includes a scenario (informative
-loss under the ITT estimand) that demonstrates exactly this.
+the truth. The battery includes a scenario that shows this: informative loss
+under the ITT estimand, where both packages share one design bias (3.3).
 
-Truth is therefore computed by direct counterfactual simulation. For each
-scenario and estimand, 200,000 persons per arm are simulated under the forced
-strategy (for the per-protocol truth, treatment is held at the assigned
-value in every period; for the ITT truth, only the baseline value is forced
-and subsequent treatment follows the scenario's natural switching process),
-and the truth is the log ratio of first-event incidence rates, with events
-counted until each person's first event and person-time accumulated only
-while at risk. Loss to follow-up is never applied to the truth simulation:
-loss is a nuisance the estimator must be robust to, not part of the estimand.
-This first-event, person-time-at-risk construction matches the estimand
-targeted by the weighted quasi-Poisson model (1.8.4) exactly; a
-recurrent-event or fixed-denominator construction would target a different
-quantity.
+The battery uses three kinds of truth:
 
-Four layers separate concerns, so that a failure localises to a pipeline
+- **Exact truths** for scenarios s1 to s4 (3.3, 3.6 and 3.9). Section 3.9
+  defines them. The log-IRR truth is the limit of swereg's weighted outcome
+  model, with each arm and period weighted by its probability of remaining
+  uncensored.
+- **A Monte Carlo truth** for the stress and grid cells (3.4 and 3.8). It
+  simulates 200,000 persons per arm under the forced strategy, without loss,
+  and takes the log ratio of first-event incidence rates. The per-protocol
+  truth holds treatment at the assigned value in every period. The ITT truth
+  forces the baseline value only.
+- **A planted truth** for the plan-layer cells (3.5), which Section 3.5
+  states.
+
+The Monte Carlo truth ignores censoring. Where the hazard ratio changes over
+follow-up and loss removes later periods, it differs from the exact truth.
+A bias against it then includes that difference, which Section 3.9 measures.
+
+Five layers separate concerns, so that a failure localises to a pipeline
 segment:
 
 ```{r}
@@ -1302,35 +1330,42 @@ layers <- data.table(
     "Cross-package matrix (3.3)",
     "Stress matrix (3.4)",
     "Plan-layer truth matrix (3.5)",
-    "Coverage calibration (3.6)"
+    "Coverage calibration (3.6)",
+    "Exact-truth cells (3.9)"
   ),
   segment = c(
     "Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels",
     "The same estimators at design extremes",
     "The complete production pipeline: specification, enrollment periods, sequential eligibility, the comparator draw, worker subprocesses, dual analysis files",
-    "The sandwich variance estimator"
+    "The sandwich variance estimator",
+    "The enrollment-layer estimators, on the risk-difference scale as well as the log-IRR scale"
   ),
   question = c(
     "Do swereg and TrialEmulation each recover known truth where the estimand's assumptions hold, and fail identically where they do not?",
     "Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback?",
     "Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation?",
-    "Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?"
+    "Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?",
+    "Is the risk difference at each horizon unbiased against an exact truth, and does its bootstrap interval cover it?"
   )
 )
 knitr::kable(
   layers,
   col.names = c("Layer", "Pipeline segment exercised", "Question answered"),
   align = "lll",
-  caption = "Table 1. The four layers of the validation battery."
+  caption = "Table 1. The five layers of the validation battery."
 )
+noise <- ev$triangle_reps[, .(s = sd(sw_est)), by = .(scenario, estimand)][
+  , sprintf("%.2f to %.2f", min(s), max(s))
+]
 ```
 
-Interpreting single-dataset cells requires one calibration: at the sample
-sizes used here, one simulated dataset carries Monte Carlo noise of roughly
-0.03–0.05 on the log-IRR scale, so a single-run gap of that order is
-indistinguishable from zero. All cells run at fixed seeds and are therefore
-exactly reproducible; the multi-replicate cells (Tables 5, 8, and 13–17)
-quantify bias and coverage across repeated draws, free of this caveat.
+Interpreting single-dataset cells requires one calibration. At the sample
+sizes used here, one simulated dataset carries Monte Carlo noise (standard
+deviation) of `r noise` on the log-IRR scale. A single-run gap of that order
+is therefore indistinguishable from zero. All cells run at fixed seeds and
+are exactly reproducible. The multi-replicate cells (Tables 5, 8, 13–17, 18
+and 19) quantify bias and coverage across repeated draws, free of this
+caveat.
 
 ## 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -1418,11 +1453,13 @@ potential-outcome truth, swereg, and `TrialEmulation`) for both estimands.
 Estimates are compared on a common rate-ratio scale: `TrialEmulation` reports
 odds ratios from pooled logistic regression, which are converted with the
 Zhang–Yu relation using the reference arm's per-period event risk from the
-truth simulation (Zhang and Yu 1998; Section 3.7). `TrialEmulation` is a
-peer required to recover the truth itself, not an oracle.
+Monte Carlo truth simulation (Zhang and Yu 1998; Section 3.7). The truth is
+the exact log-IRR of Section 3.9. `TrialEmulation` is a peer required to
+recover the truth itself, not an oracle.
 
 ```{r}
 tri <- copy(ev$triangle)
+tri[, truth := truth_exact]
 tri[, nuisance := fcase(
   scenario == "s1", "none",
   scenario == "s2", "confounding + independent loss",
@@ -1448,28 +1485,31 @@ knitr::kable(
   align = "lllrrrrrr",
   caption = paste0(
     "Table 4. Cross-package validation matrix (N = 20,000, T = 20 periods, ",
-    "fixed seed). swereg estimates use the primary truncated weights. ",
-    "Log-IRR scale."
+    "fixed seed), against the exact log-IRR truth. swereg estimates use the ",
+    "primary truncated weights. Log-IRR scale."
   )
 )
 x31 <- list(
-  max_ok = tri[scenario != "s3" | estimand != "itt", max(abs(sw_est - truth))],
   itt_sw = tri[scenario == "s3" & estimand == "itt", sg3(sw_est - truth)],
   itt_te = tri[scenario == "s3" & estimand == "itt", sg3(te_est - truth)],
   itt_gap = tri[scenario == "s3" & estimand == "itt", sprintf("%.3f", abs(sw_est - te_est))]
 )
 ```
 
-In Table 4, every interval in a cell whose assumptions hold covers the
-truth. That includes the s3 per-protocol cell, whose censoring weights (1.8.2)
-model the informative loss. In the
-s3 ITT cell both packages miss on the same side (swereg `r x31$itt_sw`,
-TrialEmulation `r x31$itt_te`) while agreeing with each other to within
-`r x31$itt_gap`. A single dataset nonetheless provides limited evidence: at
-N = 20,000 one estimate carries Monte Carlo noise of roughly 0.03–0.05 on
-the log-IRR scale, so point estimates deviate visibly from the truth even
-under a perfectly unbiased estimator, and the size of any one gap is
-determined by sampling variation alone. A stronger assessment is obtained
+```{r, include = FALSE}
+stopifnot(claim("tri_single_covers"))
+stopifnot(claim("tri_single_s3_itt_below"))
+```
+
+In Table 4, every interval of both packages covers the exact truth. That
+includes the s3 per-protocol cell, whose censoring weights (1.8.2) model the
+informative loss. In the s3 ITT cell both estimates are below the truth
+(swereg `r x31$itt_sw`, TrialEmulation `r x31$itt_te`), and they differ from
+each other by `r x31$itt_gap`. A single dataset nonetheless provides limited evidence. At
+N = 20,000 one estimate carries Monte Carlo noise of `r noise` on
+the log-IRR scale. Point estimates therefore deviate visibly from the truth
+even under an unbiased estimator, and sampling variation alone sets the size
+of any one gap. A stronger assessment is obtained
 by replication: the full
 triangle is repeated on 20 independent datasets per scenario, which reduces
 the Monte Carlo standard error of the estimated bias by a factor of
@@ -1477,6 +1517,7 @@ $\sqrt{20}$.
 
 ```{r}
 tr_reps <- copy(ev$triangle_reps)
+tr_reps[, truth := truth_exact]
 tr5 <- tr_reps[, .(
   truth = first(truth),
   R = .N,
@@ -1505,32 +1546,35 @@ knitr::kable(
   ),
   align = "llrrrrrr",
   caption = paste0(
-    "Table 5. Replicated cross-package matrix: mean bias over 20 independent ",
+    "Table 5. Replicated cross-package matrix: mean bias against the exact ",
+    "log-IRR truth over 20 independent ",
     "datasets per scenario (N = 20,000 each), with the Monte Carlo standard ",
     "error of the mean. swereg is shown with its primary (1st/99th ",
     "percentile) weight truncation and with untruncated weights. ",
     "Log-IRR scale."
   )
 )
-pp_b <- function(s, col) tr5[scenario == s & estimand == "pp", sg3(get(col))]
 x33r <- list(
-  s1itt = tr5[scenario == "s1" & estimand == "itt", sprintf("%+.3f (MC SE %.3f)", sw_bias, sw_se)],
-  s1itt_te = tr5[scenario == "s1" & estimand == "itt", sg3(te_bias)],
-  pp_sw = sapply(c("s1", "s2", "s3"), pp_b, col = "sw_bias"),
-  pp_te = sapply(c("s1", "s2", "s3"), pp_b, col = "te_bias"),
-  s1pp_se = tr5[scenario == "s1" & estimand == "pp", sprintf("%.3f", sw_se)],
-  s1pp_u = pp_b("s1", "swu_bias"),
-  s1pp_z = tr5[scenario == "s1" & estimand == "pp", sprintf("%.1f", abs(sw_bias) / sw_se)],
+  s12_maxz = tr5[scenario %in% c("s1", "s2"), sprintf(
+    "%.1f", max(abs(c(sw_bias / sw_se, swu_bias / swu_se, te_bias / te_se)))
+  )],
+  max_se = tr5[, sprintf("%.3f", max(c(sw_se, swu_se, te_se)))],
+  s3pp = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f (MC SE %.3f)", sw_bias, sw_se)],
+  s3pp_u = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f (MC SE %.3f)", swu_bias, swu_se)],
+  s3pp_te = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f (MC SE %.3f)", te_bias, te_se)],
   s3pp_clip = tr5[scenario == "s3" & estimand == "pp", sprintf("%.3f", sw_bias - swu_bias)],
-  max_se = tr5[, sprintf("%.3f", max(sw_se))],
-  s3_bias = tr5[scenario == "s3" & estimand == "itt", sprintf("%+.3f", sw_bias)],
-  s3_z = tr5[scenario == "s3" & estimand == "itt", sprintf("%.0f", abs(sw_bias) / sw_se)],
-  s3pp = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f", sw_bias)],
-  s3pp_u = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f (MC SE %.3f)", swu_bias, swu_se)]
+  s3_bias = tr5[scenario == "s3" & estimand == "itt", sg3(sw_bias)],
+  s3_bias_u = tr5[scenario == "s3" & estimand == "itt", sg3(swu_bias)],
+  s3_te = tr5[scenario == "s3" & estimand == "itt", sg3(te_bias)],
+  lim3 = sprintf("%+.3f", .vc_itt_design_limit[["s3"]])
 )
 ```
 
-```{r, fig.width = 7, fig.height = 5, fig.cap = paste0("Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each) in the scenarios whose assumptions every fit satisfies: s1 (no confounding, no loss) and s2 (confounding, outcome-independent loss). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. In the intention-to-treat cells, all three fits are centred on zero in s1. The small displacement in s2 is shared by every fit (largest for TrialEmulation) and is the person-time-weighting residual discussed in the text. In the per-protocol cells, both swereg fits sit above zero (truncated-weight mean bias ", x33r$pp_sw[["s1"]], " in s1, ", x33r$pp_sw[["s2"]], " in s2), and TrialEmulation does not. The text names the cause. Figure 2 shows the informative-loss scenarios.")}
+```{r, include = FALSE}
+stopifnot(claim("tri_s1_s2_unbiased"))
+```
+
+```{r, fig.width = 7, fig.height = 5, fig.cap = paste0("Figure 1. Bias of the estimated log-IRR against the exact truth over 20 independent datasets per scenario (N = 20,000 each) in the scenarios whose assumptions every fit satisfies: s1 (no confounding, no loss) and s2 (confounding, outcome-independent loss). Faint points are individual datasets. Solid points are the mean bias with its 95% Monte Carlo interval, and the vertical line marks zero bias. Every fit is within 3.5 Monte Carlo standard errors of zero, for both estimands and in both scenarios (largest |z| ", x33r$s12_maxz, "). Figure 2 shows the informative-loss scenarios.")}
 pd <- rbind(
   tr_reps[, .(scenario, estimand, rep, fit = "swereg, truncated weights", bias = sw_est - truth)],
   tr_reps[, .(scenario, estimand, rep, fit = "swereg, untruncated weights", bias = sw_est_untrunc - truth)],
@@ -1569,7 +1613,12 @@ patchwork::wrap_plots(
 )
 ```
 
-```{r, fig.width = 7.5, fig.height = 8, fig.cap = "Figure 2. Bias under informative loss to follow-up, the scenarios in which the estimators differ materially: s3 and its one-parameter variants (designs in Table 16, Section 3.8; 20 datasets for s3, 10 per variant). Top panel: for the intention-to-treat estimand the informative loss violates the estimand's own assumptions, and every fit is displaced; no estimation method corrects an invalid estimand. Bottom panel: for the per-protocol estimand the fits differ by how they correct the selection. TrialEmulation conditions on the baseline covariate that drives the loss, which is exact in the measured-driver designs. swereg corrects the selection by censoring weights, and both swereg fits also carry the per-protocol displacement that Figure 1 shows in s1. No fit has the smallest bias in every cell (Section 3.8)."}
+```{r, include = FALSE}
+stopifnot(claim("tri_s3_itt_design"))
+stopifnot(claim("grid_no_dominance"))
+```
+
+```{r, fig.width = 7.5, fig.height = 8, fig.cap = "Figure 2. Bias under informative loss to follow-up, the scenarios in which the estimators differ materially: s3 and its one-parameter variants (designs in Table 16, Section 3.8). s3 has 20 datasets, against the exact truth. Each variant has 10, against the Monte Carlo truth. Top panel: for the intention-to-treat estimand the informative loss violates the estimand's own assumptions, and every fit is below the truth; no estimation method corrects an invalid estimand. Bottom panel: for the per-protocol estimand the fits differ by how they correct the selection. TrialEmulation conditions on the baseline covariate that drives the loss, which is exact in the measured-driver designs. swereg corrects the selection by censoring weights. No fit has the smallest bias in every cell (Section 3.8)."}
 il_lab <- function(x) {
   fcase(
     x == "s3", "s3: informative loss (0.9·L0)",
@@ -1581,7 +1630,8 @@ il_lab <- function(x) {
     x == "unmeasured_adherence", "unmeasured adherence (healthy-adherer)"
   )
 }
-tr3 <- ev$triangle_reps[scenario == "s3"]
+tr3 <- copy(ev$triangle_reps[scenario == "s3"])
+tr3[, truth := truth_exact]
 pd <- rbind(
   tr3[, .(cell = "s3", estimand, rep, fit = "swereg, truncated weights", bias = sw_est - truth)],
   tr3[, .(cell = "s3", estimand, rep, fit = "swereg, untruncated weights", bias = sw_est_untrunc - truth)],
@@ -1630,65 +1680,52 @@ Averaging over 20 datasets reduces the Monte Carlo standard error of the
 estimated bias to at most `r x33r$max_se`. That resolves systematic effects
 that no single dataset can. Table 5 and Figures 1 and 2 show three results.
 
-For the intention-to-treat estimand in the clean scenario (s1), both packages
-are unbiased within Monte Carlo error. The mean bias is
-`r x33r$s1itt` for swereg's truncated-weight fit and `r x33r$s1itt_te` for
-`TrialEmulation`.
+In s1 and s2, every fit is within 3.5 Monte Carlo standard errors of the exact
+truth, for both estimands (Figure 1). This holds for swereg with truncated and
+with untruncated weights, and for `TrialEmulation`.
 
-For the per-protocol estimand, swereg's estimate is displaced toward the null
-in every scenario. Its truncated-weight mean bias is `r x33r$pp_sw[["s1"]]`
-in s1, `r x33r$pp_sw[["s2"]]` in s2 and `r x33r$pp_sw[["s3"]]` in s3. The s1
-value is `r x33r$s1pp_z` Monte Carlo standard errors
-(`r x33r$s1pp_se`) from zero. Scenario s1 has no confounding and no loss, and the
-untruncated fit gives the same value (`r x33r$s1pp_u`), so neither the weights
-nor truncation cause it. The `TrialEmulation` per-protocol mean bias is
-`r x33r$pp_te[["s1"]]`, `r x33r$pp_te[["s2"]]` and `r x33r$pp_te[["s3"]]` in
-the same three scenarios.
+```{r, include = FALSE}
+stopifnot(claim("tri_s3_pp"))
+```
 
-The cause of the per-protocol displacement is identified. Since swereg
-26.9.0, the per-protocol analysis keeps the follow-up interval that holds the
-deviation, with its person-time and any event (1.4). The test simulation
-(Section 3.2) draws treatment and outcome in the same period, so an outcome in
-the deviation period arises under the switched treatment. The truth
-simulation holds treatment at the assigned value in every period, and neither
-a kept nor a dropped deviation interval matches that. Whether the estimator or
-the simulation should change is an open question. Until it is settled, every
-per-protocol bias in this section includes this displacement.
+In the s3 per-protocol cell, the untruncated swereg fit, `r x33r$s3pp_u`,
+and `TrialEmulation`, `r x33r$s3pp_te`, are within 3.5 Monte Carlo standard
+errors of the truth. The truncated swereg fit is not: its mean bias is
+`r x33r$s3pp`. The difference, `r x33r$s3pp_clip`, is the bias–variance
+tradeoff described in 1.8.3. Informative dropout means that the high-risk
+individuals still under observation late in follow-up carry large censoring
+weights, to represent those who left. The 1st/99th-percentile truncation caps
+exactly those weights, and the under-corrected selection shows as bias toward
+the null. For this reason the untruncated per-protocol results are exported as
+a sensitivity analysis. A material divergence between the truncated and
+untruncated estimates shows that truncation attenuates the correction.
+Section 3.9 shows the same shift on the risk-difference scale in s2 and s4.
 
-Truncation adds to the displacement where the loss is informative. In the s3
-per-protocol cell, refitting the same replicates with untruncated weights
-moves the mean bias from `r x33r$s3pp` to `r x33r$s3pp_u`.
-The difference, `r x33r$s3pp_clip`, is the bias–variance tradeoff described in
-1.8.3. Informative
-dropout means the high-risk individuals still under observation late in
-follow-up must carry large censoring weights to represent those who left;
-the 1st/99th-percentile truncation caps precisely those weights, and the
-under-corrected selection surfaces as bias toward the null. This is also
-why the untruncated per-protocol results are exported as a sensitivity
-analysis: a material divergence between the truncated and untruncated
-estimates indicates that truncation is attenuating the correction. The
-remaining small
-residuals (for example in the s2 ITT cell) are consistent with loss
-truncating follow-up toward its early follow-up intervals, so that the
-person-time-weighted working-model summary (1.6) no longer weights
-follow-up exactly as the no-loss truth functional does.
+```{r, include = FALSE}
+stopifnot(claim("tri_s3_itt_design"))
+```
 
-The s3 ITT cell is of a different kind: truncated-weight mean bias
-`r x33r$s3_bias`, roughly
-`r x33r$s3_z` Monte Carlo standard errors from zero and present in both
-packages. The displacement is one that replication sharpens rather than removes,
-because the ITT estimand carries no loss weight and informative loss
-therefore biases it in any correct implementation. Cross-package agreement
-is not evidence of correctness, which is why every layer of this battery is
-anchored to simulated truth.
+The s3 ITT cell is of a different kind. Every fit is below the truth: swereg
+`r x33r$s3_bias` with truncated and `r x33r$s3_bias_u` with untruncated
+weights, and `TrialEmulation` `r x33r$s3_te`. The ITT analysis carries no
+loss weight and assumes loss independent of the outcome (assumption 4 of
+1.7). Informative loss therefore biases it in any correct implementation. The
+exact limit of an ITT fit without loss weights is `r x33r$lim3` from the
+truth. Each of the three means is within 3.5 Monte Carlo standard errors of
+that limit.
+Cross-package agreement is therefore not evidence of correctness, which is why
+every layer of this battery is anchored to a known truth.
 
 ## 3.4 Stress matrix
 
 The stress cells reuse the Section 3.2 data-generating process with one or
 two parameters pushed to an extreme, so that each cell probes a specific
-failure mode. Table 5 specifies the designs; the cells then follow in order.
+failure mode. Table 6 specifies the designs; the cells then follow in order.
 
 ```{r}
+st_note <- function(cl) ev$stress[cell == cl & estimand == "pp", note]
+rare_pct <- sub("^event risk ([0-9.]+%).*$", "\\1", st_note("rare_outcome"))
+attr_pct <- sub("^([0-9]+%).*$", "\\1", st_note("informative_attrition"))
 sd_tab <- data.table(
   cell = c(
     "Rare outcome", "Null effect", "Informative attrition",
@@ -1696,9 +1733,9 @@ sd_tab <- data.table(
     "Treatment-confounder feedback", "Determinism"
   ),
   design = c(
-    "Outcome intercept −6.0 (≈0.2% risk/period), N = 40,000, θ = −0.7",
+    paste0("Outcome intercept −6.0 (", rare_pct, " risk/period), N = 40,000, θ = −0.7"),
     "θ = 0, independent loss, N = 20,000",
-    "Dropout hazard expit(−1.3 + 0.9 L0): ≈73% of person-periods lost, selecting on the confounder; N = 30,000",
+    paste0("Dropout hazard expit(−1.3 + 0.9 L0): ", attr_pct, " of person-periods lost, selecting on the confounder; N = 30,000"),
     "θ = +0.7, three independent seeds at N = 20,000, TrialEmulation cross-check",
     "φA = 1.5: propensity scores span 0–1; ITT fit at three truncation levels",
     "AR(1) confounder Lt = 0.7 Lt−1 − 0.4 At−1 + εt driving both switching (0.8 Lt) and outcome (0.5 Lt); N = 25,000",
@@ -1710,7 +1747,7 @@ sd_tab <- data.table(
     "IPCW under heavy selection; the ITT arm of this cell is expected to fail",
     "The person-time-weighted-average interpretation of the pooled IRR (1.6)",
     "The truncation bias-variance tradeoff (1.8.3)",
-    "The residual-bias limit of single-model IPCW under feedback (1.7)",
+    "The residual bias of the censoring weights under feedback (1.7)",
     "Uncontrolled stochastic steps anywhere in the fit"
   )
 )
@@ -1744,19 +1781,23 @@ x32a <- list(
 )
 ```
 
-Three observations from Table 7. At an event risk of roughly 0.2% per
+```{r, include = FALSE}
+stopifnot(claim("stress_rare_covers"))
+stopifnot(claim("stress_null_covers"))
+stopifnot(claim("stress_attrition"))
+stopifnot(claim("stress_determinism"))
+```
+
+Three observations from Table 7. At an event risk of `r rare_pct` per
 period, the per-protocol fit completes, including its spline-based censoring
-model. Its interval covers the truth (bias `r x32a$rare_pp`). That
-single-dataset bias includes the per-protocol displacement of Section 3.3.
-Under a true null the
-estimate is small and its interval covers zero: the weighting and pooling
-machinery does not manufacture an effect. And in the attrition cell, where
-almost three quarters of person-periods are removed by confounder-driven
-dropout, the per-protocol estimator stays at the truth
-(bias `r x32a$attr_pp`) while the ITT estimator, which by construction
-carries no loss weight, is displaced (bias `r x32a$attr_itt`) and its
-interval excludes the truth: the designed failure that motivates the
-estimand distinction in practice.
+models. Its interval covers the truth (bias `r x32a$rare_pp`). Under a true
+null, the interval covers zero: the weighting and pooling machinery does not
+make an effect from noise. In the attrition cell, confounder-driven dropout
+removes `r attr_pct` of the person-periods. There, the per-protocol
+interval covers the truth (bias `r x32a$attr_pp`). The ITT estimator carries
+no loss weight by construction. It is displaced (bias `r x32a$attr_itt`), and
+its interval excludes the truth. This is the designed failure that motivates
+the estimand distinction in practice.
 
 Determinism: refitting the per-protocol estimator on identical data
 reproduced the estimate to a maximum absolute difference of
@@ -1787,6 +1828,10 @@ x32 <- list(
 )
 ```
 
+```{r, include = FALSE}
+stopifnot(claim("stress_harmful"))
+```
+
 Under a harmful effect with strong depletion of susceptibles, the marginal
 hazard ratio declines over follow-up, so the single pooled IRR, a
 person-time-weighted average (1.6), legitimately lies above the
@@ -1811,16 +1856,19 @@ knitr::kable(
   align = "lrrrr",
   caption = paste0(
     "Table 9. Near-positivity violation: attenuation toward the null grows ",
-    "monotonically with truncation severity. ITT, log-IRR scale."
+    "with each tightening of the truncation percentiles. ITT, log-IRR scale."
   )
 )
 ```
 
-Table 9 quantifies the tradeoff stated in 1.8.3 on a design whose propensity
-scores approach the boundary (maximum raw stabilised weight
-`r tc[1, sprintf("%.0f", wmax_raw)]`): each tightening of the truncation
-percentiles reduces variance at the cost of measurable bias toward the
-null.
+```{r, include = FALSE}
+stopifnot(claim("stress_trunc_monotone"))
+```
+
+Table 9 shows the cost side of the tradeoff stated in 1.8.3. Its design has
+propensity scores near the boundary (maximum raw stabilised weight
+`r tc[1, sprintf("%.0f", wmax_raw)]`). Each tightening of the truncation
+percentiles moves the estimate further toward the null.
 When extreme weights are structural rather than sporadic, the appropriate
 response is to restrict the eligible population, not to truncate harder.
 
@@ -1848,14 +1896,19 @@ x32tv <- list(
 )
 ```
 
-The feedback cell delineates the limit of the per-protocol estimator's validity. When a
-time-varying confounder is itself affected by treatment and drives both
-adherence and the outcome, IPCW with time-updated covariates is strictly
-less biased than IPCW with covariates frozen at baseline (|bias|
-`r x32tv$up` versus `r x32tv$fr`), but a residual bias remains, part of
-which is the working-model average under a time-ramping effect rather than
-selection per se. The ITT estimand, which needs no censoring model against
-this feedback, is near-unbiased in the same data (bias `r x32tv$itt`).
+```{r, include = FALSE}
+stopifnot(claim("stress_tv"))
+```
+
+The feedback cell marks the limit of the per-protocol estimator's validity.
+Here a time-varying confounder is affected by treatment and drives both
+adherence and the outcome. IPCW with time-updated covariates is less biased
+than IPCW with covariates frozen at baseline (|bias| `r x32tv$up` against
+`r x32tv$fr`). A bias remains, and the interval of the time-updated fit
+excludes the truth. Part of that bias is the working-model average under a
+time-ramping effect, and not selection. The ITT estimand needs no censoring
+model against this feedback, and its interval covers the truth in the same
+data (bias `r x32tv$itt`).
 Where treatment–confounder feedback is central to the question, g-methods
 beyond this pipeline are indicated, exactly as stated in 1.7.
 
@@ -1881,7 +1934,7 @@ users is exactly 2.0. Scenario B adds a binary frailty carried by 30% of
 persons that doubles both the initiation probability and the outcome
 hazard, a genuine baseline confounder; mixture-averaging over the two
 risk groups with first-event depletion attenuates the marginal truth to
-1.982. Loss, when present, is geometric (2% weekly, or 1%/3% by risk group
+`r ev$plan[cell == "B_none", sprintf("%.3f", truth_pp)]`. Loss, when present, is geometric (2% weekly, or 1%/3% by risk group
 for informative loss) and multiplies person-time equally in both arms, so
 the truth is unchanged and loss is purely a nuisance the machinery must
 tolerate. The ITT truth in the discontinuation cell
@@ -1944,21 +1997,26 @@ x33 <- list(
 )
 ```
 
+```{r, include = FALSE}
+stopifnot(claim("plan_ipw_removes_confounding"))
+stopifnot(claim("plan_disc"))
+```
+
 Two rows warrant comment. In the confounded no-loss cell (B_none) the
-frailty is doing real confounding work: the crude rate ratio in the enrolled
-ITT panel is `r x33$crude`, the IPW-weighted rate ratio `r x33$ipw`, against
-a marginal truth of `r x33$truth_b`: the weighting removes essentially all
-of the planted confounding. In the discontinuation cell the two estimands
-separate as designed, with PP − ITT = `r x33$disc_gap` on the log scale
-against a true separation of `r x33$disc_truth_gap`. The per-protocol arm
-censors at deviation and reweights toward the sustained-treatment truth of
-2.0, with estimate `r x33$disc_pp`. The ITT arm retains post-discontinuation
-person-time and targets the do(initiate) truth of `r x33$disc_itt_truth`. In
-this single run its interval, `r x33$disc_itt`, `r x33$disc_itt_cov` that
-truth. This cell also exercises the
-event-priority convention (1.4), since events and deviations collide in the
-same follow-up interval whenever discontinuers have events in their final
-treated follow-up interval.
+frailty does real confounding work. The crude rate ratio in the enrolled ITT
+panel is `r x33$crude`, and the IPW-weighted rate ratio is `r x33$ipw`,
+against a marginal truth of `r x33$truth_b`. On the log scale, the weighting
+removes more than 90% of the planted confounding. In the discontinuation
+cell the two estimands separate in the direction of the truths. On the log
+scale, PP − ITT = `r x33$disc_gap`, against a true separation of
+`r x33$disc_truth_gap`. The per-protocol analysis censors at deviation and
+reweights toward the sustained-treatment truth of 2.0. Its estimate,
+`r x33$disc_pp`, has an interval that covers that truth. The ITT analysis
+keeps the person-time after discontinuation and targets the do(initiate)
+truth of `r x33$disc_itt_truth`. In this single run its interval,
+`r x33$disc_itt`, `r x33$disc_itt_cov` that truth. This cell also exercises
+the deviation rule of 1.4. Under the per-protocol estimand, an event at or
+after the first discordant week does not count.
 
 Because a single pipeline run at a fixed seed cannot distinguish bias from
 draw-level noise, the two no-loss scenarios are repeated over eight
@@ -2014,49 +2072,56 @@ knitr::kable(
 )
 ```
 
-The mean log-scale bias is within Monte Carlo error of zero in both
-scenarios, and coverage is consistent with the nominal 95% at eight
-replicates. Individual misses, visible in Table 13, are the expected
-behaviour of honest intervals, not smoothed away.
+```{r, include = FALSE}
+stopifnot(claim("plan_mc"))
+```
+
+In both scenarios and for both estimands, the mean log-scale bias is within
+3.5 Monte Carlo standard errors of zero. At least 6 of the 8 intervals cover
+the truth in each. At a true coverage of 95%, 5 or fewer covering intervals
+of 8 has probability `r sprintf("%.3f", pbinom(5, 8, 0.95))`. Table 13 shows
+each miss.
 
 ## 3.6 Coverage calibration
 
 The final layer asks whether the reported uncertainty can be trusted: over
 200 replicate draws per scenario at 3,000 persons, each refit end to end,
-what fraction of nominal 95% intervals cover the truth? The study uses the
-per-protocol estimand estimated with the primary truncated weight (the
-pipeline's default analysis exactly as reported). The per-protocol censoring
+what fraction of nominal 95% intervals cover the truth? The truth is the
+exact log-IRR of Section 3.9. Both estimands use the primary truncated weight,
+the pipeline's default analysis as reported. The per-protocol censoring
 weights (1.8.2) target the sustained-treatment effect in all three scenarios,
-including the informative loss in s3, so the three scenarios test whether the
-interval calibration survives the same nuisance that biases the
-intention-to-treat estimand.
+including the informative loss in s3. The ITT analysis carries no loss
+weight, so s3 also shows how its design bias affects its intervals.
 
 ```{r}
-cv <- copy(ev$coverage)[estimand == "pp"]
-cv[, nuisance := fcase(
+cv_all <- copy(ev$coverage)
+cv_all[, nuisance := fcase(
   scenario == "s1", "none",
   scenario == "s2", "confounding + independent loss",
   scenario == "s3", "confounding + informative loss"
 )]
+setorder(cv_all, -estimand, scenario)
 knitr::kable(
-  cv[, .(
-    scenario, nuisance,
+  cv_all[, .(
+    scenario, estimand, nuisance,
     reps = sprintf("%d/%d", n_fit, M),
     mean_bias = sg3(mc_mean_bias), mc_sd = sprintf("%.3f", mc_sd),
     coverage = sprintf("%d/%d (%.1f%%)", covered_n, n_fit, 100 * coverage)
   )],
   col.names = c(
-    "Scenario", "Nuisances", "Replicates fit", "Mean log bias",
+    "Scenario", "Estimand", "Nuisances", "Replicates fit", "Mean log bias",
     "MC sd", "95% CI coverage"
   ),
-  align = "llrrrr",
+  align = "lllrrrr",
   caption = paste0(
-    "Table 15. Per-protocol coverage calibration, M = 200 replicates per ",
-    "scenario at N = 3,000, using the primary truncated per-protocol weight, ",
-    "that is, the coverage of the pipeline's default per-protocol analysis as ",
-    "reported. Log-IRR scale."
+    "Table 15. Coverage calibration against the exact log-IRR truth, M = 200 ",
+    "replicates per scenario and estimand at N = 3,000, using the primary ",
+    "truncated weight, that is, the coverage of the pipeline's default ",
+    "analysis as reported. Log-IRR scale."
   )
 )
+cv <- cv_all[estimand == "pp"]
+cvi <- cv_all[estimand == "itt"]
 x34 <- list(
   c1 = cv[scenario == "s1", sprintf("%.1f%%", 100 * coverage)],
   c2 = cv[scenario == "s2", sprintf("%.1f%%", 100 * coverage)],
@@ -2067,11 +2132,17 @@ x34 <- list(
   sd_min = cv[, sprintf("%.3f", min(mc_sd))],
   sd_max = cv[, sprintf("%.3f", max(mc_sd))],
   bin_se = cv[, sprintf("%.1f", 100 * sqrt(0.95 * 0.05 / min(n_fit)))],
-  max_dev = cv[, sprintf("%.1f", 100 * max(abs(coverage - 0.95)))]
+  max_dev = cv[, sprintf("%.1f", 100 * max(abs(coverage - 0.95)))],
+  i1 = cvi[scenario == "s1", sprintf("%.1f%%", 100 * coverage)],
+  i2 = cvi[scenario == "s2", sprintf("%.1f%%", 100 * coverage)],
+  ib3 = cvi[scenario == "s3", sg3(mc_mean_bias)],
+  ise3 = cvi[scenario == "s3", sprintf("%.3f", mc_sd / sqrt(n_fit))],
+  isd3 = cvi[scenario == "s3", sprintf("%.3f", mc_sd)],
+  lim3 = sprintf("%+.3f", .vc_itt_design_limit[["s3"]])
 )
 ```
 
-```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (per-protocol estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. Because the per-protocol censoring weights correct the informative loss, the interval cloud straddles the truth in every scenario (s1, s2, and s3 alike), with only the sampling-expected few percent of misses and none of the wholesale downward displacement the intention-to-treat estimand shows under the same loss."}
+```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (per-protocol estimand, primary truncated weights), sorted by point estimate, against the exact log-IRR truth (horizontal line). Intervals that miss the truth are drawn in red. Table 15 gives the coverage of each scenario."}
 pd <- copy(ev$coverage_reps)[estimand == "pp"]
 pd[, scenario_lab := scen_lab(scenario)]
 setorder(pd, scenario, est)
@@ -2087,18 +2158,29 @@ q <- q + theme_minimal()
 q
 ```
 
+```{r, include = FALSE}
+stopifnot(claim("coverage_nominal"))
+stopifnot(claim("coverage_pp_bias_small"))
+stopifnot(claim("coverage_itt_s3_design"))
+```
+
 The per-protocol interval stays close to nominal in all three scenarios:
-`r x34$c1` in s1, `r x34$c2` in s2 and `r x34$c3` in s3. The largest departure from 95% is
-`r x34$max_dev` percentage points, against a binomial standard error of
-`r x34$bin_se` points at `r cv[, min(n_fit)]` replicates. The point estimate
-carries a mean bias of `r x34$b1`, `r x34$b2` and `r x34$b3` in s1, s2 and s3
-(Table 15). That bias includes the per-protocol displacement of Section 3.3.
-It is small against the spread of single estimates (MC sd `r x34$sd_min` to
-`r x34$sd_max`), so the intervals still cover near nominal. This is the
-payoff of being specific about
-the estimand: under the same informative loss the intention-to-treat interval
-degrades, because no variance estimator can repair a point estimate the
-estimand itself leaves biased.
+`r x34$c1` in s1, `r x34$c2` in s2 and `r x34$c3` in s3. The largest
+departure from 95% is `r x34$max_dev` percentage points, against a binomial
+standard error of `r x34$bin_se` points at `r cv[, min(n_fit)]` replicates.
+The point estimate carries a mean bias of `r x34$b1`, `r x34$b2` and
+`r x34$b3` in s1, s2 and s3 (Table 15). Each bias is less than a quarter of
+the spread of single estimates (MC sd `r x34$sd_min` to `r x34$sd_max`), so
+the intervals still cover near nominal.
+
+The ITT interval covers `r x34$i1` in s1 and `r x34$i2` in s2. In s3 the ITT
+point estimate carries the design bias of an analysis without loss weights.
+Its mean bias is `r x34$ib3` (MC SE `r x34$ise3`), and the exact limit is
+`r x34$lim3`. At N = 3,000 that bias is less than a third of the spread of
+single estimates (MC sd `r x34$isd3`). Coverage at this sample size therefore
+does not show it. The
+validation tier therefore checks the s3 ITT bias against its design limit,
+and not the s3 ITT coverage.
 
 ## 3.7 Marginal versus conditional estimands
 
@@ -2111,15 +2193,21 @@ are collapsible, so these coincide for the IRR; odds ratios are not, so the
 $\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})$, where $p_0$ is
 the reference-arm per-period risk, before comparison. The conversion removes
 the scale gap only; a residual conditional-versus-marginal difference
-remains. In Table 4 the swereg − TE gaps in the confounded ITT cells are small
+remains.
+
+```{r, include = FALSE}
+stopifnot(claim("tri_gap_pattern"))
+```
+
+In Table 4 the swereg − TE gaps in the confounded ITT cells are small
 (`r tri[estimand == "itt" & scenario == "s2", gap]` in s2,
 `r tri[estimand == "itt" & scenario == "s3", gap]` in s3). The per-protocol
 gaps are larger
 (`r tri[estimand == "pp" & scenario == "s2", gap]` in s2,
-`r tri[estimand == "pp" & scenario == "s3", gap]` in s3). They also appear in
-s1 (`r tri[estimand == "pp" & scenario == "s1", gap]`), which has no
-confounding, so the per-protocol displacement of Section 3.3 contributes to
-them. The primary correctness guarantee is
+`r tri[estimand == "pp" & scenario == "s3", gap]` in s3). In those cells the
+two packages also correct the loss by different routes: censoring weights
+against conditioning. In s1, which has no confounding, both gaps are below
+0.001. The primary correctness guarantee is
 each implementation's agreement with the known simulated truth on its own
 scale. Section 3.8 measures where each route's advantage holds, and where
 both end.
@@ -2185,7 +2273,6 @@ x16 <- list(
   harsh_t_sd = g16[cell == "harsh", sprintf("%.3f", t_sd)],
   rev_u = bse("reversed", "u"), rev_t = bse("reversed", "t"), rev_te = bse("reversed", "te"),
   harm_t = bse("harmful", "t"), harm_u = bse("harmful", "u"), harm_te = bse("harmful", "te"),
-  harm_shift = g16[cell == "harmful", sprintf("%+.3f", t - u)],
   d_unm = g16[cell %in% c("unmeasured_loss", "unmeasured_adherence"), paste(sprintf("%.3f", d), collapse = " and ")],
   d_meas = g16[!cell %in% c("unmeasured_loss", "unmeasured_adherence"), sprintf("%.3f to %.3f", min(d), max(d))]
 )
@@ -2207,45 +2294,60 @@ knitr::kable(
 )
 ```
 
-Some features of the s3 result generalise; the ranking does not. swereg's
-truncated-weight bias is similar in the mild, base and harsh cells
-(`r x16$dose`; MC SE at most `r x16$dose_se`). At the harshest setting the
-untruncated fit degrades: the standard deviation of its estimates across
-datasets is `r x16$harsh_u_sd`, against `r x16$harsh_t_sd` for the truncated
-fit. Under extreme selection the censoring weights become difficult to
-estimate. The conditional route
-(`TrialEmulation`, no censoring weights, baseline covariate in the outcome
-model) is unaffected across these three cells. That holds only because the
-covariate it conditions on drives this loss exactly. No uniform ranking
-generalises. With the selection reversed, only the untruncated fit is within
-Monte Carlo error of zero (`r x16$rev_u`). The truncated fit
-(`r x16$rev_t`) and `TrialEmulation` (`r x16$rev_te`) are not. With a harmful
-effect, only the truncated fit is within Monte Carlo error of zero
-(`r x16$harm_t`). Truncation shifts the estimate by `r x16$harm_shift`, which
-offsets part of the downward drag that depletion of susceptibles plus
-late-follow-up up-weighting produces. The untruncated fit (`r x16$harm_u`) and
-`TrialEmulation` (`r x16$harm_te`) are displaced in opposite directions.
-Neither package, and neither weight variant, dominates across the grid.
+```{r, include = FALSE}
+stopifnot(claim("grid_dose_truncated"))
+stopifnot(claim("grid_harsh_unstable"))
+stopifnot(claim("grid_te_measured"))
+stopifnot(claim("grid_reversed_harmful"))
+stopifnot(claim("grid_no_dominance"))
+```
+
+Some features of the s3 result generalise, and the ranking does not. The grid
+cells use the Monte Carlo truth of Section 3.1, so their bias includes the
+difference between the two truths. The truncated swereg fit is above the
+truth in the mild, base and harsh cells (`r x16$dose`; MC SE at most
+`r x16$dose_se`). Its 95% Monte Carlo interval excludes zero in each, and its
+bias grows with how strongly the confounder drives the loss. At the harshest
+setting the untruncated fit degrades: the standard deviation of its estimates
+across datasets is `r x16$harsh_u_sd`, against `r x16$harsh_t_sd` for the
+truncated fit. Under extreme selection the censoring weights become difficult
+to estimate. The conditional route is `TrialEmulation`, with no censoring weights and the
+baseline covariate in the outcome model. Its 95% Monte Carlo interval holds
+zero in these three cells. That holds only because the covariate it
+conditions on drives this loss exactly.
+
+No uniform ranking generalises. With the selection reversed, only the
+truncated fit's 95% Monte Carlo interval holds zero (`r x16$rev_t`). The
+untruncated fit (`r x16$rev_u`) and `TrialEmulation` (`r x16$rev_te`) are
+below zero. With a harmful effect, only the untruncated fit's interval holds
+zero (`r x16$harm_u`). The truncated fit (`r x16$harm_t`) and
+`TrialEmulation` (`r x16$harm_te`) are above the truth. No fit has the
+smallest absolute bias in every cell.
+
+```{r, include = FALSE}
+stopifnot(claim("grid_unmeasured"))
+stopifnot(claim("grid_unmeasured_silent"))
+```
 
 The two unmeasured-driver cells locate the boundary set by assumption (5)
-of the analysis plan (1.7). In both, `TrialEmulation` is displaced toward an
-exaggerated protective effect: `r x16u$loss_te` with dropout on the
-unmeasured factor, and `r x16u$adh_te` with the unmeasured factor driving
-adherence. The swereg fits show no displacement in that direction beyond
-Monte Carlo error. Their mean biases are `r x16u$loss_t` (truncated) and
-`r x16u$loss_u` (untruncated) in the dropout cell, and `r x16u$adh_t` and
-`r x16u$adh_u` in the adherence cell. These swereg values also carry the
-per-protocol displacement of Section 3.3, and this grid cannot separate the
-two. No weighting or conditioning on measured
-covariates corrects selection on an unobserved variable. Two further
-observations. First, the `TrialEmulation` displacement in the unmeasured-loss
-cell contradicts an intuition: dropout independent of treatment should cancel
-between arms in a ratio. Events deplete high-risk person-time faster in the
-comparator arm. An identical dropout process therefore interacts differently
-with the two arms' risk sets, and the ratio does not escape.
-Second, truncated and untruncated mean biases differ less in these cells
-(`r x16$d_unm`) than in the measured-covariate cells (`r x16$d_meas`). The truncated-versus-untruncated divergence responds to weight instability
-from measured covariates. It remains largely silent about unmeasured drivers.
+of the analysis plan (1.7). In both, every mean bias is negative, toward an
+exaggerated protective effect. `TrialEmulation` is displaced the most:
+`r x16u$loss_te` with dropout on the unmeasured factor, and `r x16u$adh_te`
+with the unmeasured factor driving adherence. Its 95% Monte Carlo interval
+excludes zero in both. The swereg mean biases are `r x16u$loss_t`
+(truncated) and `r x16u$loss_u` (untruncated) in the dropout cell, and
+`r x16u$adh_t` and `r x16u$adh_u` in the adherence cell. No weighting or
+conditioning on measured covariates corrects selection on an unobserved
+variable. Two further observations. First, the `TrialEmulation` displacement
+in the unmeasured-loss cell contradicts an intuition: dropout independent of
+treatment should cancel between arms in a ratio. Events deplete high-risk
+person-time faster in the comparator arm. An identical dropout process
+therefore interacts differently with the two arms' risk sets, and the ratio
+does not escape. Second, truncated and untruncated mean biases differ less in
+these cells (`r x16$d_unm`) than in the measured-covariate cells
+(`r x16$d_meas`). The truncated-versus-untruncated divergence responds to
+weight instability from measured covariates. It remains largely silent about
+unmeasured drivers.
 Their detection needs design-based approaches (negative-control outcomes,
 sensitivity analyses for unmeasured selection) rather than weight
 diagnostics.
@@ -2253,7 +2355,7 @@ diagnostics.
 ```{r}
 fb <- copy(ev$feedback_grid)
 b17 <- fb[, abs(c(mean(b_sw_updated), mean(b_sw_frozen), mean(b_te_baseline)))]
-b16 <- g16[, max(abs(c(t, u, te)))]
+b16 <- g16[, max(abs(c(t, te)))]
 x17 <- list(
   lo = sprintf("%.1f", min(b17) / b16),
   hi = sprintf("%.1f", max(b17) / b16),
@@ -2280,22 +2382,28 @@ knitr::kable(
     "by a time-varying covariate that treatment affects (the 1.7 regime); ",
     "both swereg fits use the truncated (primary) product weight. Every approach ",
     "has an absolute mean bias ", x17$lo, " to ", x17$hi, " times the largest ",
-    "absolute mean bias in Table 16. Log-IRR scale."
+    "absolute mean bias of the truncated swereg fit and of TrialEmulation in ",
+    "Table 16. Log-IRR scale."
   )
 )
 ```
 
+```{r, include = FALSE}
+stopifnot(claim("feedback_boundary"))
+```
+
 Table 17 is the boundary the SAP declares in 1.7, now measured. Here the
-determinants of censoring are time-varying and affected by treatment. Every
-configuration of either package is biased by `r x17$lo` to `r x17$hi` times
-the largest absolute mean bias in Table 16 (`r x17$b16`). That holds for
-time-updated censoring weights, frozen covariates and baseline conditioning.
+determinants of censoring are time-varying and affected by treatment. Each of the
+three approaches is biased, more than 3.5 Monte Carlo standard errors from
+zero: time-updated censoring weights, frozen covariates and baseline
+conditioning. Each bias is `r x17$lo` to `r x17$hi` times the largest
+absolute mean bias of the truncated swereg fit and of `TrialEmulation` in
+Table 16 (`r x17$b16`). The comparison leaves out the untruncated fit,
+because its bias in the harsh cell comes from unstable weights. The
+time-updated weights give the smallest of the three biases.
 All three estimates are therefore
 unusable, and comparing them identifies only which approach fails least,
-not an approach that works. No setting available within this pipeline
-(different truncation percentiles, covariate sets, or censoring-model
-specifications) repairs the problem, because the difficulty is structural.
-When a time-varying confounder is itself affected by earlier treatment,
+not an approach that works. When a time-varying confounder is itself affected by earlier treatment,
 valid estimation requires methods designed for that feedback, such as the
 parametric g-formula or g-estimation of structural nested models (Hernán
 and Robins 2016), which this pipeline does not implement.
@@ -2303,9 +2411,9 @@ and Robins 2016), which this pipeline does not implement.
 ```{r}
 tri_pp <- ev$triangle_reps[estimand == "pp", .(
   cell_lab = scen_lab(scenario),
-  b_trunc = sw_est - truth,
-  b_untrunc = sw_est_untrunc - truth,
-  b_te = te_est - truth
+  b_trunc = sw_est - truth_exact,
+  b_untrunc = sw_est_untrunc - truth_exact,
+  b_te = te_est - truth_exact
 )]
 grid_pp <- tg[, .(
   cell_lab = tg_lab(cell),
@@ -2344,7 +2452,6 @@ smw <- sm[, .(
   rm_u = rmse[variant == "untruncated (sensitivity)"]
 ), by = cell_lab]
 x38 <- list(
-  trunc_lower_spread_n = smw[, sum(sp_t < sp_u)],
   trunc_lower_rmse_n = smw[, sum(rm_t < rm_u)],
   cells_n = nrow(smw),
   sp_ratio = smw[, sprintf("%.1f", max(sp_u / sp_t))],
@@ -2354,7 +2461,13 @@ x38 <- list(
 )
 ```
 
-```{r, fig.width = 7.5, fig.height = 6, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Both swereg variants sit above zero in s1, which has no confounding and no loss; Section 3.3 names the cause. Truncation moves the estimate further from zero in the mild and base cells and has no effect in s1. In the reversed-selection cell only the untruncated fit's interval covers zero, and in the harmful-effect cell only the truncated fit's interval does."}
+```{r, include = FALSE}
+stopifnot(claim("grid_truncation_direction"))
+stopifnot(claim("pp_spread"))
+stopifnot(claim("pp_rmse"))
+```
+
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR across every validation cell, one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. s1 to s3 have 20 datasets each, against the exact truth. The Table 16 grid cells have 10 each, against the Monte Carlo truth. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation moves the mean bias up in the mild, base, reversed and harmful-effect cells, and down in the harsh cell, where the untruncated weights are unstable. It changes no estimate in s1. In the reversed-selection cell only the truncated fit's interval holds zero, and in the harmful-effect cell only the untruncated fit's interval does."}
 s4 <- copy(sm)
 s4[, cell_lab := factor(as.character(cell_lab), ord)]
 s4[, variant := factor(variant, rev(names(col_var)))]
@@ -2371,7 +2484,7 @@ q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7.5, fig.height = 6, fig.cap = paste0("Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error. The truncated fit has the smaller spread of the two swereg variants in ", x38$trunc_lower_spread_n, " of the ", x38$cells_n, " cells and about equal spread in the rest. The largest ratio, ", x38$sp_ratio, ", is in the cell '", x38$sp_ratio_cell, "'.")}
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = paste0("Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error. In none of the ", x38$cells_n, " cells does the truncated fit have a larger spread than the untruncated fit, to 0.001. The largest ratio of the untruncated to the truncated spread, ", x38$sp_ratio, ", is in the cell '", x38$sp_ratio_cell, "'.")}
 s5 <- copy(sm)
 s5[, cell_lab := factor(as.character(cell_lab), ord)]
 s5[, variant := factor(variant, rev(names(col_var)))]
@@ -2388,7 +2501,7 @@ q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7.5, fig.height = 6, fig.cap = paste0("Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has the lower error in ", x38$trunc_lower_rmse_n, " of the ", x38$cells_n, " cells. Its largest advantage is where the untruncated weights are unstable (harsh and harmful-effect cells). The untruncated fit has the lower error in the other cells, because it is less biased there. Relative to the reference, no estimation route has uniformly lower error across scenarios.")}
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = paste0("Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has the lower error in ", x38$trunc_lower_rmse_n, " of the ", x38$cells_n, " cells. Its largest advantages are where the untruncated weights are unstable (harsh and harmful-effect cells). The untruncated fit has the lower error in the remaining cells, where it is less biased. No estimation route, the reference included, has the lowest error in every cell.")}
 s6 <- copy(sm)
 s6[, cell_lab := factor(as.character(cell_lab), ord)]
 s6[, variant := factor(variant, rev(names(col_var)))]
@@ -2403,10 +2516,10 @@ q
 ```
 
 The recommendation follows from Figure 6, not from either ingredient
-alone (Figures 4 and 5). Truncation lowers the spread of single-dataset estimates
-in `r x38$trunc_lower_spread_n` of the `r x38$cells_n` per-protocol cells,
-and has the lower RMSE in `r x38$trunc_lower_rmse_n` of them. Neither
-variant is uniformly better. Truncation has its largest RMSE advantage where
+alone (Figures 4 and 5). In none of the `r x38$cells_n` per-protocol cells
+does truncation raise the spread of single-dataset estimates, to 0.001. The
+truncated fit has the lower RMSE in `r x38$trunc_lower_rmse_n` of them. Neither
+variant is uniformly better. Truncation has its largest RMSE advantages where
 the untruncated weights are unstable, in the harsh and harmful-effect cells.
 The pipeline's convention is therefore
 retained on the evidence. The truncated fit is the primary analysis: its
@@ -2419,6 +2532,164 @@ responses are then sensitivity analyses at looser truncation percentiles
 population where extreme weights are structural, or, when the censoring
 drivers are time-varying and treatment-affected, the recognition that no
 weighting scheme in this pipeline suffices (Table 17).
+
+## 3.9 Risk difference and log-IRR against exact truths
+
+This section compares the risk difference at 5, 10 and 20 periods, and the
+log-IRR, with exact truths. The cells, seeds and limits are those of the test
+tiers. `test-validation-fast.R` runs s1 and the s4 per-protocol cell on every
+push, and `test-validation-full.R` runs every cell weekly (Section 4.2).
+
+No simulation enters the two truths:
+
+- **Risk difference.** The cumulative risk of a first event by period $h$
+  under the strategy of the estimand, intervention minus comparator. A
+  forward recursion over the equations of Section 3.2 computes it, with
+  quadrature over the baseline covariates.
+- **Log-IRR.** The treatment coefficient of swereg's outcome model (1.8.4),
+  fitted to the exact expected events and person-time of each arm and
+  period. Each cell is weighted by the marginal probability of remaining
+  uncensored in its arm ("stabilised" weighting). That probability is the
+  numerator of the stabilised censoring weight, so the truth is the limit of
+  swereg's weighted fit when the weights are correct.
+
+```{r, include = FALSE}
+vs <- copy(ev$validation_summary)
+x39 <- local({
+  vt <- ev$validation_truth[quantity == "log_irr"]
+  vt[, d := abs(truth - truth_uncensored)]
+  i <- which.max(vt$d)
+  e1 <- function(s, est, w, q, col = "bias") {
+    vs[scenario == s & estimand == est & weight == w & quantity == q, get(col)]
+  }
+  sh <- sapply(c("s2", "s3", "s4"), function(s) {
+    sprintf(
+      "%+.4f against %+.4f",
+      e1(s, "pp", "truncated", "rd_h20"),
+      e1(s, "pp", "untruncated", "rd_h20")
+    )
+  })
+  list(
+    unc_max = sprintf("%.3f", vt$d[i]),
+    unc_cell = paste(vt$scenario[i], toupper(vt$estimand[i])),
+    R = vs[, max(R)],
+    s1_maxz = vs[scenario == "s1", sprintf("%.2f", max(abs(z)))],
+    ppu_maxz = vs[estimand == "pp" & weight == "untruncated", sprintf("%.2f", max(abs(z)))],
+    s2itt_maxz = vs[scenario == "s2" & estimand == "itt", sprintf("%.2f", max(abs(z)))],
+    sh = sh,
+    z3 = sprintf("%.1f", e1("s3", "pp", "truncated", "rd_h20", "z")),
+    z4 = sprintf("%.1f", e1("s4", "pp", "truncated", "rd_h20", "z")),
+    itt3 = sprintf("%+.4f", e1("s3", "itt", "untruncated", "log_irr")),
+    itt4 = sprintf("%+.4f", e1("s4", "itt", "untruncated", "log_irr")),
+    lim3 = sprintf("%+.4f", .vc_itt_design_limit[["s3"]]),
+    lim4 = sprintf("%+.4f", .vc_itt_design_limit[["s4"]])
+  )
+})
+```
+
+```{r, include = FALSE}
+stopifnot(claim("exact_s1_truths_equal"))
+```
+
+The stabilised log-IRR truth differs from the truth without censoring
+wherever the hazard ratio changes over follow-up. The largest difference is
+`r x39$unc_max`, in `r x39$unc_cell`. In s1 the hazard ratio is constant, and
+the two truths are equal.
+
+Scenario s4 adds a second standard-normal baseline covariate, so that each
+censoring cause has its own driver. $L_0$ drives the arm, discordance in the
+first follow-up week and later deviation. $L_1$ drives loss to follow-up.
+Both drive the outcome. Because a person can deviate in the first follow-up
+week, s4 tests the time-zero censoring model of 1.8.2.
+
+```{r}
+t18 <- copy(vs)[, cell := sprintf("%+.4f (%.1f)", bias, z)]
+t18 <- dcast(t18, scenario + estimand + weight ~ quantity, value.var = "cell")
+setorder(t18, scenario, -estimand, weight)
+knitr::kable(
+  t18[, .(scenario, estimand, weight, log_irr, rd_h5, rd_h10, rd_h20)],
+  col.names = c(
+    "Scenario", "Estimand", "Weights", "log-IRR",
+    "RD, h = 5", "RD, h = 10", "RD, h = 20"
+  ),
+  align = "lllrrrr",
+  caption = paste0(
+    "Table 18. Mean bias against the exact truth, with z = bias / MC SE in ",
+    "brackets. ", x39$R, " datasets per cell at N = 20,000. RD is the risk ",
+    "difference, intervention minus comparator, at period h."
+  )
+)
+```
+
+```{r, include = FALSE}
+stopifnot(claim("exact_s1_unbiased"))
+stopifnot(claim("exact_pp_untruncated_unbiased"))
+stopifnot(claim("exact_itt_s2_unbiased"))
+```
+
+In s1, every estimate in Table 18 is within 3.5 Monte Carlo standard errors
+of its exact truth (largest |z| `r x39$s1_maxz`). That holds for both
+estimands, both weights, the log-IRR and the risk difference at every
+horizon. With untruncated weights, every per-protocol estimate in s1 to s4 is
+within the same limit (largest |z| `r x39$ppu_maxz`). The ITT estimates of s2
+are within it with both weights (largest |z| `r x39$s2itt_maxz`).
+
+```{r, include = FALSE}
+stopifnot(claim("exact_pp_truncation_shift"))
+stopifnot(claim("exact_pp_truncated_biased_s3_s4"))
+```
+
+Truncation moves the per-protocol risk difference up, away from the truth, in
+s2, s3 and s4. At h = 20 the truncated mean bias is `r x39$sh[["s2"]]`
+untruncated in s2, `r x39$sh[["s3"]]` in s3 and `r x39$sh[["s4"]]` in s4. In
+s3 and s4 the truncated bias at h = 20 is more than 3.5 Monte Carlo standard
+errors from zero (z `r x39$z3` and `r x39$z4`). In s1, which has no
+confounding and no loss, truncation changes no mean estimate by more than
+0.0005. Section 3.8 weighs this bias against the lower spread of the
+truncated fit.
+
+```{r, include = FALSE}
+stopifnot(claim("exact_itt_design_bias"))
+```
+
+The ITT analysis carries no loss weight and assumes loss independent of the
+outcome (assumption 4 of 1.7). In s3 and s4 the loss depends on a covariate
+that also drives the outcome. The ITT log-IRR is therefore below the truth
+with both weights. With untruncated weights the bias is `r x39$itt3` in s3 and
+`r x39$itt4` in s4. The exact limit of an ITT fit without loss weights is
+`r x39$lim3` and `r x39$lim4` from the truth. Each estimate is within 3.5
+Monte Carlo standard errors of its limit. The bias comes from the violated
+assumption, and not from an estimator defect.
+
+```{r}
+rc <- copy(ev$rd_coverage)
+knitr::kable(
+  rc[, .(
+    scenario, h,
+    coverage = sprintf("%d/%d (%.1f%%)", covered_n, R, 100 * coverage)
+  )],
+  col.names = c("Scenario", "Horizon h", "95% interval holds the truth"),
+  align = "lrr",
+  caption = paste0(
+    "Table 19. Coverage of the 95% percentile bootstrap interval of the ",
+    "per-protocol risk difference, untruncated weights, ",
+    rc[, max(R)], " datasets per scenario at N = 20,000, with ",
+    "200 bootstrap replicates each."
+  )
+)
+```
+
+```{r, include = FALSE}
+stopifnot(claim("rd_coverage_nominal"))
+```
+
+At every horizon in s1, s2 and s4, the bootstrap interval holds the exact
+truth in `r rc[, sprintf("%.1f%%", 100 * min(coverage))]` to
+`r rc[, sprintf("%.1f%%", 100 * max(coverage))]` of the datasets. The full test
+tier requires 90% to 99%. At a true coverage of 95% and `r rc[, max(R)]`
+datasets, the binomial standard error is
+`r rc[, sprintf("%.1f", 100 * sqrt(0.95 * 0.05 / max(R)))]` percentage
+points.
 
 ---
 
@@ -2461,16 +2732,31 @@ The evidence layers in Section 3 are permanent, executable tests:
 | Section | Layer | Test file | Gate |
 |:--|:--|:--|:--|
 | 3.3 | Cross-package triangle | `tests/testthat/test-tte_validation_matrix.R` | runs in CI |
-| 3.4 | Stress matrix | `tests/testthat/test-tte_stress_matrix.R` | fast subset in CI; full battery `SWEREG_RUN_STRESS=true` |
+| 3.4 | Stress matrix | `tests/testthat/test-tte_stress_matrix.R` | fast subset in CI; full battery `SWEREG_RUN_VALIDATION=true` |
 | 3.5 | Plan-layer truth matrix | `tests/testthat/test-tteplan_truth_matrix.R` | reduced-N subset in CI; full factorial `SWEREG_RUN_PLAN_MATRIX=true` |
-| 3.6 | Coverage calibration | `tests/testthat/test-tte_coverage.R` | opt-in only, `SWEREG_RUN_COVERAGE=true` |
+| 3.6 | Coverage calibration | `tests/testthat/test-tte_coverage.R` | `SWEREG_RUN_VALIDATION=true` |
+| 3.9 | Exact truths, fast tier | `tests/testthat/test-validation-fast.R` | runs in CI, inside `R CMD check` |
+| 3.9 | Exact truths, full tier | `tests/testthat/test-validation-full.R` | `SWEREG_RUN_VALIDATION=true` |
 
-The tables and figures themselves are rendered from
+The workflow `.github/workflows/validation.yml` sets `SWEREG_RUN_VALIDATION`
+and `SWEREG_RUN_PLAN_MATRIX`. It runs weekly, on `v*` tags and on demand.
+
+The tables and figures are rendered from
 `vignettes/tte-validation-evidence.rds`, which
 `dev/generate_validation_evidence.R` writes (in the source repository, not
 the installed package). The script uses the same data-generating, truth and
-fit helpers as the tests (`tests/testthat/helper-tte_*.R`). No test reads the
-`.rds` file, so the vignette numbers and the test assertions can drift apart.
+fit helpers as the tests (`tests/testthat/helper-tte_*.R`). Three tests read
+the `.rds` file:
+
+- `test-validation-evidence-version.R` fails when `$meta$swereg` differs
+  from the DESCRIPTION version. It runs in CI.
+- `test-validation-full.R` fails when `$meta$estimator_hash` differs from the
+  md5 of the estimator source files.
+- `test-vignette-claims.R` checks each qualitative claim of Section 3 and of
+  the passages that cite it. Each claim is a named predicate in
+  `vignettes/validation-claims.R`, and this vignette stops building when one
+  is false. It runs in CI.
+
 Rerun the script after any estimator change, and commit the refreshed file
 with the change.
 

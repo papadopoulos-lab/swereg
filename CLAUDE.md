@@ -49,6 +49,37 @@ library(data.table)
 devtools::load_all(".")
 ```
 
+## How long the checks take
+
+Measured on uppsala (6 cores, R 4.5.2) in October 2026. testthat runs the
+suite on one core. papadopoulos-lab/swereg#53 tracks running it in parallel.
+
+| Check | How to run it | Time |
+|:--|:--|:--|
+| One test file | `testthat::test_file()` after `pkgload::load_all(".")` | `test-vignette-claims.R`: 0.8 s, and 6 s with the package load |
+| Fast validation tier | `tests/testthat/test-validation-fast.R` | 340 to 350 s |
+| Full suite | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
+| `R CMD check --no-manual --as-cran` | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |
+| Full validation tier | `SWEREG_RUN_VALIDATION=true`, `tests/testthat/test-validation-full.R` | 2,388 s with 4 workers: 707 s for the bias cells, 541 to 578 s for each of the 3 RD coverage cells |
+| The other opt-in files | `test-tte_coverage.R` and `test-tte_stress_matrix.R`, same variable | 961 s and 418 s, measured while other jobs ran |
+| Evidence regeneration | `Rscript dev/generate_validation_evidence.R --max-workers=6` | 7,059 s with Slurm empty; 7,586 s while other jobs ran |
+
+Run the checks that match the change:
+
+- **Documentation or reporting only** (vignettes, roxygen, `NEWS.md`,
+  generated prose): run the test files of the change, then `R CMD check`
+  before you push.
+- **A validation claim of `vignette("tte-methods")`**: run
+  `tests/testthat/test-vignette-claims.R`.
+- **An estimator change**, that is, any file in `.VAL_ESTIMATOR_FILES` of
+  `tests/testthat/helper-tte_validation.R`: run the test files of the change
+  and the fast tier while you work, and the full suite before you commit.
+  Before a release, regenerate the evidence and run the full tier. The full
+  tier fails while `$meta$estimator_hash` differs from the source.
+- **A version bump**: regenerate the evidence. The always-on
+  `test-validation-evidence-version.R` fails while `$meta$swereg` differs
+  from the DESCRIPTION version.
+
 ## Architecture and data flow
 
 ### Two-step workflow pattern

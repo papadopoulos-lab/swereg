@@ -3,7 +3,9 @@
 # through the SAME DGP/truth/fit helpers the testthat suite uses
 # (tests/testthat/helper-tte_*.R), so the vignette numbers cannot drift from
 # what the tests enforce. Rerun after any estimator change:
-#   Rscript dev/generate_validation_evidence.R      (~30-60 min; uses ~10 cores)
+#   Rscript dev/generate_validation_evidence.R --max-workers=6
+# `--max-workers=N` caps the forked workers of every step (each step asks for
+# 3 to 10). Without it, the cap is the number of cores of the machine.
 #
 # `$meta$estimator_hash` is val_estimator_hash() over the estimator source
 # files. test-validation-full.R fails when it differs from the current source,
@@ -17,6 +19,18 @@ for (f in list.files("tests/testthat", "^helper-", full.names = TRUE)) {
   source(f)
 }
 EVIDENCE_PATH <- "vignettes/tte-validation-evidence.rds"
+MAX_WORKERS <- local({
+  arg <- grep("^--max-workers=", commandArgs(trailingOnly = TRUE), value = TRUE)
+  n <- if (length(arg) > 0L) {
+    suppressWarnings(as.integer(sub("^--max-workers=", "", arg[[1L]])))
+  } else {
+    parallel::detectCores()
+  }
+  if (is.na(n) || n < 1L) {
+    stop("--max-workers must be a positive integer", call. = FALSE)
+  }
+  n
+})
 
 ev <- list(
   meta = list(
@@ -55,7 +69,7 @@ ev$validation_reps <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
     g$estimand,
     R = R_VAL,
     weights = c("truncated", "untruncated"),
-    cores = val_cores(6L)
+    cores = val_cores(min(6L, MAX_WORKERS))
   )
 }))
 ev$validation_summary <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
@@ -84,7 +98,7 @@ ev$rd_coverage_reps <- rbindlist(lapply(cov_cells, function(cl) {
     n_boot = 200L,
     seed0 = 3100L,
     weight = cl$weight,
-    cores = val_cores(6L)
+    cores = val_cores(min(6L, MAX_WORKERS))
   )[, weight := cl$weight]
 }))
 ev$rd_coverage <- ev$rd_coverage_reps[,
@@ -123,7 +137,7 @@ tri <- parallel::mclapply(
     }
     rbindlist(rows)
   },
-  mc.cores = 3L
+  mc.cores = min(3L, MAX_WORKERS)
 )
 ev$triangle <- rbindlist(tri)
 ev$triangle
@@ -183,7 +197,7 @@ reps <- parallel::mclapply(
     }
     rbindlist(rows)
   },
-  mc.cores = 6L
+  mc.cores = min(6L, MAX_WORKERS)
 )
 ev$triangle_reps <- rbindlist(reps)
 ev$triangle_reps[,
@@ -389,7 +403,7 @@ tg <- parallel::mclapply(
       pct_lost = 100 * (1 - nrow(d) / (20000 * 20))
     )
   },
-  mc.cores = 10L
+  mc.cores = min(10L, MAX_WORKERS)
 )
 ev$trunc_grid <- rbindlist(tg)
 ev$trunc_grid[,
@@ -519,7 +533,7 @@ um <- parallel::mclapply(
       pct_lost = 100 * (1 - nrow(d) / (20000 * 20))
     )
   },
-  mc.cores = 10L
+  mc.cores = min(10L, MAX_WORKERS)
 )
 ev$trunc_grid <- rbind(ev$trunc_grid, rbindlist(um))
 ev$trunc_grid[,
@@ -556,7 +570,7 @@ fb <- parallel::mclapply(
       b_te_baseline = te[["est"]] - as.numeric(tr_tvg)
     )
   },
-  mc.cores = 10L
+  mc.cores = min(10L, MAX_WORKERS)
 )
 ev$feedback_grid <- rbindlist(fb)
 ev$feedback_grid[, .(
@@ -702,7 +716,7 @@ mc <- parallel::mclapply(
       itt_hi = r$irr_itt$IRR_upper
     )
   },
-  mc.cores = 4L
+  mc.cores = min(4L, MAX_WORKERS)
 )
 ev$plan_mc <- rbindlist(mc)
 ev$plan_mc
@@ -725,7 +739,7 @@ for (est_nm in c("pp", "itt")) {
         d <- scen_simulate(s, N = 3000L, seed = 1000L + m)
         tryCatch(scen_fit_swereg(d, est_nm), error = function(e) NULL) # rare non-convergence -> drop replicate
       },
-      mc.cores = 10L
+      mc.cores = min(10L, MAX_WORKERS)
     )
     ok <- !vapply(fits, is.null, logical(1))
     est <- vapply(fits[ok], `[[`, numeric(1), "est")

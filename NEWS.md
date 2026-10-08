@@ -6,6 +6,8 @@
 
 ## Breaking changes
 
+* **Per-protocol estimates change.** The deviation week leaves per-protocol follow-up, and the censoring weight changes to three models fitted on new risk sets. The entries below and under "Bug fixes" give each change.
+* **The per-protocol censoring weight is the product of three models in each arm: loss to follow-up, protocol deviation, and protocol deviation at time zero.** Before, one model covered both causes. The time-zero model is a logistic model on the baseline confounders, fitted on every person-trial, including those with no follow-up. The columns `ipcw_pp_loss`, `ipcw_pp_deviation` and `ipcw_pp_time_zero` hold the three factors.
 * **The outcome models now adjust for the trial and the time since time zero, and the censoring models change with them.** Before, the outcome models read `trial_id`, which on a follow-up row is the calendar period of that row and not the trial. Danaei 2013, Caniglia 2023 and the TrialEmulation package adjust the outcome model for the trial and the follow-up time. Every IRR, subgroup IRR, effect-modification test, heterogeneity test and censoring weight can change. The offset `offset(log(person_weeks))`, the family, the engine and the stratification by arm are unchanged. Section 1.8.9 of `vignette("tte-methods")` gives the reason for each term.
 
   | Model | Time terms in 26.15.0 | Time terms in 27.1.1 |
@@ -33,10 +35,12 @@
 ## New features
 
 * **`$irr()`, `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`, with the default 0.95.** s3 passes `study$implementation$conf_level` to each. Before, only the risk-difference intervals followed it.
-* **Each fit records the formula that it fitted.** The results of `$irr()`, `$effect_modification_test()` and `$heterogeneity_test()` hold it in `attr(x, "model_formula")`. The field `$ipcw_formulas` of an enrollment holds the IPCW denominator and numerator formulas of each stratum.
+* **Each fit records the formula that it fitted.** The results of `$irr()`, `$effect_modification_test()` and `$heterogeneity_test()` hold it in `attr(x, "model_formula")`. The field `$ipcw_formulas[[stratum]][[cause]]` of an enrollment holds the formulas of each censoring model. A cause with no model holds `fitted = FALSE` and the reason.
 
 ## Bug fixes
 
+* **Per-protocol follow-up stops at the start of the first discordant week beyond the arm's tolerance.** Since 26.9.0 the deviation week counted as adherent follow-up, and an event later in the same follow-up interval counted too. TrialEmulation, Danaei 2013 and Hernán 2008 exclude the deviation interval.
+* **The per-protocol censoring models no longer count event rows as uncensored.** The loss model is fitted on the rows without an event, and the deviation model on the rows without an event that were not lost.
 * **The global attrition rows no longer count rows with no trial, such as annual rows, as person-trials.** The global person-trials now equal the sum of the per-trial person-trials at every step. The global "Before exclusions" and "Outside of study years" person-trial counts fall, and a global person count can fall.
 * **A `no_prior_value` washout no longer counts a missing week in its window as the value.**
 * **The CONSORT analysis step reads "censored (administrative end of follow-up)".** It read "censored (per-protocol)".
@@ -44,11 +48,19 @@
 * **TARGET item 6h states the time terms of the censoring models and the outcome model in this release.**
 * **TARGET item 7a lists the inclusion criteria of the specification, with the helper that item 6a uses.**
 
+## Validation
+
+* **The validation tests compare each estimate with an exact truth.** The risk and the risk difference by horizon come from an exact recursion. The log-IRR truth is swereg's outcome model fitted to the exact expected events and person-time, with each cell weighted by its probability of remaining uncensored.
+* **A fast validation tier runs inside `R CMD check` on every push.** `test-validation-fast.R` checks the risk difference at horizons 5, 10 and 20 and the log-IRR: scenario s1 for both estimands, and scenario s4 per-protocol. It fails when the deviation interval counts as per-protocol follow-up.
+* **The full validation tier runs when `SWEREG_RUN_VALIDATION=true`.** It covers scenarios s1 to s4, both estimands, truncated and untruncated weights, and the bootstrap coverage of the risk difference. The new workflow `.github/workflows/validation.yml` runs it weekly, on `v*` tags and on demand. The coverage and stress tests use the same variable, in place of `SWEREG_RUN_COVERAGE` and `SWEREG_RUN_STRESS`.
+* **Two tests fail when the validation evidence is stale.** One fails when `$meta$swereg` differs from the DESCRIPTION version, and it always runs. The other runs in the full tier and fails when `$meta$estimator_hash` differs from the md5 of the six estimator source files.
+* **Each validation claim of `vignette("tte-methods")` is a named predicate in `vignettes/validation-claims.R`.** The vignette stops building when a claim is false, and `test-vignette-claims.R` checks every predicate against the shipped evidence.
+
 ## Documentation
 
 * **`vignette("tte-methods")` has a new subsection, 1.8.9 "Time terms".** It names the three time axes and the two axes that each model uses, gives the reason for each choice, and has three figures.
 * **`vignette("tte-nomenclature")`, `vignette("tte-timing")` and `vignette("tte-methodology")` use `period_id` and `enrollment_period_id`.**
-* **The validation evidence in `vignette("tte-methods")` is regenerated with swereg 27.1.1.** It came from swereg 26.7.4.
+* **The validation evidence in `vignette("tte-methods")` is regenerated with swereg 27.1.1.** It came from swereg 26.7.4. Section 3 adds the risk difference at horizons 5, 10 and 20 against the exact truths, with its bootstrap coverage.
 
 # swereg 26.15.0
 
