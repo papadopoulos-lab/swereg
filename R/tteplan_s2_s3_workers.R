@@ -36,6 +36,14 @@
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
+  # s3 reads this stamp to name the version whose methods it calls. An
+  # imputed file saved before the field existed is a locked R6 object that
+  # cannot take a new binding, so its analysis file carries no stamp.
+  if (exists("swereg_version_s2", envir = enrollment, inherits = FALSE)) {
+    enrollment$swereg_version_s2 <- as.character(utils::packageVersion(
+      "swereg"
+    ))
+  }
   return(list(analysis = enrollment))
 }
 
@@ -92,6 +100,7 @@
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
+  enrollment_s2_version <- enrollment$swereg_version_s2 %||% NA_character_
 
   # Supplemental variant: Missing row forced for every variable, SMD column
   # included. Percentages over total N.
@@ -201,6 +210,7 @@
     n_baseline_comparator = n_baseline_comparator,
     arm_labels = arm_labels,
     fill_summary = fill_summary,
+    swereg_version_s2 = enrollment_s2_version,
     computed_at = Sys.time()
   ))
 }
@@ -366,7 +376,34 @@
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
+  res <- .s3_ett_dispatch(
+    enrollment,
+    method,
+    weight_col,
+    ett_id,
+    subgroup_var,
+    conf_level
+  )
+  # The parent merges every key into `results_ett[[eid]]`, so the stamp
+  # reaches the stored result beside the slot it came with.
+  res$swereg_version_s2 <- enrollment$swereg_version_s2 %||% NA_character_
+  return(res)
+}
 
+#' Run one s3 analysis call on a loaded analysis enrollment.
+#'
+#' The body of `.s3_ett_worker()` after the read. The arguments are those of
+#' `.s3_ett_worker()`, with `enrollment` the loaded analysis object.
+#' @return A named list of result slots.
+#' @noRd
+.s3_ett_dispatch <- function(
+  enrollment,
+  method,
+  weight_col,
+  ett_id,
+  subgroup_var,
+  conf_level
+) {
   safe_call <- function(expr_fn, label) {
     return(tryCatch(
       expr_fn(),

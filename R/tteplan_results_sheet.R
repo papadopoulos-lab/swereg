@@ -1,5 +1,51 @@
-# These helpers produce the single-estimand results sheet. Three of them
-# build the risk-difference columns it carries after the measurement block.
+# These helpers produce the single-estimand results sheet. Two of them build
+# the minimum detectable effect columns it carries after the measurement
+# block. Three build the risk-difference columns that follow.
+
+#' Excel number formats for the three minimum detectable effect (MDE) columns
+#' of the single-estimand results sheets. They sit between the measurement
+#' block and the risk-difference block.
+#'
+#' The protective MDE prints four decimals below 0.01, so a small value does not
+#' print as `0.00`.
+#' @noRd
+.MDE_SHEET_NUMFMT <- c(
+  "Expected events (int), null" = "0.0",
+  "MDE IRR, protective" = "[<0.01]0.0000;0.00",
+  "MDE IRR, harmful" = "0.00"
+)
+
+
+#' Build the three MDE cells for one row of a results sheet.
+#'
+#' The inputs are the stored UNWEIGHTED counts of the row:
+#' `events_unweighted_cmp`, `py_unweighted_cmp` and `py_unweighted_int`.
+#' `.tte_mde()` holds the formula. A row stored before `$rates()` wrote the
+#' unweighted counts gives three blank cells.
+#'
+#' @param est_row A one-row `$get_estimates()` table, or `NULL`.
+#' @param power Numeric(1), the power of the MDE.
+#' @param conf_level Numeric(1), the two-sided level of the MDE.
+#' @return An unnamed list of three numbers: the expected intervention events
+#'   under the null, the protective MDE and the harmful MDE.
+#' @noRd
+.mde_sheet_cells <- function(est_row, power, conf_level) {
+  if (is.null(est_row) || nrow(est_row) == 0L) {
+    return(list(NA_real_, NA_real_, NA_real_))
+  }
+  pick <- function(nm) {
+    if (!nm %in% names(est_row)) return(NA_real_)
+    return(as.numeric(est_row[[nm]])[1])
+  }
+  e0 <- pick("events_unweighted_cmp")
+  py0 <- pick("py_unweighted_cmp")
+  py1 <- pick("py_unweighted_int")
+  if (!all(is.finite(c(e0, py0, py1)))) {
+    return(list(NA_real_, NA_real_, NA_real_))
+  }
+  mde <- .tte_mde(e0, py0, py1, power = power, conf_level = conf_level)
+  return(list(mde$expected_events, mde$mde_protective, mde$mde_harmful))
+}
 
 #' Excel number formats for the three NUMERIC risk-difference columns that the
 #' single-estimand results sheets carry after the measurement block. The
@@ -133,11 +179,14 @@
 #'
 #' `rd_slot` names the per-ETT list element holding the risk-difference row
 #' (`"rd_pp_trunc"` or `"rd_itt"`, written by `$s3_analyze()` for every ETT).
-#' When at least one ETT carries one, four more columns follow the measurement
-#' block.
+#' When at least one ETT carries one, four more columns follow the MDE block.
 #' Those are the per-arm distinct-person event counts, the signed risk
 #' difference per 10,000 people, and its interval. When no ETT carries one, the
 #' four columns are left out rather than heading a block of empty cells.
+#'
+#' Three MDE columns always follow the measurement block. They hold the
+#' expected intervention events under the null and the protective and harmful
+#' MDE from `.tte_mde()`, at `power` and at the study confidence level.
 #' @noRd
 .write_results_single <- function(
   wb,
@@ -146,7 +195,8 @@
   rates_slot,
   irr_slot,
   rd_slot = NULL,
-  title = NULL
+  title = NULL,
+  power = 0.8
 ) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
@@ -202,6 +252,8 @@
   est <- plan$get_estimates()
   combo <- .tte_slot_combo(irr_slot)
   display_names <- names(.MEASUREMENT_NUMFMT)
+  mde_names <- names(.MDE_SHEET_NUMFMT)
+  mde_conf_level <- .s3_conf_level(plan$spec)
   rd_names <- names(.RD_SHEET_NUMFMT)
   rd_cells <- list()
   rd_levels <- numeric(0)
@@ -249,7 +301,16 @@
       Outcome = ett$outcome_name[i],
       `Follow-up (weeks)` = as.integer(ett$follow_up[i])
     )
-    rows[[length(rows) + 1L]] <- c(id_cols, .sensitivity_row_fmt(m, ""))
+    mde_cells <- .mde_sheet_cells(
+      if (length(hit) == 0L) NULL else est[hit[1L]],
+      power = power,
+      conf_level = mde_conf_level
+    )
+    rows[[length(rows) + 1L]] <- c(
+      id_cols,
+      .sensitivity_row_fmt(m, ""),
+      setNames(mde_cells, mde_names)
+    )
   }
 
   if (length(rows) == 0L) {
@@ -303,7 +364,7 @@
     "Outcome",
     "Follow-up (weeks)"
   )
-  header_row <- c(id_names, display_names, rd_headers)
+  header_row <- c(id_names, display_names, mde_names, rd_headers)
   for (k in seq_along(header_row)) {
     openxlsx::writeData(
       wb,
@@ -340,8 +401,20 @@
     n_id + 1L,
     data_start_row:data_end_row
   )
+  mde_start <- n_id + length(display_names) + 1L
+  for (j in seq_along(.MDE_SHEET_NUMFMT)) {
+    openxlsx::addStyle(
+      wb,
+      sheet_name,
+      style = openxlsx::createStyle(numFmt = .MDE_SHEET_NUMFMT[[j]]),
+      rows = data_start_row:data_end_row,
+      cols = mde_start + j - 1L,
+      gridExpand = TRUE,
+      stack = TRUE
+    )
+  }
   if (has_rd) {
-    rd_start <- n_id + length(display_names) + 1L
+    rd_start <- mde_start + length(mde_names)
     for (j in seq_along(.RD_SHEET_NUMFMT)) {
       openxlsx::addStyle(
         wb,
@@ -366,6 +439,7 @@
       30,
       12,
       rep(14, length(display_names)),
+      rep(18, length(mde_names)),
       rep(24, length(rd_headers))
     )
   )

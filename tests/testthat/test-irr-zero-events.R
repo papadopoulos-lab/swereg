@@ -99,6 +99,51 @@ test_that("estimability falls back to the ratio rule when a count is NA", {
   expect_false(swereg:::.tte_irr_estimable(NA_real_, 5, 5))
 })
 
+test_that("estimability has no ratio floor, and a ratio below 0.01 prints", {
+  # A real ratio of 0.004 with an event in each arm is an estimate. A floor of
+  # 0.01 used to blank it.
+  expect_true(swereg:::.tte_irr_estimable(0.004, 3, 500))
+  expect_identical(
+    swereg:::.tte_irr_estimable(c(0.004, 0.01, 0.5), 3, 500),
+    c(TRUE, TRUE, TRUE)
+  )
+  # The ratio rule alone, for a result stored before the counts existed.
+  expect_true(swereg:::.tte_irr_estimable(0.004))
+
+  # The producer stores TRUE, and the results sheet prints a nonzero number.
+  r <- data.table::data.table(
+    IRR = 0.004,
+    IRR_lower = 0.0013,
+    IRR_upper = 0.012,
+    IRR_pvalue = 1e-9,
+    events_intervention = 3,
+    events_comparator = 500
+  )
+  marked <- swereg:::.s3_mark_irr_estimable(r)
+  expect_true(marked$irr_estimable)
+  cells <- swereg:::.sensitivity_row_fmt(
+    list(
+      events_intervention = 3,
+      py_intervention = 1000,
+      rate_intervention = 300,
+      events_cmp = 500,
+      py_cmp = 1000,
+      rate_cmp = 50000,
+      irr = marked$IRR,
+      lo = marked$IRR_lower,
+      hi = marked$IRR_upper,
+      pvalue = marked$IRR_pvalue,
+      irr_estimable = marked$irr_estimable
+    ),
+    ""
+  )
+  expect_false(identical(cells[["IRR"]], "0.00"))
+  expect_identical(cells[["IRR"]], "0.0040")
+
+  # A decision stored FALSE before 27.2.0 stays FALSE. Old plans are rerun.
+  expect_false(swereg:::.tte_irr_estimable_stored(0.004, FALSE))
+})
+
 test_that("the NA row from a zero-event fixture carries both arm counts", {
   trial <- .ize_trial(0L, 5L)
   r <- NULL

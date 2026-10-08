@@ -60,8 +60,11 @@ skip_if_not_installed("data.table")
 
 # The dispatcher stand-in. The enrollment dispatch returns one empty slot per
 # item. The ETT dispatch returns one crafted IRR row per ETT, under the
-# `irr_itt` slot, and nothing for any other analysis call.
+# `irr_itt` slot, and nothing for any other analysis call. Every ETT return
+# carries the s2 stamp of the running version, as a current analysis file
+# does, so s3 raises no stale-analysis warning here.
 .s3rep_fake_batch_run <- function(rows) {
+  s2 <- as.character(utils::packageVersion("swereg"))
   return(function(target, items, n_workers, ...) {
     if (!identical(target$symbol, ".s3_ett_worker")) {
       return(stats::setNames(vector("list", length(items)), names(items)))
@@ -70,9 +73,9 @@ skip_if_not_installed("data.table")
       keep <- identical(it$method, "irr") &&
         identical(it$weight_col, "ipw_trunc")
       if (!keep) {
-        return(list())
+        return(list(swereg_version_s2 = s2))
       }
-      return(stats::setNames(list(rows[[it$ett_id]]), "irr_itt"))
+      return(list(irr_itt = rows[[it$ett_id]], swereg_version_s2 = s2))
     })
     names(out) <- names(items)
     return(out)

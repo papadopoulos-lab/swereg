@@ -221,6 +221,11 @@ arm, each confounder at the recruiting week, and
 follow-up at time zero, so the person-trial keeps no row. The
 time-zero censoring model fits on this table. It is \code{NULL} for the
 intention-to-treat estimand.}
+
+    \item{\code{swereg_version_s2}}{Character or NULL. It holds the swereg
+version that ran s2 on this object. s3 calls the methods of this
+object, so that version's estimators compute its results. It stays
+\code{NULL} until s2 writes the analysis file.}
   }
   \if{html}{\out{</div>}}
 }

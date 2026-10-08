@@ -25,7 +25,9 @@ utils::globalVariables("..keep_cols")
 #'
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
-#' @return A data.table with one row per treatment group.
+#' @return A data.table with one row per treatment group. It carries the
+#'   weighted events, person-years and rate, and the unweighted
+#'   `events_unweighted` and `py_unweighted` of the same rows.
 #' @noRd
 .tte_est_rates <- function(self, weight_col) {
   # Local bindings (avoid R CMD check NSE notes)
@@ -64,6 +66,10 @@ utils::globalVariables("..keep_cols")
   # participants (one person contributes to many weekly trials). Surface
   # `n_persons` alongside `n_trials` so readers and downstream tables see
   # both the analytic denominator and the underlying sample size.
+  #
+  # `events_unweighted` and `py_unweighted` are the plain sums over the same
+  # rows. `.tte_mde()` reads them for the minimum detectable effect, which is a
+  # naive Poisson calculation on counts and not on weighted totals.
   result <- data[,
     .(
       n_persons = data.table::uniqueN(get(design$person_id_var)),
@@ -72,7 +78,9 @@ utils::globalVariables("..keep_cols")
       py_weighted = sum(person_weeks * get(weight_col)) / 52.25,
       rate_per_100000py = sum(event * get(weight_col)) /
         (sum(person_weeks * get(weight_col)) / 52.25) *
-        100000
+        100000,
+      events_unweighted = sum(event),
+      py_unweighted = sum(person_weeks) / 52.25
     ),
     by = c(design$treatment_var)
   ]

@@ -163,6 +163,10 @@
     events_cmp = "numeric",
     py_cmp = "numeric",
     rate_cmp = "numeric",
+    events_unweighted_int = "numeric",
+    py_unweighted_int = "numeric",
+    events_unweighted_cmp = "numeric",
+    py_unweighted_cmp = "numeric",
     persons_event_int = "numeric",
     persons_event_cmp = "numeric",
     irr = "numeric",
@@ -359,7 +363,7 @@
 }
 
 
-#' Split one stored rates table into the six per-arm numbers.
+#' Split one stored rates table into the ten per-arm numbers.
 #'
 #' The arm column is named by the design, so the table carries its name in the
 #' `treatment_var` attribute. The intervention arm is `TRUE` and the comparator
@@ -372,8 +376,12 @@
 #' A table that passes all four still reports `NA` numbers when the producer
 #' stored `NA` numbers. Those two states are different facts.
 #'
+#' Four of the ten numbers are the unweighted events and person-years of each
+#' arm. A table stored before `$rates()` wrote them gives `NA` for all four,
+#' and `stored` does not depend on them.
+#'
 #' @param rv One stored rates table, or `NULL`.
-#' @return A named list of six numbers and one logical. Each number is
+#' @return A named list of ten numbers and one logical. Each number is
 #'   `NA_real_` when unavailable.
 #' @noRd
 .acc_rates_arms <- function(rv) {
@@ -384,7 +392,11 @@
     rate_int = NA_real_,
     events_cmp = NA_real_,
     py_cmp = NA_real_,
-    rate_cmp = NA_real_
+    rate_cmp = NA_real_,
+    events_unweighted_int = NA_real_,
+    py_unweighted_int = NA_real_,
+    events_unweighted_cmp = NA_real_,
+    py_unweighted_cmp = NA_real_
   )
   if (is.null(rv) || !data.table::is.data.table(rv)) {
     return(out)
@@ -405,11 +417,15 @@
     out$events_int <- .acc_num1(int, "events_weighted")
     out$py_int <- .acc_num1(int, "py_weighted")
     out$rate_int <- .acc_num1(int, "rate_per_100000py")
+    out$events_unweighted_int <- .acc_num1(int, "events_unweighted")
+    out$py_unweighted_int <- .acc_num1(int, "py_unweighted")
   }
   if (nrow(cmp) == 1L) {
     out$events_cmp <- .acc_num1(cmp, "events_weighted")
     out$py_cmp <- .acc_num1(cmp, "py_weighted")
     out$rate_cmp <- .acc_num1(cmp, "rate_per_100000py")
+    out$events_unweighted_cmp <- .acc_num1(cmp, "events_unweighted")
+    out$py_unweighted_cmp <- .acc_num1(cmp, "py_unweighted")
   }
   return(out)
 }
@@ -546,6 +562,10 @@
       events_cmp = rates$events_cmp,
       py_cmp = rates$py_cmp,
       rate_cmp = rates$rate_cmp,
+      events_unweighted_int = rates$events_unweighted_int,
+      py_unweighted_int = rates$py_unweighted_int,
+      events_unweighted_cmp = rates$events_unweighted_cmp,
+      py_unweighted_cmp = rates$py_unweighted_cmp,
       persons_event_int = .acc_num1(
         rd_row,
         "n_persons_with_event_intervention"

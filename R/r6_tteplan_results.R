@@ -355,6 +355,11 @@ TTEPlan$set(
           new_result[[k]] <- prev[[k]]
         }
       }
+      # This version ran the recompute, so it replaces the carried s3 stamp.
+      # `swereg_version_s2` comes back from the worker, read off the file.
+      new_result[["swereg_version"]] <- as.character(utils::packageVersion(
+        "swereg"
+      ))
       self$results_enrollment[[eid]] <- new_result
       n_recomputed <- n_recomputed + 1L
     }

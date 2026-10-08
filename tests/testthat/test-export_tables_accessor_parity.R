@@ -182,6 +182,10 @@ test_that("images match on inventory, dimensions and renderer input", {
   # refresh, and it tests both lists for emptiness. Every NUMBER it reports
   # comes from an accessor, and `.XP_SLOT_LINES` pins that.
   ".plan_export_tables" = "cache inspector",
+  # A reporter ON THE CACHE. It reads the swereg versions that s3 stamped
+  # beside each result, for the Provenance sheet and the export warning. The
+  # stamps are provenance, and no accessor returns them.
+  ".plan_computing_versions" = "cache inspector",
   # A filename literal, not a read.
   ".enrollment_counts_path" = "filename literal",
   # Unreachable. Nothing in the package calls these three, and they hand raw
@@ -257,9 +261,14 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_enrollment[[eid]] <- NULL",
     "self$results_ett[[eid]] <- NULL",
     "self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]",
+    "self$results_enrollment[[enr_todo[i]]]$swereg_version <- s3_version",
     "if (is.null(self$results_ett[[eid]])) {",
     "self$results_ett[[eid]] <- list(enrollment_id = ett_todo$enrollment_id[m$ett_i],",
-    "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]"
+    "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]",
+    "self$results_ett[[eid]]$swereg_version <- s3_version"
+  ),
+  `.plan_computing_versions` = c(
+    "results <- c(plan$results_enrollment, plan$results_ett)"
   ),
   `.plan_results_summary` = c(
     "if (is.null(plan$results_ett) || length(plan$results_ett) ==",
@@ -431,14 +440,20 @@ test_that(".ff_irr_ci reads the stored estimability decision", {
     "0.49 (0.30 to 0.81)"
   )
   expect_identical(swereg:::.ff_irr_ci(0, 0, 0, NA), "")
-  expect_identical(swereg:::.ff_irr_ci(0.005, 0.001, 0.02, NA), "")
+  # No ratio floor. A positive ratio below 0.01 is estimable, and it prints
+  # with two significant digits rather than as "0.00".
+  expect_identical(
+    swereg:::.ff_irr_ci(0.005, 0.001, 0.02, NA),
+    "0.0050 (0.0010 to 0.02)"
+  )
 
   # The upper cap is a DISPLAY convention and is not the estimability
   # decision. A ratio of 150 is estimable, and it prints as the cap.
   expect_true(swereg:::.tte_irr_estimable(150))
   expect_identical(swereg:::.ff_irr_ci(150, 21, 1071, TRUE), ">100")
 
-  # `.tte_irr_estimable()` holds the threshold, and nothing else does.
+  # `.tte_irr_estimable()` holds the estimability rule, and `.ff_irr_ci()` does
+  # not repeat it. The 0.01 display cut-off lives in `.ff_irr_num()`.
   src <- deparse(
     utils::removeSource(swereg:::.ff_irr_ci)
   )

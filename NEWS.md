@@ -1,3 +1,15 @@
+# swereg 27.2.0
+
+## New features
+
+* **Every s3 result records the swereg versions that ran s2 and s3 (#45).** `$export_tables()` and `$export()` warn when either differs from the exporting version. The Provenance sheet shows both under "swereg version (export)". Results from an analysis file of another s2 version use the estimator methods of that version, and s3 warns about them.
+* **The PP results and ITT results sheets report the minimum detectable effect (MDE) (#54).** Three columns follow the IRR p-value: the expected intervention events under the null, and the protective and harmful MDE ratio at `$export_tables(power = 0.8)`. The naive Poisson formula uses unweighted counts and ignores repeated contributions of one person, so it understates the true MDE. A plan analysed before 27.2.0 shows blank cells.
+
+## Bug fixes
+
+* **A positive incidence rate ratio below 0.01 prints (#31).** Before, a 0.01 estimability floor blanked it. The results sheets and forest labels print it and its bounds with two significant digits, as `0.0040`. A plan analysed before 27.2.0 keeps its stored decision until it is rerun.
+* **`tteenrollment_rates_combine()` accepts a rates table from before 27.2.0 beside a newer one.** Before, the extra unweighted columns made it stop.
+
 # swereg 27.1.3
 
 ## Bug fixes

@@ -207,6 +207,11 @@ TTEEnrollment <- R6::R6Class(
     #'   time-zero censoring model fits on this table. It is `NULL` for the
     #'   intention-to-treat estimand.
     time_zero_deviation = NULL,
+    #' @field swereg_version_s2 Character or NULL. It holds the swereg
+    #'   version that ran s2 on this object. s3 calls the methods of this
+    #'   object, so that version's estimators compute its results. It stays
+    #'   `NULL` until s2 writes the analysis file.
+    swereg_version_s2 = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made

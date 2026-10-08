@@ -61,7 +61,10 @@
   add("ETTs", as.character(nrow(plan$ett)))
   add("", "")
   add("R version", R.version.string)
-  add("swereg version", as.character(utils::packageVersion("swereg")))
+  add("swereg version (export)", as.character(utils::packageVersion("swereg")))
+  computing <- .plan_computing_versions(plan)
+  add("swereg version (s2)", .plan_format_versions(computing$s2))
+  add("swereg version (s3)", .plan_format_versions(computing$s3))
   add("data.table version", as.character(utils::packageVersion("data.table")))
 
   if (!is.null(plan$spec_reloaded_at)) {

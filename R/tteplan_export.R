@@ -19,6 +19,8 @@
 #' @param table1_enrollment Character(1) or NULL, the Table 1 enrollment.
 #' @param protocol_ett_id Character(1) or NULL, the protocol sheet ETT.
 #' @param output_dir Character(1) or NULL, the cached `.qs2` directory.
+#' @param power Numeric(1), the power of the minimum detectable effect on the
+#'   `PP results` and `ITT results` sheets.
 #' @return The written path, invisibly.
 #' @noRd
 .plan_export_tables <- function(
@@ -26,7 +28,8 @@
   path = NULL,
   table1_enrollment = NULL,
   protocol_ett_id = NULL,
-  output_dir = NULL
+  output_dir = NULL,
+  power = 0.8
 ) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
@@ -62,6 +65,7 @@
     }
     table1_enrollment <- as.character(table1_enrollment)
   }
+  .plan_warn_computing_versions(plan)
   if (is.null(path)) {
     path <- plan$tables_xlsx
     dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
@@ -253,7 +257,8 @@
     rates_slot = "rates_pp_trunc",
     irr_slot = "irr_pp_trunc",
     rd_slot = "rd_pp_trunc",
-    title = "Per-protocol results (truncated weights) - all ETTs"
+    title = "Per-protocol results (truncated weights) - all ETTs",
+    power = power
   )
   toc_names <- c(toc_names, "PP results")
   toc_desc <- c(
@@ -269,7 +274,8 @@
     rates_slot = "rates_itt",
     irr_slot = "irr_itt",
     rd_slot = "rd_itt",
-    title = "Intention-to-treat results - all ETTs"
+    title = "Intention-to-treat results - all ETTs",
+    power = power
   )
   toc_names <- c(toc_names, "ITT results")
   toc_desc <- c(
@@ -590,6 +596,72 @@
 }
 
 
+#' The swereg versions that computed the stored results
+#'
+#' s3 stamps `swereg_version` and `swereg_version_s2` on every result it
+#' stores. A result from an earlier release carries neither.
+#'
+#' @param plan A `TTEPlan`.
+#' @return A list with `s2` and `s3`, each the sorted unique character vector
+#'   of the stamped versions. An absent stamp contributes nothing.
+#' @noRd
+.plan_computing_versions <- function(plan) {
+  results <- c(plan$results_enrollment, plan$results_ett)
+  pick <- function(key) {
+    v <- vapply(
+      results,
+      function(r) {
+        return(as.character(r[[key]] %||% NA_character_)[1L])
+      },
+      character(1),
+      USE.NAMES = FALSE
+    )
+    v <- unique(v[!is.na(v)])
+    return(v[order(numeric_version(v, strict = FALSE))])
+  }
+  return(list(s2 = pick("swereg_version_s2"), s3 = pick("swereg_version")))
+}
+
+#' Format a version set for the Provenance sheet and the export warning
+#' @param v Character vector of versions.
+#' @return Character(1): the versions joined by ", ", or "unknown".
+#' @noRd
+.plan_format_versions <- function(v) {
+  if (length(v) == 0L) {
+    return("unknown")
+  }
+  return(paste(v, collapse = ", "))
+}
+
+#' Warn when a stored result was computed by another swereg version
+#'
+#' `$export_tables()` and `$export()` call it once each. It warns and
+#' never stops.
+#'
+#' @param plan A `TTEPlan`.
+#' @return NULL, invisibly.
+#' @noRd
+.plan_warn_computing_versions <- function(plan) {
+  export_version <- as.character(utils::packageVersion("swereg"))
+  v <- .plan_computing_versions(plan)
+  if (any(c(v$s2, v$s3) != export_version)) {
+    warning(
+      "This export runs swereg ",
+      export_version,
+      ", but other versions computed the stored results. s2: ",
+      .plan_format_versions(v$s2),
+      ". s3: ",
+      .plan_format_versions(v$s3),
+      ". export: ",
+      export_version,
+      ".",
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+
 #' Write an ordered set of exhibits from a manifest
 #'
 #' The body of `TTEPlan$export()`. It routes each spec to a producer.
@@ -603,6 +675,7 @@
   if (!is.list(manifest) || length(manifest) == 0L) {
     stop("manifest must be a non-empty list of exhibit specs", call. = FALSE)
   }
+  .plan_warn_computing_versions(plan)
   if (is.null(dir)) {
     dir <- plan$dir_results
   }

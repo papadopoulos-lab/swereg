@@ -565,17 +565,21 @@
 
 
 # The `Provenance` rows whose value is a property of the MACHINE, not of the
-# export path. `.write_provenance()` writes a clock reading and three version
+# export path. `.write_provenance()` writes a clock reading and five version
 # strings. Every one of them changes without any change to the code under test,
 # so the capture masks the value and keeps the label under comparison.
 #
-# `swereg version` is the one that bites. It reads `DESCRIPTION`, so a release
-# bump turned the snapshot red on all eight cases, once per sheet. `R version`
-# and `data.table version` do the same on any upgrade.
+# `swereg version (export)` is the one that bites. It reads `DESCRIPTION`, so a
+# release bump turned the snapshot red on all eight cases, once per sheet.
+# `swereg version (s2)` and `(s3)` read the stamps that s3 stores, and a
+# fixture stamped by the running version moves with every release too.
+# `R version` and `data.table version` do the same on any upgrade.
 .XP_MASKED_PROVENANCE_ROWS <- c(
   "Exported at",
   "R version",
-  "swereg version",
+  "swereg version (export)",
+  "swereg version (s2)",
+  "swereg version (s3)",
   "data.table version"
 )
 
@@ -596,7 +600,7 @@
     d <- as.data.frame(d, stringsAsFactors = FALSE)
     rownames(d) <- NULL
     names(d) <- paste0("C", seq_len(ncol(d)))
-    # Mask the four machine-dependent values named in
+    # Mask the six machine-dependent values named in
     # `.XP_MASKED_PROVENANCE_ROWS`. Every other cell of the sheet, and every
     # label in column 1, stays under comparison.
     if (identical(s, "Provenance") && ncol(d) >= 2L) {

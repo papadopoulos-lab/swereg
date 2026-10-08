@@ -105,7 +105,12 @@ test_that(".s3_ett_worker returns an irr_itt slot from an ITT analysis file", {
     n_threads = 1L
   )
 
-  expect_named(res, "irr_itt")
+  # Every return also carries the s2 stamp read off the analysis file.
+  expect_named(res, c("irr_itt", "swereg_version_s2"))
+  expect_identical(
+    res$swereg_version_s2,
+    as.character(utils::packageVersion("swereg"))
+  )
   expect_false(isTRUE(res$irr_itt$skipped))
   expect_true(is.finite(res$irr_itt$IRR))
 
@@ -116,7 +121,7 @@ test_that(".s3_ett_worker returns an irr_itt slot from an ITT analysis file", {
     ett_id = "ETT00001",
     n_threads = 1L
   )
-  expect_named(rates, "rates_itt")
+  expect_named(rates, c("rates_itt", "swereg_version_s2"))
   expect_false(isTRUE(rates$rates_itt$skipped))
 })
 
@@ -169,7 +174,9 @@ test_that(".s3_ett_worker computes subgroup + effect-modification slots", {
     n_threads = 1L,
     subgroup_var = "Z"
   )
-  expect_named(sg, "subgroup_Z_pp") # non-itt weight -> pp suffix
+  # non-itt weight -> pp suffix. No s2 ran on this object, so the stamp is NA.
+  expect_named(sg, c("subgroup_Z_pp", "swereg_version_s2"))
+  expect_identical(sg$swereg_version_s2, NA_character_)
   expect_equal(sg$subgroup_Z_pp$level, c("all", "0", "1"))
 
   emt <- swereg:::.s3_ett_worker(
@@ -180,6 +187,6 @@ test_that(".s3_ett_worker computes subgroup + effect-modification slots", {
     n_threads = 1L,
     subgroup_var = "Z"
   )
-  expect_named(emt, "emtest_Z_pp")
+  expect_named(emt, c("emtest_Z_pp", "swereg_version_s2"))
   expect_equal(emt$emtest_Z_pp$n_levels, 2L)
 })

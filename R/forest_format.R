@@ -75,13 +75,33 @@
 #' log10 axis of fixed extent. A point outside the window falls off the panel,
 #' or compresses every other point to a stripe.
 #'
-#' The lower edge equals the estimability bound in `.tte_irr_estimable()`
-#' today. The two are separate decisions that share a number. One answers "may
-#' this ratio be reported at all". The other answers "does this ratio fit on
-#' the axis". `.ff_irr_ci()` reads the stored estimability decision, and it
-#' reads `.FOREST_IRR_PANEL_RANGE` for the upper display cap only.
+#' The window is not the estimability decision. `.tte_irr_estimable()` has no
+#' ratio floor, so an estimable ratio can fall below the lower edge. One rule
+#' answers "may this ratio be reported at all". The other answers "does this
+#' ratio fit on the axis". `.ff_irr_ci()` reads the stored estimability
+#' decision, and it reads `.FOREST_IRR_PANEL_RANGE` for the upper display cap
+#' only.
 #' @noRd
 .FOREST_IRR_PANEL_RANGE <- c(lo = 0.01, hi = 100)
+
+
+#' Format a ratio or a ratio bound for display.
+#'
+#' A value at or above 0.01 prints with two decimals, as `"0.54"`. A positive
+#' value below 0.01 prints with two significant digits, as `"0.0040"`. Two
+#' decimals would print it as `"0.00"`, which reads as no risk.
+#'
+#' @param x Numeric, finite.
+#' @return A character vector as long as `x`.
+#' @noRd
+.ff_irr_num <- function(x) {
+  small <- x > 0 & x < 0.01
+  return(ifelse(
+    small,
+    formatC(x, digits = 2L, format = "fg", flag = "#"),
+    sprintf("%.2f", x)
+  ))
+}
 
 
 #' Format the IRR (95% CI) cell for a single row. Returns a string.
@@ -89,8 +109,10 @@
 #' Estimability is READ, not re-tested. `$s3_analyze()` calls
 #' `.tte_irr_estimable()` beside the ratio and stores the answer, and
 #' `$get_estimates()` carries it as `irr_estimable`. A ratio the producer
-#' called inestimable renders as an EMPTY cell. An effectively-zero ratio is
-#' not a useful `"<0.01"`. An intervention arm with no event gives one.
+#' called inestimable renders as an EMPTY cell. An intervention arm with no
+#' event gives a ratio of exactly 0, and the producer calls it inestimable. A
+#' positive ratio below 0.01 prints with two significant digits, through
+#' `.ff_irr_num()`.
 #'
 #' A result cached before that column existed passes `NA`, and
 #' `.tte_irr_estimable_stored()` then applies the one shared rule. That is the
@@ -119,9 +141,14 @@
     return(sprintf(">%.0f", irr_hi_bound))
   }
   if (!is.finite(lo) || !is.finite(hi) || lo <= 0 || hi <= 0) {
-    return(sprintf("%.2f (no CI)", irr))
+    return(sprintf("%s (no CI)", .ff_irr_num(irr)))
   }
-  return(sprintf("%.2f (%.2f to %.2f)", irr, lo, hi))
+  return(sprintf(
+    "%s (%s to %s)",
+    .ff_irr_num(irr),
+    .ff_irr_num(lo),
+    .ff_irr_num(hi)
+  ))
 }
 
 
@@ -414,5 +441,5 @@
   if (!is.finite(lo) || !is.finite(hi)) {
     return(NA_character_)
   }
-  return(sprintf("%.2f to %.2f", lo, hi))
+  return(sprintf("%s to %s", .ff_irr_num(lo), .ff_irr_num(hi)))
 }

@@ -1081,8 +1081,10 @@ test_that("PP results carries the person counts and the signed risk difference",
     "rd_pp_trunc"
   )
 
+  # Columns 15 to 17 are the minimum detectable effect block, so the
+  # risk-difference block starts at column 18.
   expect_identical(
-    got$header[15:18],
+    got$header[18:21],
     c(
       "Persons with event (int)",
       "Persons with event (cmp)",
@@ -1091,10 +1093,10 @@ test_that("PP results carries the person counts and the signed risk difference",
     )
   )
   # Distinct PEOPLE, unweighted.
-  expect_identical(got$row[15:16], c("20", "200"))
+  expect_identical(got$row[18:19], c("20", "200"))
   # Signed, per 10,000, at the horizon the `Follow-up (weeks)` column states.
-  expect_identical(got$row[17], "-5.1234")
-  expect_identical(got$row[18], "-8.00 to -2.00")
+  expect_identical(got$row[20], "-5.1234")
+  expect_identical(got$row[21], "-8.00 to -2.00")
 })
 
 test_that("the decision columns add no column to the results sheet", {
@@ -1124,7 +1126,7 @@ test_that("the decision columns add no column to the results sheet", {
 
   expect_identical(got_with$header, got_without$header)
   expect_identical(got_with$row, got_without$row)
-  expect_length(got_with$header, 18L)
+  expect_length(got_with$header, 21L)
   expect_false(any(grepl("NNT", got_with$header, fixed = TRUE)))
   expect_false(any(grepl("benefit", got_with$row, fixed = TRUE)))
 })
@@ -1144,9 +1146,9 @@ test_that("the sheet keeps the weighted events distinct from the person counts",
   # them.
   expect_identical(got$header[6], "Events (int)")
   expect_identical(got$row[6], "20.1234")
-  expect_identical(got$header[15], "Persons with event (int)")
-  expect_identical(got$row[15], "20")
-  expect_false(identical(got$row[6], got$row[15]))
+  expect_identical(got$header[18], "Persons with event (int)")
+  expect_identical(got$row[18], "20")
+  expect_false(identical(got$row[6], got$row[18]))
 })
 
 test_that("ITT results carries the same four columns from its own slot", {
@@ -1158,12 +1160,12 @@ test_that("ITT results carries the same four columns from its own slot", {
     "irr_itt",
     "rd_itt"
   )
-  expect_identical(got$header[15], "Persons with event (int)")
-  expect_identical(got$header[17], "Risk difference per 10,000")
-  expect_identical(got$row[17], "-5.1234")
+  expect_identical(got$header[18], "Persons with event (int)")
+  expect_identical(got$header[20], "Risk difference per 10,000")
+  expect_identical(got$row[20], "-5.1234")
 })
 
-test_that("with no risk difference cached the sheet keeps its 14 columns", {
+test_that("with no risk difference cached the sheet keeps its 17 columns", {
   skip_if_not_installed("openxlsx")
   # Computing the risk difference costs minutes per ETT, so most exports have
   # none. Four empty columns would claim a quantity nobody computed.
@@ -1174,7 +1176,8 @@ test_that("with no risk difference cached the sheet keeps its 14 columns", {
     "irr_pp_trunc",
     "rd_pp_trunc"
   )
-  expect_length(got$header, 14L)
+  # 14 measurement columns and the 3 minimum detectable effect columns.
+  expect_length(got$header, 17L)
   expect_false(any(grepl("Risk difference", got$header, fixed = TRUE)))
   expect_false(any(grepl("Persons with event", got$header, fixed = TRUE)))
 })
@@ -1190,7 +1193,7 @@ test_that("the interval header states the level the bounds were computed at", {
     "irr_pp_trunc",
     "rd_pp_trunc"
   )
-  expect_identical(got$header[18], "Risk difference 90% CI")
+  expect_identical(got$header[21], "Risk difference 90% CI")
 
   # And two levels under one header is refused, not averaged or picked from.
   expect_error(
@@ -1335,7 +1338,11 @@ test_that("no ylim at all still renders, with no window applied", {
 
 test_that("an inestimable IRR is blank on the figure", {
   expect_identical(swereg:::.ff_irr_ci(0, 0, 0), "")
-  expect_identical(swereg:::.ff_irr_ci(0.005, 0.001, 0.02), "")
+  # A positive ratio below 0.01 is estimable since 27.2.0, and it prints.
+  expect_identical(
+    swereg:::.ff_irr_ci(0.005, 0.001, 0.02),
+    "0.0050 (0.0010 to 0.02)"
+  )
   # A real ratio is unaffected.
   expect_identical(
     swereg:::.ff_irr_ci(0.49, 0.30, 0.81),

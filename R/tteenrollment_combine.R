@@ -136,7 +136,10 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
     )
   }
 
-  dt <- rbindlist(rates_list, idcol = "ett_id")
+  # A rates table stored before 27.2.0 has no `events_unweighted` and
+  # `py_unweighted`. `fill = TRUE` lets it sit beside a newer one, and its
+  # missing cells are `NA`.
+  dt <- rbindlist(rates_list, idcol = "ett_id", fill = TRUE)
   dt[, arm := fifelse(get(treatment_col), "Intervention", "Comparator")]
   dt[, (treatment_col) := NULL]
 

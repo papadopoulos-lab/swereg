@@ -1019,6 +1019,11 @@ TTEPlan$set(
 
     p <- progressr::progressor(steps = total_steps)
 
+    # The version that runs s3 is stamped on every result this call stores.
+    # The s2 version comes back from each worker, read off the analysis file.
+    s3_version <- as.character(utils::packageVersion("swereg"))
+    s2_versions <- character(0)
+
     # --- Enrollment loop ---
     if (length(enr_items) > 0L) {
       # Both s3 loops go through the ONE generic runner. The generic worker
@@ -1035,6 +1040,15 @@ TTEPlan$set(
 
       for (i in seq_along(enr_todo)) {
         self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]
+        # A NULL return stores nothing, so it takes no stamp either.
+        if (is.null(enr_results[[i]])) {
+          next
+        }
+        self$results_enrollment[[enr_todo[i]]]$swereg_version <- s3_version
+        s2_versions <- c(
+          s2_versions,
+          enr_results[[i]]$swereg_version_s2 %||% NA_character_
+        )
       }
       rm(enr_results)
     }
@@ -1074,6 +1088,11 @@ TTEPlan$set(
         for (k in names(all_results[[j]])) {
           self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]
         }
+        self$results_ett[[eid]]$swereg_version <- s3_version
+        s2_versions <- c(
+          s2_versions,
+          all_results[[j]]$swereg_version_s2 %||% NA_character_
+        )
         for (slot in grep("^irr_", names(all_results[[j]]), value = TRUE)) {
           v <- all_results[[j]][[slot]]
           if (!data.table::is.data.table(v) || !"IRR" %in% names(v)) {
@@ -1091,6 +1110,25 @@ TTEPlan$set(
         }
       }
       rm(all_results)
+    }
+
+    # s3 calls the methods of the serialised analysis enrollment, which keep
+    # the bindings of the version that ran s2. A result is then computed by
+    # that version's estimators, whatever version runs s3.
+    stale_s2 <- is.na(s2_versions) | s2_versions != s3_version
+    if (any(stale_s2)) {
+      seen <- unique(s2_versions[stale_s2])
+      warning(
+        "s3 ran swereg ",
+        s3_version,
+        " on analysis files that s2 wrote with swereg ",
+        paste(ifelse(is.na(seen), "unknown", seen), collapse = ", "),
+        ". Those results use the s2 version's estimator methods. ",
+        "Rerun s2 to compute them with ",
+        s3_version,
+        ".",
+        call. = FALSE
+      )
     }
 
     n_irr <- length(irr_id)

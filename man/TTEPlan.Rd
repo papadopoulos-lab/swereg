@@ -292,7 +292,8 @@ manuscript.
   path = NULL,
   table1_enrollment = NULL,
   protocol_ett_id = NULL,
-  output_dir = NULL
+  output_dir = NULL,
+  power = 0.8
 )}
     \if{html}{\out{</div>}}
   }
@@ -312,6 +313,15 @@ enrollment, and otherwise the first ETT in the grid.}
       \item{\code{output_dir}}{Optional directory holding the cached \code{.qs2} files.
 Used by the lazy \code{recompute_baselines()} refresh. Defaults to
 \code{self$output_dir}.}
+      \item{\code{power}}{Numeric(1) strictly between 0 and 1, default 0.8. The power
+of the minimum detectable effect (MDE) on the \verb{PP results} and
+\verb{ITT results} sheets. Each sheet reports the expected intervention events
+under the null and the protective and harmful MDE incidence rate ratio.
+The MDE is a naive Poisson calculation on the unweighted counts, at the
+study confidence level. It ignores the weights and the repeated
+contributions of one person, so it understates the true MDE. It is not
+observed power (Hoenig and Heisey 2001). A plan analysed before 27.2.0
+stored no unweighted counts, and its three MDE cells are blank.}
     }
     \if{html}{\out{</div>}}
   }

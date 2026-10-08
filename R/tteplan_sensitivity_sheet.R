@@ -127,6 +127,9 @@
 #' interval `"0.00 to 0.00"`. That reads as a point estimate of no risk, known
 #' perfectly. It is neither: the ratio is inestimable.
 #'
+#' The ratio rule is finite and above 0. It has no floor, so a real ratio of
+#' 0.004 is estimable.
+#'
 #' The ratio alone is the weaker test. It reads a symptom of an empty arm. A
 #' future change to the fit could give an empty arm a finite ratio away from
 #' zero. So the per-arm event counts decide it where the row carries them. The
@@ -149,7 +152,7 @@
   events_comparator = NA_real_
 ) {
   irr <- suppressWarnings(as.numeric(irr))
-  ok_ratio <- is.finite(irr) & irr >= 0.01
+  ok_ratio <- is.finite(irr) & irr > 0
   n_int <- .tte_estimable_counts(events_intervention, length(irr))
   n_cmp <- .tte_estimable_counts(events_comparator, length(irr))
   counted <- !is.na(n_int) & !is.na(n_cmp)
@@ -236,6 +239,8 @@
 #' disambiguating column names (`col_key_prefix` prepended to the 9 fixed
 #' column names): events / PY / rate / p-value are bare numerics (formatted in
 #' Excel via `.apply_measurement_numfmt()`); IRR and 95% CI stay display strings.
+#' `.ff_irr_num()` formats the ratio and its bounds, so a ratio below 0.01
+#' keeps two significant digits.
 #' Display headers are written separately by the sheet writer, so the prefix
 #' never appears in the worksheet.
 #' @noRd
@@ -265,7 +270,7 @@
         m$lo > 0 &&
         m$hi > 0
     ) {
-      sprintf("%.2f to %.2f", m$lo, m$hi)
+      paste(.ff_irr_num(m$lo), "to", .ff_irr_num(m$hi))
     } else {
       NA_character_
     }
@@ -276,7 +281,7 @@
       as.numeric(m$events_cmp),
       as.numeric(m$py_cmp),
       as.numeric(m$rate_cmp),
-      if (irr_estimable) sprintf("%.2f", m$irr) else NA_character_,
+      if (irr_estimable) .ff_irr_num(m$irr) else NA_character_,
       ci,
       as.numeric(m$pvalue)
     )

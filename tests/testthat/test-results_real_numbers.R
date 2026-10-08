@@ -110,12 +110,60 @@ test_that(".write_results_single: cells round-trip as real numbers", {
   on.exit(unlink(p), add = TRUE)
   openxlsx::saveWorkbook(wb, p, overwrite = TRUE)
   # title row 1, blank row 2, header row 3, data row 4
-  d <- openxlsx::read.xlsx(p, sheet = "PP results", startRow = 3)
+  d <- openxlsx::read.xlsx(
+    p,
+    sheet = "PP results",
+    startRow = 3,
+    sep.names = " ",
+    skipEmptyCols = FALSE
+  )
+  # The positions are pinned by NAME. The MDE block follows the p-value, so it
+  # moves none of them.
+  expect_identical(
+    names(d)[c(6, 7, 12, 14)],
+    c("Events (int)", "PY (int)", "IRR", "p-value")
+  )
   expect_true(is.numeric(d[[6]])) # Events (int)
   expect_true(is.numeric(d[[7]])) # PY (int)
   expect_true(is.numeric(d[[14]])) # p-value
   expect_true(is.character(d[[12]])) # IRR display string
   expect_equal(d[[7]][1], 62816)
+  expect_identical(
+    names(d)[15:17],
+    c("Expected events (int), null", "MDE IRR, protective", "MDE IRR, harmful")
+  )
+})
+
+test_that(".sensitivity_row_fmt prints a ratio below 0.01 with two significant digits", {
+  m <- list(
+    events_intervention = 3,
+    py_intervention = 62816,
+    rate_intervention = 4.8,
+    events_cmp = 500,
+    py_cmp = 98765,
+    rate_cmp = 506.2,
+    irr = 0.004,
+    lo = 0.0013,
+    hi = 0.012,
+    pvalue = 1e-9,
+    irr_estimable = TRUE
+  )
+  cells <- swereg:::.sensitivity_row_fmt(m, "")
+  expect_identical(cells[["IRR"]], "0.0040")
+  expect_identical(cells[["95% CI"]], "0.0013 to 0.01")
+  # A value at or above 0.01 keeps two decimals.
+  m$irr <- 0.54
+  m$lo <- 0.40
+  m$hi <- 0.71
+  cells <- swereg:::.sensitivity_row_fmt(m, "")
+  expect_identical(cells[["IRR"]], "0.54")
+  expect_identical(cells[["95% CI"]], "0.40 to 0.71")
+  # The forest label and the forest table interval use the same rule.
+  expect_identical(
+    swereg:::.ff_irr_ci(0.004, 0.0013, 0.012, TRUE),
+    "0.0040 (0.0013 to 0.01)"
+  )
+  expect_identical(swereg:::.ff_ci_only(0.0013, 0.012), "0.0013 to 0.01")
 })
 
 test_that(".build_itt_vs_pp_df merges PP and ITT IRRs onto shared rows", {

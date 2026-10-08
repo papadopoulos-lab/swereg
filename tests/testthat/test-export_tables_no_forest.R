@@ -222,7 +222,7 @@ test_that("export_tables no longer accepts the forest arguments", {
   args <- names(formals(swereg::TTEPlan$public_methods$export_tables))
   expect_identical(
     args,
-    c("path", "table1_enrollment", "protocol_ett_id", "output_dir")
+    c("path", "table1_enrollment", "protocol_ett_id", "output_dir", "power")
   )
 })
 
