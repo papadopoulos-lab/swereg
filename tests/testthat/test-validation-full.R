@@ -3,14 +3,12 @@
 # in one describe(), so the tier skips as one test. The fast tier is
 # test-validation-fast.R.
 #
-# 1. The evidence file was generated from the current estimator source:
-#    `$meta$estimator_hash` equals val_estimator_hash() over the source tree.
-# 2. s1 to s4, per-protocol and ITT: 20 replicates at seeds 2100 + r,
+# 1. s1 to s4, per-protocol and ITT: 20 replicates at seeds 2100 + r,
 #    N = 20,000, truncated and untruncated weights. The quantities are the
 #    log-IRR and the risk difference at h = 5, 10 and 20. Each mean bias
 #    against the exact truth MUST be within 3.5 Monte Carlo standard errors.
 #    The cells in .VAL_FULL_BANDS are the exception (see there).
-# 3. Coverage of the 95% bootstrap risk-difference interval, per-protocol in
+# 2. Coverage of the 95% bootstrap risk-difference interval, per-protocol in
 #    s1, s2 and s4. Each cell runs 200 replicates at seeds 3100 + r, with 200
 #    bootstrap replicates each and untruncated weights. The coverage at each
 #    horizon MUST be in
@@ -18,6 +16,9 @@
 #    standard error is 0.015, so 0.90 is 3.2 standard errors below it.
 #
 # The bias cells run in up to 4 forked processes (val_cores(4L)).
+#
+# The check that the evidence matches the estimator source is always on, in
+# test-validation-evidence-version.R.
 
 # Cells whose bias is known by design. Each band is the mean bias measured on
 # 2026-10-07, plus or minus 3.5 Monte Carlo standard errors, rounded outward
@@ -75,13 +76,6 @@ describe("full tier", {
     identical(Sys.getenv("SWEREG_RUN_VALIDATION"), "true"),
     "set SWEREG_RUN_VALIDATION=true to run the full validation tier"
   )
-
-  it("the evidence was generated from the current estimator source", {
-    root <- val_package_root()
-    expect_false(is.null(root), label = "a package root holding DESCRIPTION")
-    ev <- readRDS(file.path(root, "vignettes", "tte-validation-evidence.rds"))
-    expect_identical(ev$meta$estimator_hash, val_estimator_hash(root))
-  })
 
   for (cell in list(
     c("s1", "pp"),

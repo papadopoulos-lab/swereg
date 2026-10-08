@@ -8,9 +8,9 @@
 # 3 to 10). Without it, the cap is the number of cores of the machine.
 #
 # `$meta$estimator_hash` is val_estimator_hash() over the estimator source
-# files. test-validation-full.R fails when it differs from the current source,
-# and test-validation-evidence-version.R fails when `$meta$swereg` differs from
-# DESCRIPTION.
+# files. The always-on test-validation-evidence-version.R fails when it differs
+# from the current source, so rerun this script when an estimator file
+# changes. `$meta$swereg` records the version that generated the evidence.
 
 library(data.table)
 devtools::load_all(".")

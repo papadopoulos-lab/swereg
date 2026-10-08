@@ -74,11 +74,11 @@ Run the checks that match the change:
 - **An estimator change**, that is, any file in `.VAL_ESTIMATOR_FILES` of
   `tests/testthat/helper-tte_validation.R`: run the test files of the change
   and the fast tier while you work, and the full suite before you commit.
-  Before a release, regenerate the evidence and run the full tier. The full
-  tier fails while `$meta$estimator_hash` differs from the source.
-- **A version bump**: regenerate the evidence. The always-on
-  `test-validation-evidence-version.R` fails while `$meta$swereg` differs
-  from the DESCRIPTION version.
+  Before a release, regenerate the evidence and run the full tier. The
+  always-on `test-validation-evidence-version.R` fails while
+  `$meta$estimator_hash` differs from the source.
+- **A version bump**: no regeneration. The evidence stands until an
+  estimator file changes.
 
 ## Architecture and data flow
 

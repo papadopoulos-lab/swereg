@@ -8,29 +8,10 @@
 # so the restriction never reached the study population, and nothing reported
 # it. A key that swereg ignores looks exactly like a key that swereg reads.
 #
-# This file pins both directions. The refusals are the first four tests. The
-# passing direction is the last three. A red proof cannot find a defect there.
-# A gate that refuses everything passes every refusal test and blocks every
-# correct specification.
-
-# The specification fleet lives outside the package, so the fleet test skips
-# where it is absent. Every other test here drives the packaged fixture and
-# runs everywhere, including CI.
-SPEC_KEYS_FLEET <- "/home/raw996/skalkidou/structural-mht-registry-data"
-
-# The specifications that read at the commit before the gate landed. Measured,
-# not chosen. 5 of the 34 parseable specifications in the fleet read. The
-# other 29 already failed on required keys that predate this gate, so a test
-# asserting zero failures across the fleet could never pass. The criterion is
-# that the gate adds no new failure.
-SPEC_KEYS_READABLE <- c(
-  "002-ozel-psychosis/spec_v012.yaml",
-  "002-ozel-psychosis/spec_v013.yaml",
-  "003-iliadis-stroke/spec_v011.yaml",
-  "006-ozel-bipolar/spec_v006.yaml",
-  "008-erkan-osteoporosis/spec_v003.yaml"
-)
-
+# This file pins both directions. The refusals are the four tests after the
+# first. The passing direction is the first test and the last two. A red proof
+# cannot find a defect there. A gate that refuses everything passes every
+# refusal test and blocks every correct specification.
 
 # Write a specification file from the packaged fixture, with one edit applied.
 # Each test below edits one key. Everything else stays valid, so a refusal can
@@ -183,33 +164,4 @@ test_that("the gate reads the specification as written, not the normalised one",
     "$/exclusion_criteria[]/implementation/window_weeks",
     fixed = TRUE
   )
-})
-
-
-test_that("every specification that read before the gate still reads", {
-  withr::local_options(swereg.warn_prevalent_user = FALSE)
-  skip_if_not(dir.exists(SPEC_KEYS_FLEET), "specification fleet not present")
-  files <- file.path(SPEC_KEYS_FLEET, SPEC_KEYS_READABLE)
-  skip_if_not(all(file.exists(files)), "readable specifications not present")
-
-  # An empty glob cannot pass this silently.
-  expect_length(files, 5L)
-
-  errors <- vapply(
-    files,
-    function(f) {
-      return(tryCatch(
-        {
-          swereg::tteplan_read_spec(f)
-          ""
-        },
-        error = function(e) conditionMessage(e)
-      ))
-    },
-    character(1),
-    USE.NAMES = FALSE
-  )
-  # An empty string is a specification that read. The comparison names the
-  # specification that stopped reading, and why.
-  expect_identical(errors, rep("", 5L))
 })

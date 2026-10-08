@@ -80,6 +80,8 @@
 #' It cannot check that a named column exists and is logical, because it reads
 #' no data. [tteplan_validate_spec()] runs that check against the skeleton.
 #'
+#' @seealso [tteplan_check_spec()], which reports every problem as a row and
+#'   does not stop.
 #' @family tte_spec
 #' @export
 tteplan_read_spec <- function(spec_path) {

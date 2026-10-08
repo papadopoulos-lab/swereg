@@ -2745,13 +2745,12 @@ The tables and figures are rendered from
 `vignettes/tte-validation-evidence.rds`, which
 `dev/generate_validation_evidence.R` writes (in the source repository, not
 the installed package). The script uses the same data-generating, truth and
-fit helpers as the tests (`tests/testthat/helper-tte_*.R`). Three tests read
+fit helpers as the tests (`tests/testthat/helper-tte_*.R`). Two tests read
 the `.rds` file:
 
-- `test-validation-evidence-version.R` fails when `$meta$swereg` differs
-  from the DESCRIPTION version. It runs in CI.
-- `test-validation-full.R` fails when `$meta$estimator_hash` differs from the
-  md5 of the estimator source files.
+- `test-validation-evidence-version.R` fails when `$meta$estimator_hash`
+  differs from the md5 of the estimator source files. It runs in CI.
+  Regenerate the evidence when an estimator file changes.
 - `test-vignette-claims.R` checks each qualitative claim of Section 3 and of
   the passages that cite it. Each claim is a named predicate in
   `vignettes/validation-claims.R`, and this vignette stops building when one

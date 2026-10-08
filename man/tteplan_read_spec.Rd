@@ -85,6 +85,9 @@ no data. \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} runs that
 }
 
 \seealso{
+\code{\link[=tteplan_check_spec]{tteplan_check_spec()}}, which reports every problem as a row and
+does not stop.
+
 Other tte_spec:
 \code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},
 \code{\link[=tteplan_apply_exclusions]{tteplan_apply_exclusions()}},
