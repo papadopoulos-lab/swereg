@@ -463,12 +463,18 @@ Each iteration:
    confounders and baseline IPW weights are already on it.
 2. Prepares the outcome: joins the outcome column, censors at
    first event or end of follow-up window.
-3. Fits the IPCW-PP model (GAM/GLM of censoring on time-varying
-   covariates) via `$s4_prepare_for_analysis()`. This includes
+3. Fits three IPCW-PP censoring models via
+   `$s4_prepare_for_analysis()`: loss, deviation among the
+   not-lost, and deviation at time zero. The loss and deviation
+   models are GAMs or GLMs on time-varying covariates. This includes
    per-protocol censoring at treatment switch, so the output is
    NOT an ITT dataset.
 4. Combines weights: `analysis_weight_pp = ipw * ipcw_pp`.
-5. Truncates and drops intermediate IPCW columns.
+5. Writes `analysis_weight_pp_trunc`, a copy of
+   `analysis_weight_pp` truncated at the 1st and 99th percentiles.
+   `analysis_weight_pp` stays untruncated. The columns
+   `ipcw_pp_time_zero`, `ipcw_pp_loss`, `ipcw_pp_deviation` and
+   `ipcw_pp` stay on the data.
 6. Saves the result as `file_analysis`
    (`{prefix}_analysis_{ett_id}.qs2`).
 
@@ -507,14 +513,18 @@ The IRR approximation to the hazard ratio is used because the
 alternative, `survey::svycoxph()`, is computationally prohibitive
 at registry scale. For rare outcomes, which dominate TTE studies,
 the quasi-Poisson IRR is a close approximation to a flexible-baseline
-Cox model (Thompson 1977). It uses `splines::ns(tstop, df = 3)`.
+Cox model (Thompson 1977). Its time terms are flex(`tstart`), the
+time since time zero, and flex(`enrollment_period_id`), the trial.
+`vignette("tte-methods")` section 1.8.9, "Time terms", defines flex().
 
 ### Heterogeneity across trials
 
 ```{r, eval = FALSE}
-enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
-#>   Wald test on period_id x treatment interaction
-#>   chisq = 3.21, df = 2, p = 0.20
+res <- enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
+# res$p_value: Wald test p-value of the treatment x
+#   splines::ns(enrollment_period_id) interaction terms
+# res$n_trials: the number of trials
+# res$interaction_coefs: one row per interaction term
 ```
 
 Tests whether the treatment effect varies across the sequential
@@ -684,11 +694,14 @@ Commit the `spec_vNNN.yaml` file and the pipeline snapshot TSV. Then
   auditable.
 - **Weights**: baseline IPW for confounder adjustment (Loop 1),
   IPCW-PP for per-protocol censoring (Loop 2), combined as
-  `analysis_weight_pp = ipw * ipcw_pp`, truncated at 1/99
-  percentiles.
+  `analysis_weight_pp = ipw * ipcw_pp`. `ipcw_pp` is the product of the
+  factors of three censoring models: loss, deviation among the
+  not-lost, and deviation at time zero. `analysis_weight_pp` is not
+  truncated. `analysis_weight_pp_trunc` is its copy truncated at the
+  1st and 99th percentiles.
 - **Estimation**: quasi-Poisson IRR approximation to the hazard
-  ratio with `splines::ns(tstop, df = 3)` for flexible baseline
-  and person-level clustered standard errors via `survey`.
+  ratio with flex(`tstart`) + flex(`enrollment_period_id`) as time
+  terms, and person-level clustered standard errors via `survey`.
 
 For further reading:
 
