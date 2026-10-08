@@ -11,7 +11,7 @@ such as yearly income, employment status, or annual health assessments."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -110,6 +110,15 @@ value.</p>
 afterwards. R cannot grow a list in place. A growth therefore leaves the
 caller's binding on a NEW object, and every other name on the old one.
 Take an alias after the call, never before it.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="duplicated-ids">Duplicated IDs<a class="anchor" aria-label="anchor" href="#duplicated-ids"></a></h2>
+
+
+<p>An ID that has more than one row in <code>data</code> has no single value for the
+year. Such a person gets <code>NA</code> in every added column, on all skeleton rows
+of <code>isoyear</code>. This applies also to a column that existed before the call.
+The function gives one warning that states the number of duplicated IDs.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

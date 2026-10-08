@@ -1153,7 +1153,7 @@ calculations, and fit wrappers that the package’s test suite enforces in
 continuous integration. Section 4.2 maps each layer to its test file and
 describes how to regenerate the artifact.
 
-Provenance: generated 2026-10-07 17:59:13 UTC with swereg 27.1.1,
+Provenance: generated 2026-10-08 18:11:55 UTC with swereg 27.1.3,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).
 
 ### 3.1 Design of the validation battery

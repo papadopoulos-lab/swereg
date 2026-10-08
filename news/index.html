@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,33 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.1.3" id="swereg-2713">swereg 27.1.3<a class="anchor" aria-label="anchor" href="#swereg-2713"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-27-1-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-1-3"></a></h3>
+<ul><li>
+<strong><code>$export()</code> stops when a CONSORT or forest figure writes no PNG (<a href="https://github.com/papadopoulos-lab/swereg/issues/35" class="external-link">#35</a>).</strong> It deletes the old PNG first, so a file from an earlier run cannot stand in for the new one. This protects a direct <code>$export()</code> user.</li>
+<li>
+<strong><code>$reload_spec()</code> sets <code>outcome_role</code> and <code>outcome_description</code> to <code>NA</code> when the new specification omits them (<a href="https://github.com/papadopoulos-lab/swereg/issues/33" class="external-link">#33</a>).</strong> Before, the old value stayed on <code>plan$ett</code>.</li>
+<li>
+<strong>A survival exhibit without <code>age_group</code> stops with a message that names <code>age_group</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/26" class="external-link">#26</a>).</strong> <code>age_group = NA</code> selects the ETT with no age group.</li>
+<li>
+<strong><code>$survival_curve()</code> stops on an <code>NA</code> treatment or on one arm (<a href="https://github.com/papadopoulos-lab/swereg/issues/28" class="external-link">#28</a>).</strong> Before, an <code>NA</code> treatment drew a third curve.</li>
+<li>
+<strong>A forest row label drops <code>({outcome_role})</code> when the outcome has no role (<a href="https://github.com/papadopoulos-lab/swereg/issues/29" class="external-link">#29</a>).</strong> Before, it showed “Stroke ()”.</li>
+<li>
+<strong>A forest figure with <code>group_by = "outcome"</code> labels each row with its exposure name from the manifest (<a href="https://github.com/papadopoulos-lab/swereg/issues/30" class="external-link">#30</a>).</strong> It orders the outcomes as the specification lists them.</li>
+<li>
+<strong><code>$export()</code> stops on an empty <code>estimands</code> and on a manifest element that is not a list (<a href="https://github.com/papadopoulos-lab/swereg/issues/32" class="external-link">#32</a>).</strong> The message names the position of the exhibit in the manifest.</li>
+<li>
+<strong><code><a href="../reference/add_annual.html">add_annual()</a></code> gives <code>NA</code> to a person with more than one row in <code>data</code>, and warns once with the count of such persons.</strong> Before, the person silently took the values of the last row.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-27-1-3">Internal<a class="anchor" aria-label="anchor" href="#internal-27-1-3"></a></h3>
+<ul><li>
+<strong>testthat runs the test files in parallel processes (<a href="https://github.com/papadopoulos-lab/swereg/issues/53" class="external-link">#53</a>).</strong> <code>TESTTHAT_CPUS</code> sets the number of processes, and <code>TESTTHAT_PARALLEL=FALSE</code> runs the files in one process. The six simulation and validation files start first.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.1.2" id="swereg-2712">swereg 27.1.2<a class="anchor" aria-label="anchor" href="#swereg-2712"></a></h2>
 <div class="section level3">

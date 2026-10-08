@@ -48,6 +48,14 @@ afterwards. R cannot grow a list in place. A growth therefore leaves the
 caller's binding on a NEW object, and every other name on the old one.
 Take an alias after the call, never before it.
 
+## Duplicated IDs
+
+An ID that has more than one row in `data` has no single value for the
+year. Such a person gets `NA` in every added column, on all skeleton
+rows of `isoyear`. This applies also to a column that existed before the
+call. The function gives one warning that states the number of
+duplicated IDs.
+
 ## See also
 
 [`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
