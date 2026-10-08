@@ -27,10 +27,22 @@
 #' `.build_forest_df()`: `{outcome_name}`, `{outcome_description}`,
 #' `{enrollment_name}`, `{enrollment_id}`, `{intervention_name}`,
 #' `{comparator_name}`, `{follow_up}`, `{ett_id}`. Unknown placeholders are
-#' left unchanged.
+#' left unchanged. The formatter drops a parenthesised placeholder that has no
+#' value, and the space before it. An outcome with no role then shows no `()`
+#' for `({outcome_role})`.
+#'
+#' `fmt` MAY be a character vector named by ETT id. The row then takes the
+#' format named by its own `ett_id`.
 #'
 #' @noRd
 .forest_format_label <- function(fmt, row) {
+  if (!is.null(names(fmt))) {
+    id <- as.character(row[["ett_id"]])
+    if (length(id) != 1L || !id %in% names(fmt)) {
+      stop("no label format for ETT '", id, "'", call. = FALSE)
+    }
+    fmt <- fmt[[id]]
+  }
   keys <- c(
     "outcome_name",
     "outcome_description",
@@ -47,6 +59,9 @@
     val <- row[[key]]
     if (is.null(val) || (length(val) == 1L && is.na(val))) {
       val <- ""
+    }
+    if (!nzchar(paste(val, collapse = ""))) {
+      out <- gsub(paste0(" ?\\(\\{", key, "\\}\\)"), "", out)
     }
     out <- gsub(paste0("{", key, "}"), as.character(val), out, fixed = TRUE)
   }

@@ -762,19 +762,23 @@ test_that("an all-NA risk difference survives to its consumer", {
   # and the study now declares 0.90, so `.forest_rd_conf_level()` MUST refuse
   # to head the column with a level the numbers do not have. A consumer that
   # dropped the row would disable that guard in silence.
+  # The refused figure draws no PNG, so `$export()` then stops (#35).
   plan$spec$study$implementation$conf_level <- 0.90
   dir <- withr::local_tempdir()
-  expect_warning(
-    suppressMessages(plan$export(
-      list(list(
-        type = "forest",
-        label = "forest",
-        exposures = list(`Group one` = "ETT00001"),
-        estimands = "pp",
-        risk_difference = TRUE
+  expect_error(
+    expect_warning(
+      suppressMessages(plan$export(
+        list(list(
+          type = "forest",
+          label = "forest",
+          exposures = list(`Group one` = "ETT00001"),
+          estimands = "pp",
+          risk_difference = TRUE
+        )),
+        dir = dir
       )),
-      dir = dir
-    )),
-    "disagrees with the level the intervals were computed at"
+      "disagrees with the level the intervals were computed at"
+    ),
+    "forest figure in exhibit spec 1 wrote no image"
   )
 })

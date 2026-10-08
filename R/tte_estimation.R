@@ -931,6 +931,21 @@ utils::globalVariables("..keep_cols")
   if (anyNA(data$event) || !all(data$event %in% c(0L, 1L))) {
     stop("'event' must be a non-missing 0/1 indicator", call. = FALSE)
   }
+  # An NA arm would form a third curve of its own, and one arm gives no
+  # contrast to draw.
+  tv <- data[[tvar]]
+  if (anyNA(tv)) {
+    stop("treatment '", tvar, "' must be non-missing", call. = FALSE)
+  }
+  if (length(unique(tv)) < 2L) {
+    stop(
+      "treatment '",
+      tvar,
+      "' must have both arms; the data has only ",
+      paste(unique(tv), collapse = ", "),
+      call. = FALSE
+    )
+  }
 
   # Weighted discrete-time hazard per arm and reporting time. The weight is
   # applied to each at-risk row exactly as in $rates()/$irr(), so the curve

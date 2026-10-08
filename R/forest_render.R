@@ -115,7 +115,8 @@
   # Choose the format: explicit user format, or a sensible default based
   # on whether the rows are grouped.
   has_groups_top <- any(!is.na(df$group_label) & nzchar(df$group_label))
-  if (is.null(label_format) || !nzchar(label_format)) {
+  # `label_format` MAY be a vector named by ETT id, one format per row.
+  if (is.null(label_format) || !any(nzchar(label_format))) {
     label_format <- if (has_groups_top) {
       "{outcome_name} ({follow_up}w)"
     } else {

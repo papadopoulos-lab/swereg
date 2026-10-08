@@ -899,3 +899,16 @@ test_that("plan$ett and plan$spec agree on the outcome labels after a reload", {
   expect_identical(f$plan$ett$outcome_description, "Description new")
   expect_identical(f$plan$ett$outcome_role, "secondary")
 })
+
+test_that("a reload clears the role and description a new spec omits", {
+  # #33. The refresh used to write only non-missing values, so the old role
+  # and description survived a spec that removed them.
+  f <- rsi_full_reloaded()
+  spec_new <- f$new
+  spec_new$outcomes[[1]]$description <- NULL
+  spec_new$outcomes[[1]]$role <- NULL
+  suppressWarnings(swereg:::.apply_cosmetic_spec_updates(f$plan, spec_new))
+  expect_identical(f$plan$ett$outcome_description, NA_character_)
+  expect_identical(f$plan$ett$outcome_role, NA_character_)
+  expect_identical(f$plan$ett$outcome_name, "Event A")
+})

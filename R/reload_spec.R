@@ -778,26 +778,25 @@
     if (!"outcome_description" %in% names(plan$ett)) {
       plan$ett[, outcome_description := NA_character_]
     }
-    ok_desc <- !is.na(new_desc)
-    if (any(ok_desc)) {
-      data.table::set(
-        plan$ett,
-        which(ok_desc),
-        "outcome_description",
-        new_desc[ok_desc]
-      )
-    }
+    # Description and role follow the new spec for every outcome it names,
+    # NA included: an outcome whose new spec omits the field loses the old
+    # value. An outcome the new spec does not name keeps its row unchanged.
+    new_role <- outcome_lookup$role[ov]
     if (!"outcome_role" %in% names(plan$ett)) {
       plan$ett[, outcome_role := NA_character_]
     }
-    new_role <- outcome_lookup$role[ov]
-    ok_role <- !is.na(new_role)
-    if (any(ok_role)) {
+    if (any(ok)) {
       data.table::set(
         plan$ett,
-        which(ok_role),
+        which(ok),
+        "outcome_description",
+        unname(new_desc[ok])
+      )
+      data.table::set(
+        plan$ett,
+        which(ok),
         "outcome_role",
-        new_role[ok_role]
+        unname(new_role[ok])
       )
     }
   }

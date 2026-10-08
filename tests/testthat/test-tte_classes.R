@@ -314,15 +314,18 @@ test_that("survival_curve rejects NA/negative weights and non-binary events", {
   )
 })
 
-test_that("survival_curve handles a single treatment arm", {
-  # one arm, two periods: h(4)=1/2 -> S=1/2 ; h(8)=1/2 -> S=1/4
+test_that("survival_curve computes each arm from its own rows", {
+  # The exposed arm, two periods: h(4)=1/2 -> S=1/2 ; h(8)=1/2 -> S=1/4.
+  # Two comparator rows with no event give the second arm, which
+  # survival_curve() needs since 27.2.0 (#28). They do not enter the
+  # exposed arm's risk sets.
   dt <- data.table::data.table(
-    enrollment_person_trial_id = 1:4,
-    id = 1:4, # one person per trial, so the survivals below are unchanged
-    exposed = TRUE,
-    tstop = c(4L, 4L, 8L, 8L),
-    event = c(0L, 1L, 1L, 0L),
-    w = c(1, 1, 1, 1),
+    enrollment_person_trial_id = 1:6,
+    id = 1:6, # one person per trial, so the survivals below are unchanged
+    exposed = c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE),
+    tstop = c(4L, 4L, 8L, 8L, 4L, 8L),
+    event = c(0L, 1L, 1L, 0L, 0L, 0L),
+    w = c(1, 1, 1, 1, 1, 1),
     age = 50,
     death = 0L
   )
@@ -334,8 +337,9 @@ test_that("survival_curve handles a single treatment arm", {
     follow_up_time = 52L
   )
   curve <- TTEEnrollment$new(dt, design)$survival_curve("w")
-  expect_equal(curve[tstop == 4L, surv], 1 / 2)
-  expect_equal(curve[tstop == 8L, surv], 1 / 4)
+  expect_equal(curve[exposed == TRUE & tstop == 4L, surv], 1 / 2)
+  expect_equal(curve[exposed == TRUE & tstop == 8L, surv], 1 / 4)
+  expect_equal(curve[exposed == FALSE, surv], c(1, 1))
 })
 
 # =============================================================================

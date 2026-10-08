@@ -1,10 +1,9 @@
 # This writer produces the combined baseline sheet. It stacks one baseline
 # panel per enrollment on a single worksheet.
 
-# .write_consort() / .write_consort_text() / .write_consort_flowchart() live
-# in R/consort.R. The dispatcher tries the flowchart path and falls back to
-# the text table when DiagrammeR/DiagrammeRsvg/rsvg are unavailable or
-# rendering errors out.
+# The workbook carries no CONSORT sheet. `.render_consort_sidecars()` in
+# R/consort.R writes the CONSORT diagram as PNG and PDF files. It needs
+# DiagrammeR, DiagrammeRsvg and rsvg, and it has no text fallback.
 
 #' @noRd
 .write_combined_baseline <- function(wb, sheet_name, plan, eid) {

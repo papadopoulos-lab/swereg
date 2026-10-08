@@ -611,6 +611,16 @@
   paths <- character(0)
   for (i in seq_along(manifest)) {
     spec <- manifest[[i]]
+    if (!is.list(spec)) {
+      stop(
+        "exhibit spec ",
+        i,
+        " must be a list, got class '",
+        class(spec)[1],
+        "'",
+        call. = FALSE
+      )
+    }
     spec$.index <- i
     if (is.null(spec$type)) {
       stop("exhibit spec ", i, " must have a 'type'", call. = FALSE)
@@ -632,6 +642,63 @@
   }
   cat("Wrote", length(paths), "exhibit file(s) to", dir, "\n")
   return(invisible(paths))
+}
+
+
+#' Delete an image before an exhibit renders it
+#'
+#' @param path Character(1), the image path.
+#' @return NULL, invisibly.
+#' @noRd
+.plan_export_clear_image <- function(path) {
+  if (file.exists(path) && !file.remove(path)) {
+    stop("cannot delete the old image ", path, call. = FALSE)
+  }
+  return(invisible(NULL))
+}
+
+
+#' Stop when an exhibit did not write its image
+#'
+#' @param path Character(1), the image path.
+#' @param spec One exhibit spec from the manifest.
+#' @return NULL, invisibly.
+#' @noRd
+.plan_export_require_image <- function(path, spec) {
+  if (!file.exists(path)) {
+    stop(
+      spec$type,
+      " figure in exhibit spec ",
+      spec$.index %||% "(unindexed)",
+      " wrote no image at ",
+      path,
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+
+#' Read the estimands of one figure exhibit
+#'
+#' An absent field means `"pp"`. An empty one is an error, because the loop
+#' over it would then write no image and raise no error.
+#'
+#' @param spec One exhibit spec from the manifest.
+#' @return A non-empty character vector.
+#' @noRd
+.plan_export_estimands <- function(spec) {
+  estimands <- spec$estimands %||% "pp"
+  if (length(estimands) == 0L) {
+    stop(
+      "exhibit spec ",
+      spec$.index %||% "(unindexed)",
+      " has an empty 'estimands'. Omit it for 'pp', or name ",
+      "'pp' and/or 'itt'.",
+      call. = FALSE
+    )
+  }
+  return(estimands)
 }
 
 
@@ -681,11 +748,27 @@
   }
 
   if (identical(spec$type, "survival")) {
+    for (key in c("enrollment", "outcome", "follow_up", "age_group")) {
+      if (length(spec[[key]]) != 1L) {
+        stop(
+          "survival figure in exhibit spec ",
+          spec$.index %||% "(unindexed)",
+          " needs exactly one '",
+          key,
+          "'. Use age_group = NA for an ETT without an age group.",
+          call. = FALSE
+        )
+      }
+    }
+    # `==` drops an NA on either side. An ETT with no age group stores NA,
+    # so NA in the spec MUST match NA in the ETT grid.
+    spec_age <- spec$age_group
     ett_row <- plan$ett[
       enrollment_id == spec$enrollment &
         outcome_var == spec$outcome &
         follow_up == spec$follow_up &
-        age_group == spec$age_group
+        ((is.na(age_group) & is.na(spec_age)) |
+          (!is.na(age_group) & !is.na(spec_age) & age_group == spec_age))
     ]
     if (nrow(ett_row) != 1L) {
       stop(
@@ -702,7 +785,7 @@
         call. = FALSE
       )
     }
-    estimands <- spec$estimands %||% "pp"
+    estimands <- .plan_export_estimands(spec)
     # A y-axis window is meaningless without the scale it is measured on.
     # This figure plots CUMULATIVE FAILURE, so a survival-scale window such
     # as c(0.95, 1) would clip the whole curve out of view through
@@ -855,7 +938,10 @@
       )
     }
     ec <- .plan_cohort_counts(plan, eid)
-    .render_consort_sidecars(
+    out <- file.path(dir, paste0(base, ".png"))
+    # A PNG left by an earlier run would satisfy the existence check below.
+    .plan_export_clear_image(out)
+    sidecars <- .render_consort_sidecars(
       plan = plan,
       ec = ec,
       eid = eid,
@@ -863,7 +949,18 @@
       output_dir = dir,
       img_basename = base
     )
-    return(file.path(dir, paste0(base, ".png")))
+    if (is.null(sidecars)) {
+      stop(
+        "CONSORT figure for enrollment '",
+        eid,
+        "' in exhibit spec ",
+        spec$.index %||% "(unindexed)",
+        " was not rendered. See the warning above.",
+        call. = FALSE
+      )
+    }
+    .plan_export_require_image(out, spec)
+    return(out)
   }
 
   if (identical(spec$type, "forest")) {
@@ -908,17 +1005,30 @@
       default_label <- "{outcome_name}"
     } else if (identical(group_by, "outcome")) {
       keep_groups <- plan$ett$outcome_name[match(keep_ids, plan$ett$ett_id)]
-      # Reorder so same-outcome rows are consecutive (in spec outcome order);
-      # the renderer only merges consecutive same-label rows, and the ett
-      # list arrives exposure-major, which would split each outcome into
-      # many single-row groups.
+      keep_exposures <- rep(
+        names(spec$exposures),
+        times = lengths(spec$exposures)
+      )
+      # Reorder so same-outcome rows are consecutive, in the order of the
+      # spec's `outcomes` block. The renderer only merges consecutive
+      # same-label rows, and the ett list arrives exposure-major, which would
+      # split each outcome into many single-row groups. An outcome the spec
+      # does not name follows, in ETT grid order.
+      spec_outcome_names <- unname(
+        .spec_outcome_name_lookup(plan$spec)$name %||% character(0)
+      )
       ord <- order(
-        match(keep_groups, unique(plan$ett$outcome_name)),
+        match(
+          keep_groups,
+          unique(c(spec_outcome_names, plan$ett$outcome_name))
+        ),
         seq_along(keep_ids)
       )
       keep_ids <- keep_ids[ord]
       keep_groups <- keep_groups[ord]
-      default_label <- "{enrollment_name}"
+      # Each row is one exposure, so its label is the manifest's exposure
+      # name. A label format keyed by ETT id carries that name per row.
+      default_label <- setNames(keep_exposures[ord], keep_ids)
     } else {
       stop(
         "forest group_by must be 'exposure' or 'outcome', got '",
@@ -956,7 +1066,7 @@
     } else {
       NULL
     }
-    estimands <- spec$estimands %||% "pp"
+    estimands <- .plan_export_estimands(spec)
     # `risk_difference` is a DISPLAY switch and computes nothing. s3 stores
     # the risk difference for every ETT, so this option only decides
     # whether the figure carries the two extra columns.
@@ -1025,6 +1135,8 @@
         rd_lookup <- .tte_rd_lookup(plan, slots$rd, keep_ids)
       }
       img_base <- paste0(base, "_", est)
+      out <- file.path(dir, paste0(img_base, ".png"))
+      .plan_export_clear_image(out)
       .write_forest_irr(
         openxlsx::createWorkbook(),
         sheet_name = paste0("forest_", est),
@@ -1047,7 +1159,10 @@
         img_dir = dir,
         img_basename = img_base
       )
-      paths <- c(paths, file.path(dir, paste0(img_base, ".png")))
+      # `.write_forest_irr()` returns NULL, and writes no image, when no row
+      # has a result or the renderer fails.
+      .plan_export_require_image(out, spec)
+      paths <- c(paths, out)
     }
     return(paths)
   }
