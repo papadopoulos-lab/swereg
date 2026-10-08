@@ -303,8 +303,9 @@ the two-pass Loop 1 workers.</td>
 <p><code>$s4_prepare_for_analysis()</code> combines outcome preparation
 and IPCW-PP into one call. It prepares outcome data, calculates IPCW-PP,
 combines weights (<code>ipw × ipcw_pp</code> →
-<code>analysis_weight_pp</code>), and truncates. It keeps the three
-factors of <code>ipcw_pp</code> as columns.</p>
+<code>analysis_weight_pp</code>), and writes the truncated copy
+<code>analysis_weight_pp_trunc</code>. It keeps the three factors of
+<code>ipcw_pp</code> as columns.</p>
 </div>
 </div>
 <div class="section level2">
@@ -370,15 +371,27 @@ censoring in its risk set. Its factor is 1.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>analysis_weight_pp</strong></td>
-<td align="left">Final combined weight (<code>ipw × ipcw_pp</code>),
+<td align="left">Final combined weight (<code>ipw × ipcw_pp</code>), not
 truncated. Created automatically by
 <code>$s4_prepare_for_analysis()</code>.</td>
 </tr>
 <tr class="even">
+<td align="left"><strong>analysis_weight_pp_trunc</strong></td>
+<td align="left">
+<code>analysis_weight_pp</code> truncated at the 1st
+and 99th percentiles. <code>$s4_prepare_for_analysis()</code> writes
+it.</td>
+</tr>
+<tr class="odd">
 <td align="left"><strong>truncation</strong></td>
 <td align="left">Winsorization of extreme weights at the 1st and 99th
-percentiles (by default) to reduce variance. Applied via
-<code>$s3_truncate_weights()</code>.</td>
+percentiles to reduce variance. It writes a copy with the suffix
+<code>_trunc</code> and leaves the original weight unchanged.
+<code>$s3_truncate_weights()</code> truncates <code>ipw</code> into
+<code>ipw_trunc</code>, with the percentiles as defaults.
+<code>$s4_prepare_for_analysis()</code> writes
+<code>analysis_weight_pp_trunc</code> at percentiles fixed in the
+code.</td>
 </tr>
 </tbody>
 </table>

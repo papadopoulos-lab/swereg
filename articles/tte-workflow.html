@@ -554,13 +554,19 @@ combination). Each iteration:</p>
 are already on it.</li>
 <li>Prepares the outcome: joins the outcome column, censors at first
 event or end of follow-up window.</li>
-<li>Fits the IPCW-PP model (GAM/GLM of censoring on time-varying
-covariates) via <code>$s4_prepare_for_analysis()</code>. This includes
-per-protocol censoring at treatment switch, so the output is NOT an ITT
-dataset.</li>
+<li>Fits three IPCW-PP censoring models via
+<code>$s4_prepare_for_analysis()</code>: loss, deviation among the
+not-lost, and deviation at time zero. The loss and deviation models are
+GAMs or GLMs on time-varying covariates. This includes per-protocol
+censoring at treatment switch, so the output is NOT an ITT dataset.</li>
 <li>Combines weights:
 <code>analysis_weight_pp = ipw * ipcw_pp</code>.</li>
-<li>Truncates and drops intermediate IPCW columns.</li>
+<li>Writes <code>analysis_weight_pp_trunc</code>, a copy of
+<code>analysis_weight_pp</code> truncated at the 1st and 99th
+percentiles. <code>analysis_weight_pp</code> stays untruncated. The
+columns <code>ipcw_pp_time_zero</code>, <code>ipcw_pp_loss</code>,
+<code>ipcw_pp_deviation</code> and <code>ipcw_pp</code> stay on the
+data.</li>
 <li>Saves the result as <code>file_analysis</code>
 (<code>{prefix}_analysis_{ett_id}.qs2</code>).</li>
 </ol>
@@ -599,15 +605,20 @@ first argument.</p>
 alternative, <code><a href="https://rdrr.io/pkg/survey/man/svycoxph.html" class="external-link">survey::svycoxph()</a></code>, is computationally
 prohibitive at registry scale. For rare outcomes, which dominate TTE
 studies, the quasi-Poisson IRR is a close approximation to a
-flexible-baseline Cox model (Thompson 1977). It uses
-<code>splines::ns(tstop, df = 3)</code>.</p>
+flexible-baseline Cox model (Thompson 1977). Its time terms are
+flex(<code>tstart</code>), the time since time zero, and
+flex(<code>enrollment_period_id</code>), the trial.
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section 1.8.9, “Time terms”,
+defines flex().</p>
 <div class="section level4">
 <h4 id="heterogeneity-across-trials">Heterogeneity across trials<a class="anchor" aria-label="anchor" href="#heterogeneity-across-trials"></a>
 </h4>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   Wald test on period_id x treatment interaction</span></span>
-<span><span class="co">#&gt;   chisq = 3.21, df = 2, p = 0.20</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="va">enrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span>
+<span><span class="co"># res$p_value: Wald test p-value of the treatment x</span></span>
+<span><span class="co">#   splines::ns(enrollment_period_id) interaction terms</span></span>
+<span><span class="co"># res$n_trials: the number of trials</span></span>
+<span><span class="co"># res$interaction_coefs: one row per interaction term</span></span></code></pre></div>
 <p>Tests whether the treatment effect varies across the sequential
 trials. A significant result suggests calendar-time effect modification
 or changing selection on treatment initiation.</p>
@@ -779,13 +790,17 @@ makes the reproducibility chain auditable.</li>
 <li>
 <strong>Weights</strong>: baseline IPW for confounder adjustment
 (Loop 1), IPCW-PP for per-protocol censoring (Loop 2), combined as
-<code>analysis_weight_pp = ipw * ipcw_pp</code>, truncated at 1/99
-percentiles.</li>
+<code>analysis_weight_pp = ipw * ipcw_pp</code>. <code>ipcw_pp</code> is
+the product of the factors of three censoring models: loss, deviation
+among the not-lost, and deviation at time zero.
+<code>analysis_weight_pp</code> is not truncated.
+<code>analysis_weight_pp_trunc</code> is its copy truncated at the 1st
+and 99th percentiles.</li>
 <li>
 <strong>Estimation</strong>: quasi-Poisson IRR approximation to the
-hazard ratio with <code>splines::ns(tstop, df = 3)</code> for flexible
-baseline and person-level clustered standard errors via
-<code>survey</code>.</li>
+hazard ratio with flex(<code>tstart</code>) +
+flex(<code>enrollment_period_id</code>) as time terms, and person-level
+clustered standard errors via <code>survey</code>.</li>
 </ul>
 <p>For further reading:</p>
 <ul>

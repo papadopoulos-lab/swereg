@@ -3671,10 +3671,10 @@ swereg 26.15.0. Its weekly rows are gone, so the gap cannot be
 recomputed. swereg then warns once. The warning says that gaps in
 observation cannot be detected in the panel, and that an outcome after
 such a gap may be counted. A re-run of s1 removes the limitation.
-<code><a href="../reference/qs2_read.html">qs2_read()</a></code> gives the warning when it reads such an
-enrollment from a file, and <code>.tte_gap_record_end()</code> gives it
-for a panel that was not read. An enrollment saved before 26.15.0 runs
-its saved method bodies and the old rules, so it warns on read only</td>
+<code>.tte_gap_record_end()</code> gives the warning for such a panel in
+memory. <code><a href="../reference/qs2_read.html">qs2_read()</a></code> refuses a stored enrollment from before
+schema 6, which includes every enrollment saved before 26.15.0, so such
+a file cannot be read. Rebuild the plan with s0 and re-run s1</td>
 </tr>
 <tr class="odd">
 <td align="left">1.8.1</td>

@@ -351,7 +351,7 @@ enrollment period, it reads no other variable, and it forms no matched
 set.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "trial"</span></span>
-<span><span class="co"># now has: period_id, tstart, tstop, intervention, ...</span></span></code></pre></div>
+<span><span class="co"># now has: enrollment_period_id, period_id, tstart, tstop, intervention, ...</span></span></code></pre></div>
 <p>The remaining Loop 1 steps work on this trial panel:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># impute_fn at trial entry; the default draws one hot-deck value</span></span>
@@ -378,7 +378,8 @@ column, fits IPCW-PP, combines weights, and saves the result as
 <span>  follow_up <span class="op">=</span> <span class="va">x_follow_up_weeks</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co"># enrollment$enrollment_stage -&gt; "analysis_ready"</span></span>
-<span><span class="co"># analysis_weight_pp = ipw * ipcw_pp (truncated)</span></span></code></pre></div>
+<span><span class="co"># analysis_weight_pp = ipw * ipcw_pp (not truncated)</span></span>
+<span><span class="co"># analysis_weight_pp_trunc = analysis_weight_pp truncated at 1/99 percentiles</span></span></code></pre></div>
 <p>One <code>file_analysis</code> per row of <code>plan$ett</code>. This
 is where estimation happens.</p>
 </div>

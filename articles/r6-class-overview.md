@@ -188,7 +188,7 @@ set.
 
 ``` r
 enrollment$data_level  # "trial"
-# now has: period_id, tstart, tstop, intervention, ...
+# now has: enrollment_period_id, period_id, tstart, tstop, intervention, ...
 ```
 
 The remaining Loop 1 steps work on this trial panel:
@@ -218,7 +218,8 @@ enrollment$s4_prepare_for_analysis(
   follow_up = x_follow_up_weeks
 )
 # enrollment$enrollment_stage -> "analysis_ready"
-# analysis_weight_pp = ipw * ipcw_pp (truncated)
+# analysis_weight_pp = ipw * ipcw_pp (not truncated)
+# analysis_weight_pp_trunc = analysis_weight_pp truncated at 1/99 percentiles
 ```
 
 One `file_analysis` per row of `plan$ett`. This is where estimation
