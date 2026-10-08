@@ -51,15 +51,18 @@ devtools::load_all(".")
 
 ## How long the checks take
 
-Measured on uppsala (6 cores, R 4.5.2) in October 2026. testthat runs the
-suite on one core. papadopoulos-lab/swereg#53 tracks running it in parallel.
+Measured on uppsala (6 cores, R 4.5.2) in October 2026. Since 27.2.0,
+testthat runs the test files in parallel processes (`Config/testthat/parallel`
+in `DESCRIPTION`). `TESTTHAT_CPUS` sets the number of processes, and
+`TESTTHAT_PARALLEL=FALSE` runs the files in one process.
 
 | Check | How to run it | Time |
 |:--|:--|:--|
 | One test file | `testthat::test_file()` after `pkgload::load_all(".")` | `test-vignette-claims.R`: 0.8 s, and 6 s with the package load |
 | Fast validation tier | `tests/testthat/test-validation-fast.R` | 340 to 350 s |
-| Full suite | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
-| `R CMD check --no-manual --as-cran` | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |
+| Full suite, parallel | `NOT_CRAN=true TESTTHAT_CPUS=4`, then `testthat::test_local(".")` | 744 s for 7,473 passing expectations with 4 processes (27.2.0, 2026-10-08). The load average was 1.45 at the start and 4.44 at the end. |
+| Full suite, serial (before 27.2.0) | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
+| `R CMD check --no-manual --as-cran` (serial tests, before 27.2.0) | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |
 | Full validation tier | `SWEREG_RUN_VALIDATION=true`, `tests/testthat/test-validation-full.R` | 2,388 s with 4 workers: 707 s for the bias cells, 541 to 578 s for each of the 3 RD coverage cells |
 | The other opt-in files | `test-tte_coverage.R` and `test-tte_stress_matrix.R`, same variable | 961 s and 418 s, measured while other jobs ran |
 | Evidence regeneration | `Rscript dev/generate_validation_evidence.R --max-workers=6` | 7,059 s with Slurm empty; 7,586 s while other jobs ran |

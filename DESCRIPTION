@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 27.1.2
+Version: 27.2.0
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -62,6 +62,8 @@ VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0
 Config/testthat/edition: 3
+Config/testthat/parallel: true
+Config/testthat/start-first: tte_coverage*, validation-full*, tte_stress*, tteplan_truth*, tte_validation*, validation-fast*
 Collate: 
     'add_annual.R'
     'add_diagnoses_and_operations.R'

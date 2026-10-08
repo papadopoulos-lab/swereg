@@ -1,3 +1,9 @@
+# swereg 27.2.0
+
+## Internal
+
+* **testthat runs the test files in parallel processes (#53).** `TESTTHAT_CPUS` sets the number of processes, and `TESTTHAT_PARALLEL=FALSE` runs the files in one process. The six simulation and validation files start first.
+
 # swereg 27.1.2
 
 ## New features
