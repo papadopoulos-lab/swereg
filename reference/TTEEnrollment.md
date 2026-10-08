@@ -24,10 +24,11 @@ stored field means, or adds a field its readers need. swereg 26.10.19
 raised it to `4L`. Schema 4 stores the fill summary in `fill_summary`
 and the propensity-model diagnostics in `ps_fit`, and this release reads
 both. swereg 26.15.0 raised it to `5L`, which gives the panel column
-`enrollment_period_id` its current name.
+`enrollment_period_id` its current name. This release raised it to `6L`,
+which names the calendar period of each row `period_id`.
 [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
-migrates a schema-4 object to schema 5 before this check runs. The check
-refuses every object below schema 4.
+refuses every enrollment below schema 6 before this check runs. The
+check refuses the same objects.
 
 ## Baseline treatment
 
@@ -53,8 +54,8 @@ gives a comparator.
 Follow-up starts at time zero, which the interval convention section
 below defines. The panel therefore starts one follow-up interval after
 the enrollment period, and the enrollment period carries no follow-up.
-`enrollment_period_id` names the trial and `trial_id` names the
-follow-up interval.
+`enrollment_period_id` names the trial and `period_id` names the
+calendar period of the follow-up interval.
 
 Each confounder reaches the panel twice. The `.tte_entry__<v>` column
 holds its value at the recruiting week, and `<v>` holds the time-updated
@@ -219,13 +220,13 @@ Other tte_classes:
 
   A data.table or NULL. It reports why the time-zero qualification
   dropped each candidate person-trial, by criterion and by arm. Its
-  columns are `trial_id`, `criterion`, `n_persons`, `n_person_trials`,
-  `n_intervention` and `n_comparator`. The row with `trial_id = NA`
-  covers the whole cohort. The three criteria are `landmark_candidates`,
-  `landmark_observed` and `landmark_event_free`, and each count is
-  cumulative. It stays `NULL` when the design declares no
-  `observed_var`, and when the caller supplies `enrolled_ids` from the
-  two-pass pipeline.
+  columns are `enrollment_period_id`, `criterion`, `n_persons`,
+  `n_person_trials`, `n_intervention` and `n_comparator`. The row with
+  `enrollment_period_id = NA` covers the whole cohort. The three
+  criteria are `landmark_candidates`, `landmark_observed` and
+  `landmark_event_free`, and each count is cumulative. It stays `NULL`
+  when the design declares no `observed_var`, and when the caller
+  supplies `enrolled_ids` from the two-pass pipeline.
 
 - `fill_summary`:
 
@@ -240,6 +241,28 @@ Other tte_classes:
   propensity model `$s2_ipw()` fits: `n_fit`, `rank`, `converged`,
   `n_boundary` and `n_dropped_na_snapshot`. It stays `NULL` until
   `$s2_ipw()` runs.
+
+- `ipcw_formulas`:
+
+  A list or NULL. It records the three censoring models of each stratum,
+  keyed by the stratum label, such as `"the intervention arm"`. Each
+  stratum holds one element per cause: `loss`, `deviation` and
+  `time_zero`. A fitted cause is
+  `list(fitted = TRUE, denominator = , numerator = )`, which holds the
+  two formulas. A cause that fits no model is
+  `list(fitted = FALSE, reason = )`, and its factor is 1. It stays
+  `NULL` until the per-protocol censoring weights are estimated.
+
+- `time_zero_deviation`:
+
+  A data.table or NULL. `s5_prepare_outcome()` writes it for the
+  per-protocol estimand. It holds one row for each person-trial with a
+  known arm whose follow-up no other stop ends at time zero. Its columns
+  are the identifier, the arm, each confounder at the recruiting week,
+  and `deviation_time_zero`. That column is 1 when a deviation stops
+  follow-up at time zero, so the person-trial keeps no row. The
+  time-zero censoring model fits on this table. It is `NULL` for the
+  intention-to-treat estimand.
 
 ## Active bindings
 
@@ -327,11 +350,11 @@ Danaei 2013).
 
 **IRR vs HR**: For rare events (typical in registry-based TTE studies),
 the incidence rate ratio from Poisson regression approximates the hazard
-ratio from Cox regression (Thompson 1977). The Poisson model with
-`splines::ns(tstop, df=3)` flexibly models the baseline event rate over
-follow-up time. That is analogous to Cox's nonparametric baseline hazard
-and to Danaei et al.'s "month of follow-up and its squared terms" in
-pooled logistic regression.
+ratio from Cox regression (Thompson 1977). The Poisson model has a term
+in the time since time zero, read at the interval start (`tstart`). That
+term models the baseline event rate over follow-up. It is analogous to
+Cox's nonparametric baseline hazard and to Danaei et al.'s "month of
+follow-up and its squared terms" in pooled logistic regression.
 
 **Computational choice**: `quasipoisson` accounts for overdispersion
 from survey weights, and `svyglm` scales to large registry datasets
@@ -340,11 +363,11 @@ from survey weights, and `svyglm` scales to large registry datasets
 This is computationally equivalent to the pooled logistic approach used
 by Danaei et al. (2013).
 
-**Calendar-time adjustment**: When `trial_id` is present in the data,
-the model adjusts for calendar-time variation in outcome rates (Caniglia
-2023, Danaei 2013). In the panel, `trial_id` indexes the calendar period
-of each follow-up interval. Uses natural splines for \>=5 unique trial
-IDs, linear term for 2-4, omitted for 1.
+**Trial adjustment**: The model also has a term in the trial,
+`enrollment_period_id`, the calendar period at time zero (Caniglia 2023,
+Danaei 2013). Each time term counts the distinct values in the fitted
+rows. It is `splines::ns(x, df = 3)` from 4 values, `factor(x)` for 2 or
+3 values, and no term for 1 value.
 
 **Estimand (marginal)**: confounding is removed by the supplied
 `weights`, not by adjusting for confounders in this model, so the
@@ -359,13 +382,18 @@ ratio. See
 
 #### Usage
 
-    TTEEnrollment$irr(weight_col)
+    TTEEnrollment$irr(weight_col, conf_level = 0.95)
 
 #### Arguments
 
 - `weight_col`:
 
   Character, required. Column name for weights.
+
+- `conf_level`:
+
+  Numeric in (0, 1), the level of the Wald interval of the IRR. Default
+  0.95.
 
 #### Returns
 
@@ -377,10 +405,13 @@ A data.table with IRR estimates and confidence intervals.
 
 Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a `trial_id x treatment` interaction term and returns
-the Wald test p-value. This tests whether the treatment effect varies
-across the calendar periods that `trial_id` indexes (Hernan 2008, Danaei
-2013).
+Fits a model with a treatment x trial interaction and returns the Wald
+test p-value. The trial is `enrollment_period_id`, the calendar period
+at time zero. This tests whether the treatment effect varies across the
+trials (Hernan 2008, Danaei 2013). The interaction is with
+`splines::ns(enrollment_period_id, df = min(3, n - 1))`, where `n` is
+the number of trials. The model also has a term in the time since time
+zero (`tstart`).
 
 #### Usage
 
@@ -394,7 +425,7 @@ across the calendar periods that `trial_id` indexes (Hernan 2008, Danaei
 
 #### Returns
 
-A list with `p_value` (Wald test), `n_trials` (unique trial IDs), and
+A list with `p_value` (Wald test), `n_trials` (unique trials), and
 `interaction_coefs` (data.table of interaction coefficients).
 
 ------------------------------------------------------------------------
@@ -414,9 +445,16 @@ where `ref` is the first factor level.
 The subgroup variable should be a confounder (in the PS / IPCW models)
 so the marginal weights remain valid within each stratum.
 
+The model has the same time terms as `$irr()`: the time since time zero
+(`tstart`) and the trial (`enrollment_period_id`).
+
 #### Usage
 
-    TTEEnrollment$effect_modification_test(weight_col, subgroup_var)
+    TTEEnrollment$effect_modification_test(
+      weight_col,
+      subgroup_var,
+      conf_level = 0.95
+    )
 
 #### Arguments
 
@@ -427,6 +465,11 @@ so the marginal weights remain valid within each stratum.
 - `subgroup_var`:
 
   Character, required. A categorical baseline column.
+
+- `conf_level`:
+
+  Numeric in (0, 1), the level of the Wald interval of `ratio_of_irrs`.
+  Default 0.95.
 
 #### Returns
 
@@ -446,11 +489,12 @@ subgroup level, each fit on that stratum's rows via the shared
 estimation core. The effect-modification test p-value (and, for a binary
 subgroup, the ratio of stratum IRRs) is attached as an attribute. Strata
 with no events or only one treatment arm degrade to NA with a warning;
-NA-subgroup rows are dropped (count attached as an attribute).
+NA-subgroup rows are dropped (count attached as an attribute). Each fit
+has the same time terms as `$irr()`.
 
 #### Usage
 
-    TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var)
+    TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var, conf_level = 0.95)
 
 #### Arguments
 
@@ -461,6 +505,11 @@ NA-subgroup rows are dropped (count attached as an attribute).
 - `subgroup_var`:
 
   Character, required. A categorical baseline column.
+
+- `conf_level`:
+
+  Numeric in (0, 1), the level of the Wald interval of each IRR. Default
+  0.95.
 
 #### Returns
 
@@ -840,7 +889,8 @@ Create a new TTEEnrollment object.
 
   data.table or NULL. Pre-drawn enrollment IDs from the two-pass
   pipeline. When provided, enrollment skips the comparator draw and uses
-  these IDs directly.
+  these IDs directly. It MUST carry the trial of each person-trial in
+  `enrollment_period_id`.
 
 - `own_data`:
 
@@ -899,13 +949,31 @@ the row cannot attribute a post-deviation outcome to the baseline
 treatment. Releases before 26.9.0 deleted the row instead, which threw
 away every valid week it held.
 
-Event-priority convention: an outcome event that stops in the deviation
-follow-up interval wins. The row then counts as an event and not as a
-censoring. The deviation does not clip it, `censor_this_period` is 0,
-and the censoring model does not treat it as censored (since 26.7.3).
-The row still stops at the exact event week, which can fall inside the
-follow-up interval. The convention applies to a treatment deviation
-only, and never to an observation gap.
+Per-protocol follow-up stops at the start of the first discordant week
+beyond tolerance, as it stops at the first absent week. That week is not
+adherent follow-up, so an outcome in it or later does not count. On a
+tie the other boundary labels the stop. An outcome in the week before
+the deviation counts, and the row is not censored. A gap or a record end
+at the same week is loss. A planned end at the same week is complete
+follow-up.
+
+The per-protocol censoring weight `ipcw_pp` is the product of three
+factors. By default each is fitted in each arm.
+
+- `ipcw_pp_loss` comes from a loss model fitted on the rows without an
+  outcome. Loss is observed after the outcome of a row.
+
+- `ipcw_pp_deviation` comes from a deviation model fitted on the rows
+  without an outcome that were not lost. A person who is not observed
+  cannot be seen to deviate.
+
+- `ipcw_pp_time_zero` comes from a logistic model of a deviation at time
+  zero on the confounders at the recruiting week. It is fitted on every
+  person-trial in `$time_zero_deviation`, including those that keep no
+  row.
+
+The columns `censor_loss` and `censor_deviation` mark the rows that each
+row-level cause censors.
 
 #### Usage
 
@@ -946,7 +1014,10 @@ only, and never to an observation gap.
 
 - `censoring_var`:
 
-  Character or NULL. Defaults to `"censor_this_period"`.
+  `NULL` or `"censor_this_period"`. Any other value stops. The
+  per-protocol weights fit one model per cause, and they read
+  `censor_loss` and `censor_deviation`, which `s5_prepare_outcome()`
+  writes.
 
 ------------------------------------------------------------------------
 

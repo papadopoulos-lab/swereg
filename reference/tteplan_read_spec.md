@@ -48,7 +48,8 @@ Validation checks:
 
 - Each outcome must have `implementation$variable`
 
-- Each enrollment must have `id` and `treatment$implementation$variable`
+- Each enrollment must have `id`, `treatment$implementation$variable`
+  and `treatment$implementation$seed`
 
 - Computed confounders must have `implementation$source_variable`
 

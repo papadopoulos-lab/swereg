@@ -11,7 +11,7 @@ qs2::qs_read."><meta property="og:image" content="https://papadopoulos-lab.githu
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,18 +101,17 @@ underlying qs2 error <code>qdata format detected, use qs2::qd_read</code>. swere
 never written qdata files itself.</p>
     </div>
     <div class="section level2">
-    <h2 id="schema-migration">Schema migration<a class="anchor" aria-label="anchor" href="#schema-migration"></a></h2>
+    <h2 id="stored-objects-from-an-older-schema">Stored objects from an older schema<a class="anchor" aria-label="anchor" href="#stored-objects-from-an-older-schema"></a></h2>
 
 
-<p>The reader renames the columns that swereg 26.15.0 renamed, before it
-checks the schema version of an R6 object. A <a href="TTEEnrollment.html">TTEEnrollment</a> at schema 4
-gets the panel column <code>enrollment_period_id</code> under that name. A <a href="TTEPlan.html">TTEPlan</a>
-at schema 3 gets the column <code>follow_up_interval</code> under that name in its
-stored risk-difference rows. The rename changes no value. An object at an
-older schema is refused as before.</p>
-<p>The rename runs here because a deserialised R6 object keeps the method
-bodies it was saved with. Its own <code>check_version()</code> refuses the older
-schema, so a migration inside the new <code>check_version()</code> would never run.</p>
+<p>The reader refuses a <a href="TTEEnrollment.html">TTEEnrollment</a> below schema 6 and a <a href="TTEPlan.html">TTEPlan</a> below
+schema 5. The error names the file. It says to rebuild the plan with s0 and
+re-run s1, then s2 and s3. The reader does not migrate such an object.</p>
+<p>The refusal runs here, before the reader calls <code>check_version()</code>. A
+deserialised R6 object keeps the method bodies it was saved with, so its
+<code>check_version()</code> is the code of the release that saved it. Its panel also
+keeps the old column names. A model fitted on that panel loses its calendar
+term, and gives no error.</p>
     </div>
     <div class="section level2">
     <h2 id="data-table-over-allocation">data.table over-allocation<a class="anchor" aria-label="anchor" href="#data-table-over-allocation"></a></h2>

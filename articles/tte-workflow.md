@@ -67,9 +67,8 @@ observational analyses suffer which randomized trials do not:
     (or non-adherence is measured and modeled). In observational data,
     people switch treatments over time. swereg reads the weekly
     treatment assessments and censors per-protocol follow-up at the
-    right edge of the first discordant run that exceeds the arm’s
-    tolerance. IPCW-PP then corrects for the selection that censoring
-    creates.
+    start of the first discordant week beyond the arm’s tolerance.
+    IPCW-PP then corrects for the selection that censoring creates.
 
 #### The sequence-of-nested-trials construction
 
@@ -502,7 +501,7 @@ a flexible-baseline Cox model (Thompson 1977). It uses
 
 ``` r
 enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
-#>   Wald test on trial_id x treatment interaction
+#>   Wald test on period_id x treatment interaction
 #>   chisq = 3.21, df = 2, p = 0.20
 ```
 

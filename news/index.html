@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,105 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.1.1" id="swereg-2711">swereg 27.1.1<a class="anchor" aria-label="anchor" href="#swereg-2711"></a></h2>
+<div class="section level3">
+<h3 id="version-numbers-27-1-1">Version numbers<a class="anchor" aria-label="anchor" href="#version-numbers-27-1-1"></a></h3>
+<ul><li>
+<strong>The version scheme returns to <code>YY.M.D</code>.</strong> This release bumps the version ahead of the calendar to restore the scheme, so every release until 2027-01-01 is 27.1.x.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-27-1-1">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-1-1"></a></h3>
+<ul><li><p><strong>Per-protocol estimates change.</strong> The deviation week leaves per-protocol follow-up, and the censoring weight changes to three models fitted on new risk sets. The entries below and under “Bug fixes” give each change.</p></li>
+<li><p><strong>The per-protocol censoring weight is the product of three models in each arm: loss to follow-up, protocol deviation, and protocol deviation at time zero.</strong> Before, one model covered both causes. The time-zero model is a logistic model on the baseline confounders, fitted on every person-trial, including those with no follow-up. The columns <code>ipcw_pp_loss</code>, <code>ipcw_pp_deviation</code> and <code>ipcw_pp_time_zero</code> hold the three factors.</p></li>
+<li>
+<p><strong>The outcome models now adjust for the trial and the time since time zero, and the censoring models change with them.</strong> Before, the outcome models read <code>trial_id</code>, which on a follow-up row is the calendar period of that row and not the trial. Danaei 2013, Caniglia 2023 and the TrialEmulation package adjust the outcome model for the trial and the follow-up time. Every IRR, subgroup IRR, effect-modification test, heterogeneity test and censoring weight can change. The offset <code>offset(log(person_weeks))</code>, the family, the engine and the stratification by arm are unchanged. Section 1.8.9 of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> gives the reason for each term.</p>
+<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr class="header"><th align="left">Model</th>
+<th align="left">Time terms in 26.15.0</th>
+<th align="left">Time terms in 27.1.1</th>
+</tr></thead><tbody><tr class="odd"><td align="left">IRR and subgroup IRRs</td>
+<td align="left">
+<code>tx + ns(tstop, df = 3) + ns(trial_id, df = 3)</code>, with a linear <code>trial_id</code> below 5 values</td>
+<td align="left"><code>tx + term(tstart) + term(enrollment_period_id)</code></td>
+</tr><tr class="even"><td align="left">Effect-modification test</td>
+<td align="left">
+<code>tx * factor(sg) + ns(tstop, df = 3) + ns(trial_id, df = 3)</code>, with a linear <code>trial_id</code> below 5 values</td>
+<td align="left"><code>tx * factor(sg) + term(tstart) + term(enrollment_period_id)</code></td>
+</tr><tr class="odd"><td align="left">Heterogeneity test</td>
+<td align="left"><code>tx * ns(trial_id, df = min(3, n - 1)) + ns(tstop, df = 3)</code></td>
+<td align="left"><code>tx * ns(enrollment_period_id, df = min(3, n - 1)) + term(tstart)</code></td>
+</tr><tr class="even"><td align="left">IPCW denominator</td>
+<td align="left">
+<code>term(tstart) + s(trial_id) + confounders</code>, with a linear <code>trial_id</code> outside <code><a href="https://rdrr.io/pkg/mgcv/man/bam.html" class="external-link">mgcv::bam()</a></code> or below 10 values</td>
+<td align="left"><code>term(tstart) + term(period_id) + confounders</code></td>
+</tr><tr class="odd"><td align="left">IPCW numerator</td>
+<td align="left">
+<code>term(tstart) + s(trial_id)</code>, with a linear <code>trial_id</code> outside <code><a href="https://rdrr.io/pkg/mgcv/man/bam.html" class="external-link">mgcv::bam()</a></code> or below 10 values</td>
+<td align="left"><code>term(tstart)</code></td>
+</tr></tbody></table></li>
+<li>
+<p><strong>One helper, <code>.tte_time_term()</code>, builds every time term.</strong> The table shows it as <code>term(x)</code>. For <code>n</code> distinct values of <code>x</code> in the rows of the fit, it returns:</p>
+<ul><li>
+<code>s(x)</code> when <code>n</code> is 10 or more and the fit is the IPCW <code><a href="https://rdrr.io/pkg/mgcv/man/bam.html" class="external-link">mgcv::bam()</a></code> fit;</li>
+<li>
+<code>splines::ns(x, df = 3)</code> when <code>n</code> is 4 or more and <code>s(x)</code> does not apply;</li>
+<li>
+<code>factor(x)</code> when <code>n</code> is 2 or 3;</li>
+<li>no term when <code>n</code> is 1.</li>
+</ul><p>For IPCW, <code>n</code> counts the rows of each fitted stratum after the rows of zero width are removed.</p>
+</li>
+<li><p><strong>The column <code>trial_id</code> is renamed by what it holds.</strong> The calendar period of a skeleton week or a panel row is <code>period_id</code>. The trial of a person-trial is <code>enrollment_period_id</code>.</p></li>
+<li><p><strong>The <code>trial_id</code> column of <code>get_attrition()</code> and <code>get_matching()</code> is now <code>enrollment_period_id</code>.</strong> The global attrition row holds <code>NA</code> in that column.</p></li>
+<li><p><strong><code>TTEEnrollment$new()</code> stops when <code>enrolled_ids</code> has a <code>trial_id</code> column.</strong> The error names <code>enrollment_period_id</code>.</p></li>
+<li><p><strong><code><a href="../reference/qs2_read.html">qs2_read()</a></code> refuses a stored <code>TTEEnrollment</code> below schema 6 and a stored <code>TTEPlan</code> below schema 5.</strong> A saved R6 object runs the method bodies it was saved with, so a migrated object can fit the earlier time terms with no warning. The column migrations of 26.15.0 are removed.</p></li>
+<li><p><strong>Every project MUST run s0, s1, s2 and s3 again.</strong> Rebuild the plan with s0, then run s1, s2 and s3. An s1 work directory from an earlier release MUST NOT be resumed, because its files hold the retired column.</p></li>
+<li><p><strong><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops when an enrollment has no <code>treatment$implementation$seed</code>.</strong> The error names the enrollment.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-1-1">New features<a class="anchor" aria-label="anchor" href="#new-features-27-1-1"></a></h3>
+<ul><li>
+<strong><code>$irr()</code>, <code>$irr_by_subgroup()</code> and <code>$effect_modification_test()</code> take <code>conf_level</code>, with the default 0.95.</strong> s3 passes <code>study$implementation$conf_level</code> to each. Before, only the risk-difference intervals followed it.</li>
+<li>
+<strong>Each fit records the formula that it fitted.</strong> The results of <code>$irr()</code>, <code>$effect_modification_test()</code> and <code>$heterogeneity_test()</code> hold it in <code>attr(x, "model_formula")</code>. The field <code>$ipcw_formulas[[stratum]][[cause]]</code> of an enrollment holds the formulas of each censoring model. A cause with no model holds <code>fitted = FALSE</code> and the reason.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-27-1-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-1-1"></a></h3>
+<ul><li>
+<strong>Per-protocol follow-up stops at the start of the first discordant week beyond the arm’s tolerance.</strong> Since 26.9.0 the deviation week counted as adherent follow-up, and an event later in the same follow-up interval counted too. TrialEmulation, Danaei 2013 and Hernán 2008 exclude the deviation interval.</li>
+<li>
+<strong>The per-protocol censoring models no longer count event rows as uncensored.</strong> The loss model is fitted on the rows without an event, and the deviation model on the rows without an event that were not lost.</li>
+<li>
+<strong>The global attrition rows no longer count rows with no trial, such as annual rows, as person-trials.</strong> The global person-trials now equal the sum of the per-trial person-trials at every step. The global “Before exclusions” and “Outside of study years” person-trial counts fall, and a global person count can fall.</li>
+<li><strong>A <code>no_prior_value</code> washout no longer counts a missing week in its window as the value.</strong></li>
+<li>
+<strong>The CONSORT analysis step reads “censored (administrative end of follow-up)”.</strong> It read “censored (per-protocol)”.</li>
+<li>
+<strong>TARGET item 6c states that the draw ran from a stated seed, because every specification now states one.</strong> Its sentences for a plan with no seed, or a seed in some enrollments only, are removed.</li>
+<li><strong>TARGET item 6h states the time terms of the censoring models and the outcome model in this release.</strong></li>
+<li><strong>TARGET item 7a lists the inclusion criteria of the specification, with the helper that item 6a uses.</strong></li>
+</ul></div>
+<div class="section level3">
+<h3 id="validation-27-1-1">Validation<a class="anchor" aria-label="anchor" href="#validation-27-1-1"></a></h3>
+<ul><li>
+<strong>The validation tests compare each estimate with an exact truth.</strong> The risk and the risk difference by horizon come from an exact recursion. The log-IRR truth is swereg’s outcome model fitted to the exact expected events and person-time, with each cell weighted by its probability of remaining uncensored.</li>
+<li>
+<strong>A fast validation tier runs inside <code>R CMD check</code> on every push.</strong> <code>test-validation-fast.R</code> checks the risk difference at horizons 5, 10 and 20 and the log-IRR: scenario s1 for both estimands, and scenario s4 per-protocol. It fails when the deviation interval counts as per-protocol follow-up.</li>
+<li>
+<strong>The full validation tier runs when <code>SWEREG_RUN_VALIDATION=true</code>.</strong> It covers scenarios s1 to s4, both estimands, truncated and untruncated weights, and the bootstrap coverage of the risk difference. The new workflow <code>.github/workflows/validation.yml</code> runs it weekly, on <code>v*</code> tags and on demand. The coverage and stress tests use the same variable, in place of <code>SWEREG_RUN_COVERAGE</code> and <code>SWEREG_RUN_STRESS</code>.</li>
+<li>
+<strong>Two tests fail when the validation evidence is stale.</strong> One fails when <code>$meta$swereg</code> differs from the DESCRIPTION version, and it always runs. The other runs in the full tier and fails when <code>$meta$estimator_hash</code> differs from the md5 of the six estimator source files.</li>
+<li>
+<strong>Each validation claim of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> is a named predicate in <code>vignettes/validation-claims.R</code>.</strong> The vignette stops building when a claim is false, and <code>test-vignette-claims.R</code> checks every predicate against the shipped evidence.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-1-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-1-1"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> has a new subsection, 1.8.9 “Time terms”.</strong> It names the three time axes and the two axes that each model uses, gives the reason for each choice, and has three figures.</li>
+<li><strong><code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>, <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> and <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> use <code>period_id</code> and <code>enrollment_period_id</code>.</strong></li>
+<li>
+<strong>The validation evidence in <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> is regenerated with swereg 27.1.1.</strong> It came from swereg 26.7.4. Section 3 adds the risk difference at horizons 5, 10 and 20 against the exact truths, with its bootstrap coverage.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.15.0" id="swereg-26150">swereg 26.15.0<a class="anchor" aria-label="anchor" href="#swereg-26150"></a></h2>
 <div class="section level3">

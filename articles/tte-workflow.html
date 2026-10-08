@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -160,8 +160,8 @@ inverse probability of censoring weighting (IPCW).</p></li>
 adherence is enforced (or non-adherence is measured and modeled). In
 observational data, people switch treatments over time. swereg reads the
 weekly treatment assessments and censors per-protocol follow-up at the
-right edge of the first discordant run that exceeds the arm’s tolerance.
-IPCW-PP then corrects for the selection that censoring creates.</p></li>
+start of the first discordant week beyond the arm’s tolerance. IPCW-PP
+then corrects for the selection that censoring creates.</p></li>
 </ol>
 </div>
 <div class="section level4">
@@ -606,7 +606,7 @@ flexible-baseline Cox model (Thompson 1977). It uses
 </h4>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   Wald test on trial_id x treatment interaction</span></span>
+<span><span class="co">#&gt;   Wald test on period_id x treatment interaction</span></span>
 <span><span class="co">#&gt;   chisq = 3.21, df = 2, p = 0.20</span></span></code></pre></div>
 <p>Tests whether the treatment effect varies across the sequential
 trials. A significant result suggests calendar-time effect modification

@@ -144,7 +144,7 @@ tte_enroll <- function(d, design, ratio = 2, seed = 4) {
   )
 }
 
-# The fixtures are small, so the censoring model separates and warns. That
+# The fixtures are small, so the censoring models separate and warn. That
 # warning is about the toy data and not about a boundary.
 tte_prepare <- function(trial, estimand = "pp") {
   suppressWarnings({
@@ -165,12 +165,12 @@ intervals:
 whole <- rbindlist(list(tte_person("WHOLE", rep(TRUE, 16L)), tte_fillers()))
 tte_enroll(whole, tte_design())$data[
   id == "WHOLE"
-][order(tstart), .(enrollment_period_id, trial_id, tstart, tstop, person_weeks)]
-#>    enrollment_period_id trial_id tstart tstop person_weeks
-#>                   <int>    <int>  <int> <int>        <int>
-#> 1:                 1566     1567      0     4            4
-#> 2:                 1566     1568      4     8            4
-#> 3:                 1566     1569      8    12            4
+][order(tstart), .(enrollment_period_id, period_id, tstart, tstop, person_weeks)]
+#>    enrollment_period_id period_id tstart tstop person_weeks
+#>                   <int>     <int>  <int> <int>        <int>
+#> 1:                 1566      1567      0     4            4
+#> 2:                 1566      1568      4     8            4
+#> 3:                 1566      1569      8    12            4
 ```
 
 ## Three instants, and they are three different weeks
@@ -203,11 +203,11 @@ Enrollment period `b` covers week indices `b * period_width` to
 `(b + 1) * period_width`, which is the first week of enrollment period
 `b + 1`. Week indices are positions in
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
-minus one. That is the scale `trial_id` reads.
+minus one. That is the scale `period_id` reads.
 
-`enrollment_period_id` names the trial. `trial_id` names the calendar
+`enrollment_period_id` names the trial. `period_id` names the calendar
 period of the follow-up interval. The first row of every person-trial
-therefore holds `trial_id == enrollment_period_id + 1` and
+therefore holds `period_id == enrollment_period_id + 1` and
 `tstart == 0`.
 
 ### The recruiting week is not the first week of the enrollment period
@@ -226,13 +226,13 @@ three <- rbindlist(list(
 ))
 tte_enroll(three, tte_design())$data[
   id %chin% c("EARLY", "LATE", "CMP1") & tstart == 0
-][order(id), .(id, exposed, enrollment_period_id, trial_id, .tte_entry__age, age)]
-#> Key: <id, trial_id>
-#>        id exposed enrollment_period_id trial_id .tte_entry__age   age
-#>    <char>  <lgcl>                <int>    <int>           <num> <num>
-#> 1:   CMP1   FALSE                 1566     1567              51    55
-#> 2:  EARLY    TRUE                 1566     1567              51    55
-#> 3:   LATE    TRUE                 1566     1567              53    55
+][order(id), .(id, exposed, enrollment_period_id, period_id, .tte_entry__age, age)]
+#> Key: <id, period_id>
+#>        id exposed enrollment_period_id period_id .tte_entry__age   age
+#>    <char>  <lgcl>                <int>     <int>           <num> <num>
+#> 1:   CMP1   FALSE                 1566      1567              51    55
+#> 2:  EARLY    TRUE                 1566      1567              51    55
+#> 3:   LATE    TRUE                 1566      1567              53    55
 ```
 
 `.tte_entry__age` holds 51 for EARLY and 53 for LATE. Week 1 gives 51
@@ -243,13 +243,14 @@ follow-up interval, which is 55.
 Entry covariates are therefore read in the **same** week treatment
 starts for an initiator, and not strictly before it. The rule is
 symmetric across the arms: no rule keyed to initiation can be, because a
-comparator never initiates. `$s2_ipw()` and `$table1()` read
-`.tte_entry__<v>`. `$s6_ipcw_pp()` reads the time-updated `<v>`, because
-censoring depends on what is true during follow-up.
+comparator never initiates. `$s2_ipw()`, `$table1()` and the time-zero
+censoring model read `.tte_entry__<v>`. The loss and deviation censoring
+models read the time-updated `<v>`, because censoring during follow-up
+depends on what is true during follow-up.
 
 ### Enrollment period boundaries are anchored to the calendar
 
-`trial_id` is `(week_index - 1) %/% period_width` over
+`period_id` is `(week_index - 1) %/% period_width` over
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
 which starts at ISO week `1900-01`. Two studies with different start
 dates share the same boundaries.
@@ -293,6 +294,12 @@ period, and every week before it.
 Statement 2 reads **every** column in `design$outcome_vars`, and not the
 one outcome a later step analyses. One enrollment serves several
 outcomes, so one enrolled set has to be event-free for all of them.
+
+Statement 2 reads the weekly history only. The check places each row on
+the weekly calendar by its `isoyearweek`. An annual row of the skeleton,
+the `YYYY-**` row of an ISO year before `isoyear_min`, has no place on
+that calendar. An outcome on an annual row therefore never excludes a
+person-trial at time zero.
 
 Eligibility stays a baseline property.
 `.enrollment_period_baseline_treatment()` assesses it on the enrollment
@@ -339,12 +346,12 @@ qual <- rbindlist(list(
 tq <- tte_enroll(qual, tte_design())
 sort(unique(tq$data[id %chin% c("W", "K")]$id))
 #> [1] "K"
-tq$landmark_attrition[is.na(trial_id)]
-#>    trial_id n_persons n_person_trials n_intervention n_comparator
-#>       <int>     <int>           <int>          <int>        <int>
-#> 1:       NA        22              22             10           12
-#> 2:       NA        22              22             10           12
-#> 3:       NA        21              21              9           12
+tq$landmark_attrition[is.na(enrollment_period_id)]
+#>    enrollment_period_id n_persons n_person_trials n_intervention n_comparator
+#>                   <int>     <int>           <int>          <int>        <int>
+#> 1:                   NA        22              22             10           12
+#> 2:                   NA        22              22             10           12
+#> 3:                   NA        21              21              9           12
 #>              criterion
 #>                 <char>
 #> 1: landmark_candidates
@@ -420,8 +427,12 @@ assigned arm of that person-trial. `NA` is discordant in both arms.
 
 A tolerance is the number of CONSECUTIVE discordant assessments an arm
 allows. A concordant assessment resets the run. For tolerance `k`,
-follow-up stops at the right edge of the `(k + 1)`th consecutive
-discordant week.
+follow-up stops at the left edge of the `(k + 1)`th consecutive
+discordant week. That week is not per-protocol follow-up, so an outcome
+in it does not count. An observation gap stops follow-up the same way.
+This is the standard rule. Danaei et al. (2013, p. 77) stop following a
+person-trial when it deviates. The TrialEmulation function
+`expand_until_switch()` keeps only the rows before the first switch.
 
 ### Switch and return
 
@@ -445,19 +456,18 @@ merge(boundary(0L), boundary(1L), by = "id", suffixes = c("_tol0", "_tol1"))
 #> Key: <id>
 #>            id weeks_to_protocol_deviation_tol0 weeks_to_protocol_deviation_tol1
 #>        <char>                            <int>                            <int>
-#> 1:     LATE_9                                9                               NA
-#> 2:   RETURN_2                                2                               NA
-#> 3: RETURN_2_3                                2                                3
-#> 4: SWITCH_3_4                                3                                4
+#> 1:     LATE_9                                8                               NA
+#> 2:   RETURN_2                                1                               NA
+#> 3: RETURN_2_3                                1                                2
+#> 4: SWITCH_3_4                                2                                3
 ```
 
 RETURN_2 is discordant in one week and returns. Tolerance 0 stops her at
-week 2. Tolerance 1 allows the single week, so she reaches the end of
-follow-up and her boundary is `NA`.
+week 1, the start of follow-up week 2. Tolerance 1 allows the single
+week, so she reaches the end of follow-up and her boundary is `NA`.
 
 RETURN_2_3 is discordant in two consecutive weeks. Tolerance 1 allows
-the first and stops her at the right edge of the second, which is week
-3.
+the first and stops her at the left edge of the second, which is week 2.
 
 LATE_9 is discordant in week 9 only. Tolerance 1 allows it, and no
 second discordant week follows, so she is never censored for deviation.
@@ -490,7 +500,7 @@ unique(tte_enroll(asym, tte_design(ik = 0L, ck = 3L))$data[
 #>        id exposed weeks_to_protocol_deviation
 #>    <char>  <lgcl>                       <int>
 #> 1:    CMP   FALSE                          NA
-#> 2:    INT    TRUE                           2
+#> 2:    INT    TRUE                           1
 ```
 
 ### Loss of observation is never tolerated
@@ -583,33 +593,41 @@ credited her with twelve, because it read the stop of the last interval.
 
 ### The tie, and the priority order
 
-Follow-up stops at the earliest of five events, and priority runs in
-three levels.
+Follow-up stops at the earliest boundary. Every boundary is a week on
+one scale, so two of them can fall on the same week. One rule then
+labels the row.
 
-1.  The first outcome event beats everything.
-2.  A protocol deviation and an observed loss come next.
-3.  An administrative end and a requested follow-up end come last.
-
-An event that stops in the deviation interval wins that interval. The
-row counts as an event and not as a censoring, and the deviation does
-not clip it. This exception never applies to a gap in observation.
+1.  An outcome event counts, and the row is not censored.
+2.  An administrative end or a requested follow-up end is complete
+    follow-up. A loss or a deviation on the same week does not censor.
+3.  A loss of observation beats a protocol deviation, because a person
+    who is not observed cannot be seen to deviate.
 
 ``` r
 tie <- rbindlist(list(
-  tte_person("TIE", rep(TRUE, n), discordant_fu = 6L, event_fu = 6L),
+  tte_person("SAME_WEEK", rep(TRUE, n), discordant_fu = 6L, event_fu = 6L),
+  tte_person("WEEK_BEFORE", rep(TRUE, n), discordant_fu = 6L, event_fu = 5L),
   tte_fillers()
 ))
 tte_prepare(tte_enroll(tie, tte_design(ik = 0L)))[
-  id == "TIE"
-][order(tstart), .(tstart, tstop, person_weeks, event, censor_this_period)]
-#>    tstart tstop person_weeks event censor_this_period
-#>     <int> <int>        <int> <int>              <int>
-#> 1:      0     4            4     0                  0
-#> 2:      4     6            2     1                  0
+  id %chin% c("SAME_WEEK", "WEEK_BEFORE")
+][order(id, tstart), .(id, tstart, tstop, person_weeks, event, censor_this_period)]
+#>             id tstart tstop person_weeks event censor_this_period
+#>         <char>  <int> <int>        <int> <int>              <int>
+#> 1:   SAME_WEEK      0     4            4     0                  0
+#> 2:   SAME_WEEK      4     5            1     0                  1
+#> 3: WEEK_BEFORE      0     4            4     0                  0
+#> 4: WEEK_BEFORE      4     5            1     1                  0
 ```
 
-TIE has both boundaries at week 6. She exits as an event, her terminal
-row stops at 6, and `censor_this_period` reads 0.
+SAME_WEEK deviates and has the outcome in follow-up week 6. Her
+deviation stops follow-up at week 5, the start of that week, so the
+outcome falls after the stop. It does not count, and
+`censor_this_period` reads 1.
+
+WEEK_BEFORE has the outcome in follow-up week 5 and deviates in week 6.
+Both boundaries are week 5. She exits as an event, and
+`censor_this_period` reads 0.
 
 ### The administrative end, exactly
 
@@ -674,14 +692,50 @@ rbind(
 #>    estimand tstart tstop person_weeks
 #>      <char>  <int> <int>        <int>
 #> 1:       pp      0     4            4
-#> 2:       pp      4     5            1
-#> 3:      itt      0     4            4
-#> 4:      itt      4     8            4
-#> 5:      itt      8    12            4
+#> 2:      itt      0     4            4
+#> 3:      itt      4     8            4
+#> 4:      itt      8    12            4
 ```
 
-SWITCH is discordant from follow-up week 5 onward. Per-protocol bills 5
-weeks. Intention-to-treat bills the whole 12.
+SWITCH is discordant from follow-up week 5 onward. Per-protocol bills 4
+weeks, because the discordant week 5 is not per-protocol follow-up.
+Intention-to-treat bills the whole 12.
+
+The censoring weight has one model for each way that per-protocol
+follow-up stops. `censor_loss` marks the row that a loss stops, and
+`censor_deviation` marks the row that a deviation stops. A woman who is
+discordant in follow-up week 1 stops at time zero, so she keeps no row.
+`$time_zero_deviation` keeps her, and the time-zero model of the
+censoring weight fits on that record.
+
+``` r
+zs <- rbindlist(list(
+  tte_person("ZERO", rep(TRUE, n), discordant_fu = 1:12),
+  tte_person("SWITCH", rep(TRUE, n), discordant_fu = 5:12),
+  tte_fillers()
+))
+trial <- tte_enroll(zs, tte_design())
+out <- tte_prepare(trial, "pp")
+out[id %in% c("ZERO", "SWITCH"), .(id, tstart, tstop, censor_loss, censor_deviation)]
+#>        id tstart tstop censor_loss censor_deviation
+#>    <char>  <int> <int>       <int>            <int>
+#> 1: SWITCH      0     4           0                1
+trial$time_zero_deviation[,
+  .(person_trials = .N, deviate_at_time_zero = sum(deviation_time_zero)),
+  keyby = exposed
+]
+#> Key: <exposed>
+#>    exposed person_trials deviate_at_time_zero
+#>     <lgcl>         <int>                <int>
+#> 1:   FALSE            12                    0
+#> 2:    TRUE            10                    1
+```
+
+SWITCH’s last row carries `censor_deviation = 1`. ZERO has no row, and
+the record counts her as the one intervention person-trial that deviates
+at time zero.
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+section 1.8.2 states the three models and the rows each one fits on.
 
 ### Two spec versions are not comparable
 
@@ -701,14 +755,15 @@ no single change was made in isolation.
 ## Limitations
 
 - **The censoring approximation is compressed.** The panel is one row
-  per follow-up interval, so the censoring model reads an interval and
-  not a week. A boundary inside an interval is exact in the person-time,
-  and the censoring probability that covers it is still an
-  interval-level quantity.
+  per follow-up interval, so a censoring model reads an interval and not
+  a week. A boundary inside an interval is exact in the person-time, and
+  the censoring probability that covers it is still an interval-level
+  quantity.
 - **Within-week ordering is unidentifiable.** A week is the finest
   resolution the source data carries. Two things in one week have no
-  order, and swereg resolves them at the weekly right boundary by
-  convention.
+  order. swereg orders them by convention: a discordant week ends
+  per-protocol follow-up at its start, so an outcome in the same week
+  does not count.
 - **Timing is weekly, and not date-level.** A registry date is known to
   the day. The skeleton is a person-week grid, so every boundary rounds
   to a week.
@@ -720,11 +775,11 @@ no single change was made in isolation.
   `L`. People who die or have the outcome inside the enrollment period
   are not in the population. The estimate says nothing about them (Dafni
   2011).
-- **The censoring model carries no adherence history.** It reads the
-  time-updated confounders, the start of the follow-up interval and its
-  calendar period. It carries no lagged treatment term, so a person
-  whose adherence has been failing for months looks like one who fails
-  for the first time.
+- **The censoring models carry no adherence history.** The loss and
+  deviation models read the time-updated confounders, the start of the
+  follow-up interval and its calendar period. No model carries a lagged
+  treatment term. A person whose adherence has been failing for months
+  therefore looks like one who fails for the first time.
 - **swereg implements no grace period.** A grace period allows
   initiation within a fixed window after assignment without counting it
   as a deviation, and it requires cloning, censoring and weighting

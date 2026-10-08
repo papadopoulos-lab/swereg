@@ -36,21 +36,21 @@ now raises the underlying qs2 error
 `qdata format detected, use qs2::qd_read`. swereg has never written
 qdata files itself.
 
-## Schema migration
+## Stored objects from an older schema
 
-The reader renames the columns that swereg 26.15.0 renamed, before it
-checks the schema version of an R6 object. A
+The reader refuses a
 [TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
-at schema 4 gets the panel column `enrollment_period_id` under that
-name. A
+below schema 6 and a
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
-at schema 3 gets the column `follow_up_interval` under that name in its
-stored risk-difference rows. The rename changes no value. An object at
-an older schema is refused as before.
+below schema 5. The error names the file. It says to rebuild the plan
+with s0 and re-run s1, then s2 and s3. The reader does not migrate such
+an object.
 
-The rename runs here because a deserialised R6 object keeps the method
-bodies it was saved with. Its own `check_version()` refuses the older
-schema, so a migration inside the new `check_version()` would never run.
+The refusal runs here, before the reader calls `check_version()`. A
+deserialised R6 object keeps the method bodies it was saved with, so its
+`check_version()` is the code of the release that saved it. Its panel
+also keeps the old column names. A model fitted on that panel loses its
+calendar term, and gives no error.
 
 ## data.table over-allocation
 

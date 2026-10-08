@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -215,14 +215,16 @@ boundaries.</p>
     <dt><code>enrollment_counts</code></dt>
 <dd><p>Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:</p><dl><dt>attrition</dt>
-<dd><p>Long-format data.table (trial_id, criterion,
-n_persons, n_person_trials, n_intervention, n_comparator) showing
-cumulative attrition at each eligibility step. Includes a
-<code>"before_exclusions"</code> row with pre-filtering counts.</p></dd>
+<dd><p>Long-format data.table (enrollment_period_id,
+criterion, n_persons, n_person_trials, n_intervention,
+n_comparator) showing cumulative attrition at each eligibility
+step. Includes a <code>"before_exclusions"</code> row with
+pre-filtering counts.</p></dd>
 
 <dt>matching</dt>
-<dd><p>data.table (trial_id, n_intervention_total,
-n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).</p></dd>
+<dd><p>data.table (enrollment_period_id,
+n_intervention_total, n_comparator_total, n_intervention_enrolled,
+n_comparator_enrolled).</p></dd>
 
 
 </dl></dd>
@@ -510,9 +512,10 @@ Requires <code>self$spec</code> to be set (e.g., via
 <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>).</p>
 <ol><li><p><strong>Pass 1a (scout)</strong>: Lightweight parallel pass that reads each
 skeleton file, applies exclusions and treatment, and returns eligible
-<code>(person_id, trial_id, intervention)</code> tuples. No confounders or enrollment.</p></li>
+<code>(person_id, enrollment_period_id, intervention)</code> tuples. No confounders
+or enrollment.</p></li>
 <li><p><strong>Centralized comparator draw</strong>: Combines all tuples from all batches,
-then per <code>trial_id</code> keeps all intervention and samples
+then per <code>enrollment_period_id</code> keeps all intervention and samples
 <code>ratio * n_intervention</code> comparator globally. Stores counts on
 <code>self$enrollment_counts</code> for TARGET Item 8 reporting.</p></li>
 <li><p><strong>Pass 1b (full enrollment)</strong>: Parallel pass that re-reads each
@@ -622,8 +625,10 @@ separately by treatment group (default: TRUE).</p></dd>
 <p>Loop 3: Compute all analysis results and store on the plan.</p>
 <p>For each enrollment: loads one analysis file and the raw file, computes
 baseline characteristics (raw, unweighted, IPW, IPW truncated).
-For each ETT: loads the analysis file, computes rates, IRR, and
-heterogeneity test with both truncated and untruncated weights.</p>
+For each ETT: loads the analysis file, then computes the rates and the IRR
+with both truncated and untruncated weights. For each subgroup the spec
+names, it also computes the stratified IRRs and the effect-modification
+test.</p>
 <p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
 estimand and weight combinations carry it: per-protocol on
 <code>analysis_weight_pp_trunc</code>, stored under <code>rd_pp_trunc</code>, and
@@ -640,8 +645,9 @@ reports. The figure reads it rather than opening the analysis file again.</p>
 <p>The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
 <code>spec$study$implementation$conf_level</code> and defaulting to 0.95. All three
-are recorded on every stored row. The export path formats those numbers
-and never recomputes them.</p>
+are recorded on every stored risk-difference row. The export path formats
+those numbers and never recomputes them. The IRR intervals and the
+interval of the ratio of stratum IRRs use the same level.</p>
 <p>Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.</p>
@@ -854,7 +860,7 @@ remaining-after-step.</p>
 <p><code>$s1_generate_enrollments_and_ipw()</code> stores one row per trial and
 criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
 true overall count of distinct people. This method returns EVERY STORED
-ROW. <code>trial_id</code> is <code>NA</code> on a global row and the trial index on a
+ROW. <code>enrollment_period_id</code> is <code>NA</code> on a global row and the trial on a
 per-trial row, so the caller filters on that column.</p>
 <p>The method returns the stored rows and nothing else. It does not sum the
 per-trial rows. It does not create a global row for a criterion that has
@@ -882,7 +888,7 @@ nothing.</p><div class="section">
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_attrition</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
-<p>A data.table with columns <code>enrollment_id</code>, <code>trial_id</code>,
+<p>A data.table with columns <code>enrollment_id</code>, <code>enrollment_period_id</code>,
 <code>step_order</code>, <code>step_name</code>, <code>n_persons</code>, <code>n_person_trials</code>,
 <code>n_arm_intervention</code> and <code>n_arm_comparator</code>.</p>
 </div>
@@ -910,7 +916,7 @@ counts to build its comparator-draw step, and that sum is a renderer's.</p>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_matching</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
-<p>A data.table with columns <code>enrollment_id</code>, <code>trial_id</code>,
+<p>A data.table with columns <code>enrollment_id</code>, <code>enrollment_period_id</code>,
 <code>n_intervention_total</code>, <code>n_comparator_total</code>,
 <code>n_intervention_enrolled</code> and <code>n_comparator_enrolled</code>.</p>
 </div>

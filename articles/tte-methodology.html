@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -180,8 +180,8 @@ requires cloning + censoring + weighting. <code>period_width</code>
 provides slack only for the <em>timing of initiation at enrollment</em>.
 Treatment that starts in any week of the enrollment period assigns the
 person to its trial. Follow-up opens at time zero, the first week after
-the period closes. Deviation thereafter censors at the right edge of the
-first discordant run that exceeds the arm’s tolerance. See
+the period closes. Deviation thereafter censors at the start of the
+first discordant week beyond the arm’s tolerance. See
 <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>.</td>
 </tr>
 </tbody>
@@ -223,8 +223,13 @@ A_{t-1}, L_t).</td>
 <td align="left">Danaei 2013 (Section 4.2)</td>
 <td align="left">
 <code>$s4_prepare_for_analysis(estimand = "pp")</code>:
-Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined
-weight: <code>analysis_weight_pp = ipw × ipcw_pp</code>.</td>
+censoring at protocol deviation and at loss of observation.
+<code>ipcw_pp</code> is the product of three factors, each fitted in
+each arm by default. The loss model fits on the rows without an outcome.
+The deviation model fits on the rows without an outcome that were not
+lost. A logistic model for a deviation at time zero fits on every
+person-trial. The two row-level models are GAM or GLM. Combined weight:
+<code>analysis_weight_pp = ipw × ipcw_pp</code>.</td>
 </tr>
 <tr class="even">
 <td align="left">Baseline IPW for ITT</td>
@@ -238,8 +243,10 @@ switch censoring, no IPCW; analysis weight = baseline
 <td align="left">Weight stabilization</td>
 <td align="left">Danaei 2013</td>
 <td align="left">IPW: stabilized with marginal treatment probability.
-IPCW-PP: numerator from a second censoring model with the follow-up-time
-and calendar-period terms and no confounders (see note below).</td>
+IPCW-PP: each row-level numerator is a second model on the same risk
+set, with the follow-up-time term (<code>tstart</code>) and nothing
+else. The time-zero numerator is the arm’s proportion that deviates at
+time zero (see note below).</td>
 </tr>
 <tr class="even">
 <td align="left">Weight truncation</td>
@@ -284,7 +291,8 @@ handled differently between the two estimands:</p>
 <tr class="even">
 <td align="left">Outcome event AND switch in the same follow-up
 interval</td>
-<td align="left">counts as event (event-priority, since 26.7.3)</td>
+<td align="left">counts as event only when it falls before the first
+discordant week beyond tolerance (since 27.1.1)</td>
 <td align="left">counts as event</td>
 </tr>
 <tr class="odd">
@@ -294,6 +302,13 @@ interval</td>
 <strong>ignored</strong> (not censored)</td>
 </tr>
 <tr class="even">
+<td align="left">Deviation at time zero</td>
+<td align="left">no follow-up; the time-zero factor of the IPCW weights
+the rest of the arm</td>
+<td align="left">
+<strong>ignored</strong> (not censored)</td>
+</tr>
+<tr class="odd">
 <td align="left">Loss of observation (the record ends early, or a week
 after time zero has no row)</td>
 <td align="left">censors, IPCW-corrected; an outcome at or after a
@@ -301,12 +316,12 @@ missing week never counts</td>
 <td align="left">censors, treated as independent; an outcome at or after
 a missing week never counts</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">Administrative end (study cutoff)</td>
 <td align="left">censors</td>
 <td align="left">same</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">Follow-up horizon</td>
 <td align="left">censors</td>
 <td align="left">same</td>
@@ -318,9 +333,13 @@ weight = baseline <code>ipw</code> only.</p>
 <p><strong>Note on IPCW stabilization</strong>: Danaei (2013) describes
 stabilized IPCW weights with a numerator conditioned on baseline
 covariates. That requires the same covariates in the outcome model.
-swereg’s outcome model is covariate-free. The numerator is therefore a
-second censoring model, fitted in the same strata, that carries the same
-follow-up-time and calendar-period terms and no confounders.</p>
+swereg’s outcome model holds no confounders. Each row-level numerator is
+therefore a second model, fitted on the same risk set, that carries the
+follow-up-time term (<code>tstart</code>) only. A numerator covariate
+must also be in the outcome model (Su et al. 2024, text after eq. 3),
+and a calendar-period spline is not in the span of the outcome model’s
+trial and follow-up terms. See <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
+section 1.8.9.</p>
 </div>
 <div class="section level3">
 <h3 id="outcome-models">Outcome models<a class="anchor" aria-label="anchor" href="#outcome-models"></a>
@@ -357,20 +376,27 @@ equivalent.</td>
 <td align="left">Danaei 2013 (“month of follow-up and squared
 terms”)</td>
 <td align="left">
-<code>$irr()</code>:
-<code>splines::ns(tstop, df=3)</code> models the baseline event rate
-flexibly.</td>
+<code>$irr()</code>: a term in <code>tstart</code>, the
+time since time zero at the interval start. It is
+<code>splines::ns(tstart, df = 3)</code> with ≥4 distinct values,
+<code>factor(tstart)</code> with 2-3, and absent with 1.
+<code>tstart</code> is read rather than the clipped <code>tstop</code>,
+which would move the event rows on the time axis.</td>
 </tr>
 <tr class="even">
 <td align="left">Trial as covariate</td>
-<td align="left">Caniglia 2023, Danaei 2013</td>
-<td align="left">Includes <code>trial_id</code> in the outcome model of
-<code>$irr()</code> and in the IPCW models. On the panel,
-<code>trial_id</code> is the calendar period of each follow-up interval,
-and not a trial index. The outcome model takes a natural spline with 3
-df for ≥5 distinct calendar periods, and a linear term for 2-4. The IPCW
-models with the default GAM take a penalised spline for ≥10, and a
-linear term otherwise. One calendar period takes no calendar term.</td>
+<td align="left">Caniglia 2023, Danaei 2013, Su 2024</td>
+<td align="left">The outcome model of <code>$irr()</code>,
+<code>$irr_by_subgroup()</code> and
+<code>$effect_modification_test()</code> includes the trial,
+<code>enrollment_period_id</code>:
+<code>splines::ns(enrollment_period_id, df = 3)</code> with ≥4 trials, a
+factor with 2-3, and no term with 1. The loss and deviation denominators
+instead include <code>period_id</code>, the calendar period of each
+follow-up interval. It takes the same thresholds, plus a penalised
+spline for ≥10 under the default GAM. Their numerators include neither.
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section 1.8.9 gives the reason for
+each.</td>
 </tr>
 <tr class="odd">
 <td align="left">Robust variance</td>
@@ -383,8 +409,11 @@ provides person-level clustered standard errors.</td>
 <td align="left">Heterogeneity test</td>
 <td align="left">Hernán 2008, Danaei 2013</td>
 <td align="left">
-<code>$heterogeneity_test()</code>: Wald test on
-<code>trial_id × treatment</code> interaction.</td>
+<code>$heterogeneity_test()</code>: joint Wald test of
+the interaction of treatment with
+<code>splines::ns(enrollment_period_id, df = min(3, n - 1))</code>,
+where <code>n</code> is the number of trials. The model also holds the
+<code>tstart</code> term.</td>
 </tr>
 <tr class="odd">
 <td align="left">Risk difference and number needed to treat</td>
@@ -455,8 +484,8 @@ Users can fit these externally on <code>$extract()</code> data.</td>
 <tr class="odd">
 <td align="left">Baseline-conditional IPCW stabilization</td>
 <td align="left">Would require the baseline covariates in the outcome
-model, which has none here. The numerator model carries the
-follow-up-time and calendar-period terms and no confounders.</td>
+model, which has none here. The row-level numerator models carry the
+follow-up-time term and no confounders.</td>
 </tr>
 </tbody>
 </table>

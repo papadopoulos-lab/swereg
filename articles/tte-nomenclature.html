@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -149,6 +149,51 @@ regression.</td>
 </table>
 </div>
 <div class="section level2">
+<h2 id="time-axes">Time axes<a class="anchor" aria-label="anchor" href="#time-axes"></a>
+</h2>
+<p>Each trial-level row carries three time axes. One is a function of
+the other two: <code>period_id</code> =
+<code>enrollment_period_id</code> + interval number, where the interval
+number is <code>tstart / period_width + 1</code>.</p>
+<table class="table">
+<colgroup>
+<col width="40%">
+<col width="60%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Term</th>
+<th align="left">Meaning</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left"><strong><code>period_id</code></strong></td>
+<td align="left">The calendar period of a row: of a skeleton week before
+enrollment, and of a follow-up interval after it.
+<code>.assign_period_ids()</code> sets it from a fixed calendar origin.
+The IPCW denominator reads it.</td>
+</tr>
+<tr class="even">
+<td align="left"><strong><code>enrollment_period_id</code></strong></td>
+<td align="left">The trial: the enrollment period of the person-trial,
+which ends at time zero. It is constant within a person-trial. The
+comparator draw, the attrition and matching tables, and the outcome
+models read it. Earlier releases used <code>trial_id</code> for the
+calendar period of a row, and also for the trial in the comparator draw
+and the attrition tables.</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>time since time zero</strong></td>
+<td align="left">The weeks from time zero to the start of the follow-up
+interval, held in <code>tstart</code> (<code>design$tstart_var</code>).
+Every outcome and censoring model reads it at the interval start, and
+not at the clipped <code>tstop</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section 1.8.9 states which axes
+each model holds, and why.</p>
+</div>
+<div class="section level2">
 <h2 id="classes">Classes<a class="anchor" aria-label="anchor" href="#classes"></a>
 </h2>
 <table class="table">
@@ -258,8 +303,8 @@ the two-pass Loop 1 workers.</td>
 <p><code>$s4_prepare_for_analysis()</code> combines outcome preparation
 and IPCW-PP into one call. It prepares outcome data, calculates IPCW-PP,
 combines weights (<code>ipw × ipcw_pp</code> →
-<code>analysis_weight_pp</code>), truncates, and drops intermediate IPCW
-columns.</p>
+<code>analysis_weight_pp</code>), and truncates. It keeps the three
+factors of <code>ipcw_pp</code> as columns.</p>
 </div>
 </div>
 <div class="section level2">
@@ -288,7 +333,40 @@ enrollment_id in Loop 1 via <code>$s2_ipw()</code>.</td>
 Censoring Weighting, Per-Protocol)</td>
 <td align="left">Time-varying weight for per-protocol analysis. Accounts
 for treatment switching and loss to follow-up. Computed per ETT in Loop
-2 via <code>$s4_prepare_for_analysis()</code>.</td>
+2 via <code>$s4_prepare_for_analysis()</code>. <code>ipcw_pp</code> is
+the product
+<code>ipcw_pp_time_zero × ipcw_pp_loss × ipcw_pp_deviation</code>, one
+factor per censoring model.</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>loss model</strong></td>
+<td align="left">The IPCW model for loss of observation, indicator
+<code>censor_loss</code>. It fits on the rows without an outcome,
+because loss is observed after the outcome of a row. Its factor is
+<code>ipcw_pp_loss</code>.</td>
+</tr>
+<tr class="even">
+<td align="left"><strong>deviation model</strong></td>
+<td align="left">The IPCW model for protocol deviation, indicator
+<code>censor_deviation</code>. It fits on the rows without an outcome
+that were not lost, because a person who is not observed cannot be seen
+to deviate. Its factor is <code>ipcw_pp_deviation</code>.</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>deviation at time zero</strong></td>
+<td align="left">A deviation that stops per-protocol follow-up at time
+zero, so the person-trial keeps no row.
+<code>$time_zero_deviation</code> records every person-trial under
+follow-up at time zero, with <code>deviation_time_zero</code>. A
+logistic model fitted on that record gives the factor
+<code>ipcw_pp_time_zero</code>.</td>
+</tr>
+<tr class="even">
+<td align="left"><strong>not-fitted sentinel</strong></td>
+<td align="left">
+<code>list(fitted = FALSE, reason = )</code> in
+<code>$ipcw_formulas[[stratum]][[cause]]</code>, for a cause with no
+censoring in its risk set. Its factor is 1.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>analysis_weight_pp</strong></td>
@@ -484,17 +562,16 @@ initiation as a deviation. It requires cloning, censoring and weighting
 (Hernan 2016, Section 4.4), which this pipeline does not do.
 <code>period_width</code> gives slack only for the timing of initiation
 inside the enrollment period. Deviation after time zero censors
-per-protocol follow-up at the right edge of the first discordant run
-that exceeds the arm’s tolerance. See
-<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the same statement, mapped
-to the reference papers.</p>
+per-protocol follow-up at the start of the first discordant week beyond
+the arm’s tolerance. See <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for
+the same statement, mapped to the reference papers.</p>
 <p>Set <code>period_width = 1</code> when the protocol defines treatment
 at a single time point. Set it wider when initiation is gradual.</p>
 <p>Enrollment period boundaries are anchored to a fixed calendar origin,
 not to the first observed week of a study. swereg numbers the rows of
 <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, which starts at ISO week
 <code>1900-01</code>, then assigns
-<code>trial_id = (week_index - 1) %/% period_width</code>. Two studies
+<code>period_id = (week_index - 1) %/% period_width</code>. Two studies
 with different start dates therefore share the same enrollment period
 boundaries.</p>
 </div>

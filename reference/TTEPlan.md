@@ -151,15 +151,16 @@ Other tte_classes:
 
   attrition
 
-  :   Long-format data.table (trial_id, criterion, n_persons,
-      n_person_trials, n_intervention, n_comparator) showing cumulative
-      attrition at each eligibility step. Includes a
+  :   Long-format data.table (enrollment_period_id, criterion,
+      n_persons, n_person_trials, n_intervention, n_comparator) showing
+      cumulative attrition at each eligibility step. Includes a
       `"before_exclusions"` row with pre-filtering counts.
 
   matching
 
-  :   data.table (trial_id, n_intervention_total, n_comparator_total,
-      n_intervention_enrolled, n_comparator_enrolled).
+  :   data.table (enrollment_period_id, n_intervention_total,
+      n_comparator_total, n_intervention_enrolled,
+      n_comparator_enrolled).
 
 - `output_dir`:
 
@@ -485,13 +486,13 @@ imbalance. Requires `self$spec` to be set (e.g., via
 
 1.  **Pass 1a (scout)**: Lightweight parallel pass that reads each
     skeleton file, applies exclusions and treatment, and returns
-    eligible `(person_id, trial_id, intervention)` tuples. No
-    confounders or enrollment.
+    eligible `(person_id, enrollment_period_id, intervention)` tuples.
+    No confounders or enrollment.
 
 2.  **Centralized comparator draw**: Combines all tuples from all
-    batches, then per `trial_id` keeps all intervention and samples
-    `ratio * n_intervention` comparator globally. Stores counts on
-    `self$enrollment_counts` for TARGET Item 8 reporting.
+    batches, then per `enrollment_period_id` keeps all intervention and
+    samples `ratio * n_intervention` comparator globally. Stores counts
+    on `self$enrollment_counts` for TARGET Item 8 reporting.
 
 3.  **Pass 1b (full enrollment)**: Parallel pass that re-reads each
     skeleton file with full processing (exclusions + confounders +
@@ -612,8 +613,10 @@ Loop 3: Compute all analysis results and store on the plan.
 
 For each enrollment: loads one analysis file and the raw file, computes
 baseline characteristics (raw, unweighted, IPW, IPW truncated). For each
-ETT: loads the analysis file, computes rates, IRR, and heterogeneity
-test with both truncated and untruncated weights.
+ETT: loads the analysis file, then computes the rates and the IRR with
+both truncated and untruncated weights. For each subgroup the spec
+names, it also computes the stratified IRRs and the effect-modification
+test.
 
 Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
 estimand and weight combinations carry it: per-protocol on
@@ -634,8 +637,9 @@ again.
 The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
 `spec$study$implementation$conf_level` and defaulting to 0.95. All three
-are recorded on every stored row. The export path formats those numbers
-and never recomputes them.
+are recorded on every stored risk-difference row. The export path
+formats those numbers and never recomputes them. The IRR intervals and
+the interval of the ratio of stratum IRRs use the same level.
 
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
@@ -884,7 +888,7 @@ remaining-after-step.
 `$s1_generate_enrollments_and_ipw()` stores one row per trial and
 criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
 true overall count of distinct people. This method returns EVERY STORED
-ROW. `trial_id` is `NA` on a global row and the trial index on a
+ROW. `enrollment_period_id` is `NA` on a global row and the trial on a
 per-trial row, so the caller filters on that column.
 
 The method returns the stored rows and nothing else. It does not sum the
@@ -921,9 +925,9 @@ decides nothing.
 
 #### Returns
 
-A data.table with columns `enrollment_id`, `trial_id`, `step_order`,
-`step_name`, `n_persons`, `n_person_trials`, `n_arm_intervention` and
-`n_arm_comparator`.
+A data.table with columns `enrollment_id`, `enrollment_period_id`,
+`step_order`, `step_name`, `n_persons`, `n_person_trials`,
+`n_arm_intervention` and `n_arm_comparator`.
 
 ------------------------------------------------------------------------
 
@@ -955,7 +959,7 @@ An enrollment that stored no comparator-draw table gets NO ROW.
 
 #### Returns
 
-A data.table with columns `enrollment_id`, `trial_id`,
+A data.table with columns `enrollment_id`, `enrollment_period_id`,
 `n_intervention_total`, `n_comparator_total`, `n_intervention_enrolled`
 and `n_comparator_enrolled`.
 

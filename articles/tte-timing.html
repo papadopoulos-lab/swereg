@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -266,7 +266,7 @@ intervals.</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># The fixtures are small, so the censoring model separates and warns. That</span></span>
+<span><span class="co"># The fixtures are small, so the censoring models separate and warn. That</span></span>
 <span><span class="co"># warning is about the toy data and not about a boundary.</span></span>
 <span><span class="va">tte_prepare</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">trial</span>, <span class="va">estimand</span> <span class="op">=</span> <span class="st">"pp"</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="op">{</span></span>
@@ -284,12 +284,12 @@ intervals:</p>
 <code class="sourceCode R"><span><span class="va">whole</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu">tte_person</span><span class="op">(</span><span class="st">"WHOLE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="fl">16L</span><span class="op">)</span><span class="op">)</span>, <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">whole</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
 <span>  <span class="va">id</span> <span class="op">==</span> <span class="st">"WHOLE"</span></span>
-<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">enrollment_period_id</span>, <span class="va">trial_id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    enrollment_period_id trial_id tstart tstop person_weeks</span></span>
-<span><span class="co">#&gt;                   &lt;int&gt;    &lt;int&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:                 1566     1567      0     4            4</span></span>
-<span><span class="co">#&gt; 2:                 1566     1568      4     8            4</span></span>
-<span><span class="co">#&gt; 3:                 1566     1569      8    12            4</span></span></code></pre></div>
+<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">enrollment_period_id</span>, <span class="va">period_id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;    enrollment_period_id period_id tstart tstop person_weeks</span></span>
+<span><span class="co">#&gt;                   &lt;int&gt;     &lt;int&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:                 1566      1567      0     4            4</span></span>
+<span><span class="co">#&gt; 2:                 1566      1568      4     8            4</span></span>
+<span><span class="co">#&gt; 3:                 1566      1569      8    12            4</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="three-instants-and-they-are-three-different-weeks">Three instants, and they are three different weeks<a class="anchor" aria-label="anchor" href="#three-instants-and-they-are-three-different-weeks"></a>
@@ -376,11 +376,11 @@ observation and free of every enrollment outcome.</p>
 index <code>(b + 1) * period_width</code>, which is the first week of
 enrollment period <code>b + 1</code>. Week indices are positions in
 <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, minus one. That is the scale
-<code>trial_id</code> reads.</p>
+<code>period_id</code> reads.</p>
 <p><code>enrollment_period_id</code> names the trial.
-<code>trial_id</code> names the calendar period of the follow-up
+<code>period_id</code> names the calendar period of the follow-up
 interval. The first row of every person-trial therefore holds
-<code>trial_id == enrollment_period_id + 1</code> and
+<code>period_id == enrollment_period_id + 1</code> and
 <code>tstart == 0</code>.</p>
 <div class="section level3">
 <h3 id="the-recruiting-week-is-not-the-first-week-of-the-enrollment-period">The recruiting week is not the first week of the enrollment
@@ -400,13 +400,13 @@ visible in the value swereg reads.</p>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">three</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">data</span><span class="op">[</span></span>
 <span>  <span class="va">id</span> <span class="op"><a href="https://rdrr.io/pkg/data.table/man/chmatch.html" class="external-link">%chin%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"EARLY"</span>, <span class="st">"LATE"</span>, <span class="st">"CMP1"</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">tstart</span> <span class="op">==</span> <span class="fl">0</span></span>
-<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">exposed</span>, <span class="va">enrollment_period_id</span>, <span class="va">trial_id</span>, <span class="va">.tte_entry__age</span>, <span class="va">age</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt; Key: &lt;id, trial_id&gt;</span></span>
-<span><span class="co">#&gt;        id exposed enrollment_period_id trial_id .tte_entry__age   age</span></span>
-<span><span class="co">#&gt;    &lt;char&gt;  &lt;lgcl&gt;                &lt;int&gt;    &lt;int&gt;           &lt;num&gt; &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:   CMP1   FALSE                 1566     1567              51    55</span></span>
-<span><span class="co">#&gt; 2:  EARLY    TRUE                 1566     1567              51    55</span></span>
-<span><span class="co">#&gt; 3:   LATE    TRUE                 1566     1567              53    55</span></span></code></pre></div>
+<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">exposed</span>, <span class="va">enrollment_period_id</span>, <span class="va">period_id</span>, <span class="va">.tte_entry__age</span>, <span class="va">age</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; Key: &lt;id, period_id&gt;</span></span>
+<span><span class="co">#&gt;        id exposed enrollment_period_id period_id .tte_entry__age   age</span></span>
+<span><span class="co">#&gt;    &lt;char&gt;  &lt;lgcl&gt;                &lt;int&gt;     &lt;int&gt;           &lt;num&gt; &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:   CMP1   FALSE                 1566      1567              51    55</span></span>
+<span><span class="co">#&gt; 2:  EARLY    TRUE                 1566      1567              51    55</span></span>
+<span><span class="co">#&gt; 3:   LATE    TRUE                 1566      1567              53    55</span></span></code></pre></div>
 <p><code>.tte_entry__age</code> holds 51 for EARLY and 53 for LATE. Week
 1 gives 51 and week 3 gives 53, so LATE is recruited in the week her
 treatment starts. The plain <code>age</code> column holds the
@@ -414,16 +414,16 @@ time-updated value of the follow-up interval, which is 55.</p>
 <p>Entry covariates are therefore read in the <strong>same</strong> week
 treatment starts for an initiator, and not strictly before it. The rule
 is symmetric across the arms: no rule keyed to initiation can be,
-because a comparator never initiates. <code>$s2_ipw()</code> and
-<code>$table1()</code> read <code>.tte_entry__&lt;v&gt;</code>.
-<code>$s6_ipcw_pp()</code> reads the time-updated
-<code>&lt;v&gt;</code>, because censoring depends on what is true during
-follow-up.</p>
+because a comparator never initiates. <code>$s2_ipw()</code>,
+<code>$table1()</code> and the time-zero censoring model read
+<code>.tte_entry__&lt;v&gt;</code>. The loss and deviation censoring
+models read the time-updated <code>&lt;v&gt;</code>, because censoring
+during follow-up depends on what is true during follow-up.</p>
 </div>
 <div class="section level3">
 <h3 id="enrollment-period-boundaries-are-anchored-to-the-calendar">Enrollment period boundaries are anchored to the calendar<a class="anchor" aria-label="anchor" href="#enrollment-period-boundaries-are-anchored-to-the-calendar"></a>
 </h3>
-<p><code>trial_id</code> is
+<p><code>period_id</code> is
 <code>(week_index - 1) %/% period_width</code> over
 <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, which starts at ISO week
 <code>1900-01</code>. Two studies with different start dates share the
@@ -467,6 +467,11 @@ every week of the enrollment period, and every week before it.</p>
 <code>design$outcome_vars</code>, and not the one outcome a later step
 analyses. One enrollment serves several outcomes, so one enrolled set
 has to be event-free for all of them.</p>
+<p>Statement 2 reads the weekly history only. The check places each row
+on the weekly calendar by its <code>isoyearweek</code>. An annual row of
+the skeleton, the <code>YYYY-**</code> row of an ISO year before
+<code>isoyear_min</code>, has no place on that calendar. An outcome on
+an annual row therefore never excludes a person-trial at time zero.</p>
 <p>Eligibility stays a baseline property.
 <code>.enrollment_period_baseline_treatment()</code> assesses it on the
 enrollment period, and no step reads it again at time zero. Reading it
@@ -513,12 +518,12 @@ without the outcome.</p>
 <span><span class="va">tq</span> <span class="op">&lt;-</span> <span class="fu">tte_enroll</span><span class="op">(</span><span class="va">qual</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">tq</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="va">id</span> <span class="op"><a href="https://rdrr.io/pkg/data.table/man/chmatch.html" class="external-link">%chin%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"W"</span>, <span class="st">"K"</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">id</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "K"</span></span>
-<span><span class="va">tq</span><span class="op">$</span><span class="va">landmark_attrition</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">trial_id</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    trial_id n_persons n_person_trials n_intervention n_comparator</span></span>
-<span><span class="co">#&gt;       &lt;int&gt;     &lt;int&gt;           &lt;int&gt;          &lt;int&gt;        &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:       NA        22              22             10           12</span></span>
-<span><span class="co">#&gt; 2:       NA        22              22             10           12</span></span>
-<span><span class="co">#&gt; 3:       NA        21              21              9           12</span></span>
+<span><span class="va">tq</span><span class="op">$</span><span class="va">landmark_attrition</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">enrollment_period_id</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;    enrollment_period_id n_persons n_person_trials n_intervention n_comparator</span></span>
+<span><span class="co">#&gt;                   &lt;int&gt;     &lt;int&gt;           &lt;int&gt;          &lt;int&gt;        &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:                   NA        22              22             10           12</span></span>
+<span><span class="co">#&gt; 2:                   NA        22              22             10           12</span></span>
+<span><span class="co">#&gt; 3:                   NA        21              21              9           12</span></span>
 <span><span class="co">#&gt;              criterion</span></span>
 <span><span class="co">#&gt;                 &lt;char&gt;</span></span>
 <span><span class="co">#&gt; 1: landmark_candidates</span></span>
@@ -588,8 +593,13 @@ not hold the assigned arm of that person-trial. <code>NA</code> is
 discordant in both arms.</p>
 <p>A tolerance is the number of CONSECUTIVE discordant assessments an
 arm allows. A concordant assessment resets the run. For tolerance
-<code>k</code>, follow-up stops at the right edge of the
-<code>(k + 1)</code>th consecutive discordant week.</p>
+<code>k</code>, follow-up stops at the left edge of the
+<code>(k + 1)</code>th consecutive discordant week. That week is not
+per-protocol follow-up, so an outcome in it does not count. An
+observation gap stops follow-up the same way. This is the standard rule.
+Danaei et al. (2013, p. 77) stop following a person-trial when it
+deviates. The TrialEmulation function <code>expand_until_switch()</code>
+keeps only the rows before the first switch.</p>
 <div class="section level3">
 <h3 id="switch-and-return">Switch and return<a class="anchor" aria-label="anchor" href="#switch-and-return"></a>
 </h3>
@@ -612,16 +622,17 @@ follow-up weeks are discordant.</p>
 <span><span class="co">#&gt; Key: &lt;id&gt;</span></span>
 <span><span class="co">#&gt;            id weeks_to_protocol_deviation_tol0 weeks_to_protocol_deviation_tol1</span></span>
 <span><span class="co">#&gt;        &lt;char&gt;                            &lt;int&gt;                            &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:     LATE_9                                9                               NA</span></span>
-<span><span class="co">#&gt; 2:   RETURN_2                                2                               NA</span></span>
-<span><span class="co">#&gt; 3: RETURN_2_3                                2                                3</span></span>
-<span><span class="co">#&gt; 4: SWITCH_3_4                                3                                4</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:     LATE_9                                8                               NA</span></span>
+<span><span class="co">#&gt; 2:   RETURN_2                                1                               NA</span></span>
+<span><span class="co">#&gt; 3: RETURN_2_3                                1                                2</span></span>
+<span><span class="co">#&gt; 4: SWITCH_3_4                                2                                3</span></span></code></pre></div>
 <p>RETURN_2 is discordant in one week and returns. Tolerance 0 stops her
-at week 2. Tolerance 1 allows the single week, so she reaches the end of
-follow-up and her boundary is <code>NA</code>.</p>
+at week 1, the start of follow-up week 2. Tolerance 1 allows the single
+week, so she reaches the end of follow-up and her boundary is
+<code>NA</code>.</p>
 <p>RETURN_2_3 is discordant in two consecutive weeks. Tolerance 1 allows
-the first and stops her at the right edge of the second, which is week
-3.</p>
+the first and stops her at the left edge of the second, which is week
+2.</p>
 <p>LATE_9 is discordant in week 9 only. Tolerance 1 allows it, and no
 second discordant week follows, so she is never censored for deviation.
 A run that never reaches <code>k + 1</code> weeks does not censor,
@@ -652,7 +663,7 @@ below share one discordant pattern and get opposite verdicts.</p>
 <span><span class="co">#&gt;        id exposed weeks_to_protocol_deviation</span></span>
 <span><span class="co">#&gt;    &lt;char&gt;  &lt;lgcl&gt;                       &lt;int&gt;</span></span>
 <span><span class="co">#&gt; 1:    CMP   FALSE                          NA</span></span>
-<span><span class="co">#&gt; 2:    INT    TRUE                           2</span></span></code></pre></div>
+<span><span class="co">#&gt; 2:    INT    TRUE                           1</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="loss-of-observation-is-never-tolerated">Loss of observation is never tolerated<a class="anchor" aria-label="anchor" href="#loss-of-observation-is-never-tolerated"></a>
@@ -741,31 +752,38 @@ interval.</p>
 <div class="section level3">
 <h3 id="the-tie-and-the-priority-order">The tie, and the priority order<a class="anchor" aria-label="anchor" href="#the-tie-and-the-priority-order"></a>
 </h3>
-<p>Follow-up stops at the earliest of five events, and priority runs in
-three levels.</p>
+<p>Follow-up stops at the earliest boundary. Every boundary is a week on
+one scale, so two of them can fall on the same week. One rule then
+labels the row.</p>
 <ol style="list-style-type: decimal">
-<li>The first outcome event beats everything.</li>
-<li>A protocol deviation and an observed loss come next.</li>
-<li>An administrative end and a requested follow-up end come last.</li>
+<li>An outcome event counts, and the row is not censored.</li>
+<li>An administrative end or a requested follow-up end is complete
+follow-up. A loss or a deviation on the same week does not censor.</li>
+<li>A loss of observation beats a protocol deviation, because a person
+who is not observed cannot be seen to deviate.</li>
 </ol>
-<p>An event that stops in the deviation interval wins that interval. The
-row counts as an event and not as a censoring, and the deviation does
-not clip it. This exception never applies to a gap in observation.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tie</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"TIE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">6L</span>, event_fu <span class="op">=</span> <span class="fl">6L</span><span class="op">)</span>,</span>
+<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"SAME_WEEK"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">6L</span>, event_fu <span class="op">=</span> <span class="fl">6L</span><span class="op">)</span>,</span>
+<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"WEEK_BEFORE"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">6L</span>, event_fu <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span>,</span>
 <span>  <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">tte_prepare</span><span class="op">(</span><span class="fu">tte_enroll</span><span class="op">(</span><span class="va">tie</span>, <span class="fu">tte_design</span><span class="op">(</span>ik <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">[</span></span>
-<span>  <span class="va">id</span> <span class="op">==</span> <span class="st">"TIE"</span></span>
-<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span>, <span class="va">event</span>, <span class="va">censor_this_period</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    tstart tstop person_weeks event censor_this_period</span></span>
-<span><span class="co">#&gt;     &lt;int&gt; &lt;int&gt;        &lt;int&gt; &lt;int&gt;              &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:      0     4            4     0                  0</span></span>
-<span><span class="co">#&gt; 2:      4     6            2     1                  0</span></span></code></pre></div>
-<p>TIE has both boundaries at week 6. She exits as an event, her
-terminal row stops at 6, and <code>censor_this_period</code> reads
-0.</p>
+<span>  <span class="va">id</span> <span class="op"><a href="https://rdrr.io/pkg/data.table/man/chmatch.html" class="external-link">%chin%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"SAME_WEEK"</span>, <span class="st">"WEEK_BEFORE"</span><span class="op">)</span></span>
+<span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">tstart</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">person_weeks</span>, <span class="va">event</span>, <span class="va">censor_this_period</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;             id tstart tstop person_weeks event censor_this_period</span></span>
+<span><span class="co">#&gt;         &lt;char&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt; &lt;int&gt;              &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:   SAME_WEEK      0     4            4     0                  0</span></span>
+<span><span class="co">#&gt; 2:   SAME_WEEK      4     5            1     0                  1</span></span>
+<span><span class="co">#&gt; 3: WEEK_BEFORE      0     4            4     0                  0</span></span>
+<span><span class="co">#&gt; 4: WEEK_BEFORE      4     5            1     1                  0</span></span></code></pre></div>
+<p>SAME_WEEK deviates and has the outcome in follow-up week 6. Her
+deviation stops follow-up at week 5, the start of that week, so the
+outcome falls after the stop. It does not count, and
+<code>censor_this_period</code> reads 1.</p>
+<p>WEEK_BEFORE has the outcome in follow-up week 5 and deviates in week
+6. Both boundaries are week 5. She exits as an event, and
+<code>censor_this_period</code> reads 0.</p>
 </div>
 <div class="section level3">
 <h3 id="the-administrative-end-exactly">The administrative end, exactly<a class="anchor" aria-label="anchor" href="#the-administrative-end-exactly"></a>
@@ -832,12 +850,43 @@ weight adjusts for the selection that this censoring introduces.</p>
 <span><span class="co">#&gt;    estimand tstart tstop person_weeks</span></span>
 <span><span class="co">#&gt;      &lt;char&gt;  &lt;int&gt; &lt;int&gt;        &lt;int&gt;</span></span>
 <span><span class="co">#&gt; 1:       pp      0     4            4</span></span>
-<span><span class="co">#&gt; 2:       pp      4     5            1</span></span>
-<span><span class="co">#&gt; 3:      itt      0     4            4</span></span>
-<span><span class="co">#&gt; 4:      itt      4     8            4</span></span>
-<span><span class="co">#&gt; 5:      itt      8    12            4</span></span></code></pre></div>
+<span><span class="co">#&gt; 2:      itt      0     4            4</span></span>
+<span><span class="co">#&gt; 3:      itt      4     8            4</span></span>
+<span><span class="co">#&gt; 4:      itt      8    12            4</span></span></code></pre></div>
 <p>SWITCH is discordant from follow-up week 5 onward. Per-protocol bills
-5 weeks. Intention-to-treat bills the whole 12.</p>
+4 weeks, because the discordant week 5 is not per-protocol follow-up.
+Intention-to-treat bills the whole 12.</p>
+<p>The censoring weight has one model for each way that per-protocol
+follow-up stops. <code>censor_loss</code> marks the row that a loss
+stops, and <code>censor_deviation</code> marks the row that a deviation
+stops. A woman who is discordant in follow-up week 1 stops at time zero,
+so she keeps no row. <code>$time_zero_deviation</code> keeps her, and
+the time-zero model of the censoring weight fits on that record.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">zs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"ZERO"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">12</span><span class="op">)</span>,</span>
+<span>  <span class="fu">tte_person</span><span class="op">(</span><span class="st">"SWITCH"</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="va">n</span><span class="op">)</span>, discordant_fu <span class="op">=</span> <span class="fl">5</span><span class="op">:</span><span class="fl">12</span><span class="op">)</span>,</span>
+<span>  <span class="fu">tte_fillers</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">trial</span> <span class="op">&lt;-</span> <span class="fu">tte_enroll</span><span class="op">(</span><span class="va">zs</span>, <span class="fu">tte_design</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">tte_prepare</span><span class="op">(</span><span class="va">trial</span>, <span class="st">"pp"</span><span class="op">)</span></span>
+<span><span class="va">out</span><span class="op">[</span><span class="va">id</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ZERO"</span>, <span class="st">"SWITCH"</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">tstart</span>, <span class="va">tstop</span>, <span class="va">censor_loss</span>, <span class="va">censor_deviation</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;        id tstart tstop censor_loss censor_deviation</span></span>
+<span><span class="co">#&gt;    &lt;char&gt;  &lt;int&gt; &lt;int&gt;       &lt;int&gt;            &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1: SWITCH      0     4           0                1</span></span>
+<span><span class="va">trial</span><span class="op">$</span><span class="va">time_zero_deviation</span><span class="op">[</span>,</span>
+<span>  <span class="fu">.</span><span class="op">(</span>person_trials <span class="op">=</span> <span class="va">.N</span>, deviate_at_time_zero <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">deviation_time_zero</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  keyby <span class="op">=</span> <span class="va">exposed</span></span>
+<span><span class="op">]</span></span>
+<span><span class="co">#&gt; Key: &lt;exposed&gt;</span></span>
+<span><span class="co">#&gt;    exposed person_trials deviate_at_time_zero</span></span>
+<span><span class="co">#&gt;     &lt;lgcl&gt;         &lt;int&gt;                &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:   FALSE            12                    0</span></span>
+<span><span class="co">#&gt; 2:    TRUE            10                    1</span></span></code></pre></div>
+<p>SWITCH’s last row carries <code>censor_deviation = 1</code>. ZERO has
+no row, and the record counts her as the one intervention person-trial
+that deviates at time zero. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section
+1.8.2 states the three models and the rows each one fits on.</p>
 </div>
 <div class="section level3">
 <h3 id="two-spec-versions-are-not-comparable">Two spec versions are not comparable<a class="anchor" aria-label="anchor" href="#two-spec-versions-are-not-comparable"></a>
@@ -860,15 +909,16 @@ no single change was made in isolation.</p>
 <ul>
 <li>
 <strong>The censoring approximation is compressed.</strong> The
-panel is one row per follow-up interval, so the censoring model reads an
+panel is one row per follow-up interval, so a censoring model reads an
 interval and not a week. A boundary inside an interval is exact in the
 person-time, and the censoring probability that covers it is still an
 interval-level quantity.</li>
 <li>
 <strong>Within-week ordering is unidentifiable.</strong> A week is
 the finest resolution the source data carries. Two things in one week
-have no order, and swereg resolves them at the weekly right boundary by
-convention.</li>
+have no order. swereg orders them by convention: a discordant week ends
+per-protocol follow-up at its start, so an outcome in the same week does
+not count.</li>
 <li>
 <strong>Timing is weekly, and not date-level.</strong> A registry
 date is known to the day. The skeleton is a person-week grid, so every
@@ -885,11 +935,12 @@ conditions on reaching <code>L</code>. People who die or have the
 outcome inside the enrollment period are not in the population. The
 estimate says nothing about them (Dafni 2011).</li>
 <li>
-<strong>The censoring model carries no adherence history.</strong>
-It reads the time-updated confounders, the start of the follow-up
-interval and its calendar period. It carries no lagged treatment term,
-so a person whose adherence has been failing for months looks like one
-who fails for the first time.</li>
+<strong>The censoring models carry no adherence history.</strong>
+The loss and deviation models read the time-updated confounders, the
+start of the follow-up interval and its calendar period. No model
+carries a lagged treatment term. A person whose adherence has been
+failing for months therefore looks like one who fails for the first
+time.</li>
 <li>
 <strong>swereg implements no grace period.</strong> A grace period
 allows initiation within a fixed window after assignment without

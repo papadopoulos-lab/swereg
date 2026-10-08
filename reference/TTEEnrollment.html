@@ -18,9 +18,10 @@ what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to 4L. Schema 4 stores the fill summary in
 fill_summary and the propensity-model diagnostics in ps_fit, and
 this release reads both. swereg 26.15.0 raised it to 5L, which gives
-the panel column enrollment_period_id its current name. qs2_read()
-migrates a schema-4 object to schema 5 before this check runs. The
-check refuses every object below schema 4.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
+the panel column enrollment_period_id its current name. This release
+raised it to 6L, which names the calendar period of each row
+period_id. qs2_read() refuses every enrollment below schema 6
+before this check runs. The check refuses the same objects.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return invisible(self) for $-chaining.
 R6 reference semantics mean trial$data[, := ...] modifies the data.table
 in-place without copy-on-write overhead.
@@ -39,9 +40,10 @@ what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to 4L. Schema 4 stores the fill summary in
 fill_summary and the propensity-model diagnostics in ps_fit, and
 this release reads both. swereg 26.15.0 raised it to 5L, which gives
-the panel column enrollment_period_id its current name. qs2_read()
-migrates a schema-4 object to schema 5 before this check runs. The
-check refuses every object below schema 4.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
+the panel column enrollment_period_id its current name. This release
+raised it to 6L, which names the calendar period of each row
+period_id. qs2_read() refuses every enrollment below schema 6
+before this check runs. The check refuses the same objects.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -49,7 +51,7 @@ check refuses every object below schema 4.'><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -120,9 +122,10 @@ what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to <code>4L</code>. Schema 4 stores the fill summary in
 <code>fill_summary</code> and the propensity-model diagnostics in <code>ps_fit</code>, and
 this release reads both. swereg 26.15.0 raised it to <code>5L</code>, which gives
-the panel column <code>enrollment_period_id</code> its current name. <code><a href="qs2_read.html">qs2_read()</a></code>
-migrates a schema-4 object to schema 5 before this check runs. The
-check refuses every object below schema 4.</p>
+the panel column <code>enrollment_period_id</code> its current name. This release
+raised it to <code>6L</code>, which names the calendar period of each row
+<code>period_id</code>. <code><a href="qs2_read.html">qs2_read()</a></code> refuses every enrollment below schema 6
+before this check runs. The check refuses the same objects.</p>
     </div>
 
 
@@ -146,8 +149,8 @@ gives a comparator.</p>
 <p>Follow-up starts at time zero, which the interval convention section below
 defines. The panel therefore starts one follow-up interval after the
 enrollment period, and the enrollment period carries no follow-up.
-<code>enrollment_period_id</code> names the trial and <code>trial_id</code> names the follow-up
-interval.</p>
+<code>enrollment_period_id</code> names the trial and <code>period_id</code> names the calendar
+period of the follow-up interval.</p>
 <p>Each confounder reaches the panel twice. The <code>.tte_entry__&lt;v&gt;</code> column holds
 its value at the recruiting week, and <code>&lt;v&gt;</code> holds the time-updated value of
 the follow-up interval. <code>$s2_ipw()</code> and <code>$table1()</code> read the entry column.
@@ -281,9 +284,10 @@ NULL (legacy / unprepared) is treated as per-protocol.</p></dd>
     <dt><code>landmark_attrition</code></dt>
 <dd><p>A data.table or NULL. It reports why the
 time-zero qualification dropped each candidate person-trial, by
-criterion and by arm. Its columns are <code>trial_id</code>, <code>criterion</code>,
-<code>n_persons</code>, <code>n_person_trials</code>, <code>n_intervention</code> and <code>n_comparator</code>.
-The row with <code>trial_id = NA</code> covers the whole cohort. The three
+criterion and by arm. Its columns are <code>enrollment_period_id</code>,
+<code>criterion</code>, <code>n_persons</code>, <code>n_person_trials</code>, <code>n_intervention</code> and
+<code>n_comparator</code>. The row with <code>enrollment_period_id = NA</code> covers the
+whole cohort. The three
 criteria are <code>landmark_candidates</code>, <code>landmark_observed</code> and
 <code>landmark_event_free</code>, and each count is cumulative. It stays <code>NULL</code>
 when the design declares no <code>observed_var</code>, and when the caller
@@ -302,6 +306,29 @@ It stays <code>NULL</code> until a caller assigns it.</p></dd>
 from the propensity model <code>$s2_ipw()</code> fits: <code>n_fit</code>, <code>rank</code>,
 <code>converged</code>, <code>n_boundary</code> and <code>n_dropped_na_snapshot</code>. It stays
 <code>NULL</code> until <code>$s2_ipw()</code> runs.</p></dd>
+
+
+    <dt><code>ipcw_formulas</code></dt>
+<dd><p>A list or NULL. It records the three censoring
+models of each stratum, keyed by the stratum label, such as
+<code>"the intervention arm"</code>. Each stratum holds one element per cause:
+<code>loss</code>, <code>deviation</code> and <code>time_zero</code>. A fitted cause is
+<code>list(fitted = TRUE, denominator = , numerator = )</code>, which holds the
+two formulas. A cause that fits no model is
+<code>list(fitted = FALSE, reason = )</code>, and its factor is 1. It stays
+<code>NULL</code> until the per-protocol censoring weights are estimated.</p></dd>
+
+
+    <dt><code>time_zero_deviation</code></dt>
+<dd><p>A data.table or NULL. <code>s5_prepare_outcome()</code>
+writes it for the per-protocol estimand. It holds one row for each
+person-trial with a known arm whose follow-up no other stop ends at
+time zero. Its columns are the identifier, the
+arm, each confounder at the recruiting week, and
+<code>deviation_time_zero</code>. That column is 1 when a deviation stops
+follow-up at time zero, so the person-trial keeps no row. The
+time-zero censoring model fits on this table. It is <code>NULL</code> for the
+intention-to-treat estimand.</p></dd>
 
 
 </dl><p></p></div>
@@ -370,20 +397,20 @@ accounts for within-person correlation across repeated trial entries
 (Hernan 2008, Danaei 2013).</p>
 <p><strong>IRR vs HR</strong>: For rare events (typical in registry-based TTE studies),
 the incidence rate ratio from Poisson regression approximates the hazard
-ratio from Cox regression (Thompson 1977). The Poisson model with
-<code>splines::ns(tstop, df=3)</code> flexibly models the baseline event rate over
-follow-up time. That is analogous to Cox's nonparametric baseline hazard and
-to Danaei et al.'s "month of follow-up and its squared terms" in pooled
-logistic regression.</p>
+ratio from Cox regression (Thompson 1977). The Poisson model has a term in
+the time since time zero, read at the interval start (<code>tstart</code>). That term
+models the baseline event rate over follow-up. It is analogous to Cox's
+nonparametric baseline hazard and to Danaei et al.'s "month of follow-up
+and its squared terms" in pooled logistic regression.</p>
 <p><strong>Computational choice</strong>: <code>quasipoisson</code> accounts for overdispersion
 from survey weights, and <code>svyglm</code> scales to large registry datasets
 (unlike <code><a href="https://rdrr.io/pkg/survey/man/svycoxph.html" class="external-link">survey::svycoxph()</a></code>). This is computationally equivalent to
 the pooled logistic approach used by Danaei et al. (2013).</p>
-<p><strong>Calendar-time adjustment</strong>: When <code>trial_id</code> is present in the data, the
-model adjusts for calendar-time variation in outcome rates (Caniglia 2023,
-Danaei 2013). In the panel, <code>trial_id</code> indexes the calendar period of each
-follow-up interval. Uses natural splines for &gt;=5 unique trial IDs, linear
-term for 2-4, omitted for 1.</p>
+<p><strong>Trial adjustment</strong>: The model also has a term in the trial,
+<code>enrollment_period_id</code>, the calendar period at time zero (Caniglia 2023,
+Danaei 2013). Each time term counts the distinct values in the fitted
+rows. It is <code>splines::ns(x, df = 3)</code> from 4 values, <code>factor(x)</code> for 2 or 3
+values, and no term for 1 value.</p>
 <p><strong>Estimand (marginal)</strong>: confounding is removed by the supplied <code>weights</code>,
 not by adjusting for confounders in this model, so the coefficient is a
 <em>marginal</em> (population-average) incidence rate ratio, standardised over
@@ -393,11 +420,15 @@ target a <em>conditional</em> effect. The two coincide for the (collapsible)
 rate ratio but differ for the (non-collapsible) odds ratio. See
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, "Marginal versus conditional estimands".</p><div class="section">
 <h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span>, conf_level <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
 <dd><p>Character, required. Column name for weights.</p></dd>
+
+      <dt><code>conf_level</code></dt>
+<dd><p>Numeric in (0, 1), the level of the Wald interval of the
+IRR. Default 0.95.</p></dd>
 
 
 </dl><p></p></div>
@@ -411,10 +442,13 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 <p></p><hr><a id="method-TTEEnrollment-heterogeneity_test"></a><div class="section">
 <h3 id="tteenrollment-heterogeneity-test-"><code>TTEEnrollment$heterogeneity_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-heterogeneity-test-"></a></h3>
 <p>Test for heterogeneity of treatment effects across trials.</p>
-<p>Fits a model with a <code>trial_id x treatment</code> interaction term and returns
-the Wald test p-value. This tests whether the treatment effect varies
-across the calendar periods that <code>trial_id</code> indexes (Hernan 2008, Danaei
-2013).</p><div class="section">
+<p>Fits a model with a treatment x trial interaction and returns the Wald test
+p-value. The trial is <code>enrollment_period_id</code>, the calendar period at time
+zero. This tests whether the treatment effect varies across the trials
+(Hernan 2008, Danaei 2013). The interaction is with
+<code>splines::ns(enrollment_period_id, df = min(3, n - 1))</code>, where <code>n</code> is the
+number of trials. The model also has a term in the time since time zero
+(<code>tstart</code>).</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -426,7 +460,7 @@ across the calendar periods that <code>trial_id</code> indexes (Hernan 2008, Dan
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
-<p>A list with <code>p_value</code> (Wald test), <code>n_trials</code> (unique trial IDs),
+<p>A list with <code>p_value</code> (Wald test), <code>n_trials</code> (unique trials),
 and <code>interaction_coefs</code> (data.table of interaction coefficients).</p>
 </div>
 
@@ -443,9 +477,15 @@ the per-stratum confidence intervals. For a binary subgroup the single
 interaction coefficient satisfies <code>exp(coef) = IRR(other) / IRR(ref)</code>,
 where <code>ref</code> is the first factor level.</p>
 <p>The subgroup variable should be a confounder (in the PS / IPCW models)
-so the marginal weights remain valid within each stratum.</p><div class="section">
+so the marginal weights remain valid within each stratum.</p>
+<p>The model has the same time terms as <code>$irr()</code>: the time since time zero
+(<code>tstart</code>) and the trial (<code>enrollment_period_id</code>).</p><div class="section">
 <h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">effect_modification_test</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">effect_modification_test</span><span class="op">(</span></span>
+<span>  <span class="va">weight_col</span>,</span>
+<span>  <span class="va">subgroup_var</span>,</span>
+<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
@@ -453,6 +493,10 @@ so the marginal weights remain valid within each stratum.</p><div class="section
 
       <dt><code>subgroup_var</code></dt>
 <dd><p>Character, required. A categorical baseline column.</p></dd>
+
+      <dt><code>conf_level</code></dt>
+<dd><p>Numeric in (0, 1), the level of the Wald interval of
+<code>ratio_of_irrs</code>. Default 0.95.</p></dd>
 
 
 </dl><p></p></div>
@@ -474,9 +518,10 @@ subgroup level, each fit on that stratum's rows via the shared
 estimation core. The effect-modification test p-value (and, for a binary
 subgroup, the ratio of stratum IRRs) is attached as an attribute.
 Strata with no events or only one treatment arm degrade to NA with a
-warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div class="section">
+warning; NA-subgroup rows are dropped (count attached as an attribute).
+Each fit has the same time terms as <code>$irr()</code>.</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span>, conf_level <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
@@ -484,6 +529,10 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div 
 
       <dt><code>subgroup_var</code></dt>
 <dd><p>Character, required. A categorical baseline column.</p></dd>
+
+      <dt><code>conf_level</code></dt>
+<dd><p>Numeric in (0, 1), the level of the Wald interval of
+each IRR. Default 0.95.</p></dd>
 
 
 </dl><p></p></div>
@@ -817,7 +866,8 @@ trial panels during enrollment.</p></dd>
       <dt><code>enrolled_ids</code></dt>
 <dd><p>data.table or NULL. Pre-drawn enrollment IDs from
 the two-pass pipeline. When provided, enrollment skips the comparator
-draw and uses these IDs directly.</p></dd>
+draw and uses these IDs directly. It MUST carry the trial of each
+person-trial in <code>enrollment_period_id</code>.</p></dd>
 
       <dt><code>own_data</code></dt>
 <dd><p>Logical. If TRUE, takes ownership of the data.table
@@ -877,13 +927,25 @@ deviated regime therefore contributes no person-time and no outcome, so
 the row cannot attribute a post-deviation outcome to the baseline
 treatment. Releases before 26.9.0 deleted the row instead, which threw
 away every valid week it held.</p>
-<p>Event-priority convention: an outcome event that stops in the deviation
-follow-up interval wins. The row then counts as an event and not as a
-censoring. The deviation does not clip it, <code>censor_this_period</code> is 0, and
-the censoring model does not treat it as censored (since 26.7.3). The row
-still stops at the exact event week, which can fall inside the follow-up
-interval. The convention applies to a treatment deviation only, and
-never to an observation gap.</p><div class="section">
+<p>Per-protocol follow-up stops at the start of the first discordant week
+beyond tolerance, as it stops at the first absent week. That week is
+not adherent follow-up, so an outcome in it or later does not count.
+On a tie the other boundary labels the stop. An outcome in the week
+before the deviation counts, and the row is not censored. A gap or a
+record end at the same week is loss. A planned end at the same week is
+complete follow-up.</p>
+<p>The per-protocol censoring weight <code>ipcw_pp</code> is the product of three
+factors. By default each is fitted in each arm.</p><ul><li><p><code>ipcw_pp_loss</code> comes from a loss model fitted on the rows
+without an outcome. Loss is observed after the outcome of a row.</p></li>
+<li><p><code>ipcw_pp_deviation</code> comes from a deviation model fitted on the
+rows without an outcome that were not lost. A person who is not
+observed cannot be seen to deviate.</p></li>
+<li><p><code>ipcw_pp_time_zero</code> comes from a logistic model of a deviation
+at time zero on the confounders at the recruiting week. It is fitted
+on every person-trial in <code>$time_zero_deviation</code>, including those
+that keep no row.</p></li>
+</ul><p>The columns <code>censor_loss</code> and <code>censor_deviation</code> mark the rows that each
+row-level cause censors.</p><div class="section">
 <h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s4_prepare_for_analysis</span><span class="op">(</span></span>
 <span>  <span class="va">outcome</span>,</span>
@@ -915,7 +977,10 @@ baseline IPW only (no IPCW); analyse it with
 <dd><p>Logical, default TRUE.</p></dd>
 
       <dt><code>censoring_var</code></dt>
-<dd><p>Character or NULL. Defaults to <code>"censor_this_period"</code>.</p></dd>
+<dd><p><code>NULL</code> or <code>"censor_this_period"</code>. Any other value
+stops. The per-protocol weights fit one model per cause, and they read
+<code>censor_loss</code> and <code>censor_deviation</code>, which <code>s5_prepare_outcome()</code>
+writes.</p></dd>
 
 
 </dl><p></p></div>

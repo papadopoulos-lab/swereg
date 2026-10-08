@@ -16,6 +16,21 @@ reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
 | **trial**            | After enrollment via `TTEEnrollment$new(..., ratio = )`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`.                                                                                |
 | **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression.                                                                            |
 
+## Time axes
+
+Each trial-level row carries three time axes. One is a function of the
+other two: `period_id` = `enrollment_period_id` + interval number, where
+the interval number is `tstart / period_width + 1`.
+
+| Term                       | Meaning                                                                                                                                                                                                                                                                                                                                                 |
+|:---------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **`period_id`**            | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it.                                                                                                                                                   |
+| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw, the attrition and matching tables, and the outcome models read it. Earlier releases used `trial_id` for the calendar period of a row, and also for the trial in the comparator draw and the attrition tables. |
+| **time since time zero**   | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at the clipped `tstop`.                                                                                                                                              |
+
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+section 1.8.9 states which axes each model holds, and why.
+
 ## Classes
 
 | Class               | Role                                                                                                                                                                                 |
@@ -61,17 +76,21 @@ One iteration per ETT. Runs sequentially in the main process:
 
 `$s4_prepare_for_analysis()` combines outcome preparation and IPCW-PP
 into one call. It prepares outcome data, calculates IPCW-PP, combines
-weights (`ipw × ipcw_pp` → `analysis_weight_pp`), truncates, and drops
-intermediate IPCW columns.
+weights (`ipw × ipcw_pp` → `analysis_weight_pp`), and truncates. It
+keeps the three factors of `ipcw_pp` as columns.
 
 ## Weights
 
-| Term                                                                   | Meaning                                                                                                                                                             |
-|:-----------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **IPW** (Inverse Probability of treatment Weighting)                   | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$s2_ipw()`.                                                                         |
-| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$s4_prepare_for_analysis()`. |
-| **analysis_weight_pp**                                                 | Final combined weight (`ipw × ipcw_pp`), truncated. Created automatically by `$s4_prepare_for_analysis()`.                                                          |
-| **truncation**                                                         | Winsorization of extreme weights at the 1st and 99th percentiles (by default) to reduce variance. Applied via `$s3_truncate_weights()`.                             |
+| Term                                                                   | Meaning                                                                                                                                                                                                                                                                                |
+|:-----------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **IPW** (Inverse Probability of treatment Weighting)                   | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$s2_ipw()`.                                                                                                                                                                                            |
+| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$s4_prepare_for_analysis()`. `ipcw_pp` is the product `ipcw_pp_time_zero × ipcw_pp_loss × ipcw_pp_deviation`, one factor per censoring model.   |
+| **loss model**                                                         | The IPCW model for loss of observation, indicator `censor_loss`. It fits on the rows without an outcome, because loss is observed after the outcome of a row. Its factor is `ipcw_pp_loss`.                                                                                            |
+| **deviation model**                                                    | The IPCW model for protocol deviation, indicator `censor_deviation`. It fits on the rows without an outcome that were not lost, because a person who is not observed cannot be seen to deviate. Its factor is `ipcw_pp_deviation`.                                                     |
+| **deviation at time zero**                                             | A deviation that stops per-protocol follow-up at time zero, so the person-trial keeps no row. `$time_zero_deviation` records every person-trial under follow-up at time zero, with `deviation_time_zero`. A logistic model fitted on that record gives the factor `ipcw_pp_time_zero`. |
+| **not-fitted sentinel**                                                | `list(fitted = FALSE, reason = )` in `$ipcw_formulas[[stratum]][[cause]]`, for a cause with no censoring in its risk set. Its factor is 1.                                                                                                                                             |
+| **analysis_weight_pp**                                                 | Final combined weight (`ipw × ipcw_pp`), truncated. Created automatically by `$s4_prepare_for_analysis()`.                                                                                                                                                                             |
+| **truncation**                                                         | Winsorization of extreme weights at the 1st and 99th percentiles (by default) to reduce variance. Applied via `$s3_truncate_weights()`.                                                                                                                                                |
 
 ## File naming
 
@@ -155,8 +174,8 @@ initiation as a deviation. It requires cloning, censoring and weighting
 (Hernan 2016, Section 4.4), which this pipeline does not do.
 `period_width` gives slack only for the timing of initiation inside the
 enrollment period. Deviation after time zero censors per-protocol
-follow-up at the right edge of the first discordant run that exceeds the
-arm’s tolerance. See
+follow-up at the start of the first discordant week beyond the arm’s
+tolerance. See
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
 for the same statement, mapped to the reference papers.
 
@@ -167,7 +186,7 @@ Enrollment period boundaries are anchored to a fixed calendar origin,
 not to the first observed week of a study. swereg numbers the rows of
 [`cstime::dates_by_isoyearweek`](https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html),
 which starts at ISO week `1900-01`, then assigns
-`trial_id = (week_index - 1) %/% period_width`. Two studies with
+`period_id = (week_index - 1) %/% period_width`. Two studies with
 different start dates therefore share the same enrollment period
 boundaries.
 
