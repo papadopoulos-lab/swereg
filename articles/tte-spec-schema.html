@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1219,11 +1219,24 @@ into the specification as it reads it: <code>window_weeks</code>,
 <code>source_variable_combined</code>, <code>variable_combined</code>,
 and the two-field <code>observed_var</code>. The schema names none of
 them, because the schema describes the input.</p>
-<p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> holds the one call to
-<code><a href="https://yaml.r-lib.org/reference/yaml.load.html" class="external-link">yaml::yaml.load()</a></code> in <code>R/</code>. Two functions call
-it: <code>tteplan_from_spec()</code>, and the plan’s own
-<code>$reload_spec()</code> method. No path into a specification skips
-the gate.</p>
+<p><code>R/</code> holds two calls to <code><a href="https://yaml.r-lib.org/reference/yaml.load.html" class="external-link">yaml::yaml.load()</a></code>.
+One is in <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>, and two functions call that
+function: <code>tteplan_from_spec()</code>, and the plan’s own
+<code>$reload_spec()</code> method. The other is in
+<code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code>, which returns problems and no
+specification. No path into a specification skips the gate.</p>
+</div>
+<div class="section level2">
+<h2 id="check-a-specification-without-stopping">Check a specification without stopping<a class="anchor" aria-label="anchor" href="#check-a-specification-without-stopping"></a>
+</h2>
+<p><code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code> reads one specification and returns
+a data.table with one row per problem. It reports the keys the gate
+refuses, and it continues past them. It also reports a repeated
+enrollment <code>id</code>, and a
+<code>study$implementation$version</code> that differs from the
+<code>spec_vNNN</code> in the file name.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> checks neither.
+<code><a href="../reference/tteplan_check_spec.html">?tteplan_check_spec</a></code> lists the six problem kinds.</p>
 </div>
 <div class="section level2">
 <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a>

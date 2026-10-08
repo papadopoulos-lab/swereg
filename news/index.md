@@ -1,5 +1,27 @@
 # Changelog
 
+## swereg 27.1.2
+
+### New features
+
+- **[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  lists every problem of a specification as a row, and never stops.**
+  [`?tteplan_check_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  names the six problem kinds.
+
+### Internal
+
+- **The always-on evidence test compares `$meta$estimator_hash` with the
+  estimator source, and it runs under `R CMD check`.** Before, it
+  compared `$meta$swereg` with DESCRIPTION, so a version bump with no
+  estimator change failed it. The full tier no longer repeats the hash
+  test.
+- **swereg removes the four tests that read the study specifications.**
+  Their result depended on the machine, and they skipped in CI. The
+  owner of the specifications runs
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  instead.
+
 ## swereg 27.1.1
 
 ### Version numbers

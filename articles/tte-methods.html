@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -3875,17 +3875,14 @@ tags and on demand.</p>
 <code>dev/generate_validation_evidence.R</code> writes (in the source
 repository, not the installed package). The script uses the same
 data-generating, truth and fit helpers as the tests
-(<code>tests/testthat/helper-tte_*.R</code>). Three tests read the
+(<code>tests/testthat/helper-tte_*.R</code>). Two tests read the
 <code>.rds</code> file:</p>
 <ul>
 <li>
 <code>test-validation-evidence-version.R</code> fails when
-<code>$meta$swereg</code> differs from the DESCRIPTION version. It runs
-in CI.</li>
-<li>
-<code>test-validation-full.R</code> fails when
 <code>$meta$estimator_hash</code> differs from the md5 of the estimator
-source files.</li>
+source files. It runs in CI. Regenerate the evidence when an estimator
+file changes.</li>
 <li>
 <code>test-vignette-claims.R</code> checks each qualitative claim of
 Section 3 and of the passages that cite it. Each claim is a named

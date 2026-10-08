@@ -96,6 +96,9 @@ runs that check against the skeleton.
 
 ## See also
 
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md),
+which reports every problem as a row and does not stop.
+
 Other tte_spec:
 [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md),
 [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md),

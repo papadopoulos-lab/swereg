@@ -427,12 +427,28 @@ it reads it: `window_weeks`, `source_variable_combined`,
 `variable_combined`, and the two-field `observed_var`. The schema names
 none of them, because the schema describes the input.
 
+`R/` holds two calls to
+[`yaml::yaml.load()`](https://yaml.r-lib.org/reference/yaml.load.html).
+One is in
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
+and two functions call that function: `tteplan_from_spec()`, and the
+plan’s own `$reload_spec()` method. The other is in
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md),
+which returns problems and no specification. No path into a
+specification skips the gate.
+
+## Check a specification without stopping
+
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reads one specification and returns a data.table with one row per
+problem. It reports the keys the gate refuses, and it continues past
+them. It also reports a repeated enrollment `id`, and a
+`study$implementation$version` that differs from the `spec_vNNN` in the
+file name.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-holds the one call to
-[`yaml::yaml.load()`](https://yaml.r-lib.org/reference/yaml.load.html)
-in `R/`. Two functions call it: `tteplan_from_spec()`, and the plan’s
-own `$reload_spec()` method. No path into a specification skips the
-gate.
+checks neither.
+[`?tteplan_check_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+lists the six problem kinds.
 
 ## See also
 
