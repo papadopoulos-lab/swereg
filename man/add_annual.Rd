@@ -36,6 +36,14 @@ Merges annual data into the main skeleton data structure for a specific ISO year
 This function is used for adding data that is measured or recorded annually,
 such as yearly income, employment status, or annual health assessments.
 }
+\section{Duplicated IDs}{
+
+An ID that has more than one row in \code{data} has no single value for the
+year. Such a person gets \code{NA} in every added column, on all skeleton rows
+of \code{isoyear}. This applies also to a column that existed before the call.
+The function gives one warning that states the number of duplicated IDs.
+}
+
 \examples{
 # Load fake data
 data("fake_person_ids", package = "swereg")

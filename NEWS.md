@@ -1,4 +1,15 @@
-# swereg 27.2.0
+# swereg 27.1.3
+
+## Bug fixes
+
+* **`$export()` stops when a CONSORT or forest figure writes no PNG (#35).** It deletes the old PNG first, so a file from an earlier run cannot stand in for the new one. This protects a direct `$export()` user.
+* **`$reload_spec()` sets `outcome_role` and `outcome_description` to `NA` when the new specification omits them (#33).** Before, the old value stayed on `plan$ett`.
+* **A survival exhibit without `age_group` stops with a message that names `age_group` (#26).** `age_group = NA` selects the ETT with no age group.
+* **`$survival_curve()` stops on an `NA` treatment or on one arm (#28).** Before, an `NA` treatment drew a third curve.
+* **A forest row label drops `({outcome_role})` when the outcome has no role (#29).** Before, it showed "Stroke ()".
+* **A forest figure with `group_by = "outcome"` labels each row with its exposure name from the manifest (#30).** It orders the outcomes as the specification lists them.
+* **`$export()` stops on an empty `estimands` and on a manifest element that is not a list (#32).** The message names the position of the exhibit in the manifest.
+* **`add_annual()` gives `NA` to a person with more than one row in `data`, and warns once with the count of such persons.** Before, the person silently took the values of the last row.
 
 ## Internal
 

@@ -22,6 +22,11 @@
 #'   afterwards. R cannot grow a list in place. A growth therefore leaves the
 #'   caller's binding on a NEW object, and every other name on the old one.
 #'   Take an alias after the call, never before it.
+#' @section Duplicated IDs:
+#' An ID that has more than one row in `data` has no single value for the
+#' year. Such a person gets `NA` in every added column, on all skeleton rows
+#' of `isoyear`. This applies also to a column that existed before the call.
+#' The function gives one warning that states the number of duplicated IDs.
 #' @examples
 #' # Load fake data
 #' data("fake_person_ids", package = "swereg")
@@ -109,6 +114,22 @@ add_annual <- function(
     fn_name = "add_annual()"
   )
   data[, isoyear := isoyear]
+
+  # A person with more than one row in `data` has no single annual value.
+  # Such persons take no value from `data`: they get NA for this isoyear.
+  data_id_values <- data[[id_name]]
+  duplicated_ids <- unique(data_id_values[duplicated(data_id_values)])
+  if (length(duplicated_ids) > 0) {
+    warning(
+      length(duplicated_ids),
+      " ID(s) have more than one row in data for isoyear = ",
+      isoyear,
+      ". These individuals get NA for every added column in that year.",
+      call. = FALSE
+    )
+    data <- data[!data_id_values %in% duplicated_ids]
+  }
+
   nam_left <- names(data)[!names(data) %in% c(id_name, "isoyear")]
   nam_right <- nam_left
 
@@ -129,6 +150,15 @@ add_annual <- function(
   nam_right <- paste0(nam_right,collapse=',')
   txt <- paste0('skeleton[data,on = c("id==',id_name,'","isoyear"),c(',nam_left,'):=.(',nam_right,')]')
   eval(parse(text = txt))
+  if (length(duplicated_ids) > 0) {
+    # A column that already existed keeps its old value unless set here.
+    # which() keeps data.table from adding an index to the caller's table.
+    added_cols <- names(data)[!names(data) %in% c(id_name, "isoyear")]
+    dup_rows <- which(
+      skeleton$id %in% duplicated_ids & skeleton$isoyear == isoyear
+    )
+    skeleton[dup_rows, (added_cols) := NA]
+  }
   # `.ensure_dt_alloc()` may have replaced the caller's table with a grown
   # one, and the new columns are on the grown one.
   return(invisible(skeleton))
