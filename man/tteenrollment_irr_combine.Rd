@@ -4,7 +4,12 @@
 \alias{tteenrollment_irr_combine}
 \title{Combine and format multiple irr outputs into a publication-ready table}
 \usage{
-tteenrollment_irr_combine(results, slot, descriptions = NULL)
+tteenrollment_irr_combine(
+  results,
+  slot,
+  descriptions = NULL,
+  conf_level = 0.95
+)
 }
 \arguments{
 \item{results}{Named list of per-ETT result lists.}
@@ -12,6 +17,11 @@ tteenrollment_irr_combine(results, slot, descriptions = NULL)
 \item{slot}{Character scalar: name of the slot with \verb{$irr()} output.}
 
 \item{descriptions}{Optional named character vector mapping ett_id to descriptions.}
+
+\item{conf_level}{Numeric(1) strictly between 0 and 1, the level the
+\verb{$irr()} intervals in \code{slot} were computed at. The interval column header
+states it, so \code{0.9} gives \verb{90\% CI}. The function does not recompute the
+interval. Default: 0.95.}
 }
 \value{
 A data.table with formatted IRR estimates.

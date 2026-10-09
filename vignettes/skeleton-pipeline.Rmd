@@ -472,27 +472,6 @@ automatically near the top of
 `tteplan_from_spec_and_registrystudy()`, so you can't accidentally
 build a plan against a half-upgraded skeleton set.
 
-## Cross-host pipeline snapshots
-
-If `data_pipeline_snapshot_dir` is configured at construction time,
-`$process_skeletons()` writes one TSV row per host to
-`{snapshot_dir}/{host_label}.tsv` after each successful run. The
-snapshot file is meant to be `git add`-ed and committed, so the
-history of who ran what version of the pipeline on which host lives
-in `git log`.
-
-Why per-host files and not a single append-only log: the user
-typically runs on 3+ hosts in parallel. A shared append-only file
-would conflict on every concurrent run. Per-host files never have
-the same name, so concurrent runs produce separate commits that
-merge without conflict.
-
-A tiny helper shell script like `dev/commit_pipeline_snapshot.sh`
-(in your own project repo) can wrap `git add` + `git commit` into a
-one-liner the operator runs after the generator finishes. swereg
-never runs git commands itself -- that would be a side effect the
-user hasn't explicitly asked for.
-
 ## Expected re-run costs
 
 After the first full build:

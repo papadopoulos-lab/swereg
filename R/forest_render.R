@@ -575,9 +575,12 @@
 
 #' Render the ITT-vs-PP overlay forest plot: intention-to-treat (blue triangles)
 #' and per-protocol (red squares) IRR points + CIs, dodged vertically on
-#' each outcome row. Left text panels show each estimand's IRR (95% CI) display
-#' string (coloured to match), ITT first. Mirrors the layout of
+#' each outcome row. Left text panels show each estimand's IRR and interval
+#' display string (coloured to match), ITT first. Mirrors the layout of
 #' `.render_combined_forest_plot()` but with two series.
+#' @param conf_level numeric(1) strictly between 0 and 1, the level the IRR
+#'   intervals were computed at. The two text-panel headers state it, so `0.9`
+#'   prints `90% CI`. Default: 0.95.
 #' @noRd
 .render_itt_vs_pp_overlay <- function(
   df,
@@ -586,7 +589,8 @@
   desc_header = NULL,
   role_headers = NULL,
   pp_col = "#C0392B",
-  itt_col = "#2C5AA0"
+  itt_col = "#2C5AA0",
+  conf_level = 0.95
 ) {
   y_num <- row_type <- group_label <- txt_desc <- txt_pp <- txt_itt <- NULL # nolint
   irr_pp <- lo_pp <- hi_pp <- irr_itt <- lo_itt <- hi_itt <- y_plot <- NULL # nolint
@@ -893,8 +897,9 @@
     colour = "black",
     is_desc = TRUE
   )
-  p_pp <- text_col("txt_pp", "PP IRR (95% CI)", colour = pp_col)
-  p_itt <- text_col("txt_itt", "ITT IRR (95% CI)", colour = itt_col)
+  ci_lbl <- paste0("(", .ff_conf_pct(conf_level), "% CI)")
+  p_pp <- text_col("txt_pp", paste("PP IRR", ci_lbl), colour = pp_col)
+  p_itt <- text_col("txt_itt", paste("ITT IRR", ci_lbl), colour = itt_col)
 
   if (requireNamespace("patchwork", quietly = TRUE)) {
     combined <- patchwork::wrap_plots(

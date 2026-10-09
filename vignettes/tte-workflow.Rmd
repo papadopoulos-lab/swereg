@@ -676,7 +676,7 @@ alongside the phase order inside the same digest.
 Before running Loop 1, the plan asserts the skeletons are consistent
 (`study$assert_skeletons_consistent()`). If that passes, every batch
 was built with the same framework, randvars and codes configuration.
-Commit the `spec_vNNN.yaml` file and the pipeline snapshot TSV. Then
+Commit the `spec_vNNN.yaml` file. Then
 `git log` answers "what was different between run A and run B".
 
 ## Summary
@@ -689,9 +689,8 @@ Commit the `spec_vNNN.yaml` file and the pipeline snapshot TSV. Then
 - **Spec YAML** captures every clinical and methodological decision
   in a file that medical collaborators can review and the swereg
   pipeline can execute.
-- **Provenance** -- `pipeline_hash`, `assert_skeletons_consistent`,
-  per-host pipeline snapshots -- makes the reproducibility chain
-  auditable.
+- **Provenance**: `pipeline_hash` and `assert_skeletons_consistent`
+  make the reproducibility chain auditable.
 - **Weights**: baseline IPW for confounder adjustment (Loop 1),
   IPCW-PP for per-protocol censoring (Loop 2), combined as
   `analysis_weight_pp = ipw * ipcw_pp`. `ipcw_pp` is the product of the

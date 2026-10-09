@@ -3,8 +3,9 @@
 # in one describe(), so the tier skips as one test. The fast tier is
 # test-validation-fast.R.
 #
-# 1. s1 to s4, per-protocol and ITT: 20 replicates at seeds 2100 + r,
-#    N = 20,000, truncated and untruncated weights. The quantities are the
+# 1. s1 to s4, per-protocol and ITT: val_n_replicates() replicates (60 in
+#    s3, 20 elsewhere) at seeds 2100 + r, N = 20,000, truncated and
+#    untruncated weights. The quantities are the
 #    log-IRR and the risk difference at h = 5, 10 and 20. Each mean bias
 #    against the exact truth MUST be within 3.5 Monte Carlo standard errors.
 #    The cells in .VAL_FULL_BANDS are the exception (see there).
@@ -71,6 +72,39 @@ s4,pp,truncated,rd_h5,0.000,0.008
 "
 )
 
+# Always on. The full tier and the evidence generator MUST read the replicate
+# count from val_n_replicates(): 60 in s3, 20 in s1, s2 and s4.
+test_that("the bias cells read .VAL_R_S3 = 60 replicates in s3", {
+  expect_identical(.VAL_R_S3, 60L)
+  r_arg <- function(path) {
+    calls <- list()
+    walk <- function(e) {
+      if (is.call(e)) {
+        if (identical(e[[1L]], as.name("val_replicates"))) {
+          calls[[length(calls) + 1L]] <<- e[["R"]]
+        }
+        for (k in as.list(e)[-1L]) {
+          if (!missing(k)) walk(k)
+        }
+      }
+    }
+    for (e in parse(path, keep.source = FALSE)) {
+      walk(e)
+    }
+    expect_length(calls, 1L)
+    return(calls[[1L]])
+  }
+  r_full <- r_arg(testthat::test_path("test-validation-full.R"))
+  expect_identical(eval(r_full, list(scenario = "s3")), 60L)
+  expect_identical(eval(r_full, list(scenario = "s1")), 20L)
+
+  gen <- testthat::test_path("..", "..", "dev", "generate_validation_evidence.R")
+  skip_if_not(file.exists(gen), "dev/ is not in the built package")
+  r_gen <- r_arg(gen)
+  expect_identical(eval(r_gen, list(g = list(scenario = "s3"))), 60L)
+  expect_identical(eval(r_gen, list(g = list(scenario = "s1"))), 20L)
+})
+
 describe("full tier", {
   skip_if_not(
     identical(Sys.getenv("SWEREG_RUN_VALIDATION"), "true"),
@@ -100,7 +134,7 @@ describe("full tier", {
           reps <- val_replicates(
             scenario,
             estimand,
-            R = 20L,
+            R = val_n_replicates(scenario),
             weights = c("truncated", "untruncated"),
             cores = val_cores(4L)
           )

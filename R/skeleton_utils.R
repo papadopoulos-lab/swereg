@@ -184,7 +184,8 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
 #' @param dt A data.table with `id`, `isoyearweek` and the specified variable.
 #'   Within each `id`, the rows MUST be in calendar order.
 #' @param var Character. Name of the column to check.
-#' @param value The specific value to look for.
+#' @param value The specific value to look for. A row where `var` is `NA`
+#'   counts as no observation.
 #' @param window Number of prior ISO weeks to check. 99999 or more, `Inf`
 #'   included, means every earlier row. Default: Inf.
 #' @param col_name Character or NULL.
@@ -227,7 +228,8 @@ skeleton_eligible_no_observation_in_window_excluding_wk0 <- function(dt, var, va
     env = caller_env,
     fn_name = "skeleton_eligible_no_observation_in_window_excluding_wk0()"
   )
-  dt[, (temp_col) := get(var) == value]
+  # An NA week is a week with no observation, not an unknown one.
+  dt[, (temp_col) := !is.na(get(var)) & get(var) == value]
   skeleton_eligible_no_events_in_window_excluding_wk0(dt, temp_col,
                                                  window = window,
                                                  col_name = col_name)

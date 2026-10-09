@@ -169,12 +169,21 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
 #' @param results Named list of per-ETT result lists.
 #' @param slot Character scalar: name of the slot with `$irr()` output.
 #' @param descriptions Optional named character vector mapping ett_id to descriptions.
+#' @param conf_level Numeric(1) strictly between 0 and 1, the level the
+#'   `$irr()` intervals in `slot` were computed at. The interval column header
+#'   states it, so `0.9` gives `90% CI`. The function does not recompute the
+#'   interval. Default: 0.95.
 #'
 #' @return A data.table with formatted IRR estimates.
 #'
 #' @family tte_methods
 #' @export
-tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
+tteenrollment_irr_combine <- function(
+  results,
+  slot,
+  descriptions = NULL,
+  conf_level = 0.95
+) {
   ett_id <- warn <- IRR <- IRR_lower <- IRR_upper <- IRR_pvalue <- description <- . <- NULL
   irr_list <- lapply(results, `[[`, slot)
   dt <- rbindlist(irr_list, idcol = "ett_id")
@@ -184,16 +193,18 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
     message("Convergence warnings in: ", paste(warn_ids, collapse = ", "))
   }
 
+  ci_hdr <- paste0(.ff_conf_pct(conf_level), "% CI")
   result <- dt[, .(
     ett_id,
     IRR = format(round(IRR, 2), nsmall = 2),
-    `95% CI` = paste0(
+    ci = paste0(
       format(round(IRR_lower, 2), nsmall = 2),
       " to ",
       format(round(IRR_upper, 2), nsmall = 2)
     ),
     `p-value` = format.pval(IRR_pvalue, digits = 3)
   )]
+  data.table::setnames(result, "ci", ci_hdr)
 
   # Flag convergence warnings
   if (any(dt$warn)) {
@@ -215,7 +226,7 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
 #' Calls [tteenrollment_rates_combine()] and [tteenrollment_irr_combine()]
 #' with shared `descriptions`, then left-joins on `ett_id` so that each row
 #' carries per-arm event counts, person-years, rates, and the incidence rate
-#' ratio (with 95% CI and p-value) in one place.
+#' ratio (with its interval and p-value) in one place.
 #'
 #' The returned data.table still uses the generic `_Intervention`/`_Comparator`
 #' column suffixes from [tteenrollment_rates_combine()]. The workbook writer
@@ -229,6 +240,8 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
 #'   (e.g. `"irr_pp_trunc"`).
 #' @param descriptions Optional named character vector mapping `ett_id` to
 #'   descriptions.
+#' @param conf_level Numeric(1), passed to [tteenrollment_irr_combine()].
+#'   Default: 0.95.
 #'
 #' @return A wide `data.table` with one row per ETT.
 #'
@@ -238,12 +251,18 @@ tteenrollment_combined_combine <- function(
   results,
   rates_slot,
   irr_slot,
-  descriptions = NULL
+  descriptions = NULL,
+  conf_level = 0.95
 ) {
-  ett_id <- `95% CI` <- `p-value` <- IRR <- NULL
   rates_dt <- tteenrollment_rates_combine(results, rates_slot, descriptions)
-  irr_dt <- tteenrollment_irr_combine(results, irr_slot, descriptions)
-  irr_slim <- irr_dt[, .(ett_id, IRR, `95% CI`, `p-value`)]
+  irr_dt <- tteenrollment_irr_combine(
+    results,
+    irr_slot,
+    descriptions,
+    conf_level = conf_level
+  )
+  ci_hdr <- paste0(.ff_conf_pct(conf_level), "% CI")
+  irr_slim <- irr_dt[, c("ett_id", "IRR", ci_hdr, "p-value"), with = FALSE]
   return(merge(rates_dt, irr_slim, by = "ett_id", all.x = TRUE, sort = FALSE))
 }
 

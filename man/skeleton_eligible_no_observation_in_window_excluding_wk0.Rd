@@ -18,7 +18,8 @@ Within each \code{id}, the rows MUST be in calendar order.}
 
 \item{var}{Character. Name of the column to check.}
 
-\item{value}{The specific value to look for.}
+\item{value}{The specific value to look for. A row where \code{var} is \code{NA}
+counts as no observation.}
 
 \item{window}{Number of prior ISO weeks to check. 99999 or more, \code{Inf}
 included, means every earlier row. Default: Inf.}

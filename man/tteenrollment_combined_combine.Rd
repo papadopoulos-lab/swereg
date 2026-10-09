@@ -8,7 +8,8 @@ tteenrollment_combined_combine(
   results,
   rates_slot,
   irr_slot,
-  descriptions = NULL
+  descriptions = NULL,
+  conf_level = 0.95
 )
 }
 \arguments{
@@ -22,6 +23,9 @@ tteenrollment_combined_combine(
 
 \item{descriptions}{Optional named character vector mapping \code{ett_id} to
 descriptions.}
+
+\item{conf_level}{Numeric(1), passed to \code{\link[=tteenrollment_irr_combine]{tteenrollment_irr_combine()}}.
+Default: 0.95.}
 }
 \value{
 A wide \code{data.table} with one row per ETT.
@@ -30,7 +34,7 @@ A wide \code{data.table} with one row per ETT.
 Calls \code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}} and \code{\link[=tteenrollment_irr_combine]{tteenrollment_irr_combine()}}
 with shared \code{descriptions}, then left-joins on \code{ett_id} so that each row
 carries per-arm event counts, person-years, rates, and the incidence rate
-ratio (with 95\% CI and p-value) in one place.
+ratio (with its interval and p-value) in one place.
 }
 \details{
 The returned data.table still uses the generic \verb{_Intervention}/\verb{_Comparator}

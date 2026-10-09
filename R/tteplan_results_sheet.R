@@ -49,7 +49,8 @@
 
 #' Excel number formats for the three NUMERIC risk-difference columns that the
 #' single-estimand results sheets carry after the measurement block. The
-#' interval is a fourth column and stays a display string, like `95% CI`.
+#' interval is a fourth column and stays a display string, like the IRR
+#' interval.
 #'
 #' The risk-difference format prints an explicit `+` on a positive value. The
 #' sign is the clinical direction, so it is not decoration. `+4.88` and `-4.88`
@@ -173,9 +174,13 @@
 
 
 #' Write a single-estimand results sheet: one row per ETT with the 5 identifier
-#' columns and one measurement block (events / PY / rate per arm + IRR + 95% CI
-#' + p-value). Numbers are real (Excel numFmt via `.apply_measurement_numfmt()`);
-#' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
+#' columns and one measurement block (events / PY / rate per arm + IRR + IRR
+#' interval + p-value). Numbers are real (Excel numFmt via
+#' `.apply_measurement_numfmt()`); the IRR and its interval are display strings.
+#' Used for "PP results" and "ITT results".
+#'
+#' The IRR interval header and the risk-difference interval header state the
+#' study level `.s3_conf_level()`.
 #'
 #' `rd_slot` names the per-ETT list element holding the risk-difference row
 #' (`"rd_pp_trunc"` or `"rd_itt"`, written by `$s3_analyze()` for every ETT).
@@ -251,9 +256,9 @@
 
   est <- plan$get_estimates()
   combo <- .tte_slot_combo(irr_slot)
-  display_names <- names(.MEASUREMENT_NUMFMT)
-  mde_names <- names(.MDE_SHEET_NUMFMT)
   mde_conf_level <- .s3_conf_level(plan$spec)
+  display_names <- .measurement_headers(mde_conf_level)
+  mde_names <- names(.MDE_SHEET_NUMFMT)
   rd_names <- names(.RD_SHEET_NUMFMT)
   rd_cells <- list()
   rd_levels <- numeric(0)

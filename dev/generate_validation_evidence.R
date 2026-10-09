@@ -44,10 +44,10 @@ ev <- list(
 
 # PART 0 -- EXACT-TRUTH VALIDATION (the fast and full test tiers)==============
 # The cells of test-validation-fast.R and test-validation-full.R: s1 to s4,
-# both estimands, 20 replicates at seeds 2100 + r, N = 20,000, truncated and
+# both estimands, val_n_replicates() replicates (60 in s3, 20 elsewhere, from
+# helper-tte_validation.R) at seeds 2100 + r, N = 20,000, truncated and
 # untruncated weights. Each replicate holds the log-IRR and the risk
 # difference at h = 5, 10 and 20; the truths are exact (val_truth()).
-R_VAL <- 20L
 val_cells <- CJ(scenario = c("s1", "s2", "s3", "s4"), estimand = c("pp", "itt"))
 ev$validation_truth <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
   g <- val_cells[i]
@@ -67,7 +67,7 @@ ev$validation_reps <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
   val_replicates(
     g$scenario,
     g$estimand,
-    R = R_VAL,
+    R = val_n_replicates(g$scenario),
     weights = c("truncated", "untruncated"),
     cores = val_cores(min(6L, MAX_WORKERS))
   )

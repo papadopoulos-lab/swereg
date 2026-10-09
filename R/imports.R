@@ -19,19 +19,17 @@ NULL
 # 'cache_cols' and '..cache_cols' exist in calling scope."
 utils::globalVariables(c(".", "..cache_cols"))
 
-# `R CMD check` reports `mgcv` and `survey` as unused Imports. Both are
-# called. The scan behind that note reads the bodies of the namespace's own
-# functions, and an R6 method is not one, so it sees no call site. Measured on
-# R 4.6.0 with a two-function probe package: a `pkg::fn` call is found in a
-# top-level function and missed in an R6 method.
+# The `R CMD check` scan for unused Imports reads the bodies of the
+# namespace's own functions, and an R6 method is not one. Measured on R 4.6.0
+# with a two-function probe package: a `pkg::fn` call is found in a top-level
+# function and missed in an R6 method.
 #
-# The real call sites, all methods of `TTEEnrollment` in
-# `R/r6_tteenrollment.R`:
-#   mgcv::bam          $s6_ipcw_pp()
-#   survey::svydesign  $heterogeneity_test(), $effect_modification_test(),
-#                      $risk_difference()
-#   survey::svyglm     $heterogeneity_test(), $effect_modification_test(),
-#                      $risk_difference()
+# The call sites, all in top-level functions:
+#   mgcv::bam          .tte_ipcw_fit_one() in `R/tte_ipcw_helpers.R`
+#   survey::svydesign  .tte_fit_irr(), .tte_est_heterogeneity_test(),
+#                      .tte_est_effect_modification_test(), all three in
+#                      `R/tte_estimation.R`
+#   survey::svyglm     the same three functions
 #
 # Nothing calls this function. It names one symbol per namespace so that the
 # scan reads both as used.

@@ -9,6 +9,15 @@
 
 * **A positive incidence rate ratio below 0.01 prints (#31).** Before, a 0.01 estimability floor blanked it. The results sheets and forest labels print it and its bounds with two significant digits, as `0.0040`. A plan analysed before 27.2.0 keeps its stored decision until it is rerun.
 * **`tteenrollment_rates_combine()` accepts a rates table from before 27.2.0 beside a newer one.** Before, the extra unweighted columns made it stop.
+* **`skeleton_eligible_no_observation_in_window_excluding_wk0()` counts a week where `var` is `NA` as no observation (#55).** Before, the `NA` made a later week's eligibility `NA`.
+* **The IRR interval headers of the PP results, ITT results, weight-truncation, effect-modification and ITT vs PP sheets state the study level `study$implementation$conf_level` (#55).** Before, they printed `95% CI` at every level. The ITT vs PP figure does the same.
+* **`tteenrollment_irr_combine()` and `tteenrollment_combined_combine()` take `conf_level`, default 0.95, and head the interval column with it (#55).**
+* **The vignettes no longer describe pipeline snapshots (#55).** swereg removed the feature in 26.7.18.
+
+## Internal
+
+* **The full validation tier and the evidence generator read the replicate count from `val_n_replicates()`: 60 in s3, 20 elsewhere (#55).**
+* **The CI `max-cyclocomp` ceiling is 86, the measured maximum in `R/` (#55).**
 
 # swereg 27.1.3
 

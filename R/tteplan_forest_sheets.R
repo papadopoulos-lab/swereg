@@ -6,6 +6,9 @@
 #' overlay forest plot (blue intention-to-treat, red per-protocol) embedded
 #' below. Plot colours live only in the figure; the table cells are plain
 #' numbers.
+#'
+#' The interval headers in the table and in the figure state the study level
+#' `.s3_conf_level()`, the level s3 computed the IRR intervals at.
 #' @noRd
 .write_itt_vs_pp_forest <- function(
   wb,
@@ -49,17 +52,24 @@
     return(invisible(NULL))
   }
 
+  conf_level <- .s3_conf_level(plan$spec)
+  ci_hdr <- paste0(.ff_conf_pct(conf_level), "% CI")
   tab <- df[, .(
     Comparison = group_label,
     Outcome = outcome_name,
     `Follow-up (weeks)` = follow_up,
     `ITT IRR` = irr_itt,
-    `ITT 95% CI` = mapply(.ff_ci_only, lo_itt, hi_itt),
+    itt_ci = mapply(.ff_ci_only, lo_itt, hi_itt),
     `ITT p` = pvalue_itt,
     `PP IRR` = irr_pp,
-    `PP 95% CI` = mapply(.ff_ci_only, lo_pp, hi_pp),
+    pp_ci = mapply(.ff_ci_only, lo_pp, hi_pp),
     `PP p` = pvalue_pp
   )]
+  data.table::setnames(
+    tab,
+    c("itt_ci", "pp_ci"),
+    paste(c("ITT", "PP"), ci_hdr)
+  )
   openxlsx::writeData(
     wb,
     sheet_name,
@@ -110,7 +120,8 @@
       title = NULL,
       label_format = label_format,
       desc_header = desc_header,
-      role_headers = role_headers
+      role_headers = role_headers,
+      conf_level = conf_level
     ),
     error = function(e) {
       warning(
@@ -158,6 +169,9 @@
 #' names and no worker stored therefore gets no accessor row, and this function
 #' emits the one all-`NA` row it always did. That row is the consumer's, and
 #' the accessor invents nothing.
+#'
+#' The two interval headers state the study level `.s3_conf_level()`, the
+#' level s3 computed the stratum intervals at.
 #' @noRd
 .write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
@@ -187,6 +201,7 @@
 
   sg <- plan$get_subgroups()
   analysed <- .plan_analysed_ett_ids(plan)
+  ci_hdr <- paste0(.ff_conf_pct(.s3_conf_level(plan$spec)), "% CI")
 
   # `which()` runs OUTSIDE the data.table subset, so `want_estimand` is the
   # argument. Inside `sg[...]` it would resolve to the COLUMN of that name and
@@ -274,9 +289,9 @@
           Subgroup = sv,
           Level = as.character(lvl),
           `PP IRR` = pc$irr,
-          `PP 95% CI` = pc$ci,
+          pp_ci = pc$ci,
           `ITT IRR` = ic$irr,
-          `ITT 95% CI` = ic$ci,
+          itt_ci = ic$ci,
           `EM p (PP)` = if (is_all) em_val(pp, "em_pvalue") else NA_real_,
           `EM ratio (PP)` = if (is_all) {
             em_val(pp, "ratio_of_irrs")
@@ -307,6 +322,8 @@
   }
 
   df <- do.call(rbind, rows)
+  names(df)[match(c("pp_ci", "itt_ci"), names(df))] <-
+    paste(c("PP", "ITT"), ci_hdr)
   openxlsx::writeData(
     wb,
     sheet_name,
@@ -365,7 +382,12 @@
     return(invisible(NULL))
   }
   dt <- tryCatch(
-    tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc),
+    tteenrollment_irr_combine(
+      prep$wrapped,
+      slot,
+      prep$ett_desc,
+      conf_level = .s3_conf_level(plan$spec)
+    ),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   return(openxlsx::writeData(

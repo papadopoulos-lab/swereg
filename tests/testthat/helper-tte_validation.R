@@ -8,6 +8,19 @@
 # The horizons, in weeks, of every risk-difference check.
 .VAL_HORIZONS <- c(5L, 10L, 20L)
 
+# Replicates per cell of the exact-truth bias check. test-validation-full.R
+# and dev/generate_validation_evidence.R both read val_n_replicates(), so the
+# two cannot disagree. s3 runs 60 to make the Monte Carlo standard error of
+# its per-protocol residual bias smaller.
+.VAL_R <- 20L
+.VAL_R_S3 <- 60L
+val_n_replicates <- function(scenario) {
+  if (identical(scenario, "s3")) {
+    return(.VAL_R_S3)
+  }
+  return(.VAL_R)
+}
+
 # The weight column of each estimand, primary (truncated at the 1st and 99th
 # percentiles) and untruncated.
 .VAL_WEIGHTS <- list(

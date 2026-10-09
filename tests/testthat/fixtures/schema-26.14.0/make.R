@@ -1,4 +1,4 @@
-# Generate the schema-26.14.0 fixtures for test-schema-migration.R.
+# Generate the schema-26.14.0 fixtures for test-schema-refusal.R.
 #
 # Run this script ONCE, with the INSTALLED swereg 26.14.0, in its own
 # process:

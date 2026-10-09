@@ -85,6 +85,22 @@
 )
 
 
+#' The worksheet headers of the 9 measurement columns.
+#'
+#' The names of `.MEASUREMENT_NUMFMT` are the internal cell keys, and the key
+#' of the interval stays `95% CI`. Its header states `conf_level`, the level
+#' s3 computed the IRR interval at, so `0.9` gives `90% CI`.
+#'
+#' @param conf_level Numeric(1) strictly between 0 and 1.
+#' @return A character vector of 9 headers.
+#' @noRd
+.measurement_headers <- function(conf_level) {
+  h <- names(.MEASUREMENT_NUMFMT)
+  h[h == "95% CI"] <- paste0(.ff_conf_pct(conf_level), "% CI")
+  return(h)
+}
+
+
 #' Apply the measurement-column number formats to one side-by-side block whose
 #' first measurement column sits at `block_start`, over body rows `data_rows`.
 #' Numeric columns get their Excel numFmt; the IRR/CI display strings are left
@@ -298,7 +314,8 @@
 #' right**. The untruncated block is shaded light grey to emphasise the
 #' side-by-side comparison. Column headers within each block are just
 #' `Events (int)`, `PY (int)`, etc. (no `[truncated]`/`[untruncated]`
-#' suffix) -- the merged group header row carries the distinction.
+#' suffix) -- the merged group header row carries the distinction. The
+#' interval header states the study level `.s3_conf_level()`.
 #'
 #' @noRd
 .write_combined_sensitivity <- function(
@@ -358,17 +375,7 @@
     return(invisible(NULL))
   }
 
-  display_names <- c(
-    "Events (int)",
-    "PY (int)",
-    "Rate/100k (int)",
-    "Events (cmp)",
-    "PY (cmp)",
-    "Rate/100k (cmp)",
-    "IRR",
-    "95% CI",
-    "p-value"
-  )
+  display_names <- .measurement_headers(.s3_conf_level(plan$spec))
 
   # Build one row per ETT. Truncated columns come first, then untruncated.
   est <- plan$get_estimates()
