@@ -97,33 +97,127 @@ val_design <- function(scenario, long) {
 
 # One prepared enrollment: stabilised treatment weights, truncated at the
 # 1st and 99th percentiles, then s4 for the estimand. Per-protocol uses the
-# default censoring weights: a GAM per arm.
-val_prepare <- function(d, scenario, estimand) {
-  long <- if (identical(scenario, "s4")) scen_long_s4(d) else tte_build_long(d)
-  trial <- TTEEnrollment$new(long, val_design(scenario, long))
+# default censoring weights: a GAM per arm. `path = "panel"` builds the panel
+# with tte_build_long() or scen_long_s4(). `path = "enroll"` builds it with
+# enroll() from weekly rows (val_enroll_weekly()).
+val_prepare <- function(d, scenario, estimand, path = c("panel", "enroll")) {
+  path <- match.arg(path)
+  if (path == "enroll") {
+    trial <- val_enroll_weekly(d, scenario)
+    outcome <- "died"
+  } else {
+    long <- if (identical(scenario, "s4")) scen_long_s4(d) else tte_build_long(d)
+    trial <- TTEEnrollment$new(long, val_design(scenario, long))
+    outcome <- "event"
+  }
   trial$s2_ipw(stabilize = TRUE)
   trial$s3_truncate_weights(lower = 0.01, upper = 0.99)
   trial$s4_prepare_for_analysis(
-    outcome = "event",
+    outcome = outcome,
     follow_up = .SCEN_T,
     estimand = estimand
   )
   trial
 }
 
-# One replicate: simulate at `seed`, prepare, and estimate the log-IRR and the
-# risk difference at .VAL_HORIZONS for each weight in `weights`. The risk
-# difference takes one bootstrap replicate, because only its point estimate is
-# used. Returns one row per weight and quantity.
+# --- the weekly path through enroll() -----------------------------------------
+# A panel from tte_build_long() has no weekly rows, so s5_prepare_outcome()
+# reads the deviation from the treatment of each follow-up interval. The
+# helpers below turn the same simulation into one row per person and week.
+# enroll() then builds the panel and places the weekly deviation boundary
+# (.tte_deviation_boundary(), R/tte_boundaries.R). One week is one enrollment
+# period and one follow-up interval, so the panel holds the rows of
+# tte_build_long(). Every person is eligible in the first week only, and the
+# comparator draw takes every comparator. Period t of the simulation is the
+# follow-up week [t, t + 1). s1 to s3 only: s4 has time-zero discordance.
+
+# One row per person and week: the enrollment week, then the .SCEN_T weeks of
+# follow-up. A person keeps the rows of every period the simulation holds.
+val_weekly_rows <- function(d) {
+  wk <- cstime::dates_by_isoyearweek$isoyearweek
+  wk <- wk[wk >= "2020-01"][seq_len(.SCEN_T + 1L)]
+  base <- d[period == 0L, list(id, arm = A_t == 1L, baseline_L0 = L0)]
+  enr <- base[, list(
+    id,
+    isoyearweek = wk[1L],
+    exposed = arm,
+    eligible = TRUE,
+    on_tx = arm,
+    died = FALSE,
+    baseline_L0
+  )]
+  fu <- d[base, on = "id"][, list(
+    id,
+    isoyearweek = wk[period + 2L],
+    exposed = arm,
+    eligible = FALSE,
+    on_tx = A_t == 1L,
+    died = Y_t == 1L,
+    baseline_L0
+  )]
+  out <- data.table::rbindlist(list(enr, fu))
+  data.table::setkeyv(out, c("id", "isoyearweek"))
+  return(out[])
+}
+
+# The design of the weekly rows. The `row_presence` sentinel makes enroll()
+# read the weekly boundaries.
+val_weekly_design <- function() {
+  design <- TTEDesign$new(
+    person_id_var = "id",
+    treatment_var = "exposed",
+    time_treatment_var = "on_tx",
+    eligible_var = "eligible",
+    observed_var = list(sentinel = "row_presence"),
+    outcome_vars = "died",
+    confounder_vars = "baseline_L0",
+    follow_up_time = .SCEN_T,
+    period_width = 1L
+  )
+  return(design)
+}
+
+# The enrolled panel of the simulation `d`. A ratio of 100 draws every
+# comparator.
+val_enroll_weekly <- function(d, scenario) {
+  stopifnot(scenario %in% c("s1", "s2", "s3"))
+  trial <- TTEEnrollment$new(
+    val_weekly_rows(d),
+    val_weekly_design(),
+    ratio = 100,
+    seed = 1L,
+    own_data = TRUE
+  )
+  return(trial)
+}
+
+# The deviation boundary that enroll() MUST give each person of `d`, from the
+# simulated treatment alone: the first period whose treatment differs from the
+# arm. Period t is the follow-up week [t, t + 1), so the boundary is its left
+# edge, t. NA when the treatment never differs. One row per person.
+val_weekly_deviation <- function(d) {
+  x <- d[d[period == 0L, list(id, arm = A_t)], on = "id"]
+  dev <- x[A_t != arm, list(expected = min(period)), by = "id"]
+  out <- data.table::data.table(id = sort(unique(d$id)))
+  out[dev, expected := i.expected, on = "id"]
+  return(out[])
+}
+
+# One replicate: simulate at `seed`, prepare along `path` (val_prepare()), and
+# estimate the log-IRR and the risk difference at .VAL_HORIZONS for each
+# weight in `weights`. The risk difference takes one bootstrap replicate,
+# because only its point estimate is used. Returns one row per weight and
+# quantity.
 val_fit_replicate <- function(
   scenario,
   estimand,
   seed,
   N = 20000L,
-  weights = "truncated"
+  weights = "truncated",
+  path = "panel"
 ) {
   d <- scen_simulate(scenario, N = N, seed = seed)
-  trial <- val_prepare(d, scenario, estimand)
+  trial <- val_prepare(d, scenario, estimand, path = path)
   out <- list()
   for (w in weights) {
     col <- .VAL_WEIGHTS[[estimand]][[w]]
@@ -203,6 +297,57 @@ val_truth <- function(scenario, estimand) {
       rk$rd[match(.VAL_HORIZONS, rk$h)]
     )
   )
+}
+
+# The exact limit of an ITT fit without loss weights, minus the exact log-IRR
+# truth scen_truth_irr_exact(scenario, "itt"). ITT carries no loss weight, so
+# where loss depends on a covariate of the outcome (L0 in s3, L1 in s4) its
+# estimate converges here and not to the truth. The cells are those of
+# scen_irr_cells_exact(): the treatment-weighted population in each arm and
+# week, with each row kept with its probability of not yet being lost. The
+# knots and the model are those of scen_truth_irr_exact(). It is zero where
+# loss is absent or independent. In phase 5e (2026-10-07) it measured
+# -0.0268 in s3 and -0.0161 in s4.
+val_itt_design_limit <- function(scenario) {
+  g <- scen_grid_exact(scenario)
+  wq <- g$wq
+  out <- vector("list", 2L * .SCEN_T)
+  for (a in 0:1) {
+    p_a <- if (a == 1L) g$p_arm else 1 - g$p_arm
+    pi_a <- sum(wq * p_a)
+    v1 <- g$p_a0(a)
+    v0 <- 1 - v1
+    for (t in 0:(.SCEN_T - 1L)) {
+      if (t > 0L) {
+        n1 <- v0 * g$s0 + v1 * g$s1
+        n0 <- v0 * (1 - g$s0) + v1 * (1 - g$s1)
+        v0 <- n0
+        v1 <- n1
+      }
+      kept <- (1 - g$hl)^t
+      out[[a * .SCEN_T + t + 1L]] <- data.table::data.table(
+        arm = a,
+        tstart = t,
+        pt = pi_a * sum(wq * (v0 + v1) * kept),
+        events = pi_a * sum(wq * (v0 * g$h0 + v1 * g$h1) * kept),
+        rows = sum(wq * p_a * (v0 + v1) * kept)
+      )
+      v0 <- v0 * (1 - g$h0)
+      v1 <- v1 * (1 - g$h1)
+    }
+  }
+  cells <- data.table::rbindlist(out)
+  knots <- scen_irr_knots_exact(cells)
+  fit <- stats::glm(
+    events ~ arm +
+      splines::ns(tstart, knots = knots, Boundary.knots = c(0, .SCEN_T - 1L)) +
+      offset(log(pt)),
+    data = cells,
+    family = stats::quasipoisson(),
+    control = stats::glm.control(epsilon = 1e-14, maxit = 100L)
+  )
+  limit <- unname(stats::coef(fit)[["arm"]])
+  return(limit - as.numeric(scen_truth_irr_exact(scenario, "itt")))
 }
 
 # Mean bias against the exact truth, with the Monte Carlo standard error

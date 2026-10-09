@@ -59,7 +59,7 @@ in `DESCRIPTION`). `TESTTHAT_CPUS` sets the number of processes, and
 | Check | How to run it | Time |
 |:--|:--|:--|
 | One test file | `testthat::test_file()` after `pkgload::load_all(".")` | `test-vignette-claims.R`: 0.8 s, and 6 s with the package load |
-| Fast validation tier | `tests/testthat/test-validation-fast.R` | 340 to 350 s |
+| Fast validation tier | `tests/testthat/test-validation-fast.R` | 389 to 394 s for 4 cells (2026-10-09), with `TESTTHAT_CPUS=1` and with `TESTTHAT_CPUS=2`. The load average was 8.0 to 11.3 on 6 cores while a Slurm reclean ran. |
 | Full suite, parallel | `NOT_CRAN=true TESTTHAT_CPUS=4`, then `testthat::test_local(".")` | 744 s for 7,473 passing expectations with 4 processes (27.2.0, 2026-10-08). The load average was 1.45 at the start and 4.44 at the end. |
 | Full suite, serial (before 27.2.0) | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
 | `R CMD check --no-manual --as-cran` (serial tests, before 27.2.0) | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |

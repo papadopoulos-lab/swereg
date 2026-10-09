@@ -977,10 +977,9 @@ nothing else. Su et al.
 (2024, p. 6–7, the text after equation 3) state the condition. Covariates
 "conditioned upon in the numerator terms of the stabilised weights must be
 included as covariates in the marginal structural model". The outcome model
-holds the trial and the time since time zero. A spline in `period_id` is not
-in the span of those two terms, as the rank example above shows. A spline or
-factor in `period_id` can fall outside that span, as the rank example shows,
-so the numerator omits it.
+holds the trial and the time since time zero. A spline or factor in
+`period_id` can fall outside the span of those two terms, as the rank example
+above shows. The numerator therefore omits it.
 
 By default the numerator fits in each arm, so it also conditions on the arm,
 which the outcome model holds. A numerator that depends only on terms of the
@@ -1277,13 +1276,12 @@ with known true effects, and against the TrialEmulation package (Su et al.
 
 # 3. Validation evidence
 
-All numerical results in this section, in the prose as well as in the
-tables and figures, are computed directly from a results artifact rather
-than transcribed by hand. The artifact is produced by rerunning the
-complete validation battery: the same data-generating processes, truth
-calculations, and fit wrappers that the package's test suite enforces in
-continuous integration. Section 4.2 maps each layer to its test file and
-describes how to regenerate the artifact.
+Every number in this section, in the prose, the tables and the figures, is
+computed from a results artifact. None is transcribed by hand. The artifact
+comes from a rerun of the complete validation battery. The rerun uses the
+same data-generating processes, truth calculations and fit wrappers that the
+package's test suite enforces in continuous integration. Section 4.2 maps
+each layer to its test file and describes how to regenerate the artifact.
 
 Provenance: generated `r ev$meta$generated_utc` with swereg
 `r ev$meta$swereg`, TrialEmulation `r ev$meta$trialemulation`, under
@@ -1295,13 +1293,13 @@ Provenance: generated `r ev$meta$generated_utc` with swereg
 stopifnot(claim("tri_s3_itt_design"))
 ```
 
-The battery is organised around one principle: an estimator is validated by
-recovering a truth that is *known by construction*, not by agreeing with
-another implementation. Agreement between two packages is used as
-corroborating evidence only: two correct implementations of the same
-estimand must agree, but two implementations can also agree while both miss
-the truth. The battery includes a scenario that shows this: informative loss
-under the ITT estimand, where both packages share one design bias (3.3).
+The battery follows one principle. An estimator is validated when it
+recovers a truth that is *known by construction*, not when it agrees with
+another implementation. Agreement between two packages is corroborating
+evidence only. Two correct implementations of the same estimand must agree,
+but two implementations can also agree while both miss the truth. The
+battery includes a scenario that shows this: informative loss under the ITT
+estimand, where both packages share one design bias (3.3).
 
 The battery uses three kinds of truth:
 
@@ -1309,11 +1307,13 @@ The battery uses three kinds of truth:
   defines them. The log-IRR truth is the limit of swereg's weighted outcome
   model, with each arm and period weighted by its probability of remaining
   uncensored.
+
 - **A Monte Carlo truth** for the stress and grid cells (3.4 and 3.8). It
   simulates 200,000 persons per arm under the forced strategy, without loss,
   and takes the log ratio of first-event incidence rates. The per-protocol
   truth holds treatment at the assigned value in every period. The ITT truth
   forces the baseline value only.
+
 - **A planted truth** for the plan-layer cells (3.5), which Section 3.5
   states.
 
@@ -1374,28 +1374,29 @@ data-generating process. For person $i$ with standard-normal baseline
 confounder $L_{0i}$ and periods $t = 0, \ldots, 19$:
 
 $$
-\begin{aligned}
-\mathrm{logit}\,\mathrm{Pr}(A_{i0} = 1)
-  &= -0.3 + \phi_A L_{0i}
-  && \text{(baseline initiation)} \\
-\mathrm{logit}\,\mathrm{Pr}(A_{it} = 1)
-  &= -3.0 + \phi_S L_{0i} + 8\,A_{i,t-1}, \quad t \ge 1
-  && \text{(switching with persistence)} \\
-\mathrm{logit}\,\mathrm{Pr}(Y_{it} = 1)
-  &= -3.5 + \theta A_{it} + \phi_Y L_{0i}
-  && \text{(outcome)}
-\end{aligned}
+\mathrm{logit}\,\mathrm{Pr}(A_{i0} = 1) = -0.3 + \phi_A L_{0i}
+\qquad \text{(baseline initiation)}
+$$
+
+$$
+\mathrm{logit}\,\mathrm{Pr}(A_{it} = 1) = -3.0 + \phi_S L_{0i} + 8\,A_{i,t-1},
+\quad t \ge 1 \qquad \text{(switching with persistence)}
+$$
+
+$$
+\mathrm{logit}\,\mathrm{Pr}(Y_{it} = 1) = -3.5 + \theta A_{it} + \phi_Y L_{0i}
+\qquad \text{(outcome)}
 $$
 
 with true contemporaneous treatment effect $\theta = -0.7$ unless a cell
 varies it. The persistence coefficient of 8 keeps most initiators on
 treatment (adherent person-time dominates) while still generating enough
 switching to separate the PP and ITT truths. Loss to follow-up, when
-present, is geometric dropout from a per-person hazard: constant at 0.06 per
-period (independent loss), or $\mathrm{expit}(-1.4 + 0.9\,L_{0i})$
-(informative loss, so that dropout selects on the confounder that also
-drives treatment and outcome). The three standard scenarios switch the
-nuisance parameters only, leaving the true effect identical:
+present, is geometric dropout from a per-person hazard. Independent loss has
+a constant hazard of 0.06 per period. Informative loss has the hazard
+$\mathrm{expit}(-2.4 + 0.9\,L_{0i})$, so dropout selects on the confounder
+that also drives treatment and outcome. The three standard scenarios switch
+the nuisance parameters only, leaving the true effect identical:
 
 ```{r}
 dgp <- data.table(
@@ -1403,7 +1404,7 @@ dgp <- data.table(
   phi_a = c("0", "0.6", "0.6"),
   phi_s = c("0", "0.4", "0.4"),
   phi_y = c("0", "0.4", "0.4"),
-  loss = c("none", "independent (hazard 0.06)", "informative (expit(-1.4 + 0.9 L0))"),
+  loss = c("none", "independent (hazard 0.06)", "informative (expit(-2.4 + 0.9 L0))"),
   induces = c(
     "clean benchmark: no confounding, no selection",
     "baseline confounding plus outcome-independent attrition",
@@ -1450,10 +1451,10 @@ knitr::kable(
 
 Each scenario dataset is fed through the full triangle (known
 potential-outcome truth, swereg, and `TrialEmulation`) for both estimands.
-Estimates are compared on a common rate-ratio scale: `TrialEmulation` reports
-odds ratios from pooled logistic regression, which are converted with the
-Zhang–Yu relation using the reference arm's per-period event risk from the
-Monte Carlo truth simulation (Zhang and Yu 1998; Section 3.7). The truth is
+Estimates are compared on a common rate-ratio scale. `TrialEmulation` reports
+odds ratios from pooled logistic regression. The Zhang–Yu relation converts
+them with the reference-arm per-period event risk of the Monte Carlo truth
+simulation (Zhang and Yu 1998; Section 3.7). The truth is
 the exact log-IRR of Section 3.9. `TrialEmulation` is a peer required to
 recover the truth itself, not an oracle.
 
@@ -1509,11 +1510,9 @@ each other by `r x31$itt_gap`. A single dataset nonetheless provides limited evi
 N = 20,000 one estimate carries Monte Carlo noise of `r noise` on
 the log-IRR scale. Point estimates therefore deviate visibly from the truth
 even under an unbiased estimator, and sampling variation alone sets the size
-of any one gap. A stronger assessment is obtained
-by replication: the full
-triangle is repeated on 20 independent datasets per scenario, which reduces
-the Monte Carlo standard error of the estimated bias by a factor of
-$\sqrt{20}$.
+of any one gap. Replication gives a stronger assessment. The full triangle
+is repeated on 20 independent datasets per scenario. That reduces the Monte
+Carlo standard error of the estimated bias by a factor of $\sqrt{20}$.
 
 ```{r}
 tr_reps <- copy(ev$triangle_reps)
@@ -1566,7 +1565,7 @@ x33r <- list(
   s3_bias = tr5[scenario == "s3" & estimand == "itt", sg3(sw_bias)],
   s3_bias_u = tr5[scenario == "s3" & estimand == "itt", sg3(swu_bias)],
   s3_te = tr5[scenario == "s3" & estimand == "itt", sg3(te_bias)],
-  lim3 = sprintf("%+.3f", .vc_itt_design_limit[["s3"]])
+  lim3 = sprintf("%+.3f", .vc_itt_design_limit(ev)[["s3"]])
 )
 ```
 
@@ -1719,8 +1718,8 @@ every layer of this battery is anchored to a known truth.
 ## 3.4 Stress matrix
 
 The stress cells reuse the Section 3.2 data-generating process with one or
-two parameters pushed to an extreme, so that each cell probes a specific
-failure mode. Table 6 specifies the designs; the cells then follow in order.
+two parameters pushed to an extreme. Each cell probes a specific failure
+mode. Table 6 specifies the designs; the cells then follow in order.
 
 ```{r}
 st_note <- function(cl) ev$stress[cell == cl & estimand == "pp", note]
@@ -1833,12 +1832,12 @@ stopifnot(claim("stress_harmful"))
 ```
 
 Under a harmful effect with strong depletion of susceptibles, the marginal
-hazard ratio declines over follow-up, so the single pooled IRR, a
-person-time-weighted average (1.6), legitimately lies above the
+hazard ratio declines over follow-up. The single pooled IRR is a
+person-time-weighted average (1.6). It therefore lies above the
 cumulative-rate truth, by a mean of `r x32$mb` across the three seeds. This
-is a property of the estimand, not an implementation defect: swereg and
-`TrialEmulation` agree to within `r x32$mg` on every seed because both
-target the same weighted-average summary. Analyses in which the time path
+is a property of the estimand, not an implementation defect. Both swereg and
+`TrialEmulation` target the same weighted-average summary, so they agree to
+within `r x32$mg` on every seed. Analyses in which the time path
 of the effect matters should report follow-up-specific estimates.
 
 ```{r}
@@ -1915,31 +1914,45 @@ beyond this pipeline are indicated, exactly as stated in 1.7.
 ## 3.5 Full-pipeline truth recovery (plan layer)
 
 The layers above validate the estimators on pre-built person-period panels.
-This layer validates everything that sits on top in production: the
-machine-readable specification, enrollment-period assignment, sequential
-eligibility with a lifetime new-user exclusion, the 2:1 comparator draw in
-each enrollment period, the worker subprocess chain, the dual PP/ITT analysis files, and
-the pooled weighted outcome model.
+This layer validates everything that sits on top of them in production:
+
+- the machine-readable specification;
+
+- enrollment-period assignment;
+
+- sequential eligibility with a lifetime new-user exclusion;
+
+- the 2:1 comparator draw in each enrollment period;
+
+- the worker subprocess chain;
+
+- the dual PP/ITT analysis files;
+
+- the pooled weighted outcome model.
 
 The data-generating process plants an exactly known truth in a realistic
-skeleton. Persons are observed weekly from 2016-01-01 to 2021-06-30,
-roughly 287 ISO weeks, deliberately spanning 2020's 53-week ISO year, and
-are split into never-treaters and initiators; initiators start treatment at
-an enrollment period drawn uniformly from the first 56 four-week enrollment
-periods and, in the
-discontinuation cell, stop after a geometric duration (4% weekly hazard).
+skeleton. Persons are observed weekly from 2016-01-01 to 2021-06-30, roughly
+287 ISO weeks. That span deliberately includes the 53-week ISO year 2020.
+Persons are split into never-treaters and initiators. An initiator starts
+treatment at an enrollment period drawn uniformly from the first 56
+four-week enrollment periods. In the discontinuation cell, an initiator
+stops after a geometric duration (4% weekly hazard).
+
 The weekly outcome hazard is constant at 0.0025 untreated and doubled while
-treated, so the marginal per-week incidence rate ratio among sustained
-users is exactly 2.0. Scenario B adds a binary frailty carried by 30% of
-persons that doubles both the initiation probability and the outcome
-hazard, a genuine baseline confounder; mixture-averaging over the two
-risk groups with first-event depletion attenuates the marginal truth to
-`r ev$plan[cell == "B_none", sprintf("%.3f", truth_pp)]`. Loss, when present, is geometric (2% weekly, or 1%/3% by risk group
-for informative loss) and multiplies person-time equally in both arms, so
-the truth is unchanged and loss is purely a nuisance the machinery must
-tolerate. The ITT truth in the discontinuation cell
+treated. The marginal per-week incidence rate ratio among sustained users is
+therefore exactly 2.0. Scenario B adds a binary frailty carried by 30% of
+persons. It doubles both the initiation probability and the outcome hazard,
+so it is a genuine baseline confounder. Mixture-averaging over the two risk
+groups with first-event depletion attenuates the marginal truth to
+`r ev$plan[cell == "B_none", sprintf("%.3f", truth_pp)]`.
+
+Loss, when present, is geometric. Its weekly hazard is 2%, or under
+informative loss 1% in the low-risk group and 3% in the high-risk group.
+Loss multiplies person-time equally in both arms. The truth is therefore
+unchanged, and loss is purely a nuisance the machinery must tolerate. The
+ITT truth in the discontinuation cell
 (`r sprintf("%.2f", ev$plan[cell == "DISC", truth_itt])`) is simulated
-directly as the do(initiate)-versus-do(never) contrast with natural
+directly. It is the do(initiate)-versus-do(never) contrast with natural
 discontinuation.
 
 ```{r}
@@ -2018,10 +2031,10 @@ truth of `r x33$disc_itt_truth`. In this single run its interval,
 the deviation rule of 1.4. Under the per-protocol estimand, an event at or
 after the first discordant week does not count.
 
-Because a single pipeline run at a fixed seed cannot distinguish bias from
-draw-level noise, the two no-loss scenarios are repeated over eight
-independent seeds at 6,000 persons each, rerunning the complete pipeline
-per replicate:
+A single pipeline run at a fixed seed cannot distinguish bias from
+draw-level noise. The two no-loss scenarios are therefore repeated over
+eight independent seeds at 6,000 persons each. Each replicate reruns the
+complete pipeline:
 
 ```{r}
 mc <- copy(ev$plan_mc)
@@ -2084,9 +2097,10 @@ each miss.
 
 ## 3.6 Coverage calibration
 
-The final layer asks whether the reported uncertainty can be trusted: over
-200 replicate draws per scenario at 3,000 persons, each refit end to end,
-what fraction of nominal 95% intervals cover the truth? The truth is the
+The final layer asks whether the reported uncertainty can be trusted. It
+draws 200 replicates per scenario at 3,000 persons and refits each one end
+to end. It then counts the fraction of nominal 95% intervals that cover the
+truth. The truth is the
 exact log-IRR of Section 3.9. Both estimands use the primary truncated weight,
 the pipeline's default analysis as reported. The per-protocol censoring
 weights (1.8.2) target the sustained-treatment effect in all three scenarios,
@@ -2138,7 +2152,7 @@ x34 <- list(
   ib3 = cvi[scenario == "s3", sg3(mc_mean_bias)],
   ise3 = cvi[scenario == "s3", sprintf("%.3f", mc_sd / sqrt(n_fit))],
   isd3 = cvi[scenario == "s3", sprintf("%.3f", mc_sd)],
-  lim3 = sprintf("%+.3f", .vc_itt_design_limit[["s3"]])
+  lim3 = sprintf("%+.3f", .vc_itt_design_limit(ev)[["s3"]])
 )
 ```
 
@@ -2184,16 +2198,18 @@ and not the s3 ITT coverage.
 
 ## 3.7 Marginal versus conditional estimands
 
-swereg and `TrialEmulation` both remove baseline confounding, but by
-different routes, producing two distinct and each valid estimands. swereg
-weights and fits a covariate-free model: a marginal effect. `TrialEmulation`
-conventionally adjusts the outcome model: a conditional effect. Rate ratios
-are collapsible, so these coincide for the IRR; odds ratios are not, so the
-`TrialEmulation` OR is converted with the Zhang–Yu relation
+Both swereg and `TrialEmulation` remove baseline confounding, but by
+different routes. The two routes give two distinct estimands, and each is
+valid. The swereg route weights and fits a covariate-free model, which gives
+a marginal effect. The `TrialEmulation` route conventionally adjusts the
+outcome model, which gives a conditional effect.
+
+Rate ratios are collapsible, so the two coincide for the IRR. Odds ratios
+are not collapsible, so the `TrialEmulation` OR is converted to a rate ratio
+before comparison. The conversion uses the Zhang–Yu relation
 $\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})$, where $p_0$ is
-the reference-arm per-period risk, before comparison. The conversion removes
-the scale gap only; a residual conditional-versus-marginal difference
-remains.
+the reference-arm per-period risk. The conversion removes the scale gap
+only; a residual conditional-versus-marginal difference remains.
 
 ```{r, include = FALSE}
 stopifnot(claim("tri_gap_pattern"))
@@ -2214,19 +2230,27 @@ both end.
 
 ## 3.8 Boundary of validity: the truncation tradeoff across scenarios
 
-The s3 per-protocol cell raised two questions a single scenario cannot
-answer: is the conditional-adjustment route always the better one, and is
-truncation always a cost? This section varies the design one knob at a time
-around the s3 configuration: the strength of the loss's dependence on the
-confounder (0.45, 0.9, 1.5 on $L_0$), its direction (−0.9, so that dropout
-selects low-risk rather than high-risk person-time), and the direction of
-the treatment effect (harmful, $+0.7$), together with two mechanisms in
-which the selection is driven by an unmeasured prognostic factor $U$
-(dropout on $U$, and a healthy-adherer mechanism in which treated
-individuals with high $U$ discontinue preferentially), plus a separate
-data-generating process in which censoring is driven by a time-varying
-covariate that treatment itself affects. Per-protocol estimand throughout; ten paired
-replicates per cell.
+The s3 per-protocol cell raised two questions that a single scenario cannot
+answer. The first is whether the conditional-adjustment route is always the
+better one. The second is whether truncation is always a cost. This section
+varies the design one knob at a time around the s3 configuration:
+
+- the strength of the dependence of loss on the confounder (0.45, 0.9 and
+  1.5 on $L_0$);
+
+- the direction of that dependence (−0.9, so that dropout selects low-risk
+  rather than high-risk person-time);
+
+- the direction of the treatment effect (harmful, $+0.7$);
+
+- dropout driven by an unmeasured prognostic factor $U$;
+
+- a healthy-adherer mechanism, in which treated individuals with high $U$
+  discontinue preferentially.
+
+In a separate data-generating process, a time-varying covariate that
+treatment itself affects drives the censoring. Every cell uses the
+per-protocol estimand and ten paired replicates.
 
 ```{r}
 tg <- copy(ev$trunc_grid)
@@ -2331,8 +2355,8 @@ stopifnot(claim("grid_unmeasured_silent"))
 
 The two unmeasured-driver cells locate the boundary set by assumption (5)
 of the analysis plan (1.7). In both, every mean bias is negative, toward an
-exaggerated protective effect. `TrialEmulation` is displaced the most:
-`r x16u$loss_te` with dropout on the unmeasured factor, and `r x16u$adh_te`
+exaggerated protective effect. The `TrialEmulation` fit is displaced the
+most: `r x16u$loss_te` with dropout on the unmeasured factor, and `r x16u$adh_te`
 with the unmeasured factor driving adherence. Its 95% Monte Carlo interval
 excludes zero in both. The swereg mean biases are `r x16u$loss_t`
 (truncated) and `r x16u$loss_u` (untruncated) in the dropout cell, and
@@ -2403,10 +2427,11 @@ because its bias in the harsh cell comes from unstable weights. The
 time-updated weights give the smallest of the three biases.
 All three estimates are therefore
 unusable, and comparing them identifies only which approach fails least,
-not an approach that works. When a time-varying confounder is itself affected by earlier treatment,
-valid estimation requires methods designed for that feedback, such as the
-parametric g-formula or g-estimation of structural nested models (Hernán
-and Robins 2016), which this pipeline does not implement.
+not an approach that works. When a time-varying confounder is itself
+affected by earlier treatment, valid estimation needs methods designed for
+that feedback. Examples are the parametric g-formula and g-estimation of
+structural nested models (Hernán and Robins 2016). This pipeline implements
+neither.
 
 ```{r}
 tri_pp <- ev$triangle_reps[estimand == "pp", .(
@@ -2526,19 +2551,25 @@ retained on the evidence. The truncated fit is the primary analysis: its
 largest RMSE across the `r x38$cells_n` cells is `r x38$rm_t_max`, against
 `r x38$rm_u_max` for the untruncated fit. The untruncated fit is always
 exported alongside (1.8.3). A material divergence between the two indicates
-that the censoring weights are unstable. The appropriate
-responses are then sensitivity analyses at looser truncation percentiles
-(Table 9 quantifies the dose–response), restriction of the eligible
-population where extreme weights are structural, or, when the censoring
-drivers are time-varying and treatment-affected, the recognition that no
-weighting scheme in this pipeline suffices (Table 17).
+that the censoring weights are unstable. Three responses are then
+appropriate:
+
+- a sensitivity analysis at looser truncation percentiles (Table 9
+  quantifies the dose–response);
+
+- restriction of the eligible population where extreme weights are
+  structural;
+
+- when the censoring drivers are time-varying and treatment-affected, the
+  recognition that no weighting scheme in this pipeline suffices (Table 17).
 
 ## 3.9 Risk difference and log-IRR against exact truths
 
 This section compares the risk difference at 5, 10 and 20 periods, and the
 log-IRR, with exact truths. The cells, seeds and limits are those of the test
-tiers. `test-validation-fast.R` runs s1 and the s4 per-protocol cell on every
-push, and `test-validation-full.R` runs every cell weekly (Section 4.2).
+tiers. On every push, `test-validation-fast.R` runs s1 and the s4
+per-protocol cell. Every week, `test-validation-full.R` runs every cell
+(Section 4.2).
 
 No simulation enters the two truths:
 
@@ -2546,6 +2577,7 @@ No simulation enters the two truths:
   under the strategy of the estimand, intervention minus comparator. A
   forward recursion over the equations of Section 3.2 computes it, with
   quadrature over the baseline covariates.
+
 - **Log-IRR.** The treatment coefficient of swereg's outcome model (1.8.4),
   fitted to the exact expected events and person-time of each arm and
   period. Each cell is weighted by the marginal probability of remaining
@@ -2581,8 +2613,8 @@ x39 <- local({
     z4 = sprintf("%.1f", e1("s4", "pp", "truncated", "rd_h20", "z")),
     itt3 = sprintf("%+.4f", e1("s3", "itt", "untruncated", "log_irr")),
     itt4 = sprintf("%+.4f", e1("s4", "itt", "untruncated", "log_irr")),
-    lim3 = sprintf("%+.4f", .vc_itt_design_limit[["s3"]]),
-    lim4 = sprintf("%+.4f", .vc_itt_design_limit[["s4"]])
+    lim3 = sprintf("%+.4f", .vc_itt_design_limit(ev)[["s3"]]),
+    lim4 = sprintf("%+.4f", .vc_itt_design_limit(ev)[["s4"]])
   )
 })
 ```
@@ -2597,8 +2629,9 @@ wherever the hazard ratio changes over follow-up. The largest difference is
 the two truths are equal.
 
 Scenario s4 adds a second standard-normal baseline covariate, so that each
-censoring cause has its own driver. $L_0$ drives the arm, discordance in the
-first follow-up week and later deviation. $L_1$ drives loss to follow-up.
+censoring cause has its own driver. The covariate $L_0$ drives the arm,
+discordance in the first follow-up week and later deviation. The covariate
+$L_1$ drives loss to follow-up.
 Both drive the outcome. Because a person can deviate in the first follow-up
 week, s4 tests the time-zero censoring model of 1.8.2.
 

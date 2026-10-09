@@ -23,6 +23,10 @@
 * **The full validation tier and the evidence generator read the replicate count from `val_n_replicates()`: 60 in s3, 20 elsewhere (#55).**
 * **The CI `max-cyclocomp` ceiling is 86, the measured maximum in `R/` (#55).**
 * **A test pins that s1 clears a work directory from before 27.1.1 before its first sub-step writes (#55).** Such a directory holds plain data.tables, and `qs2_read()` refuses only an old `TTEEnrollment` or `TTEPlan`.
+* **The validation evidence holds the ITT design limits of s3 and s4 in `$itt_design_limit` (#55).** `vignettes/validation-claims.R` reads them there and stops when they are absent. Before, it hard-coded them.
+* **The evidence keeps its s3 ITT coverage row (#55).** The #55 item said that the vignette no longer claims it. That was wrong: Table 15 and the claim `coverage_itt_s3_design` of `vignette("tte-methods")` read the row.
+* **The fast validation tier gains an s1 per-protocol cell built by `enroll()` from weekly rows (#55).** It checks the weekly deviation boundary of each person-trial against the simulated treatment. It also checks that its estimates equal those of the panel that the other cells build, to 1e-6. Before, every fast-tier panel used the fallback read of `s5_prepare_outcome()`.
+* **Section 3 of `vignette("tte-methods")` has no sentence over 25 words, and section 1.8.9 cites the rank example once (#55).**
 
 # swereg 27.1.3
 

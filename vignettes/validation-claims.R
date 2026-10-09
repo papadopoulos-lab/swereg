@@ -13,11 +13,25 @@
 .vc_k <- 3.5
 
 # The exact limit of an ITT fit without loss weights, minus the exact
-# log-IRR truth. Measured in phase 5e (2026-10-07) and stated in
-# tests/testthat/test-validation-full.R. The ITT estimand carries no loss
-# weight, so informative loss moves its estimate by this much in any correct
-# implementation.
-.vc_itt_design_limit <- c(s3 = -0.0268, s4 = -0.0161)
+# log-IRR truth, in s3 and s4. The ITT estimand carries no loss weight, so
+# informative loss moves its estimate by this much in any correct
+# implementation. dev/generate_validation_evidence.R computes it with
+# val_itt_design_limit() and writes it to `ev$itt_design_limit`. This
+# function stops when the evidence has no finite value for s3 and s4.
+.vc_itt_design_limit <- function(ev) {
+  lim <- ev$itt_design_limit
+  ok <- is.numeric(lim) &&
+    all(c("s3", "s4") %in% names(lim)) &&
+    all(is.finite(lim[c("s3", "s4")]))
+  if (!ok) {
+    stop(
+      "The validation evidence has no ITT design limit for s3 and s4 ",
+      "(ev$itt_design_limit). Run dev/generate_validation_evidence.R again.",
+      call. = FALSE
+    )
+  }
+  lim[c("s3", "s4")]
+}
 
 # Rows of `ev$validation_summary`, the exact-truth cells. NULL selects all.
 .vc_exact <- function(
@@ -160,7 +174,7 @@ validation_claims <- list(
       function(f) {
         x <- .vc_tri(ev, "s3", "itt", f)
         x[["bias"]] < 0 &&
-          abs(x[["bias"]] - .vc_itt_design_limit[["s3"]]) <= .vc_k * x[["se"]]
+          abs(x[["bias"]] - .vc_itt_design_limit(ev)[["s3"]]) <= .vc_k * x[["se"]]
       },
       logical(1)
     )
@@ -322,7 +336,7 @@ validation_claims <- list(
     se <- x$mc_sd / sqrt(x$n_fit)
     nrow(x) == 1L &&
       x$mc_mean_bias < 0 &&
-      abs(x$mc_mean_bias - .vc_itt_design_limit[["s3"]]) <= .vc_k * se &&
+      abs(x$mc_mean_bias - .vc_itt_design_limit(ev)[["s3"]]) <= .vc_k * se &&
       abs(x$mc_mean_bias) < x$mc_sd / 3
   },
 
@@ -558,7 +572,7 @@ validation_claims <- list(
   exact_itt_design_bias = function(ev) {
     s <- .vc_exact(ev, c("s3", "s4"), "itt", NULL, "log_irr")
     u <- s[s$weight == "untruncated", , drop = FALSE]
-    lim <- .vc_itt_design_limit[u$scenario]
+    lim <- .vc_itt_design_limit(ev)[u$scenario]
     nrow(s) == 4L &&
       all(s$bias < 0) &&
       all(abs(u$bias - lim) <= .vc_k * u$mc_se)

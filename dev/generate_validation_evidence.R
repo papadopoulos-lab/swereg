@@ -62,6 +62,11 @@ ev$validation_truth <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
   )]
   tr[]
 }))
+# The exact limit of an ITT fit without loss weights, minus the exact log-IRR
+# truth, in s3 and s4: val_itt_design_limit() in helper-tte_validation.R.
+# vignettes/validation-claims.R reads it from here, and stops without it.
+ev$itt_design_limit <- vapply(c("s3", "s4"), val_itt_design_limit, numeric(1))
+ev$itt_design_limit
 ev$validation_reps <- rbindlist(lapply(seq_len(nrow(val_cells)), function(i) {
   g <- val_cells[i]
   val_replicates(
@@ -726,7 +731,8 @@ saveRDS(ev, EVIDENCE_PATH, version = 2)
 # The opt-in coverage study of test-tte_coverage.R, extended to both
 # estimands, with per-replicate estimates retained so the vignette can report
 # bias, MC sd, and coverage x/M. Primary truncated weights throughout. The
-# truth is the exact log-IRR, as in scen_coverage().
+# truth is the exact log-IRR, as in scen_coverage(). Keep the s3 ITT cell:
+# Table 15 and the claim coverage_itt_s3_design of the vignette read it.
 M <- 200L
 rows <- list()
 rows_reps <- list()
