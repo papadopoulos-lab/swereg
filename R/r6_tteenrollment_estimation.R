@@ -123,8 +123,10 @@ TTEEnrollment$set(
 #' @param conf_level Numeric in (0, 1), the level of the Wald interval of
 #'   each IRR. Default 0.95.
 #' @return A data.table with columns `level, IRR, IRR_lower, IRR_upper,
-#'   IRR_pvalue, warn, events_intervention, events_comparator`, with
-#'   attributes `em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
+#'   IRR_pvalue, warn, events_intervention, events_comparator,
+#'   model_formula`, with attributes `em_pvalue`, `ratio_of_irrs`, and
+#'   `n_na_subgroup`. `model_formula` is the formula of the fit of that row,
+#'   as one string. It is `NA` when no fit produced the row.
 TTEEnrollment$set(
   "public",
   "irr_by_subgroup",

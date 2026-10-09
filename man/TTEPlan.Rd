@@ -488,9 +488,11 @@ truncation), and saves the analysis-ready file.
 where analysis files are saved. If \code{NULL} (default), uses
 \code{self$dir_tteplan}.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, estimate IPCW-PP
-separately by treatment group (default: TRUE).}
+separately by treatment group (default: TRUE). s2 records the value on
+each per-protocol analysis file, and item 6h of the TARGET checklist
+states it.}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, use GAM for IPCW-PP estimation
-(default: TRUE).}
+(default: TRUE). s2 records it in the same way.}
       \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 1L).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
     }

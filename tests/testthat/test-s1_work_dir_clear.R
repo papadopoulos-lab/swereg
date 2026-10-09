@@ -343,3 +343,72 @@ test_that("s1 refuses a work_root that does not exist and creates nothing", {
   expect_false(dir.exists(absent))
   expect_false(dir.exists(out_dir))
 })
+
+
+# A work directory from before 27.1.1 holds plain data.tables. The schema
+# refusal that reads an s1 work file cannot catch one, so s1 MUST clear the
+# directory before its first sub-step writes. The first dispatch is stubbed:
+# it records what the directory holds at that moment, then stops the run.
+test_that("s1 clears a pre-27.1.1 plain data.table from the work directory before it writes", {
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("yaml")
+
+  sk <- ttm_skeleton("A", n_persons = 400L, seed = 2026L)
+  base <- withr::local_tempdir()
+  dirs <- list(
+    spec = file.path(base, "spec"),
+    tteplan = file.path(base, "tteplan"),
+    results = file.path(base, "results"),
+    meta = file.path(base, "meta")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  skel_path <- file.path(dirs$tteplan, "skel_a.qs2")
+  qs2::qs_save(sk, skel_path)
+  ttm_write_spec(
+    file.path(dirs$spec, "spec_v001.yaml"),
+    "ttms1old",
+    "rd_age_continuous"
+  )
+  plan <- swereg::tteplan_from_spec_and_registrystudy(
+    study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
+    candidate_dir_spec = dirs$spec,
+    candidate_dir_tteplan = dirs$tteplan,
+    candidate_dir_results = dirs$results,
+    spec_version = "v001",
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
+  )
+
+  # The s1a pre file of the first enrollment, at the path the current s1
+  # reads, holding a plain data.table as the old release wrote it.
+  work_dir <- .s1_work_dir(plan, ensure_exists = TRUE)
+  stale <- .s1a_pre_path(work_dir, plan$ett$enrollment_id[1], "skel_a.qs2")
+  qs2::qs_save(data.table::data.table(lopnr = 1:3, enrollment_period_id = 1L), stale)
+  expect_true(file.exists(stale))
+
+  seen <- new.env(parent = emptyenv())
+  testthat::local_mocked_bindings(
+    .batch_run_and_write = function(...) {
+      seen$exists <- dir.exists(work_dir)
+      seen$files <- list.files(work_dir, recursive = TRUE, all.files = TRUE)
+      stop("stub: stopped at the first s1 dispatch")
+    },
+    .package = "swereg"
+  )
+  msg <- tryCatch(
+    {
+      utils::capture.output(plan$s1_generate_enrollments_and_ipw(
+        n_workers = 1L,
+        check_skeletons = FALSE
+      ))
+      NA_character_
+    },
+    error = function(e) conditionMessage(e)
+  )
+
+  # The run reached the first dispatch, and the directory held nothing there.
+  expect_identical(msg, "stub: stopped at the first s1 dispatch")
+  expect_true(seen$exists)
+  expect_identical(seen$files, character(0))
+  expect_false(file.exists(stale))
+})

@@ -226,6 +226,13 @@ intention-to-treat estimand.}
 version that ran s2 on this object. s3 calls the methods of this
 object, so that version's estimators compute its results. It stays
 \code{NULL} until s2 writes the analysis file.}
+
+    \item{\code{ipcw_pp_options}}{A list or NULL. It holds the two settings that
+s2 passed to the per-protocol censoring models of this object:
+\code{estimate_ipcw_pp_with_gam} and
+\code{estimate_ipcw_pp_separately_by_treatment}. Item 6h of the TARGET
+checklist states them. It stays \code{NULL} on an intention-to-treat
+object, and until s2 writes a per-protocol analysis file.}
   }
   \if{html}{\out{</div>}}
 }
@@ -449,8 +456,9 @@ each IRR. Default 0.95.}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns \verb{level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator}, with
-attributes \code{em_pvalue}, \code{ratio_of_irrs}, and \code{n_na_subgroup}.
+    A data.table with columns \verb{level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator, model_formula}, with attributes \code{em_pvalue}, \code{ratio_of_irrs}, and
+\code{n_na_subgroup}. \code{model_formula} is the formula of the fit of that row,
+as one string. It is \code{NA} when no fit produced the row.
   }
 }
 

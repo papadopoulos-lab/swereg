@@ -205,7 +205,9 @@
 #' @param cause `"loss"` or `"deviation"`.
 #' @param label The stratum label.
 #' @param use_gam Logical. `TRUE` fits with `mgcv::bam()`.
-#' @return `list(q = , formula = )`.
+#' @return `list(q = , formula = , fit = )`. `fit` names the fit that made
+#'   `q`: `"glm"`, `"bam, discrete = TRUE"`, or
+#'   `"bam, discrete = FALSE, after the discrete prediction failed"`.
 #' @noRd
 .tte_ipcw_fit_one <- function(
   fit_data,
@@ -234,40 +236,63 @@
     sum(fit_data[[cause_col]]),
     "\n"
   )
-  fit <- tryCatch(
-    if (use_gam) {
-      mgcv::bam(
-        model_formula,
-        data = fit_data,
-        family = stats::binomial(link = "cloglog"),
-        discrete = TRUE
-      )
-    } else {
-      stats::glm(
-        model_formula,
-        data = fit_data,
-        family = stats::binomial(link = "cloglog")
-      )
-    },
-    error = function(e) {
-      stop(
-        "s6_ipcw_pp() cannot fit ",
-        what,
-        ".\n",
-        "  formula: ",
-        deparse1(model_formula),
-        "\n",
-        counts,
-        "  the model reported: ",
-        conditionMessage(e),
-        "\n",
-        "swereg substitutes no marginal censoring rate here.",
-        call. = FALSE
-      )
+  fit_with <- function(discrete) {
+    return(tryCatch(
+      if (use_gam) {
+        mgcv::bam(
+          model_formula,
+          data = fit_data,
+          family = stats::binomial(link = "cloglog"),
+          discrete = discrete
+        )
+      } else {
+        stats::glm(
+          model_formula,
+          data = fit_data,
+          family = stats::binomial(link = "cloglog")
+        )
+      },
+      error = function(e) {
+        stop(
+          "s6_ipcw_pp() cannot fit ",
+          what,
+          ".\n",
+          "  formula: ",
+          deparse1(model_formula),
+          "\n",
+          counts,
+          "  the model reported: ",
+          conditionMessage(e),
+          "\n",
+          "swereg substitutes no marginal censoring rate here.",
+          call. = FALSE
+        )
+      }
+    ))
+  }
+  predict_q <- function(fit) {
+    return(
+      1 - as.numeric(stats::predict(fit, newdata = fit_data, type = "response"))
+    )
+  }
+  fit_used <- if (use_gam) "bam, discrete = TRUE" else "glm"
+  fit <- fit_with(discrete = TRUE)
+  # mgcv 1.9.4 `predict.bam()` on a `discrete = TRUE` fit stops with
+  # "object '<var>' not found" when `s()` sits beside a parametric term that
+  # transforms a variable, such as `factor(g)` or `splines::ns(tt, df = 3)`.
+  # The same formula fitted with `discrete = FALSE` predicts. So swereg fits
+  # it again that way, and records which fit ran.
+  q <- tryCatch(predict_q(fit), error = function(e) {
+    if (!use_gam || !grepl("^object '.+' not found$", conditionMessage(e))) {
+      stop(e)
     }
-  )
-  q <- 1 -
-    as.numeric(stats::predict(fit, newdata = fit_data, type = "response"))
+    return(NULL)
+  })
+  if (is.null(q)) {
+    fit_used <- "bam, discrete = FALSE, after the discrete prediction failed"
+    fit <- fit_with(discrete = FALSE)
+    q <- predict_q(fit)
+  }
   if (anyNA(q) || any(!is.finite(q)) || any(q <= 0)) {
     stop(
       "s6_ipcw_pp() fitted ",
@@ -287,7 +312,7 @@
       call. = FALSE
     )
   }
-  return(list(q = q, formula = model_formula))
+  return(list(q = q, formula = model_formula, fit = fit_used))
 }
 
 #' Fit the censoring model of one cause in one stratum.

@@ -212,6 +212,13 @@ TTEEnrollment <- R6::R6Class(
     #'   object, so that version's estimators compute its results. It stays
     #'   `NULL` until s2 writes the analysis file.
     swereg_version_s2 = NULL,
+    #' @field ipcw_pp_options A list or NULL. It holds the two settings that
+    #'   s2 passed to the per-protocol censoring models of this object:
+    #'   `estimate_ipcw_pp_with_gam` and
+    #'   `estimate_ipcw_pp_separately_by_treatment`. Item 6h of the TARGET
+    #'   checklist states them. It stays `NULL` on an intention-to-treat
+    #'   object, and until s2 writes a per-protocol analysis file.
+    ipcw_pp_options = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made

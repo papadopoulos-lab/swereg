@@ -275,6 +275,30 @@ utils::globalVariables("..keep_cols")
   return(stats::qnorm(1 - (1 - conf_level) / 2))
 }
 
+#' Is this the knot warning of `splines::ns()`?
+#'
+#' `splines::ns(x, df = 3)` puts its two interior knots at the tertiles of `x`.
+#' A short panel holds a third or more of its rows at the first follow-up
+#' interval, so the lower tertile ties with the boundary knot. `ns()` then
+#' moves that knot just inside the boundary, and warns.
+#'
+#' The warning does not mark a fit problem. Measured in 27.2.0 on a panel with
+#' 4 distinct values of `tstart`: the basis is full rank and the fit converges.
+#' The treatment coefficient and its standard error equal those of the
+#' `factor(tstart)` fit, because both terms span the same columns. On a panel
+#' with 8 values, the ratio differs from the `factor(tstart)` fit by 0.04%.
+#'
+#' @param w A warning condition.
+#' @return `TRUE` for the knot warning of `ns()`, `FALSE` otherwise.
+#' @noRd
+.tte_is_ns_knot_shove <- function(w) {
+  return(grepl(
+    "shoving 'interior' knots matching boundary knots to inside",
+    conditionMessage(w),
+    fixed = TRUE
+  ))
+}
+
 #' Weighted Poisson MSM fit for one data subset
 #'
 #' The estimation core shared by `.tte_est_irr()` and
@@ -353,7 +377,9 @@ utils::globalVariables("..keep_cols")
       family = stats::quasipoisson()
     ),
     warning = function(w) {
-      warn <<- TRUE
+      if (!.tte_is_ns_knot_shove(w)) {
+        warn <<- TRUE
+      }
       invokeRestart("muffleWarning")
     }
   )
@@ -721,7 +747,8 @@ utils::globalVariables("..keep_cols")
 #' @param conf_level Numeric(1) in (0, 1), the interval level.
 #' @return A data.table with one row per stratum, plus an `"all"` row.
 #'   Each row carries `events_intervention` and `events_comparator` for
-#'   that stratum.
+#'   that stratum. `model_formula` is the formula of the fit of that row, as
+#'   one string, and `NA` when no fit produced the row.
 #' @noRd
 .tte_est_irr_by_subgroup <- function(
   self,
@@ -791,7 +818,8 @@ utils::globalVariables("..keep_cols")
       IRR_pvalue = NA_real_,
       warn = TRUE,
       events_intervention = ev_n$intervention,
-      events_comparator = ev_n$comparator
+      events_comparator = ev_n$comparator,
+      model_formula = NA_character_
     ))
   }
   fit_one <- function(subset, level_label) {
@@ -830,6 +858,11 @@ utils::globalVariables("..keep_cols")
     if (is.null(r)) {
       return(na_row(level_label))
     }
+    # Each row names its own fit. `.tte_fit_irr()` counts the distinct values
+    # of the time terms in the rows it fits, so a stratum can take a different
+    # time term from the whole cohort. The NA row of `.tte_fit_irr()` names
+    # no formula.
+    mf <- attr(r, "model_formula")
     return(data.table::data.table(
       level = level_label,
       IRR = r$IRR,
@@ -838,7 +871,8 @@ utils::globalVariables("..keep_cols")
       IRR_pvalue = r$IRR_pvalue,
       warn = r$warn,
       events_intervention = r$events_intervention,
-      events_comparator = r$events_comparator
+      events_comparator = r$events_comparator,
+      model_formula = if (is.null(mf)) NA_character_ else deparse1(mf)
     ))
   }
 

@@ -4,6 +4,7 @@
 
 * **Every s3 result records the swereg versions that ran s2 and s3 (#45).** `$export_tables()` and `$export()` warn when either differs from the exporting version. The Provenance sheet shows both under "swereg version (export)". Results from an analysis file of another s2 version use the estimator methods of that version, and s3 warns about them.
 * **The PP results and ITT results sheets report the minimum detectable effect (MDE) (#54).** Three columns follow the IRR p-value: the expected intervention events under the null, and the protective and harmful MDE ratio at `$export_tables(power = 0.8)`. The naive Poisson formula uses unweighted counts and ignores repeated contributions of one person, so it understates the true MDE. A plan analysed before 27.2.0 shows blank cells.
+* **Each row of `$irr_by_subgroup()` names the formula of its own fit in a `model_formula` column (#55).** The whole-cohort fit and each stratum fit choose their time terms from their own rows, so the formulas can differ. A row that no fit produced reads `NA`.
 
 ## Bug fixes
 
@@ -13,11 +14,15 @@
 * **The IRR interval headers of the PP results, ITT results, weight-truncation, effect-modification and ITT vs PP sheets state the study level `study$implementation$conf_level` (#55).** Before, they printed `95% CI` at every level. The ITT vs PP figure does the same.
 * **`tteenrollment_irr_combine()` and `tteenrollment_combined_combine()` take `conf_level`, default 0.95, and head the interval column with it (#55).**
 * **The vignettes no longer describe pipeline snapshots (#55).** swereg removed the feature in 26.7.18.
+* **Item 6h of the TARGET checklist states the censoring-model settings that s2 used (#55).** s2 records `estimate_ipcw_pp_with_gam` and `estimate_ipcw_pp_separately_by_treatment` on each per-protocol analysis file, and s3 stores them in `results_ett`. Before, item 6h described the defaults. A result that s2 computed before 27.2.0 reads `not recorded (computed before swereg 27.2.0)`.
+* **A censoring model whose `mgcv::bam(discrete = TRUE)` fit cannot predict is fitted again with `discrete = FALSE` (#55).** mgcv 1.9.4 stops with "object not found" when `s()` sits beside `factor()` or `splines::ns()`, and s2 then stopped.
+* **The knot warning of `splines::ns()` no longer sets `warn` on an IRR fit (#55).** The warning is spurious: on a short panel with 4 values of `tstart`, the ratio and its standard error equal those of the `factor(tstart)` fit.
 
 ## Internal
 
 * **The full validation tier and the evidence generator read the replicate count from `val_n_replicates()`: 60 in s3, 20 elsewhere (#55).**
 * **The CI `max-cyclocomp` ceiling is 86, the measured maximum in `R/` (#55).**
+* **A test pins that s1 clears a work directory from before 27.1.1 before its first sub-step writes (#55).** Such a directory holds plain data.tables, and `qs2_read()` refuses only an old `TTEEnrollment` or `TTEPlan`.
 
 # swereg 27.1.3
 

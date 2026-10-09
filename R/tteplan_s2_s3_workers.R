@@ -44,6 +44,19 @@
       "swereg"
     ))
   }
+  # Item 6h of the TARGET checklist states these two settings. The plan is
+  # not saved after s2, so the analysis file is the only place that keeps
+  # them. ITT fits no censoring model, so it records none. The guard is the
+  # one above, for the same reason.
+  if (
+    identical(estimand, "pp") &&
+      exists("ipcw_pp_options", envir = enrollment, inherits = FALSE)
+  ) {
+    enrollment$ipcw_pp_options <- list(
+      estimate_ipcw_pp_with_gam = with_gam,
+      estimate_ipcw_pp_separately_by_treatment = sep_by_tx
+    )
+  }
   return(list(analysis = enrollment))
 }
 
@@ -387,6 +400,10 @@
   # The parent merges every key into `results_ett[[eid]]`, so the stamp
   # reaches the stored result beside the slot it came with.
   res$swereg_version_s2 <- enrollment$swereg_version_s2 %||% NA_character_
+  # The censoring-model settings, read off a per-protocol analysis file. An
+  # ITT file and a file from before 27.2.0 hold none. Assigning NULL adds no
+  # key, so neither can overwrite the value a per-protocol item stored.
+  res$ipcw_pp_options <- enrollment$ipcw_pp_options
   return(res)
 }
 

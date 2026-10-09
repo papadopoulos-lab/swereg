@@ -186,6 +186,10 @@ test_that("images match on inventory, dimensions and renderer input", {
   # beside each result, for the Provenance sheet and the export warning. The
   # stamps are provenance, and no accessor returns them.
   ".plan_computing_versions" = "cache inspector",
+  # A reporter ON THE CACHE. It reads the two s2 censoring-model settings that
+  # s3 stored beside each result, for item 6h of the TARGET checklist. They
+  # describe how a result was computed, and no accessor returns them.
+  ".plan_ipcw_pp_options" = "cache inspector",
   # A filename literal, not a read.
   ".enrollment_counts_path" = "filename literal",
   # Unreachable. Nothing in the package calls these three, and they hand raw
@@ -269,6 +273,9 @@ test_that("images match on inventory, dimensions and renderer input", {
   ),
   `.plan_computing_versions` = c(
     "results <- c(plan$results_enrollment, plan$results_ett)"
+  ),
+  `.plan_ipcw_pp_options` = c(
+    "return(lapply(plan$results_ett, function(r) r[[\"ipcw_pp_options\"]]))"
   ),
   `.plan_results_summary` = c(
     "if (is.null(plan$results_ett) || length(plan$results_ett) ==",

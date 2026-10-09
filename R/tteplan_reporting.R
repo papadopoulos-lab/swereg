@@ -530,6 +530,7 @@
   )
 
   # 6h: Analysis plan
+  ipcw_settings <- .target_6h_ipcw_settings(.plan_ipcw_pp_options(plan))
   item(
     "6",
     "h",
@@ -541,26 +542,28 @@
       "Per-protocol follow-up was censored at protocol deviation, a run of discordant weeks longer than the arm's tolerance, and at loss to follow-up. ",
       "Inverse probability of censoring weights adjusted for informative censoring. ",
       "The estimator follows Hern\u00e1n and Robins (2016) and Danaei et al. (2013). ",
-      # The plan does not record the two s2 arguments that choose these
-      # models, so the sentence names the default settings and says so.
-      "Under the default settings of the pipeline, the censoring weight was the product of three factors, each fitted separately in each arm. ",
+      "The censoring weight was the product of three factors. ",
+      # The two s2 settings, as s2 recorded them on each per-protocol
+      # analysis file and s3 carried them into `results_ett`.
+      ipcw_settings[["by_arm"]],
       # `s6_ipcw_pp()`: loss on the rows without an event, deviation on the
       # rows without an event that were not lost, and the time-zero model on
       # `$time_zero_deviation`.
       "The first factor came from a model for loss to follow-up, fitted on the follow-up intervals without an outcome event. ",
       "The second factor came from a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up. ",
-      "Both were complementary log-log generalized additive models with a person-time offset. ",
+      "Both were complementary log-log models with a person-time offset. ",
+      ipcw_settings[["gam"]],
       # The censoring and outcome time terms come from `.tte_time_term()`.
       # The thresholds below are its thresholds.
       "Each included the most recently updated confounder values and two time terms: the time since time zero, and the calendar period of follow-up. ",
-      "A time term was a smooth function when it had 10 or more distinct values in the model's data. ",
-      "With 4 to 9 distinct values it was a natural cubic spline with 3 degrees of freedom. ",
+      "In a generalized additive model, a time term was a smooth function when it had 10 or more distinct values in the model's data. ",
+      "Otherwise, with 4 or more distinct values it was a natural cubic spline with 3 degrees of freedom. ",
       "With 2 or 3 it was a categorical term, and with one value it was omitted. ",
       "The numerator of each of these two factors came from a second model that included only the time since time zero. ",
       "A numerator covariate must also be in the outcome model, which did not include the calendar period of follow-up. ",
       "The third factor came from a logistic model for a deviation at time zero, conditional on the baseline confounders. ",
-      "It was fitted on every person-trial of the arm, including those whose deviation at time zero left them no follow-up. ",
-      "Its numerator was the proportion of the arm's person-trials that deviated at time zero. ",
+      "It was fitted on every person-trial of the arm, or of both arms pooled, including those whose deviation at time zero left them no follow-up. ",
+      "Its numerator was the proportion of those person-trials that deviated at time zero. ",
       "The deviation model was fitted only on intervals not lost to follow-up. ",
       "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored. ",
       "The primary outcome model was a weighted Poisson regression (quasipoisson family) with a person-time offset. ",
@@ -994,6 +997,154 @@
   }
 
   return(invisible(NULL))
+}
+
+
+#' The censoring-model settings that s3 stored beside each ETT result
+#'
+#' s2 records `estimate_ipcw_pp_with_gam` and
+#' `estimate_ipcw_pp_separately_by_treatment` on each per-protocol analysis
+#' file. s3 carries them into `results_ett[[ett_id]]$ipcw_pp_options`. The
+#' settings describe how a result was computed, and no accessor returns them.
+#'
+#' @param plan A `TTEPlan`.
+#' @return A list named by ETT, one element per stored result. An element is
+#'   `NULL` for a result that s2 computed before swereg 27.2.0.
+#' @noRd
+.plan_ipcw_pp_options <- function(plan) {
+  return(lapply(plan$results_ett, function(r) r[["ipcw_pp_options"]]))
+}
+
+#' The censoring-model settings that item 6h of the TARGET checklist states
+#'
+#' Each setting gets one sentence, and the sentence names the ETTs of each
+#' value when the ETTs differ.
+#'
+#' A result without the record came from s2 before swereg 27.2.0. Its setting
+#' reads `not recorded (computed before swereg 27.2.0)`, never the default,
+#' because the default does not show what an old s2 run used.
+#'
+#' @param opts The list `.plan_ipcw_pp_options()` returns.
+#' @return A named character vector with the elements `by_arm` and `gam`.
+#'   Each element is empty or holds sentences that end in a space.
+#' @noRd
+.target_6h_ipcw_settings <- function(opts) {
+  if (length(opts) == 0L) {
+    return(c(
+      by_arm = paste0(
+        "No ETT holds a stored s3 result, so this item does not state the ",
+        "settings of the censoring models. "
+      ),
+      gam = ""
+    ))
+  }
+  return(c(
+    by_arm = .target_6h_setting_sentence(
+      .target_6h_read_setting(opts, "estimate_ipcw_pp_separately_by_treatment"),
+      "estimate_ipcw_pp_separately_by_treatment",
+      "Each factor was fitted",
+      c("separately in each arm", "once on both arms pooled"),
+      "Whether each factor was fitted separately in each arm"
+    ),
+    gam = .target_6h_setting_sentence(
+      .target_6h_read_setting(opts, "estimate_ipcw_pp_with_gam"),
+      "estimate_ipcw_pp_with_gam",
+      "The loss and deviation models were",
+      c("generalized additive models", "generalized linear models"),
+      "Whether the loss and deviation models were generalized additive models"
+    )
+  ))
+}
+
+#' Read one stored s2 setting of each ETT
+#'
+#' @param opts The list `.plan_ipcw_pp_options()` returns.
+#' @param key The name of the setting.
+#' @return A logical vector named by ETT. `NA` marks an ETT whose result holds
+#'   no record of the setting.
+#' @noRd
+.target_6h_read_setting <- function(opts, key) {
+  return(vapply(
+    names(opts),
+    function(id) {
+      v <- opts[[id]][[key]]
+      if (is.logical(v) && length(v) == 1L) {
+        return(v)
+      }
+      return(NA)
+    },
+    logical(1)
+  ))
+}
+
+#' The clause that names the ETTs of one setting value
+#'
+#' @param ids Character vector of ETT ids.
+#' @return `" for ETT a"`, `" for ETTs a and b"` or `" for ETTs a, b and c"`.
+#' @noRd
+.target_6h_for_etts <- function(ids) {
+  n <- length(ids)
+  if (n == 1L) {
+    return(paste0(" for ETT ", ids))
+  }
+  return(paste0(
+    " for ETTs ",
+    paste(ids[-n], collapse = ", "),
+    " and ",
+    ids[n]
+  ))
+}
+
+#' The item 6h sentences for one s2 setting
+#'
+#' The sentence names the ETTs of each value only when the ETTs differ.
+#'
+#' @param vals A logical vector named by ETT, from
+#'   `.target_6h_read_setting()`.
+#' @param arg The name of the s2 argument.
+#' @param lead The words before the value.
+#' @param phrases Character(2), the words for `TRUE` and for `FALSE`.
+#' @param unknown The subject of the sentence for an ETT without a record.
+#' @return A character scalar of sentences that end in a space.
+#' @noRd
+.target_6h_setting_sentence <- function(vals, arg, lead, phrases, unknown) {
+  mixed <- length(unique(vals)) > 1L
+  known <- !is.na(vals)
+  parts <- character(0)
+  for (i in 1:2) {
+    v <- c(TRUE, FALSE)[i]
+    hit <- names(vals)[known & vals == v]
+    if (length(hit) > 0L) {
+      parts <- c(
+        parts,
+        paste0(
+          phrases[i],
+          " (",
+          arg,
+          " = ",
+          v,
+          ")",
+          if (mixed) .target_6h_for_etts(hit)
+        )
+      )
+    }
+  }
+  out <- ""
+  if (length(parts) > 0L) {
+    out <- paste0(lead, " ", paste(parts, collapse = ", and "), ". ")
+  }
+  if (any(!known)) {
+    out <- paste0(
+      out,
+      unknown,
+      " (",
+      arg,
+      ") was not recorded (computed before swereg 27.2.0)",
+      if (mixed) .target_6h_for_etts(names(vals)[!known]),
+      ". "
+    )
+  }
+  return(out)
 }
 
 

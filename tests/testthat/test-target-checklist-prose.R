@@ -240,12 +240,15 @@ test_that("checklist items 6d and 6h describe the three censoring models", {
 
   # One model per cause, in the order `s6_ipcw_pp()` fits them, each on its
   # own risk set.
-  expect_match(it6h, "the censoring weight was the product of three factors, each fitted separately in each arm", fixed = TRUE)
+  expect_match(it6h, "The censoring weight was the product of three factors.", fixed = TRUE)
   expect_match(it6h, "a model for loss to follow-up, fitted on the follow-up intervals without an outcome event", fixed = TRUE)
   expect_match(it6h, "a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up", fixed = TRUE)
   expect_match(it6h, "a logistic model for a deviation at time zero, conditional on the baseline confounders", fixed = TRUE)
   expect_match(it6h, "including those whose deviation at time zero left them no follow-up", fixed = TRUE)
-  expect_match(it6h, "Its numerator was the proportion of the arm's person-trials that deviated at time zero", fixed = TRUE)
+  expect_match(it6h, "Its numerator was the proportion of those person-trials that deviated at time zero", fixed = TRUE)
+  # The checklist plan ran no s3, so 6h states no s2 setting, and it MUST NOT
+  # name a default it cannot know (test-ipcw_pp_options.R pins the settings).
+  expect_false(grepl("Under the default settings", it6h, fixed = TRUE))
   expect_match(it6h, "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored.", fixed = TRUE)
   # The retired claim: one censoring model for both causes.
   expect_false(grepl("censoring probabilities were modelled by a complementary log-log", it6h, fixed = TRUE))
