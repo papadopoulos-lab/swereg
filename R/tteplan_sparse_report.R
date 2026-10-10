@@ -507,6 +507,9 @@
 
 #' The protocol table lines of the rule
 #'
+#' The specification cell states the target trial's exclusions and nothing of
+#' the rule. The emulation cell says how the rule chose them.
+#'
 #' @param plan A TTEPlan.
 #' @param where One of `"specification"`, `"emulation"` and `"analysis"`.
 #' @return A character vector, empty when the spec has no `sparse_rule`.
@@ -519,30 +522,29 @@
   rpt <- .tte_sparse_report(plan)
   return(switch(
     where,
-    specification = c(
+    specification = if (is.null(rpt) || length(rpt$excluded) == 0L) {
+      character()
+    } else {
       paste0(
-        "Rare-condition rule, a pre-specified feasibility rule. ",
-        .tte_sparse_rule_sentence(rule$min_n, plan, rule$decided_by),
-        ". Every other candidate stays a confounder"
-      ),
-      paste0(
-        "Candidates: ",
-        .tte_sparse_join(.tte_sparse_candidate_names(plan))
-      ),
-      paste0("The rule is ", .TTE_SPARSE_BASIS),
-      paste0(
-        "A randomised trial cannot make eligibility depend on counts in its ",
-        "own eligible population. The emulation applies this rule for ",
-        "feasibility"
+        "Exclude persons with ",
+        .tte_sparse_join(rpt$excluded),
+        " at baseline."
       )
-    ),
+    },
     emulation = if (is.null(rpt)) {
       "Rare-condition rule: not decided yet (s1 has not run)"
     } else {
-      paste0(
-        "Not eligible under the rare-condition rule: ",
-        .tte_sparse_join(rpt$excluded),
-        " (see the Sparse conditions sheet)"
+      c(
+        paste0(
+          "Not eligible under the rare-condition rule: ",
+          .tte_sparse_join(rpt$excluded),
+          " (see the Sparse conditions sheet)"
+        ),
+        .tte_sparse_protocol_rule(plan, rule, length(rpt$excluded) > 0L),
+        paste0(
+          "Candidates: ",
+          .tte_sparse_join(.tte_sparse_candidate_names(plan))
+        )
       )
     },
     analysis = if (is.null(rpt)) {
@@ -551,6 +553,45 @@
       paste0(
         "Final adjustment set, after the rare-condition rule: ",
         .tte_sparse_join(rpt$adjustment_set)
+      )
+    }
+  ))
+}
+
+#' How the rule chose the exclusions, for the protocol emulation cell
+#'
+#' @param plan A TTEPlan.
+#' @param rule The `sparse_rule` block of the spec.
+#' @param excluded `TRUE` when the rule excluded at least one condition.
+#' @return One line of text.
+#' @noRd
+.tte_sparse_protocol_rule <- function(plan, rule, excluded) {
+  ids <- rule$decided_by
+  return(paste0(
+    if (excluded) {
+      "These exclusions come from the pre-specified rare-condition rule. "
+    } else {
+      "The pre-specified rare-condition rule excluded no condition. "
+    },
+    "A condition held by fewer than ",
+    rule$min_n,
+    " persons at baseline in the smallest arm of ",
+    .tte_sparse_driving(ids),
+    if (excluded) " becomes" else " would become",
+    " an exclusion criterion of every comparison. ",
+    if (length(ids) == 1L) {
+      "The driving comparison is "
+    } else {
+      "The driving comparisons are "
+    },
+    .tte_sparse_drivers(plan, ids),
+    ". The rule was ",
+    .TTE_SPARSE_BASIS,
+    ".",
+    if (excluded) {
+      paste0(
+        " A randomised trial would fix these criteria in advance; the ",
+        "emulation sets them for feasibility."
       )
     }
   ))

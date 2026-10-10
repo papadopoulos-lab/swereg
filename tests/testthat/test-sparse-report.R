@@ -436,19 +436,24 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
     "Eligibility criteria",
     "Analysis plan"
   ))
-  expect_true(
+  expect_true(any(grepl(
     paste0(
-      "The rule is decided from baseline counts in the eligible population, ",
-      "before the comparator draw and without follow-up outcomes"
-    ) %in%
-      elig_spec
-  )
+      "The rule was decided from baseline counts in the eligible population, ",
+      "before the comparator draw and without follow-up outcomes."
+    ),
+    elig_emul,
+    fixed = TRUE
+  )))
   expect_true(
     paste0(
       "Candidates: Prior rare condition B, Prior common condition, ",
       "Prior rare condition A"
     ) %in%
-      elig_spec
+      elig_emul
+  )
+  expect_identical(
+    sub(" at baseline\\.$", "", sub("^Exclude persons with ", "", elig_spec[4])),
+    paste(FAST_EXCLUDED, collapse = ", ")
   )
   expect_identical(
     spr_report_list_after(
@@ -468,43 +473,116 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
   expect_false(any(grepl("rare_[ab]", plan_emul)))
 })
 
-test_that("the protocol eligibility specification cell states the feasibility rule", {
-  plan <- spr_report_fast_plan()
+# The eligibility cells of the protocol table, for one plan.
+spr_report_eligibility_cells <- function(plan) {
   ctx <- swereg:::.protocol_context(plan, plan$ett$ett_id[1])
   pt <- swereg:::.build_protocol_table(plan$spec, ctx)
+  return(list(
+    specification = pt$`Target trial specification`[1],
+    emulation = pt$`Target trial emulation`[1]
+  ))
+}
+
+SPR_REPORT_SPEC_BASE <- c(
+  "Study period: ISO years 2018 to 2019",
+  "Exclude: No prior intervention (new-user)",
+  "Include (enrollment 01): age 40 to 80"
+)
+
+test_that("the protocol specification cell states the criteria and not the rule", {
+  cells <- spr_report_eligibility_cells(spr_report_fast_plan())
   expect_identical(
-    pt$`Target trial specification`[1],
+    cells$specification,
     paste(
       c(
-        "Study period: ISO years 2018 to 2019",
-        "Exclude: No prior intervention (new-user)",
-        "Include (enrollment 01): age 40 to 80",
+        SPR_REPORT_SPEC_BASE,
         paste0(
-          "Rare-condition rule, a pre-specified feasibility rule. A ",
-          "candidate condition held by fewer than 10 persons in the smallest ",
-          "arm of the driving comparison becomes an exclusion criterion of ",
-          "every comparison. The driving comparison is ",
-          FAST_DRIVER,
-          ". Every other candidate stays a confounder"
-        ),
-        paste0(
-          "Candidates: Prior rare condition B, Prior common condition, ",
-          "Prior rare condition A"
-        ),
-        paste0(
-          "The rule is decided from baseline counts in the eligible ",
-          "population, before the comparator draw and without follow-up ",
-          "outcomes"
-        ),
-        paste0(
-          "A randomised trial cannot make eligibility depend on counts in ",
-          "its own eligible population. The emulation applies this rule ",
-          "for feasibility"
+          "Exclude persons with Prior rare condition B, Prior rare ",
+          "condition A at baseline."
         )
       ),
       collapse = "\n"
     )
   )
+  for (word in c("count", "min_n", "feasib", "randomised trial cannot")) {
+    expect_false(
+      grepl(word, cells$specification, ignore.case = TRUE, fixed = FALSE),
+      label = word
+    )
+  }
+})
+
+test_that("the protocol specification cell carries no rule text without an exclusion", {
+  for (plan in list(
+    spr_report_fast_plan(none_excluded = TRUE),
+    local({
+      p <- spr_report_fast_plan()
+      p$sparse_decision <- NULL
+      p
+    })
+  )) {
+    expect_identical(
+      spr_report_eligibility_cells(plan)$specification,
+      paste(SPR_REPORT_SPEC_BASE, collapse = "\n")
+    )
+  }
+})
+
+test_that("the protocol emulation cell says how the rule chose the exclusions", {
+  cells <- spr_report_eligibility_cells(spr_report_fast_plan())
+  emul <- strsplit(cells$emulation, "\n")[[1]]
+  rule <- paste0(
+    "These exclusions come from the pre-specified rare-condition rule. ",
+    "A condition held by fewer than 10 persons at baseline in the smallest ",
+    "arm of the driving comparison becomes an exclusion criterion of every ",
+    "comparison. The driving comparison is ",
+    FAST_DRIVER,
+    ". The rule was decided from baseline counts in the eligible ",
+    "population, before the comparator draw and without follow-up ",
+    "outcomes. A randomised trial would fix these criteria in advance; the ",
+    "emulation sets them for feasibility."
+  )
+  expect_identical(
+    emul[(length(emul) - 2L):length(emul)],
+    c(
+      paste0(
+        "Not eligible under the rare-condition rule: Prior rare condition B, ",
+        "Prior rare condition A (see the Sparse conditions sheet)"
+      ),
+      rule,
+      paste0(
+        "Candidates: Prior rare condition B, Prior common condition, ",
+        "Prior rare condition A"
+      )
+    )
+  )
+  # Every sentence of the rule line holds at most 25 words.
+  sentences <- strsplit(rule, "(?<=\\.) (?=[A-Z])", perl = TRUE)[[1]]
+  expect_length(sentences, 5L)
+  expect_true(all(lengths(strsplit(sentences, " ")) <= 25L))
+})
+
+test_that("the protocol emulation cell states the rule without an exclusion", {
+  emul <- strsplit(
+    spr_report_eligibility_cells(
+      spr_report_fast_plan(none_excluded = TRUE)
+    )$emulation,
+    "\n"
+  )[[1]]
+  expect_true(
+    paste0(
+      "The pre-specified rare-condition rule excluded no condition. ",
+      "A condition held by fewer than 10 persons at baseline in the smallest ",
+      "arm of the driving comparison would become an exclusion criterion of ",
+      "every comparison. The driving comparison is ",
+      FAST_DRIVER,
+      ". The rule was decided from baseline counts in the eligible ",
+      "population, before the comparator draw and without follow-up ",
+      "outcomes."
+    ) %in%
+      emul
+  )
+  expect_false(any(grepl("randomised trial", emul, fixed = TRUE)))
 })
 
 test_that("without a sparse_rule no output names the rule", {

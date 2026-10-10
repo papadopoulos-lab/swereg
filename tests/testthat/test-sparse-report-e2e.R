@@ -197,6 +197,14 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
     strsplit(pt[[3]][1], "\n")[[1]],
     "Not eligible under the rare-condition rule: "
   )
+  excluded$protocol_specification <- sub(
+    " at baseline$",
+    "",
+    spr_report_list_after(
+      strsplit(pt[[2]][1], "\n")[[1]],
+      "Exclude persons with "
+    )
+  )
   adjustment$protocol <- spr_report_list_after(
     strsplit(pt[[3]][7], "\n")[[1]],
     "Final adjustment set, after the rare-condition rule: "
@@ -212,7 +220,8 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
       "consort_02",
       "target_6a",
       "target_6g",
-      "protocol"
+      "protocol",
+      "protocol_specification"
     )
   )
   for (nm in names(excluded)) {
@@ -239,7 +248,7 @@ test_that("no text that states the rule says it never looked at outcomes", {
     target_methods = paste(spr_report_item(txt, "7a-h", "8"), collapse = " "),
     sparse_sheet_title = x[[1]][1],
     spec_sheet_rule = spr_report_spec_value(ss, "Rule:"),
-    protocol_eligibility = pt[[2]][1]
+    protocol_eligibility = pt[[3]][1]
   )
   for (nm in names(states_rule)) {
     expect_true(grepl(basis, states_rule[[nm]], fixed = TRUE), label = nm)
