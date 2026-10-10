@@ -143,8 +143,8 @@ TTEPlan$set(
       output_dir <- self$dir_tteplan
     }
     # All-subprocess s1 dispatcher. The main R process holds only paths,
-    # status flags, and progressors -- never a data.table. Four sub-steps
-    # (s1a, s1c, s1d, s1e) communicate via files in
+    # status flags, progressors and the small s1b decision table. Five
+    # sub-steps (s1a, s1b, s1c, s1d, s1e) communicate via files in
     #   {study$data_meta_dir}/s1_work/{project_prefix}/
     # or, when `work_root` is given,
     #   {work_root}/s1_work_{project_prefix}/
@@ -155,12 +155,13 @@ TTEPlan$set(
     # Sub-step    Mode                                 Target
     # --------    ----                                 ------
     # s1a         parallel x skeleton                  .s1a_worker_multi()
+    # s1b         single, only with a sparse_rule      .s1b_worker()
     # s1c         single x enrollment                  .s1c_worker()
     # s1d         parallel x (enrollment x skeleton)   .s1d_worker()
     # s1e         single x enrollment                  .s1e_worker()
-    # All four sub-steps dispatch through .batch_run_and_write(), which
+    # All five sub-steps dispatch through .batch_run_and_write(), which
     # commits each item's declared output paths atomically -- all of them,
-    # or none. s1c/s1d use style = "return" (the worker returns the objects,
+    # or none. s1b/s1c/s1d use style = "return" (the worker returns the objects,
     # batchit serializes them). s1a and s1e use style = "staged_writer" (the
     # worker writes each output itself via .batch_where_to_write_output()):
     #   * s1a because one item writes 2 x n_enrollments files streamed
@@ -242,12 +243,16 @@ TTEPlan$set(
       length(files)
     ))
 
-    # Pre-build enrollment_spec objects once (used by all sub-steps).
-    all_es <- lapply(seq_len(n_enr), function(i) {
-      es <- self$enrollment_spec(i)
-      es$n_threads <- n_threads
-      return(es)
-    })
+    # Pre-build enrollment_spec objects once (used by all sub-steps). s1b
+    # rebuilds them when its decision changes the confounder sets.
+    build_all_es <- function() {
+      return(lapply(seq_len(n_enr), function(i) {
+        es <- self$enrollment_spec(i)
+        es$n_threads <- n_threads
+        return(es)
+      }))
+    }
+    all_es <- build_all_es()
     enrollment_ids <- ett_loop1$enrollment_id
 
     # The sweep runs before the work directory is resolved. It is a janitor
@@ -255,7 +260,7 @@ TTEPlan$set(
     # below. No `work_root` means no root, no sweep and the Argos layout.
     .sweep_scratch_root(root)
     work_dir <- .s1_work_dir(self, ensure_exists = FALSE, root = root)
-    # The work directory is transient dataflow between the four sub-steps,
+    # The work directory is transient dataflow between the sub-steps,
     # cleared at the start of every run and removed on success. Nothing here
     # persists across runs (Phase 5': s1 has no resume).
     .clear_s1_work_dir(work_dir)
@@ -268,8 +273,8 @@ TTEPlan$set(
     }
     .restore_enrollment_counts(self, output_dir, enrollment_ids)
 
-    # The four sub-steps below each create their progressor right before
-    # they run so the handler's "active" bar matches the current phase.
+    # The sub-steps below each create their progressor right before they
+    # run so the handler's "active" bar matches the current phase.
 
     # ====================================================================
     # s1a -- per skeleton (parallel)
@@ -292,7 +297,7 @@ TTEPlan$set(
       ))
     })
     # Stable ids: the skeleton each scout reads, prefixed with the sub-step
-    # so a failure among all four Loop 1 dispatches says which one died.
+    # so a failure among the Loop 1 dispatches says which one died.
     names(s1a_items) <- paste0("s1a_", skel_basenames)
     # Every file this item will write, declared here and NOWHERE ELSE: 2 x
     # n_enrollments per skeleton. `work_dir` is absolute (.s1_work_dir()),
@@ -318,6 +323,40 @@ TTEPlan$set(
     rm(s1a_items, s1a_outputs)
 
     # ====================================================================
+    # s1b -- the sparse_rule decision (single subworker, once per study)
+    # ====================================================================
+    # Runs only when the spec has a sparse_rule. The subworker counts the
+    # holders of each candidate per arm in the driving enrollments' s1a
+    # tuples. The master freezes the decision on the plan with a hash of the
+    # rule, and removes each excluded condition from every enrollment's
+    # confounder set. The decision is made from baseline counts in the
+    # eligible population, before the comparator draw and without follow-up
+    # outcomes.
+    previous_decision <- self$sparse_decision
+    self$sparse_decision <- NULL
+    self$sparse_rule_hash <- NULL
+    if (!is.null(spec[["sparse_rule"]])) {
+      cat("\n[s1b] Decide the sparse conditions (driving enrollments, single subworker)\n")
+      self$sparse_decision <- .s1b_run(
+        spec = spec,
+        all_es = all_es,
+        enrollment_ids = enrollment_ids,
+        work_dir = work_dir,
+        skel_basenames = skel_basenames,
+        dev_path = swereg_dev_path,
+        p = progressr::progressor(steps = 1L)
+      )
+      self$sparse_rule_hash <- .tte_sparse_rule_hash(spec[["sparse_rule"]])
+    }
+    if (
+      .s1b_apply_to_confounders(self, previous_decision, self$sparse_decision)
+    ) {
+      all_es <- build_all_es()
+    }
+    .tte_assert_sparse_decision_current(self, "s1c")
+    sparse_exclusions <- .tte_sparse_exclusions(self)
+
+    # ====================================================================
     # s1c -- per enrollment (single subworker each, run sequentially)
     # ====================================================================
     cat(sprintf(
@@ -337,7 +376,8 @@ TTEPlan$set(
         enrollment_spec = all_es[[i]],
         spec = spec,
         work_dir = work_dir,
-        skel_basenames = skel_basenames
+        skel_basenames = skel_basenames,
+        sparse_exclusions = sparse_exclusions
       ))
       names(s1c_items) <- id
       # The two objects the worker's return value commits to. They live in
@@ -528,6 +568,10 @@ TTEPlan$set(
     if (is.null(self$ett) || nrow(self$ett) == 0) {
       stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.", call. = FALSE)
     }
+    .tte_assert_sparse_decision_current(
+      self,
+      "s2_generate_analysis_files_and_ipcw_pp()"
+    )
 
     ett <- self$ett
     n_threads <- .threads_per_worker(n_workers)
@@ -703,6 +747,7 @@ TTEPlan$set(
     # s3_analyze(2.5) silently became 2 workers before parallel_pool() ever
     # saw the value.
     n_workers <- .validate_n_workers(n_workers, "s3_analyze()")
+    .tte_assert_sparse_decision_current(self, "s3_analyze()")
     if (is.null(output_dir)) {
       output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
     }

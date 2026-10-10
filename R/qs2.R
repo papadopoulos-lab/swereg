@@ -11,8 +11,8 @@
 #' never written qdata files itself.
 #'
 #' @section Stored objects from an older schema:
-#' The reader refuses a [TTEEnrollment] below schema 6 and a [TTEPlan] below
-#' schema 5. The error names the file. It says to rebuild the plan with s0 and
+#' The reader refuses a [TTEEnrollment] below schema 7 and a [TTEPlan] below
+#' schema 6. The error names the file. It says to rebuild the plan with s0 and
 #' re-run s1, then s2 and s3. The reader does not migrate such an object.
 #'
 #' The refusal runs here, before the reader calls `check_version()`. A

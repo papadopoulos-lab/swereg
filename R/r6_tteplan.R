@@ -16,7 +16,7 @@
 # The standalone helpers and the spec functions moved to the tteplan_*.R files.
 # =============================================================================
 
-.TTE_PLAN_SCHEMA_VERSION <- 5L
+.TTE_PLAN_SCHEMA_VERSION <- 6L
 
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
@@ -143,6 +143,32 @@ TTEPlan <- R6::R6Class(
     #' @field spec_reload_skipped_diffs Character vector of structural spec
     #'   differences that `$reload_spec()` chose not to apply, or NULL.
     spec_reload_skipped_diffs = NULL,
+    #' @field sparse_decision The frozen decision of the spec's `sparse_rule`,
+    #'   or NULL when the spec has none. s1b writes it. Read it through
+    #'   `$get_sparse_decision()`. It is a data.table with one row per
+    #'   candidate, in the order of `sparse_rule$candidates`:
+    #'   \describe{
+    #'     \item{variable, label}{The computed confounder and its name.}
+    #'     \item{n_<enrollment>_intervention, n_<enrollment>_comparator}{The
+    #'       count of persons who hold the condition at baseline, per driving
+    #'       enrollment and arm. A person holds it when one of her eligible
+    #'       person-trials in that arm holds it at the recruiting week. The
+    #'       same person can count in both arms.}
+    #'     \item{smallest, smallest_enrollment, smallest_arm}{The smallest of
+    #'       those counts, and the enrollment and arm that hold it.}
+    #'     \item{threshold, decided_by}{`min_n`, and the driving enrollments.}
+    #'     \item{decision}{`"excluded"` when `smallest` is below `threshold`,
+    #'       and `"adjusted"` otherwise.}
+    #'     \item{decided_at}{When s1b ran.}
+    #'   }
+    #'   The decision is made from baseline counts in the eligible
+    #'   population, before the comparator draw and without follow-up
+    #'   outcomes.
+    sparse_decision = NULL,
+    #' @field sparse_rule_hash The hash of the `sparse_rule` that made
+    #'   `sparse_decision`, or NULL. s1c, s2 and s3 stop when the hash of the
+    #'   rule in `spec` differs from it.
+    sparse_rule_hash = NULL,
 
     # --- Directory candidates and embedded study ---
 
@@ -242,6 +268,16 @@ TTEPlan <- R6::R6Class(
         )
       }
       return(invisible(TRUE))
+    },
+
+    #' @description Read the frozen decision of the spec's `sparse_rule`.
+    #' @return A copy of the `sparse_decision` field, or NULL when the spec has
+    #'   no `sparse_rule` or s1 has not run.
+    get_sparse_decision = function() {
+      if (is.null(self$sparse_decision)) {
+        return(NULL)
+      }
+      return(data.table::copy(self$sparse_decision))
     },
 
     #' @description Save the plan to disk as `tteplan.qs2`.

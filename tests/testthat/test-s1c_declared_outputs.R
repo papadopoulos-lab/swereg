@@ -114,7 +114,13 @@ test_that(".s1c_worker returns enrolled_ids + counts and writes no file", {
   need <- names(formals(swereg:::.s1c_worker))
   expect_setequal(
     need,
-    c("enrollment_spec", "spec", "work_dir", "skel_basenames")
+    c(
+      "enrollment_spec",
+      "spec",
+      "work_dir",
+      "skel_basenames",
+      "sparse_exclusions"
+    )
   )
   expect_false("enrollment_counts_path" %in% need)
 
@@ -226,7 +232,16 @@ test_that("s1c dispatch declares two absolute outputs via run_and_write", {
   # Item formals: complete for .s1c_worker (work_dir included, because s1c
   # reads from it), and no output path among them.
   need <- names(formals(swereg:::.s1c_worker))
-  expect_setequal(need, c("enrollment_spec", "spec", "work_dir", "skel_basenames"))
+  expect_setequal(
+    need,
+    c(
+      "enrollment_spec",
+      "spec",
+      "work_dir",
+      "skel_basenames",
+      "sparse_exclusions"
+    )
+  )
   for (it in items) {
     expect_setequal(names(it), need)
     expect_false("enrollment_counts_path" %in% names(it))

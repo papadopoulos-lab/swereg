@@ -3,7 +3,7 @@
 #
 # 26.10.18 still wrote schema 3, so the break is not the 26.10.17 field
 # addition. `.TTE_ENROLLMENT_SCHEMA_VERSION` is 4L from 26.10.19, 5L from
-# 26.15.0, and 6L since the `period_id` rename. `qs2_read()` refuses every
+# 26.15.0, 6L from the `period_id` rename, and 7L since the sparse_rule. `qs2_read()` refuses every
 # lower number before any method of the object runs. The message must
 # therefore say which schema the object holds, and must send the reader to
 # s1. It must not attribute the refusal to the 26.9.0 landmark move, which is
@@ -75,7 +75,7 @@ test_that("a schema-3 TTEEnrollment is refused at load", {
   qs2::qs_save(.esr_downgrade(.esr_enrollment(), 3L), path)
 
   expect_error(qs2_read(path), "schema version 3")
-  expect_error(qs2_read(path), "requires version 6")
+  expect_error(qs2_read(path), "requires version 7")
 
   # A warning is not enough. The caller must get no object at all, because an
   # object that loads is an object whose `fill_summary` reads NULL.

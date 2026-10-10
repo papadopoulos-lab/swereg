@@ -1,7 +1,7 @@
 # qs2_read() refuses a stored enrollment or plan from an older schema.
 #
 # The `period_id` rename raised the TTEEnrollment schema to 6 and the TTEPlan
-# schema to 5. A deserialised R6 object runs the method bodies it was saved
+# schema to 5. The sparse_rule raised them to 7 and 6. A deserialised R6 object runs the method bodies it was saved
 # with, so an old object under a migrated column would fit the wrong model and
 # give no error. `qs2_read()` therefore refuses it, BEFORE any method of the
 # object runs, with an error that names the file and says to rebuild the plan
@@ -111,14 +111,14 @@ test_that("qs2_read() refuses a schema-5 enrollment and a schema-4 plan", {
   expect_true(grepl(enrollment_path, msg, fixed = TRUE))
   expect_true(grepl(.srf_rebuild, msg, fixed = TRUE))
   expect_true(grepl("TTEEnrollment at schema version 5", msg, fixed = TRUE))
-  expect_true(grepl("requires version 6", msg, fixed = TRUE))
+  expect_true(grepl("requires version 7", msg, fixed = TRUE))
   expect_false(grepl(.srf_old_body, msg, fixed = TRUE))
 
   msg <- plan_msg
   expect_true(grepl(plan_path, msg, fixed = TRUE))
   expect_true(grepl(.srf_rebuild, msg, fixed = TRUE))
   expect_true(grepl("TTEPlan at schema version 4", msg, fixed = TRUE))
-  expect_true(grepl("requires version 5", msg, fixed = TRUE))
+  expect_true(grepl("requires version 6", msg, fixed = TRUE))
   expect_false(grepl(.srf_old_body, msg, fixed = TRUE))
 })
 
@@ -133,12 +133,12 @@ test_that("qs2_read() reads an enrollment and a plan at the current schema", {
 
   en <- qs2_read(enrollment_path)
   expect_s3_class(en, "TTEEnrollment")
-  expect_identical(swereg:::.tte_stored_schema(en), 6L)
+  expect_identical(swereg:::.tte_stored_schema(en), 7L)
   expect_true(all(c("period_id", "enrollment_period_id") %in% names(en$data)))
 
   plan <- qs2_read(plan_path)
   expect_s3_class(plan, "TTEPlan")
-  expect_identical(swereg:::.tte_stored_schema(plan), 5L)
+  expect_identical(swereg:::.tte_stored_schema(plan), 6L)
 })
 
 test_that("objects that swereg 26.14.0 saved are refused through every reader", {

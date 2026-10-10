@@ -116,6 +116,7 @@
       "inclusion_criteria",
       "open_questions",
       "outcomes",
+      "sparse_rule",
       "standing_methods",
       "study",
       "subgroups",
@@ -275,6 +276,12 @@
   ),
   "$/outcomes[]/implementation" = list(
     consumed = "variable"
+  ),
+
+  # --- sparse rule -----------------------------------------------------------
+  # `R/tteplan_s1b_sparse.R` reads all three keys.
+  "$/sparse_rule" = list(
+    consumed = c("candidates", "decided_by", "min_n")
   ),
 
   # --- standing methods ------------------------------------------------------

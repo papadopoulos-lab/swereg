@@ -12,10 +12,11 @@
 
 # --- s1 work directory + path constructors -----------------------------------
 #
-# Loop 1 splits into four sub-steps (s1a, s1c, s1d, s1e). Each sub-step runs
-# in a subprocess (parallel for skeleton-level work, single for
-# enrollment-level work) and communicates with the next sub-step via files in
-# a per-project work directory:
+# Loop 1 splits into five sub-steps (s1a, s1b, s1c, s1d, s1e). s1b runs only
+# when the spec has a sparse_rule. Each sub-step runs in a subprocess
+# (parallel for skeleton-level work, single for enrollment-level and
+# study-level work) and communicates with the next sub-step via files in a
+# per-project work directory:
 #
 #   {data_meta_dir}/s1_work/{project_prefix}/   the default
 #   {work_root}/s1_work_{project_prefix}/       when a root is given
@@ -34,6 +35,7 @@
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
+#   s1b_sparse_counts.qs2                         ← holders per arm (s1b)
 #   s1c_enrolled_ids_enr{eid}.qs2                 ← post-draw enrolled IDs
 #   s1d_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
 #
@@ -140,6 +142,10 @@
   return(if (is.null(out)) character(0) else out)
 }
 
+#' @noRd
+.s1b_counts_path <- function(work_dir) {
+  return(file.path(work_dir, "s1b_sparse_counts.qs2"))
+}
 #' @noRd
 .s1c_enrolled_ids_path <- function(work_dir, eid) {
   return(file.path(work_dir, sprintf("s1c_enrolled_ids_enr%s.qs2", eid)))

@@ -193,11 +193,12 @@
 }
 
 
-#' Classify the two criteria containers and the follow-up grid.
+#' Classify the two criteria containers, the follow-up grid and the
+#' sparse_rule.
 #'
 #' Each one decides who enters the study, or for how long swereg follows them.
 #' A cached result cannot be refreshed with a new value, so every change inside
-#' the three blocks is structural.
+#' the four blocks is structural.
 #'
 #' @noRd
 .ds_diff_definitions <- function(old, new, ps) {
@@ -210,6 +211,22 @@
   if (!identical(old$follow_up, new$follow_up)) {
     ps("follow_up", old$follow_up, new$follow_up)
   }
+  # The sparse_rule decides who is enrolled and which confounders stay. Each
+  # field is a definition the frozen decision was made under.
+  for (k in c("min_n", "decided_by", "candidates")) {
+    a <- old$sparse_rule[[k]]
+    b <- new$sparse_rule[[k]]
+    if (!identical(a, b)) {
+      ps(paste0("sparse_rule$", k), a, b)
+    }
+  }
+  .ds_residual(
+    old$sparse_rule,
+    new$sparse_rule,
+    c("min_n", "decided_by", "candidates"),
+    "sparse_rule$",
+    ps
+  )
   return(invisible(NULL))
 }
 
@@ -482,6 +499,7 @@
   "inclusion_criteria",
   "open_questions",
   "outcomes",
+  "sparse_rule",
   "standing_methods",
   "study",
   "subgroups",

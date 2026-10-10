@@ -157,6 +157,32 @@ called to refresh cosmetic labels.}
     \item{\code{spec_reload_skipped_diffs}}{Character vector of structural spec
 differences that \verb{$reload_spec()} chose not to apply, or NULL.}
 
+    \item{\code{sparse_decision}}{The frozen decision of the spec's \code{sparse_rule},
+or NULL when the spec has none. s1b writes it. Read it through
+\verb{$get_sparse_decision()}. It is a data.table with one row per
+candidate, in the order of \code{sparse_rule$candidates}:
+\describe{
+\item{variable, label}{The computed confounder and its name.}
+\item{n_\if{html}{\out{<enrollment>}}\emph{intervention, n}\if{html}{\out{<enrollment>}}_comparator}{The
+count of persons who hold the condition at baseline, per driving
+enrollment and arm. A person holds it when one of her eligible
+person-trials in that arm holds it at the recruiting week. The
+same person can count in both arms.}
+\item{smallest, smallest_enrollment, smallest_arm}{The smallest of
+those counts, and the enrollment and arm that hold it.}
+\item{threshold, decided_by}{\code{min_n}, and the driving enrollments.}
+\item{decision}{\code{"excluded"} when \code{smallest} is below \code{threshold},
+and \code{"adjusted"} otherwise.}
+\item{decided_at}{When s1b ran.}
+}
+The decision is made from baseline counts in the eligible
+population, before the comparator draw and without follow-up
+outcomes.}
+
+    \item{\code{sparse_rule_hash}}{The hash of the \code{sparse_rule} that made
+\code{sparse_decision}, or NULL. s1c, s2 and s3 stop when the hash of the
+rule in \code{spec} differs from it.}
+
     \item{\code{spec_version}}{Character. Spec version tag (e.g. \code{"v003"}) that
 selects the YAML filename and the results sub-directory.}
 
@@ -242,6 +268,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-reload_spec}{\code{TTEPlan$reload_spec()}}
     \item \href{#method-TTEPlan-initialize}{\code{TTEPlan$new()}}
     \item \href{#method-TTEPlan-check_version}{\code{TTEPlan$check_version()}}
+    \item \href{#method-TTEPlan-get_sparse_decision}{\code{TTEPlan$get_sparse_decision()}}
     \item \href{#method-TTEPlan-save}{\code{TTEPlan$save()}}
     \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
   }
@@ -1255,6 +1282,22 @@ class version. Errors if the object was saved with an older schema.
   \subsection{Returns}{
     \code{invisible(TRUE)} if versions match. Errors otherwise with an
 actionable migration message.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-get_sparse_decision"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-get_sparse_decision}{}}}
+\subsection{\code{TTEPlan$get_sparse_decision()}}{
+  Read the frozen decision of the spec's \code{sparse_rule}.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$get_sparse_decision()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A copy of the \code{sparse_decision} field, or NULL when the spec has
+no \code{sparse_rule} or s1 has not run.
   }
 }
 

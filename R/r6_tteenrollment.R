@@ -3,7 +3,7 @@
 # =============================================================================
 
 .TTE_DESIGN_SCHEMA_VERSION <- 3L
-.TTE_ENROLLMENT_SCHEMA_VERSION <- 6L
+.TTE_ENROLLMENT_SCHEMA_VERSION <- 7L
 
 # =============================================================================
 # TTEEnrollment: Enrollment data with design and state (R6 class)
@@ -380,10 +380,12 @@ TTEEnrollment <- R6::R6Class(
     #' 26.10.19 raised it to `4L`. Schema 4 stores the fill summary in
     #' `fill_summary` and the propensity-model diagnostics in `ps_fit`, and
     #' this release reads both. swereg 26.15.0 raised it to `5L`, which gives
-    #' the panel column `enrollment_period_id` its current name. This release
+    #' the panel column `enrollment_period_id` its current name. 27.2.0
     #' raised it to `6L`, which names the calendar period of each row
-    #' `period_id`. [qs2_read()] refuses every enrollment below schema 6
-    #' before this check runs. The check refuses the same objects.
+    #' `period_id`. 27.3.0 raised it to `7L` with the `sparse_rule`, so every
+    #' enrollment that an earlier release built is refused. [qs2_read()]
+    #' refuses every enrollment below schema 7 before this check runs. The
+    #' check refuses the same objects.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION

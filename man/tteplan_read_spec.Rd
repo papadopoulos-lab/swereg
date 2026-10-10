@@ -84,6 +84,40 @@ It cannot check that a named column exists and is logical, because it reads
 no data. \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} runs that check against the skeleton.
 }
 
+\section{The sparse_rule}{
+
+
+A spec MAY declare one \code{sparse_rule} block. It turns a rare baseline
+condition into an exclusion criterion of the whole study.
+
+\preformatted{
+sparse_rule:
+  min_n: 100
+  decided_by: ["03"]
+  candidates: [rd_no_osd_i63_everbefore]
+}
+\itemize{
+\item \code{min_n} MUST be one whole number from 1 to 2147483647, the largest R
+integer.
+\item \code{decided_by} MUST name one or more enrollments of the spec. Quote every
+id: YAML reads an unquoted \code{01} as the integer 1, and the parser refuses
+it.
+\item Each entry of \code{candidates} MUST be the \code{implementation$variable} of a
+confounder with \code{computed: true}.
+}
+
+s1 counts the persons who hold each candidate condition at baseline, per
+arm, in each driving enrollment. A person counts once per arm when any of
+her eligible person-trials in that arm holds the condition at its
+recruiting week. A condition whose smallest count is below \code{min_n} is
+excluded in every enrollment, and leaves every confounder set. Exclusion is
+per person-trial: s1 drops a person-trial when the condition holds at that
+trial's own recruiting week. Every other candidate stays a confounder. The
+rule is decided from baseline counts in the eligible population, before the
+comparator draw and without follow-up outcomes. \link{TTEPlan} stores the
+decision in its \code{sparse_decision} field.
+}
+
 \seealso{
 \code{\link[=tteplan_check_spec]{tteplan_check_spec()}}, which reports every problem as a row and
 does not stop.

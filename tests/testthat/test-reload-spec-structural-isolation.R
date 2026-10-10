@@ -473,6 +473,11 @@ rsi_full_spec <- function(variant = "sentinel") {
       outcome = list(specification = "The first event of type A"),
       treatment_strategies = list(specification = "Initiate, or do not")
     ),
+    sparse_rule = list(
+      min_n = 100L,
+      decided_by = "01",
+      candidates = "rd_no_rd_exposure_everbefore"
+    ),
     open_questions = list(list(
       question = "Which comparator window?",
       raised_by = "A Person",
@@ -635,6 +640,12 @@ RSI_LEAF_SIDE <- c(
   "$/inclusion_criteria/criteria[]/rationale" = "structural",
   "$/inclusion_criteria/criteria[]/type" = "structural",
   "$/inclusion_criteria/isoyears" = "structural",
+
+  # Sparse rule. Each field decides which conditions exclude and which stay
+  # confounders, and the frozen decision was made under all three.
+  "$/sparse_rule/candidates" = "structural",
+  "$/sparse_rule/decided_by" = "structural",
+  "$/sparse_rule/min_n" = "structural",
 
   # Open questions. A note. Nothing in R/ acts on it.
   "$/open_questions[]/question" = "cosmetic",

@@ -1,5 +1,13 @@
 # swereg 27.3.0
 
+## New features
+
+* **A spec MAY declare a `sparse_rule` block, which turns a rare baseline condition into an exclusion criterion of the whole study (#52).** The new s1 step s1b counts, per arm in each `decided_by` enrollment, the persons who hold each candidate condition at baseline. A condition whose smallest count is below `min_n` is excluded in every enrollment, and leaves every confounder set. s1 drops a person-trial when the condition holds at that trial's own recruiting week, and the attrition table gets one step per excluded condition. The rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. `plan$get_sparse_decision()` returns the frozen decision. s1c, s2 and s3 stop when the rule in the spec no longer matches it.
+
+## Breaking changes
+
+* **swereg refuses a `TTEPlan` or a `TTEEnrollment` saved before 27.3.0.** The plan schema is 6 and the enrollment schema is 7. Rebuild the plan with s0 and re-run s1, then s2 and s3.
+
 ## Internal
 
 * **The s1 sub-steps s1b, s1c and s1d are renamed s1c, s1d and s1e (#52).** The name s1b is free for the step that #52 adds before the comparator draw. The log labels, the batchit item ids and the work-directory file names use the new names. s1 clears a leftover work directory with the old names at its start.

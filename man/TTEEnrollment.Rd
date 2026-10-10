@@ -26,10 +26,12 @@ what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to \code{4L}. Schema 4 stores the fill summary in
 \code{fill_summary} and the propensity-model diagnostics in \code{ps_fit}, and
 this release reads both. swereg 26.15.0 raised it to \code{5L}, which gives
-the panel column \code{enrollment_period_id} its current name. This release
+the panel column \code{enrollment_period_id} its current name. 27.2.0
 raised it to \code{6L}, which names the calendar period of each row
-\code{period_id}. \code{\link[=qs2_read]{qs2_read()}} refuses every enrollment below schema 6
-before this check runs. The check refuses the same objects.
+\code{period_id}. 27.3.0 raised it to \code{7L} with the \code{sparse_rule}, so every
+enrollment that an earlier release built is refused. \code{\link[=qs2_read]{qs2_read()}}
+refuses every enrollment below schema 7 before this check runs. The
+check refuses the same objects.
 }
 \section{Baseline treatment}{
 

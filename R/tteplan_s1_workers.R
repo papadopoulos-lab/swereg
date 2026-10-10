@@ -172,11 +172,16 @@
 #'
 #' @param enrollment_spec Enrollment spec list (includes seed, comparator_to_intervention_ratio,
 #'   design$person_id_var, enrollment_id).
-#' @param spec Parsed study spec (not currently used; reserved for future
-#'   per-spec comparator-draw rules).
+#' @param spec Parsed study spec. The worker reads `spec$sparse_rule` to
+#'   remove the candidate columns from the tuples before the draw.
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames (used to
 #'   construct `s1a_pre_*` paths).
+#' @param sparse_exclusions The excluded conditions of the plan's frozen
+#'   sparse_rule decision, from `.tte_sparse_exclusions()`, or `NULL`. The
+#'   worker drops the person-trials that hold one, in the order of the spec,
+#'   before the draw. It appends one attrition step per condition. Every
+#'   enrollment gets the same table.
 #' @return `list(enrolled_ids = , counts = )`, matching the declared output
 #'   names at the call site.
 #' @noRd
@@ -184,7 +189,8 @@
   enrollment_spec,
   spec,
   work_dir,
-  skel_basenames
+  skel_basenames,
+  sparse_exclusions = NULL
 ) {
   intervention <- enrollment_period_id <- criterion <- n_persons <-
     n_person_trials <-
@@ -222,6 +228,28 @@
   all_tuples <- data.table::rbindlist(tuples_chunks, use.names = TRUE)
   all_attrition <- data.table::rbindlist(attr_chunks, use.names = TRUE)
   rm(tuples_chunks, attr_chunks)
+
+  # Step 2 of the cohort flow: the sparse_rule exclusions, before the draw. The
+  # candidate columns then leave the tuples, so `enrolled_ids` keeps the
+  # column set it has without a sparse_rule.
+  sparse_attrition <- NULL
+  if (!is.null(sparse_exclusions)) {
+    dropped <- .s1c_drop_sparse_conditions(
+      all_tuples,
+      sparse_exclusions,
+      enrollment_spec$design$person_id_var
+    )
+    all_tuples <- dropped$tuples
+    sparse_attrition <- dropped$attrition
+    rm(dropped)
+  }
+  condition_cols <- intersect(
+    spec[["sparse_rule"]][["candidates"]],
+    names(all_tuples)
+  )
+  if (length(condition_cols) > 0L) {
+    all_tuples[, (condition_cols) := NULL]
+  }
 
   set.seed(enrollment_spec$seed)
   x_ratio <- enrollment_spec$comparator_to_intervention_ratio
@@ -274,6 +302,12 @@
     ),
     by = .(enrollment_period_id, criterion)
   ]
+  if (!is.null(sparse_attrition)) {
+    attrition_summary <- data.table::rbindlist(
+      list(attrition_summary, sparse_attrition),
+      use.names = TRUE
+    )
+  }
 
   counts <- list(attrition = attrition_summary, matching = matching_counts)
 
