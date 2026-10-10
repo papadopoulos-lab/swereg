@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -763,9 +763,9 @@ inside the same digest.</p>
 <p>Before running Loop 1, the plan asserts the skeletons are consistent
 (<code>study$assert_skeletons_consistent()</code>). If that passes,
 every batch was built with the same framework, randvars and codes
-configuration. Commit the <code>spec_vNNN.yaml</code> file and the
-pipeline snapshot TSV. Then <code>git log</code> answers “what was
-different between run A and run B”.</p>
+configuration. Commit the <code>spec_vNNN.yaml</code> file. Then
+<code>git log</code> answers “what was different between run A and run
+B”.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
@@ -784,9 +784,9 @@ per-protocol censoring + IPCW-PP per ETT sequentially.</li>
 methodological decision in a file that medical collaborators can review
 and the swereg pipeline can execute.</li>
 <li>
-<strong>Provenance</strong> – <code>pipeline_hash</code>,
-<code>assert_skeletons_consistent</code>, per-host pipeline snapshots –
-makes the reproducibility chain auditable.</li>
+<strong>Provenance</strong>: <code>pipeline_hash</code> and
+<code>assert_skeletons_consistent</code> make the reproducibility chain
+auditable.</li>
 <li>
 <strong>Weights</strong>: baseline IPW for confounder adjustment
 (Loop 1), IPCW-PP for per-protocol censoring (Loop 2), combined as

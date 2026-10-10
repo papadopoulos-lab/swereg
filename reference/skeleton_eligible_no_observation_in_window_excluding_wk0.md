@@ -28,7 +28,8 @@ skeleton_eligible_no_observation_in_window_excluding_wk0(
 
 - value:
 
-  The specific value to look for.
+  The specific value to look for. A row where `var` is `NA` counts as no
+  observation.
 
 - window:
 

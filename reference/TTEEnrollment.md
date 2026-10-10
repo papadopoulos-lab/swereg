@@ -264,6 +264,22 @@ Other tte_classes:
   time-zero censoring model fits on this table. It is `NULL` for the
   intention-to-treat estimand.
 
+- `swereg_version_s2`:
+
+  Character or NULL. It holds the swereg version that ran s2 on this
+  object. s3 calls the methods of this object, so that version's
+  estimators compute its results. It stays `NULL` until s2 writes the
+  analysis file.
+
+- `ipcw_pp_options`:
+
+  A list or NULL. It holds the two settings that s2 passed to the
+  per-protocol censoring models of this object:
+  `estimate_ipcw_pp_with_gam` and
+  `estimate_ipcw_pp_separately_by_treatment`. Item 6h of the TARGET
+  checklist states them. It stays `NULL` on an intention-to-treat
+  object, and until s2 writes a per-protocol analysis file.
+
 ## Active bindings
 
 - `enrollment_stage`:
@@ -514,8 +530,10 @@ has the same time terms as `$irr()`.
 #### Returns
 
 A data.table with columns
-`level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator`,
+`level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator, model_formula`,
 with attributes `em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
+`model_formula` is the formula of the fit of that row, as one string. It
+is `NA` when no fit produced the row.
 
 ------------------------------------------------------------------------
 

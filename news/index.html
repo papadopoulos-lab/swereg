@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,52 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.0" id="swereg-2720">swereg 27.2.0<a class="anchor" aria-label="anchor" href="#swereg-2720"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-2-0">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-0"></a></h3>
+<ul><li>
+<strong>Every s3 result records the swereg versions that ran s2 and s3 (<a href="https://github.com/papadopoulos-lab/swereg/issues/45" class="external-link">#45</a>).</strong> <code>$export_tables()</code> and <code>$export()</code> warn when either differs from the exporting version. The Provenance sheet shows them in the rows “swereg version (s2)” and “swereg version (s3)”, below “swereg version (export)”. An ETT result records every distinct s2 version of the analysis files it reads, PP and ITT. When some stamps are missing and others are present, the sheet lists <code>unknown</code> after the known versions, and the export warns. When no result carries a stamp, both rows read <code>unknown</code>. Results from an analysis file of another s2 version use the estimator methods of that version. s3 warns about them, and about an analysis file without a recorded version.</li>
+<li>
+<strong>The PP results and ITT results sheets report the minimum detectable effect (MDE) (<a href="https://github.com/papadopoulos-lab/swereg/issues/54" class="external-link">#54</a>).</strong> Three columns follow the IRR p-value: the expected intervention events under the null, and the protective and harmful MDE ratio. The MDE uses the <code>power</code> argument of <code>$export_tables()</code>, default 0.8, and the study confidence level. <code>power</code> MUST be at least 0.5 and below 1. A power below <code>(1 - conf_level) / 2</code> would swap the protective and harmful ratios. The naive Poisson formula uses unweighted counts and ignores repeated contributions of one person. So it can differ from the detectable effect of the weighted estimator with person-clustered standard errors. A plan analysed before 27.2.0 shows blank cells.</li>
+<li>
+<strong>Each row of <code>$irr_by_subgroup()</code> names the formula of its own fit in a <code>model_formula</code> column (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> The whole-cohort fit and each stratum fit choose their time terms from their own rows, so the formulas can differ. A row that no fit produced reads <code>NA</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-27-2-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-2-0"></a></h3>
+<ul><li>
+<strong>A positive incidence rate ratio below 0.01 prints (<a href="https://github.com/papadopoulos-lab/swereg/issues/31" class="external-link">#31</a>).</strong> Before, a 0.01 estimability floor blanked it. The results sheets, the forest labels and <code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code> print any ratio or bound below 0.01 with two significant digits, as <code>0.0040</code>. Values of 0.01 and above keep two decimals. A plan analysed before 27.2.0 keeps its stored decision until it is rerun.</li>
+<li>
+<strong><code><a href="../reference/tteenrollment_rates_combine.html">tteenrollment_rates_combine()</a></code> accepts a rates table from before 27.2.0 beside a newer one.</strong> Before, the extra unweighted columns made it stop.</li>
+<li>
+<strong><code><a href="../reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code> counts a week where <code>var</code> is <code>NA</code> as no observation (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> Before, the <code>NA</code> made a later week’s eligibility <code>NA</code>.</li>
+<li>
+<strong>The IRR interval headers of the PP results, ITT results, Weight truncation (PP) and Effect modification sheets state the study level (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> That level is <code>study$implementation$conf_level</code>, or 0.95 when the specification names none. Before, they printed <code>95% CI</code> at every level. The internal writers of the ITT vs PP sheet and its figure do the same, but no export calls them.</li>
+<li><strong><code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code> and <code><a href="../reference/tteenrollment_combined_combine.html">tteenrollment_combined_combine()</a></code> take <code>conf_level</code>, default 0.95, and head the interval column with it (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong></li>
+<li>
+<strong>The vignettes no longer describe pipeline snapshots (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> swereg removed the feature in 26.7.18.</li>
+<li>
+<strong>Item 6h of the TARGET checklist states the censoring-model settings that s2 used (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> s2 records <code>estimate_ipcw_pp_with_gam</code> and <code>estimate_ipcw_pp_separately_by_treatment</code> on each per-protocol analysis file, and s3 stores them in <code>results_ett</code>. Before, item 6h described the defaults. s2 records nothing when it runs before 27.2.0, or when it builds the analysis file from an s1 file of before 27.2.0. For a result without the record, item 6h states that the setting <code>was not recorded (s1 or s2 ran before swereg 27.2.0)</code>.</li>
+<li>
+<strong>A censoring model whose <code>mgcv::bam(discrete = TRUE)</code> prediction stops with an “object not found” error is fitted again with <code>discrete = FALSE</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> mgcv 1.9.4 gives that error when <code>s()</code> sits beside <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code> or <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code>, and s2 then stopped. Other prediction errors still stop s2.</li>
+<li>
+<strong>The knot warning of <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code> no longer sets <code>warn</code> on an IRR fit (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> The warning is spurious: on a short panel with 4 values of <code>tstart</code>, the ratio and its standard error equal those of the <code>factor(tstart)</code> fit.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-27-2-0">Internal<a class="anchor" aria-label="anchor" href="#internal-27-2-0"></a></h3>
+<ul><li><strong>The full validation tier and the evidence generator read the replicate count from <code>val_n_replicates()</code>: 60 in s3, 20 elsewhere (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong></li>
+<li><strong>The CI <code>max-cyclocomp</code> ceiling is 86, the measured maximum in <code>R/</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong></li>
+<li>
+<strong>A test pins that s1 clears a work directory from before 27.1.1 before its first sub-step writes (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> Such a directory holds plain data.tables, and <code><a href="../reference/qs2_read.html">qs2_read()</a></code> refuses only an old <code>TTEEnrollment</code> or <code>TTEPlan</code>.</li>
+<li>
+<strong>The validation evidence holds the ITT design limits of s3 and s4 in <code>$itt_design_limit</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> <code>vignettes/validation-claims.R</code> reads them there and stops when they are absent. Before, it hard-coded them.</li>
+<li>
+<strong>The evidence keeps its s3 ITT coverage row (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> The <a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a> item said that the vignette no longer claims it. That was wrong: Table 15 and the claim <code>coverage_itt_s3_design</code> of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> read the row.</li>
+<li>
+<strong>The fast validation tier gains an s1 per-protocol cell built by <code>enroll()</code> from weekly rows (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong> It checks the weekly deviation boundary of each person-trial against the simulated treatment. It also checks that its estimates equal those of the panel that the other cells build, to 1e-6. Before, every fast-tier panel used the fallback read of <code>s5_prepare_outcome()</code>.</li>
+<li><strong>Section 3 of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> has no sentence over 25 words, and section 1.8.9 cites the rank example once (<a href="https://github.com/papadopoulos-lab/swereg/issues/55" class="external-link">#55</a>).</strong></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.1.3" id="swereg-2713">swereg 27.1.3<a class="anchor" aria-label="anchor" href="#swereg-2713"></a></h2>
 <div class="section level3">

@@ -5,7 +5,12 @@ Combine and format multiple irr outputs into a publication-ready table
 ## Usage
 
 ``` r
-tteenrollment_irr_combine(results, slot, descriptions = NULL)
+tteenrollment_irr_combine(
+  results,
+  slot,
+  descriptions = NULL,
+  conf_level = 0.95
+)
 ```
 
 ## Arguments
@@ -21,6 +26,13 @@ tteenrollment_irr_combine(results, slot, descriptions = NULL)
 - descriptions:
 
   Optional named character vector mapping ett_id to descriptions.
+
+- conf_level:
+
+  Numeric(1) strictly between 0 and 1, the level the `$irr()` intervals
+  in `slot` were computed at. The interval column header states it, so
+  `0.9` gives `90% CI`. The function does not recompute the interval.
+  Default: 0.95.
 
 ## Value
 

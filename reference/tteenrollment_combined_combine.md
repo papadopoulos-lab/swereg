@@ -6,7 +6,7 @@ and
 [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
 with shared `descriptions`, then left-joins on `ett_id` so that each row
 carries per-arm event counts, person-years, rates, and the incidence
-rate ratio (with 95% CI and p-value) in one place.
+rate ratio (with its interval and p-value) in one place.
 
 ## Usage
 
@@ -15,7 +15,8 @@ tteenrollment_combined_combine(
   results,
   rates_slot,
   irr_slot,
-  descriptions = NULL
+  descriptions = NULL,
+  conf_level = 0.95
 )
 ```
 
@@ -38,6 +39,12 @@ tteenrollment_combined_combine(
 - descriptions:
 
   Optional named character vector mapping `ett_id` to descriptions.
+
+- conf_level:
+
+  Numeric(1), passed to
+  [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md).
+  Default: 0.95.
 
 ## Value
 

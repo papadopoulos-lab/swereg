@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -538,27 +538,6 @@ equal over a stale skeleton.</p>
 <code>$assert_skeletons_consistent()</code> automatically near the top
 of <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, so you can’t
 accidentally build a plan against a half-upgraded skeleton set.</p>
-</div>
-<div class="section level3">
-<h3 id="cross-host-pipeline-snapshots">Cross-host pipeline snapshots<a class="anchor" aria-label="anchor" href="#cross-host-pipeline-snapshots"></a>
-</h3>
-<p>If <code>data_pipeline_snapshot_dir</code> is configured at
-construction time, <code>$process_skeletons()</code> writes one TSV row
-per host to <code>{snapshot_dir}/{host_label}.tsv</code> after each
-successful run. The snapshot file is meant to be <code>git add</code>-ed
-and committed, so the history of who ran what version of the pipeline on
-which host lives in <code>git log</code>.</p>
-<p>Why per-host files and not a single append-only log: the user
-typically runs on 3+ hosts in parallel. A shared append-only file would
-conflict on every concurrent run. Per-host files never have the same
-name, so concurrent runs produce separate commits that merge without
-conflict.</p>
-<p>A tiny helper shell script like
-<code>dev/commit_pipeline_snapshot.sh</code> (in your own project repo)
-can wrap <code>git add</code> + <code>git commit</code> into a one-liner
-the operator runs after the generator finishes. swereg never runs git
-commands itself – that would be a side effect the user hasn’t explicitly
-asked for.</p>
 </div>
 <div class="section level3">
 <h3 id="expected-re-run-costs">Expected re-run costs<a class="anchor" aria-label="anchor" href="#expected-re-run-costs"></a>

@@ -1,5 +1,135 @@
 # Changelog
 
+## swereg 27.2.0
+
+### New features
+
+- **Every s3 result records the swereg versions that ran s2 and s3
+  ([\#45](https://github.com/papadopoulos-lab/swereg/issues/45)).**
+  `$export_tables()` and `$export()` warn when either differs from the
+  exporting version. The Provenance sheet shows them in the rows “swereg
+  version (s2)” and “swereg version (s3)”, below “swereg version
+  (export)”. An ETT result records every distinct s2 version of the
+  analysis files it reads, PP and ITT. When some stamps are missing and
+  others are present, the sheet lists `unknown` after the known
+  versions, and the export warns. When no result carries a stamp, both
+  rows read `unknown`. Results from an analysis file of another s2
+  version use the estimator methods of that version. s3 warns about
+  them, and about an analysis file without a recorded version.
+- **The PP results and ITT results sheets report the minimum detectable
+  effect (MDE)
+  ([\#54](https://github.com/papadopoulos-lab/swereg/issues/54)).**
+  Three columns follow the IRR p-value: the expected intervention events
+  under the null, and the protective and harmful MDE ratio. The MDE uses
+  the `power` argument of `$export_tables()`, default 0.8, and the study
+  confidence level. `power` MUST be at least 0.5 and below 1. A power
+  below `(1 - conf_level) / 2` would swap the protective and harmful
+  ratios. The naive Poisson formula uses unweighted counts and ignores
+  repeated contributions of one person. So it can differ from the
+  detectable effect of the weighted estimator with person-clustered
+  standard errors. A plan analysed before 27.2.0 shows blank cells.
+- **Each row of `$irr_by_subgroup()` names the formula of its own fit in
+  a `model_formula` column
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** The
+  whole-cohort fit and each stratum fit choose their time terms from
+  their own rows, so the formulas can differ. A row that no fit produced
+  reads `NA`.
+
+### Bug fixes
+
+- **A positive incidence rate ratio below 0.01 prints
+  ([\#31](https://github.com/papadopoulos-lab/swereg/issues/31)).**
+  Before, a 0.01 estimability floor blanked it. The results sheets, the
+  forest labels and
+  [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
+  print any ratio or bound below 0.01 with two significant digits, as
+  `0.0040`. Values of 0.01 and above keep two decimals. A plan analysed
+  before 27.2.0 keeps its stored decision until it is rerun.
+- **[`tteenrollment_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rates_combine.md)
+  accepts a rates table from before 27.2.0 beside a newer one.** Before,
+  the extra unweighted columns made it stop.
+- **[`skeleton_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.md)
+  counts a week where `var` is `NA` as no observation
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+  Before, the `NA` made a later week’s eligibility `NA`.
+- **The IRR interval headers of the PP results, ITT results, Weight
+  truncation (PP) and Effect modification sheets state the study level
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** That
+  level is `study$implementation$conf_level`, or 0.95 when the
+  specification names none. Before, they printed `95% CI` at every
+  level. The internal writers of the ITT vs PP sheet and its figure do
+  the same, but no export calls them.
+- **[`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
+  and
+  [`tteenrollment_combined_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_combined_combine.md)
+  take `conf_level`, default 0.95, and head the interval column with it
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+- **The vignettes no longer describe pipeline snapshots
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+  swereg removed the feature in 26.7.18.
+- **Item 6h of the TARGET checklist states the censoring-model settings
+  that s2 used
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** s2
+  records `estimate_ipcw_pp_with_gam` and
+  `estimate_ipcw_pp_separately_by_treatment` on each per-protocol
+  analysis file, and s3 stores them in `results_ett`. Before, item 6h
+  described the defaults. s2 records nothing when it runs before 27.2.0,
+  or when it builds the analysis file from an s1 file of before 27.2.0.
+  For a result without the record, item 6h states that the setting
+  `was not recorded (s1 or s2 ran before swereg 27.2.0)`.
+- **A censoring model whose `mgcv::bam(discrete = TRUE)` prediction
+  stops with an “object not found” error is fitted again with
+  `discrete = FALSE`
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** mgcv
+  1.9.4 gives that error when `s()` sits beside
+  [`factor()`](https://rdrr.io/r/base/factor.html) or
+  [`splines::ns()`](https://rdrr.io/r/splines/ns.html), and s2 then
+  stopped. Other prediction errors still stop s2.
+- **The knot warning of
+  [`splines::ns()`](https://rdrr.io/r/splines/ns.html) no longer sets
+  `warn` on an IRR fit
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** The
+  warning is spurious: on a short panel with 4 values of `tstart`, the
+  ratio and its standard error equal those of the `factor(tstart)` fit.
+
+### Internal
+
+- **The full validation tier and the evidence generator read the
+  replicate count from `val_n_replicates()`: 60 in s3, 20 elsewhere
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+- **The CI `max-cyclocomp` ceiling is 86, the measured maximum in `R/`
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+- **A test pins that s1 clears a work directory from before 27.1.1
+  before its first sub-step writes
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** Such
+  a directory holds plain data.tables, and
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  refuses only an old `TTEEnrollment` or `TTEPlan`.
+- **The validation evidence holds the ITT design limits of s3 and s4 in
+  `$itt_design_limit`
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+  `vignettes/validation-claims.R` reads them there and stops when they
+  are absent. Before, it hard-coded them.
+- **The evidence keeps its s3 ITT coverage row
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** The
+  [\#55](https://github.com/papadopoulos-lab/swereg/issues/55) item said
+  that the vignette no longer claims it. That was wrong: Table 15 and
+  the claim `coverage_itt_s3_design` of
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  read the row.
+- **The fast validation tier gains an s1 per-protocol cell built by
+  `enroll()` from weekly rows
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).** It
+  checks the weekly deviation boundary of each person-trial against the
+  simulated treatment. It also checks that its estimates equal those of
+  the panel that the other cells build, to 1e-6. Before, every fast-tier
+  panel used the fallback read of `s5_prepare_outcome()`.
+- **Section 3 of
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  has no sentence over 25 words, and section 1.8.9 cites the rank
+  example once
+  ([\#55](https://github.com/papadopoulos-lab/swereg/issues/55)).**
+
 ## swereg 27.1.3
 
 ### Bug fixes

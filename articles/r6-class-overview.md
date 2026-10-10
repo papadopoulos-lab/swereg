@@ -292,8 +292,7 @@ Its responsibilities split into four buckets:
     run.
 4.  **The batch processing loop** (`process_skeletons()`) plus helpers
     (`load_rawbatch`, `save_rawbatch`, `load_skeleton`, `save_skeleton`,
-    `pipeline_hash`, `assert_skeletons_consistent`,
-    `write_pipeline_snapshot`).
+    `pipeline_hash`, `assert_skeletons_consistent`).
 
 `RegistryStudy$process_skeletons()` is the method that ties everything
 together. For each batch it loads the rawbatch data, runs the four

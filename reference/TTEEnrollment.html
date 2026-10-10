@@ -51,7 +51,7 @@ before this check runs. The check refuses the same objects.'><meta property="og:
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -331,6 +331,22 @@ time-zero censoring model fits on this table. It is <code>NULL</code> for the
 intention-to-treat estimand.</p></dd>
 
 
+    <dt><code>swereg_version_s2</code></dt>
+<dd><p>Character or NULL. It holds the swereg
+version that ran s2 on this object. s3 calls the methods of this
+object, so that version's estimators compute its results. It stays
+<code>NULL</code> until s2 writes the analysis file.</p></dd>
+
+
+    <dt><code>ipcw_pp_options</code></dt>
+<dd><p>A list or NULL. It holds the two settings that
+s2 passed to the per-protocol censoring models of this object:
+<code>estimate_ipcw_pp_with_gam</code> and
+<code>estimate_ipcw_pp_separately_by_treatment</code>. Item 6h of the TARGET
+checklist states them. It stays <code>NULL</code> on an intention-to-treat
+object, and until s2 writes a per-protocol analysis file.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -538,8 +554,9 @@ each IRR. Default 0.95.</p></dd>
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
-<p>A data.table with columns <code>level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator</code>, with
-attributes <code>em_pvalue</code>, <code>ratio_of_irrs</code>, and <code>n_na_subgroup</code>.</p>
+<p>A data.table with columns <code>level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator, model_formula</code>, with attributes <code>em_pvalue</code>, <code>ratio_of_irrs</code>, and
+<code>n_na_subgroup</code>. <code>model_formula</code> is the formula of the fit of that row,
+as one string. It is <code>NA</code> when no fit produced the row.</p>
 </div>
 
 </div>

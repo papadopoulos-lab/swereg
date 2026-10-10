@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1165,10 +1165,9 @@ and nothing else. Su et al. (2024, p. 6–7, the text after equation 3)
 state the condition. Covariates “conditioned upon in the numerator terms
 of the stabilised weights must be included as covariates in the marginal
 structural model”. The outcome model holds the trial and the time since
-time zero. A spline in <code>period_id</code> is not in the span of
-those two terms, as the rank example above shows. A spline or factor in
-<code>period_id</code> can fall outside that span, as the rank example
-shows, so the numerator omits it.</p>
+time zero. A spline or factor in <code>period_id</code> can fall outside
+the span of those two terms, as the rank example above shows. The
+numerator therefore omits it.</p>
 <p>By default the numerator fits in each arm, so it also conditions on
 the arm, which the outcome model holds. A numerator that depends only on
 terms of the outcome model leaves the estimand unchanged. The cost of
@@ -1514,42 +1513,43 @@ validation suite of the package ran in continuous integration.</p>
 <div class="section level2">
 <h2 id="validation-evidence">3. Validation evidence<a class="anchor" aria-label="anchor" href="#validation-evidence"></a>
 </h2>
-<p>All numerical results in this section, in the prose as well as in the
-tables and figures, are computed directly from a results artifact rather
-than transcribed by hand. The artifact is produced by rerunning the
-complete validation battery: the same data-generating processes, truth
-calculations, and fit wrappers that the package’s test suite enforces in
-continuous integration. Section 4.2 maps each layer to its test file and
-describes how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-10-08 18:11:55 UTC with swereg 27.1.3,
+<p>Every estimate, bias, coverage and limit in this section is computed
+from a results artifact. None is transcribed by hand. The fixed
+simulation design values are stated as inputs, for example the loss
+hazard of 0.06 and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">x</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>2.4</mn><mo>+</mo><mn>0.9</mn><mspace width="0.167em"></mspace><msub><mi>L</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{expit}(-2.4 + 0.9\,L_{0})</annotation></semantics></math>.
+The artifact comes from a rerun of the complete validation battery. The
+rerun uses the same data-generating processes, truth calculations and
+fit wrappers that the package’s test suite enforces in continuous
+integration. Section 4.2 maps each layer to its test file and describes
+how to regenerate the artifact.</p>
+<p>Provenance: generated 2026-10-09 04:45:09 UTC with swereg 27.2.0,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
 </h3>
-<p>The battery is organised around one principle: an estimator is
-validated by recovering a truth that is <em>known by construction</em>,
-not by agreeing with another implementation. Agreement between two
-packages is used as corroborating evidence only: two correct
-implementations of the same estimand must agree, but two implementations
-can also agree while both miss the truth. The battery includes a
-scenario that shows this: informative loss under the ITT estimand, where
-both packages share one design bias (3.3).</p>
+<p>The battery follows one principle. An estimator is validated when it
+recovers a truth that is <em>known by construction</em>, not when it
+agrees with another implementation. Agreement between two packages is
+corroborating evidence only. Two correct implementations of the same
+estimand must agree, but two implementations can also agree while both
+miss the truth. The battery includes a scenario that shows this:
+informative loss under the ITT estimand, where both packages share one
+design bias (3.3).</p>
 <p>The battery uses three kinds of truth:</p>
 <ul>
-<li>
-<strong>Exact truths</strong> for scenarios s1 to s4 (3.3, 3.6 and
-3.9). Section 3.9 defines them. The log-IRR truth is the limit of
+<li><p><strong>Exact truths</strong> for scenarios s1 to s4 (3.3, 3.6
+and 3.9). Section 3.9 defines them. The log-IRR truth is the limit of
 swereg’s weighted outcome model, with each arm and period weighted by
-its probability of remaining uncensored.</li>
-<li>
-<strong>A Monte Carlo truth</strong> for the stress and grid cells
-(3.4 and 3.8). It simulates 200,000 persons per arm under the forced
-strategy, without loss, and takes the log ratio of first-event incidence
-rates. The per-protocol truth holds treatment at the assigned value in
-every period. The ITT truth forces the baseline value only.</li>
-<li>
-<strong>A planted truth</strong> for the plan-layer cells (3.5),
-which Section 3.5 states.</li>
+its probability of remaining uncensored.</p></li>
+<li><p><strong>A Monte Carlo truth</strong> for the stress and grid
+cells (3.4 and 3.8). It simulates 200,000 persons per arm under the
+forced strategy, without loss, and takes the log ratio of first-event
+incidence rates. The per-protocol truth holds treatment at the assigned
+value in every period. The ITT truth forces the baseline value
+only.</p></li>
+<li><p><strong>A planted truth</strong> for the plan-layer cells (3.5),
+which Section 3.5 states.</p></li>
 </ul>
 <p>The Monte Carlo truth ignores censoring. Where the hazard ratio
 changes over follow-up and loss removes later periods, it differs from
@@ -1627,30 +1627,30 @@ with standard-normal baseline confounder
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><annotation encoding="application/x-tex">L_{0i}</annotation></semantics></math>
 and periods
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>19</mn></mrow><annotation encoding="application/x-tex">t = 0, \ldots, 19</annotation></semantics></math>:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mo>−</mo><mn>0.3</mn><mo>+</mo><msub><mi>ϕ</mi><mi>A</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">(baseline initiation)</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mo>−</mo><mn>3.0</mn><mo>+</mo><msub><mi>ϕ</mi><mi>S</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mo>+</mo><mn>8</mn><mspace width="0.167em"></mspace><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>t</mi><mo>≥</mo><mn>1</mn></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">(switching with persistence)</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>Y</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mo>−</mo><mn>3.5</mn><mo>+</mo><mi>θ</mi><msub><mi>A</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>ϕ</mi><mi>Y</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">(outcome)</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">
-\begin{aligned}
-\mathrm{logit}\,\mathrm{Pr}(A_{i0} = 1)
-  &amp;= -0.3 + \phi_A L_{0i}
-  &amp;&amp; \text{(baseline initiation)} \\
-\mathrm{logit}\,\mathrm{Pr}(A_{it} = 1)
-  &amp;= -3.0 + \phi_S L_{0i} + 8\,A_{i,t-1}, \quad t \ge 1
-  &amp;&amp; \text{(switching with persistence)} \\
-\mathrm{logit}\,\mathrm{Pr}(Y_{it} = 1)
-  &amp;= -3.5 + \theta A_{it} + \phi_Y L_{0i}
-  &amp;&amp; \text{(outcome)}
-\end{aligned}
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>0.3</mn><mo>+</mo><msub><mi>ϕ</mi><mi>A</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mspace width="2.0em"></mspace><mtext mathvariant="normal">(baseline initiation)</mtext></mrow><annotation encoding="application/x-tex">
+\mathrm{logit}\,\mathrm{Pr}(A_{i0} = 1) = -0.3 + \phi_A L_{0i}
+\qquad \text{(baseline initiation)}
+</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>3.0</mn><mo>+</mo><msub><mi>ϕ</mi><mi>S</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mo>+</mo><mn>8</mn><mspace width="0.167em"></mspace><msub><mi>A</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>t</mi><mo>≥</mo><mn>1</mn><mspace width="2.0em"></mspace><mtext mathvariant="normal">(switching with persistence)</mtext></mrow><annotation encoding="application/x-tex">
+\mathrm{logit}\,\mathrm{Pr}(A_{it} = 1) = -3.0 + \phi_S L_{0i} + 8\,A_{i,t-1},
+\quad t \ge 1 \qquad \text{(switching with persistence)}
+</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>Y</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>3.5</mn><mo>+</mo><mi>θ</mi><msub><mi>A</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>ϕ</mi><mi>Y</mi></msub><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mspace width="2.0em"></mspace><mtext mathvariant="normal">(outcome)</mtext></mrow><annotation encoding="application/x-tex">
+\mathrm{logit}\,\mathrm{Pr}(Y_{it} = 1) = -3.5 + \theta A_{it} + \phi_Y L_{0i}
+\qquad \text{(outcome)}
 </annotation></semantics></math></p>
 <p>with true contemporaneous treatment effect
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><mo>−</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\theta = -0.7</annotation></semantics></math>
 unless a cell varies it. The persistence coefficient of 8 keeps most
 initiators on treatment (adherent person-time dominates) while still
 generating enough switching to separate the PP and ITT truths. Loss to
-follow-up, when present, is geometric dropout from a per-person hazard:
-constant at 0.06 per period (independent loss), or
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">x</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1.4</mn><mo>+</mo><mn>0.9</mn><mspace width="0.167em"></mspace><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{expit}(-1.4 + 0.9\,L_{0i})</annotation></semantics></math>
-(informative loss, so that dropout selects on the confounder that also
-drives treatment and outcome). The three standard scenarios switch the
-nuisance parameters only, leaving the true effect identical:</p>
+follow-up, when present, is geometric dropout from a per-person hazard.
+Independent loss has a constant hazard of 0.06 per period. Informative
+loss has the hazard
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">e</mi><mi mathvariant="normal">x</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>2.4</mn><mo>+</mo><mn>0.9</mn><mspace width="0.167em"></mspace><msub><mi>L</mi><mrow><mn>0</mn><mi>i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{expit}(-2.4 + 0.9\,L_{0i})</annotation></semantics></math>,
+so dropout selects on the confounder that also drives treatment and
+outcome. The three standard scenarios switch the nuisance parameters
+only, leaving the true effect identical:</p>
 <table class="table">
 <caption>Table 2. Nuisance configuration of the three standard
 scenarios.</caption>
@@ -1693,7 +1693,7 @@ attrition</td>
 <td align="center">0.6</td>
 <td align="center">0.4</td>
 <td align="center">0.4</td>
-<td align="center">informative (expit(-1.4 + 0.9 L0))</td>
+<td align="center">informative (expit(-2.4 + 0.9 L0))</td>
 <td align="left">baseline confounding plus attrition that selects on the
 confounder</td>
 </tr>
@@ -1759,13 +1759,13 @@ datasets.</caption>
 </h3>
 <p>Each scenario dataset is fed through the full triangle (known
 potential-outcome truth, swereg, and <code>TrialEmulation</code>) for
-both estimands. Estimates are compared on a common rate-ratio scale:
+both estimands. Estimates are compared on a common rate-ratio scale.
 <code>TrialEmulation</code> reports odds ratios from pooled logistic
-regression, which are converted with the Zhang–Yu relation using the
-reference arm’s per-period event risk from the Monte Carlo truth
-simulation (Zhang and Yu 1998; Section 3.7). The truth is the exact
-log-IRR of Section 3.9. <code>TrialEmulation</code> is a peer required
-to recover the truth itself, not an oracle.</p>
+regression. The Zhang–Yu relation converts them with the reference-arm
+per-period event risk of the Monte Carlo truth simulation (Zhang and Yu
+1998; Section 3.7). The truth is the exact log-IRR of Section 3.9.
+<code>TrialEmulation</code> is a peer required to recover the truth
+itself, not an oracle.</p>
 <table class="table">
 <caption>Table 4. Cross-package validation matrix (N = 20,000, T = 20
 periods, fixed seed), against the exact log-IRR truth. swereg estimates
@@ -1869,10 +1869,10 @@ each other by 0.007. A single dataset nonetheless provides limited
 evidence. At N = 20,000 one estimate carries Monte Carlo noise of 0.02
 to 0.04 on the log-IRR scale. Point estimates therefore deviate visibly
 from the truth even under an unbiased estimator, and sampling variation
-alone sets the size of any one gap. A stronger assessment is obtained by
-replication: the full triangle is repeated on 20 independent datasets
-per scenario, which reduces the Monte Carlo standard error of the
-estimated bias by a factor of
+alone sets the size of any one gap. Replication gives a stronger
+assessment. The full triangle is repeated on 20 independent datasets per
+scenario. That reduces the Monte Carlo standard error of the estimated
+bias by a factor of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><mn>20</mn></msqrt><annotation encoding="application/x-tex">\sqrt{20}</annotation></semantics></math>.</p>
 <table class="table">
 <caption>Table 5. Replicated cross-package matrix: mean bias against the
@@ -2029,9 +2029,9 @@ anchored to a known truth.</p>
 <h3 id="stress-matrix">3.4 Stress matrix<a class="anchor" aria-label="anchor" href="#stress-matrix"></a>
 </h3>
 <p>The stress cells reuse the Section 3.2 data-generating process with
-one or two parameters pushed to an extreme, so that each cell probes a
-specific failure mode. Table 6 specifies the designs; the cells then
-follow in order.</p>
+one or two parameters pushed to an extreme. Each cell probes a specific
+failure mode. Table 6 specifies the designs; the cells then follow in
+order.</p>
 <table class="table">
 <caption>Table 6. Stress-cell designs. All other parameters as in
 Section 3.2; T = 20 periods, fixed seeds.</caption>
@@ -2223,13 +2223,13 @@ Log-IRR scale.</caption>
 </tbody>
 </table>
 <p>Under a harmful effect with strong depletion of susceptibles, the
-marginal hazard ratio declines over follow-up, so the single pooled IRR,
-a person-time-weighted average (1.6), legitimately lies above the
+marginal hazard ratio declines over follow-up. The single pooled IRR is
+a person-time-weighted average (1.6). It therefore lies above the
 cumulative-rate truth, by a mean of +0.075 across the three seeds. This
-is a property of the estimand, not an implementation defect: swereg and
-<code>TrialEmulation</code> agree to within 0.023 on every seed because
-both target the same weighted-average summary. Analyses in which the
-time path of the effect matters should report follow-up-specific
+is a property of the estimand, not an implementation defect. Both swereg
+and <code>TrialEmulation</code> target the same weighted-average
+summary, so they agree to within 0.023 on every seed. Analyses in which
+the time path of the effect matters should report follow-up-specific
 estimates.</p>
 <table class="table">
 <caption>Table 9. Near-positivity violation: attenuation toward the null
@@ -2338,30 +2338,39 @@ beyond this pipeline are indicated, exactly as stated in 1.7.</p>
 <h3 id="full-pipeline-truth-recovery-plan-layer">3.5 Full-pipeline truth recovery (plan layer)<a class="anchor" aria-label="anchor" href="#full-pipeline-truth-recovery-plan-layer"></a>
 </h3>
 <p>The layers above validate the estimators on pre-built person-period
-panels. This layer validates everything that sits on top in production:
-the machine-readable specification, enrollment-period assignment,
-sequential eligibility with a lifetime new-user exclusion, the 2:1
-comparator draw in each enrollment period, the worker subprocess chain,
-the dual PP/ITT analysis files, and the pooled weighted outcome
-model.</p>
+panels. This layer validates everything that sits on top of them in
+production:</p>
+<ul>
+<li><p>the machine-readable specification;</p></li>
+<li><p>enrollment-period assignment;</p></li>
+<li><p>sequential eligibility with a lifetime new-user
+exclusion;</p></li>
+<li><p>the 2:1 comparator draw in each enrollment period;</p></li>
+<li><p>the worker subprocess chain;</p></li>
+<li><p>the dual PP/ITT analysis files;</p></li>
+<li><p>the pooled weighted outcome model.</p></li>
+</ul>
 <p>The data-generating process plants an exactly known truth in a
 realistic skeleton. Persons are observed weekly from 2016-01-01 to
-2021-06-30, roughly 287 ISO weeks, deliberately spanning 2020’s 53-week
-ISO year, and are split into never-treaters and initiators; initiators
-start treatment at an enrollment period drawn uniformly from the first
-56 four-week enrollment periods and, in the discontinuation cell, stop
-after a geometric duration (4% weekly hazard). The weekly outcome hazard
-is constant at 0.0025 untreated and doubled while treated, so the
-marginal per-week incidence rate ratio among sustained users is exactly
-2.0. Scenario B adds a binary frailty carried by 30% of persons that
-doubles both the initiation probability and the outcome hazard, a
-genuine baseline confounder; mixture-averaging over the two risk groups
-with first-event depletion attenuates the marginal truth to 1.982. Loss,
-when present, is geometric (2% weekly, or 1%/3% by risk group for
-informative loss) and multiplies person-time equally in both arms, so
-the truth is unchanged and loss is purely a nuisance the machinery must
-tolerate. The ITT truth in the discontinuation cell (1.44) is simulated
-directly as the do(initiate)-versus-do(never) contrast with natural
+2021-06-30, roughly 287 ISO weeks. That span deliberately includes the
+53-week ISO year 2020. Persons are split into never-treaters and
+initiators. An initiator starts treatment at an enrollment period drawn
+uniformly from the first 56 four-week enrollment periods. In the
+discontinuation cell, an initiator stops after a geometric duration (4%
+weekly hazard).</p>
+<p>The weekly outcome hazard is constant at 0.0025 untreated and doubled
+while treated. The marginal per-week incidence rate ratio among
+sustained users is therefore exactly 2.0. Scenario B adds a binary
+frailty carried by 30% of persons. It doubles both the initiation
+probability and the outcome hazard, so it is a genuine baseline
+confounder. Mixture-averaging over the two risk groups with first-event
+depletion attenuates the marginal truth to 1.982.</p>
+<p>Loss, when present, is geometric. Its weekly hazard is 2%, or under
+informative loss 1% in the low-risk group and 3% in the high-risk group.
+Loss multiplies person-time equally in both arms. The truth is therefore
+unchanged, and loss is purely a nuisance the machinery must tolerate.
+The ITT truth in the discontinuation cell (1.44) is simulated directly.
+It is the do(initiate)-versus-do(never) contrast with natural
 discontinuation.</p>
 <table class="table">
 <caption>Table 11. Skeleton descriptives per plan-layer cell (before
@@ -2563,10 +2572,10 @@ person-time after discontinuation and targets the do(initiate) truth of
 truth. This cell also exercises the deviation rule of 1.4. Under the
 per-protocol estimand, an event at or after the first discordant week
 does not count.</p>
-<p>Because a single pipeline run at a fixed seed cannot distinguish bias
-from draw-level noise, the two no-loss scenarios are repeated over eight
-independent seeds at 6,000 persons each, rerunning the complete pipeline
-per replicate:</p>
+<p>A single pipeline run at a fixed seed cannot distinguish bias from
+draw-level noise. The two no-loss scenarios are therefore repeated over
+eight independent seeds at 6,000 persons each. Each replicate reruns the
+complete pipeline:</p>
 <table class="table">
 <caption>Table 13. Plan-layer Monte Carlo, per replicate; truncated
 (primary) weights. IRR scale.</caption>
@@ -2785,13 +2794,13 @@ miss.</p>
 <div class="section level3">
 <h3 id="coverage-calibration">3.6 Coverage calibration<a class="anchor" aria-label="anchor" href="#coverage-calibration"></a>
 </h3>
-<p>The final layer asks whether the reported uncertainty can be trusted:
-over 200 replicate draws per scenario at 3,000 persons, each refit end
-to end, what fraction of nominal 95% intervals cover the truth? The
-truth is the exact log-IRR of Section 3.9. Both estimands use the
-primary truncated weight, the pipeline’s default analysis as reported.
-The per-protocol censoring weights (1.8.2) target the
-sustained-treatment effect in all three scenarios, including the
+<p>The final layer asks whether the reported uncertainty can be trusted.
+It draws 200 replicates per scenario at 3,000 persons and refits each
+one end to end. It then counts the fraction of nominal 95% intervals
+that cover the truth. The truth is the exact log-IRR of Section 3.9.
+Both estimands use the primary truncated weight, the pipeline’s default
+analysis as reported. The per-protocol censoring weights (1.8.2) target
+the sustained-treatment effect in all three scenarios, including the
 informative loss in s3. The ITT analysis carries no loss weight, so s3
 also shows how its design bias affects its intervals.</p>
 <table class="table">
@@ -2901,19 +2910,21 @@ against its design limit, and not the s3 ITT coverage.</p>
 <div class="section level3">
 <h3 id="marginal-versus-conditional-estimands">3.7 Marginal versus conditional estimands<a class="anchor" aria-label="anchor" href="#marginal-versus-conditional-estimands"></a>
 </h3>
-<p>swereg and <code>TrialEmulation</code> both remove baseline
-confounding, but by different routes, producing two distinct and each
-valid estimands. swereg weights and fits a covariate-free model: a
-marginal effect. <code>TrialEmulation</code> conventionally adjusts the
-outcome model: a conditional effect. Rate ratios are collapsible, so
-these coincide for the IRR; odds ratios are not, so the
-<code>TrialEmulation</code> OR is converted with the Zhang–Yu relation
+<p>Both swereg and <code>TrialEmulation</code> remove baseline
+confounding, but by different routes. The two routes give two distinct
+estimands, and each is valid. The swereg route weights and fits a
+covariate-free model, which gives a marginal effect. The
+<code>TrialEmulation</code> route conventionally adjusts the outcome
+model, which gives a conditional effect.</p>
+<p>Rate ratios are collapsible, so the two coincide for the IRR. Odds
+ratios are not collapsible, so the <code>TrialEmulation</code> OR is
+converted to a rate ratio before comparison. The conversion uses the
+Zhang–Yu relation
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">R</mi></mrow><mo>=</mo><mrow><mi mathvariant="normal">O</mi><mi mathvariant="normal">R</mi></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mn>0</mn></msub><mo>+</mo><msub><mi>p</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">O</mi><mi mathvariant="normal">R</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})</annotation></semantics></math>,
 where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mn>0</mn></msub><annotation encoding="application/x-tex">p_0</annotation></semantics></math>
-is the reference-arm per-period risk, before comparison. The conversion
-removes the scale gap only; a residual conditional-versus-marginal
-difference remains.</p>
+is the reference-arm per-period risk. The conversion removes the scale
+gap only; a residual conditional-versus-marginal difference remains.</p>
 <p>In Table 4 the swereg − TE gaps in the confounded ITT cells are small
 (+0.006 in s2, +0.007 in s3). The per-protocol gaps are larger (+0.023
 in s2, +0.061 in s3). In those cells the two packages also correct the
@@ -2927,27 +2938,29 @@ route’s advantage holds, and where both end.</p>
 <h3 id="boundary-of-validity-the-truncation-tradeoff-across-scenarios">3.8 Boundary of validity: the truncation tradeoff across
 scenarios<a class="anchor" aria-label="anchor" href="#boundary-of-validity-the-truncation-tradeoff-across-scenarios"></a>
 </h3>
-<p>The s3 per-protocol cell raised two questions a single scenario
-cannot answer: is the conditional-adjustment route always the better
-one, and is truncation always a cost? This section varies the design one
-knob at a time around the s3 configuration: the strength of the loss’s
-dependence on the confounder (0.45, 0.9, 1.5 on
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>),
-its direction (−0.9, so that dropout selects low-risk rather than
-high-risk person-time), and the direction of the treatment effect
-(harmful,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">+0.7</annotation></semantics></math>),
-together with two mechanisms in which the selection is driven by an
-unmeasured prognostic factor
+<p>The s3 per-protocol cell raised two questions that a single scenario
+cannot answer. The first is whether the conditional-adjustment route is
+always the better one. The second is whether truncation is always a
+cost. This section varies the design one knob at a time around the s3
+configuration:</p>
+<ul>
+<li><p>the strength of the dependence of loss on the confounder (0.45,
+0.9 and 1.5 on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>);</p></li>
+<li><p>the direction of that dependence (−0.9, so that dropout selects
+low-risk rather than high-risk person-time);</p></li>
+<li><p>the direction of the treatment effect (harmful,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">+0.7</annotation></semantics></math>);</p></li>
+<li><p>dropout driven by an unmeasured prognostic factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>;</p></li>
+<li><p>a healthy-adherer mechanism, in which treated individuals with
+high
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
-(dropout on
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,
-and a healthy-adherer mechanism in which treated individuals with high
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
-discontinue preferentially), plus a separate data-generating process in
-which censoring is driven by a time-varying covariate that treatment
-itself affects. Per-protocol estimand throughout; ten paired replicates
-per cell.</p>
+discontinue preferentially.</p></li>
+</ul>
+<p>In a separate data-generating process, a time-varying covariate that
+treatment itself affects drives the censoring. Every cell uses the
+per-protocol estimand and ten paired replicates.</p>
 <table class="table">
 <caption>Table 16. Truncation-tradeoff grid, per-protocol estimand: one
 design parameter at a time around the s3 configuration, plus two cells
@@ -3061,10 +3074,10 @@ MC SE 0.034). The truncated fit (+0.040, MC SE 0.006) and
 No fit has the smallest absolute bias in every cell.</p>
 <p>The two unmeasured-driver cells locate the boundary set by assumption
 (5) of the analysis plan (1.7). In both, every mean bias is negative,
-toward an exaggerated protective effect. <code>TrialEmulation</code> is
-displaced the most: -0.059 with dropout on the unmeasured factor, and
--0.050 with the unmeasured factor driving adherence. Its 95% Monte Carlo
-interval excludes zero in both. The swereg mean biases are -0.031
+toward an exaggerated protective effect. The <code>TrialEmulation</code>
+fit is displaced the most: -0.059 with dropout on the unmeasured factor,
+and -0.050 with the unmeasured factor driving adherence. Its 95% Monte
+Carlo interval excludes zero in both. The swereg mean biases are -0.031
 (truncated) and -0.045 (untruncated) in the dropout cell, and -0.013 and
 -0.030 in the adherence cell. No weighting or conditioning on measured
 covariates corrects selection on an unobserved variable. Two further
@@ -3125,10 +3138,10 @@ unstable weights. The time-updated weights give the smallest of the
 three biases. All three estimates are therefore unusable, and comparing
 them identifies only which approach fails least, not an approach that
 works. When a time-varying confounder is itself affected by earlier
-treatment, valid estimation requires methods designed for that feedback,
-such as the parametric g-formula or g-estimation of structural nested
-models (Hernán and Robins 2016), which this pipeline does not
-implement.</p>
+treatment, valid estimation needs methods designed for that feedback.
+Examples are the parametric g-formula and g-estimation of structural
+nested models (Hernán and Robins 2016). This pipeline implements
+neither.</p>
 <div class="figure">
 <img src="tte-methods_files/figure-html/unnamed-chunk-42-1.png" class="r-plt" alt="Figure 4. Mean bias of the per-protocol log-IRR across every validation cell, one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. s1 to s3 have 20 datasets each, against the exact truth. The Table 16 grid cells have 10 each, against the Monte Carlo truth. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation moves the mean bias up in the mild, base, reversed and harmful-effect cells, and down in the harsh cell, where the untruncated weights are unstable. It changes no estimate in s1. In the reversed-selection cell only the truncated fit's interval holds zero, and in the harmful-effect cell only the untruncated fit's interval does." width="720"><p class="caption">
 Figure 4. Mean bias of the per-protocol log-IRR across every validation
@@ -3183,57 +3196,59 @@ The pipeline’s convention is therefore retained on the evidence. The
 truncated fit is the primary analysis: its largest RMSE across the 10
 cells is 0.062, against 0.894 for the untruncated fit. The untruncated
 fit is always exported alongside (1.8.3). A material divergence between
-the two indicates that the censoring weights are unstable. The
-appropriate responses are then sensitivity analyses at looser truncation
-percentiles (Table 9 quantifies the dose–response), restriction of the
-eligible population where extreme weights are structural, or, when the
-censoring drivers are time-varying and treatment-affected, the
-recognition that no weighting scheme in this pipeline suffices (Table
-17).</p>
+the two indicates that the censoring weights are unstable. Three
+responses are then appropriate:</p>
+<ul>
+<li><p>a sensitivity analysis at looser truncation percentiles (Table 9
+quantifies the dose–response);</p></li>
+<li><p>restriction of the eligible population where extreme weights are
+structural;</p></li>
+<li><p>when the censoring drivers are time-varying and
+treatment-affected, the recognition that no weighting scheme in this
+pipeline suffices (Table 17).</p></li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="risk-difference-and-log-irr-against-exact-truths">3.9 Risk difference and log-IRR against exact truths<a class="anchor" aria-label="anchor" href="#risk-difference-and-log-irr-against-exact-truths"></a>
 </h3>
 <p>This section compares the risk difference at 5, 10 and 20 periods,
 and the log-IRR, with exact truths. The cells, seeds and limits are
-those of the test tiers. <code>test-validation-fast.R</code> runs s1 and
-the s4 per-protocol cell on every push, and
-<code>test-validation-full.R</code> runs every cell weekly (Section
-4.2).</p>
+those of the test tiers. On every push,
+<code>test-validation-fast.R</code> runs s1 and the s4 per-protocol
+cell. Every week, <code>test-validation-full.R</code> runs every cell
+(Section 4.2).</p>
 <p>No simulation enters the two truths:</p>
 <ul>
-<li>
-<strong>Risk difference.</strong> The cumulative risk of a first
+<li><p><strong>Risk difference.</strong> The cumulative risk of a first
 event by period
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
 under the strategy of the estimand, intervention minus comparator. A
 forward recursion over the equations of Section 3.2 computes it, with
-quadrature over the baseline covariates.</li>
-<li>
-<strong>Log-IRR.</strong> The treatment coefficient of swereg’s
+quadrature over the baseline covariates.</p></li>
+<li><p><strong>Log-IRR.</strong> The treatment coefficient of swereg’s
 outcome model (1.8.4), fitted to the exact expected events and
 person-time of each arm and period. Each cell is weighted by the
 marginal probability of remaining uncensored in its arm (“stabilised”
 weighting). That probability is the numerator of the stabilised
 censoring weight, so the truth is the limit of swereg’s weighted fit
-when the weights are correct.</li>
+when the weights are correct.</p></li>
 </ul>
 <p>The stabilised log-IRR truth differs from the truth without censoring
 wherever the hazard ratio changes over follow-up. The largest difference
 is 0.064, in s3 ITT. In s1 the hazard ratio is constant, and the two
 truths are equal.</p>
 <p>Scenario s4 adds a second standard-normal baseline covariate, so that
-each censoring cause has its own driver.
+each censoring cause has its own driver. The covariate
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
 drives the arm, discordance in the first follow-up week and later
-deviation.
+deviation. The covariate
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
 drives loss to follow-up. Both drive the outcome. Because a person can
 deviate in the first follow-up week, s4 tests the time-zero censoring
 model of 1.8.2.</p>
 <table style="width:100%;" class="table">
 <caption>Table 18. Mean bias against the exact truth, with z = bias / MC
-SE in brackets. 20 datasets per cell at N = 20,000. RD is the risk
+SE in brackets. 60 datasets per cell at N = 20,000. RD is the risk
 difference, intervention minus comparator, at period h.</caption>
 <colgroup>
 <col width="10%">
@@ -3330,37 +3345,37 @@ difference, intervention minus comparator, at period h.</caption>
 <td align="left">s3</td>
 <td align="left">pp</td>
 <td align="left">truncated</td>
-<td align="right">+0.0441 (4.6)</td>
-<td align="right">+0.0045 (3.3)</td>
-<td align="right">+0.0118 (5.9)</td>
-<td align="right">+0.0247 (7.8)</td>
+<td align="right">+0.0298 (5.4)</td>
+<td align="right">+0.0037 (4.9)</td>
+<td align="right">+0.0096 (8.9)</td>
+<td align="right">+0.0185 (8.6)</td>
 </tr>
 <tr class="even">
 <td align="left">s3</td>
 <td align="left">pp</td>
 <td align="left">untruncated</td>
-<td align="right">+0.0365 (2.4)</td>
-<td align="right">+0.0016 (0.8)</td>
-<td align="right">+0.0112 (2.8)</td>
-<td align="right">+0.0170 (2.0)</td>
+<td align="right">+0.0016 (0.1)</td>
+<td align="right">+0.0003 (0.2)</td>
+<td align="right">+0.0013 (0.6)</td>
+<td align="right">+0.0025 (0.5)</td>
 </tr>
 <tr class="odd">
 <td align="left">s3</td>
 <td align="left">itt</td>
 <td align="left">truncated</td>
-<td align="right">-0.0168 (-1.9)</td>
-<td align="right">+0.0046 (3.7)</td>
-<td align="right">+0.0058 (3.4)</td>
-<td align="right">+0.0030 (1.5)</td>
+<td align="right">-0.0258 (-4.9)</td>
+<td align="right">+0.0038 (5.2)</td>
+<td align="right">+0.0051 (5.6)</td>
+<td align="right">-0.0003 (-0.2)</td>
 </tr>
 <tr class="even">
 <td align="left">s3</td>
 <td align="left">itt</td>
 <td align="left">untruncated</td>
-<td align="right">-0.0239 (-2.7)</td>
-<td align="right">+0.0040 (3.2)</td>
-<td align="right">+0.0049 (2.8)</td>
-<td align="right">+0.0015 (0.7)</td>
+<td align="right">-0.0326 (-6.2)</td>
+<td align="right">+0.0032 (4.3)</td>
+<td align="right">+0.0042 (4.6)</td>
+<td align="right">-0.0018 (-1.3)</td>
 </tr>
 <tr class="odd">
 <td align="left">s4</td>
@@ -3404,13 +3419,13 @@ difference, intervention minus comparator, at period h.</caption>
 errors of its exact truth (largest |z| 0.77). That holds for both
 estimands, both weights, the log-IRR and the risk difference at every
 horizon. With untruncated weights, every per-protocol estimate in s1 to
-s4 is within the same limit (largest |z| 2.77). The ITT estimates of s2
+s4 is within the same limit (largest |z| 1.47). The ITT estimates of s2
 are within it with both weights (largest |z| 2.38).</p>
 <p>Truncation moves the per-protocol risk difference up, away from the
 truth, in s2, s3 and s4. At h = 20 the truncated mean bias is +0.0097
-against +0.0036 untruncated in s2, +0.0247 against +0.0170 in s3 and
+against +0.0036 untruncated in s2, +0.0185 against +0.0025 in s3 and
 +0.0186 against -0.0015 in s4. In s3 and s4 the truncated bias at h = 20
-is more than 3.5 Monte Carlo standard errors from zero (z 7.8 and 6.0).
+is more than 3.5 Monte Carlo standard errors from zero (z 8.6 and 6.0).
 In s1, which has no confounding and no loss, truncation changes no mean
 estimate by more than 0.0005. Section 3.8 weighs this bias against the
 lower spread of the truncated fit.</p>
@@ -3418,7 +3433,7 @@ lower spread of the truncated fit.</p>
 of the outcome (assumption 4 of 1.7). In s3 and s4 the loss depends on a
 covariate that also drives the outcome. The ITT log-IRR is therefore
 below the truth with both weights. With untruncated weights the bias is
--0.0239 in s3 and -0.0202 in s4. The exact limit of an ITT fit without
+-0.0326 in s3 and -0.0202 in s4. The exact limit of an ITT fit without
 loss weights is -0.0268 and -0.0161 from the truth. Each estimate is
 within 3.5 Monte Carlo standard errors of its limit. The bias comes from
 the violated assumption, and not from an estimator defect.</p>
@@ -3693,7 +3708,10 @@ Three models per stratum. Loss: indicator <code>censor_loss</code>, on
 the rows with <code>event == 0</code>. Deviation: indicator
 <code>censor_deviation</code>, on the rows with <code>event == 0</code>
 and <code>censor_loss == 0</code>. Both use the GAM engine
-<code>mgcv::bam(..., discrete = TRUE)</code>, denominator
+<code>mgcv::bam(..., discrete = TRUE)</code>. When its prediction stops
+with an “object not found” error, swereg fits the same formula again
+with <code>discrete = FALSE</code>. Other prediction errors stop s2. The
+denominator is
 <code>flex(tstart) + flex(period_id) + confounders</code>, numerator
 <code>flex(tstart)</code>, each with
 <code>offset(log(person_weeks))</code>. <code>flex()</code> is
