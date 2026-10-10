@@ -302,6 +302,8 @@
   plot_df <- layout_df[plottable == TRUE]
 
   # --- right panel (forest visualisation) ---
+  # NULL keeps the data range of the scale. A bound below 0.1 sets it below.
+  x_limits <- NULL
   if (nrow(plot_df) == 0L) {
     x_breaks <- c(0.5, 1, 2)
     x_min <- 0.5
@@ -316,13 +318,14 @@
       candidate_breaks >= x_min & candidate_breaks <= x_max
     ]
     # A bound below the first candidate gets ticks at 1 and 3 times each power
-    # of 10, down to the first tick at or below it. The point then has a
-    # labelled tick near it.
+    # of 10, down to the first tick at or below it. The scale starts at that
+    # tick, so the data range does not clip it.
     if (bounds_lo < candidate_breaks[[1L]]) {
       low <- as.vector(outer(c(1, 3), 10^(floor(log10(bounds_lo)):-1)))
       floor_tick <- max(low[low <= bounds_lo])
       low <- low[low >= floor_tick & low < candidate_breaks[[1L]]]
       x_breaks <- c(low, x_breaks)
+      x_limits <- c(floor_tick, NA)
     }
     if (length(x_breaks) == 0L) x_breaks <- 1
   }
@@ -347,6 +350,7 @@
       na.rm = TRUE
     ) +
     ggplot2::scale_x_log10(
+      limits = x_limits,
       breaks = x_breaks,
       labels = format(x_breaks, drop0trailing = TRUE)
     ) +
