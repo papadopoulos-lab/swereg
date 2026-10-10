@@ -13,7 +13,7 @@
 #' it during follow-up is the confounding that a time-zero design removes.
 #'
 #' `$s1b_fill_followup_confounders()` supplies a missing follow-up value from
-#' the last observed value of the same person-trial. s1d runs it before this
+#' the last observed value of the same person-trial. s1e runs it before this
 #' step.
 #'
 #' @param data The rows the censoring model fits.
@@ -61,7 +61,7 @@
     "Fill those follow-up values before this step, or drop the affected ",
     "person-trials.\n",
     "$s1b_fill_followup_confounders() supplies a missing follow-up value from ",
-    "the last observed value of the same person-trial. s1d runs it before ",
+    "the last observed value of the same person-trial. s1e runs it before ",
     "this step.\n",
     "swereg MUST NOT overwrite an observed follow-up value with the ",
     "entry-window value. That value describes the recruiting week.",

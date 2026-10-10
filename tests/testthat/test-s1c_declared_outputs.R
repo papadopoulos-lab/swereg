@@ -1,14 +1,15 @@
 # s1c on batchit's declared-output commit engine. Two independent halves, both
 # needed:
-#   * the WORKER returns list(panel = ) and writes nothing -- a
-#     captured-dispatch test never runs the worker, so it cannot see this;
-#   * the DISPATCH goes through .batch_run_and_write(style = "return") with one
-#     absolute declared output per (enrollment, skeleton) item -- a direct
-#     worker test never touches the call site.
+#   * the WORKER returns list(enrolled_ids = , counts = ) and writes nothing --
+#     a captured-dispatch test never runs the worker, so it cannot see this;
+#   * the DISPATCH goes through .batch_run_and_write(style = "return") with TWO
+#     absolute declared outputs per item -- a direct worker test never touches
+#     the call site.
 #
-# s1c keeps its `work_dir` formal: it READS the s1a cache and the s1b
-# enrolled-ids file from there, so work_dir is an input, not an output-path
-# source.
+# s1c keeps its `work_dir` formal: it READS the s1a `s1a_pre_*` chunks from
+# there, so work_dir is an input, not an output-path source. What it loses is
+# `enrollment_counts_path` -- a final path handed to a worker -- and the dead
+# `s1c_attrition_enr{eid}.qs2` write, which nothing ever read back.
 
 skip_if_not_installed("data.table")
 skip_if_not_installed("qs2")
@@ -47,8 +48,8 @@ s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
 }
 
 # Build a small real plan (spec YAML + one skeleton .qs2) plus its s1 work
-# directory, and run s1a + s1b in-process so the s1c inputs exist on disk.
-s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
+# directory, and run s1a in-process so the s1c inputs exist on disk.
+s1c_fixture <- function(env = parent.frame(), run_s1a = TRUE) {
   root <- withr::local_tempdir(.local_envir = env)
   dir_spec <- file.path(root, "spec")
   dir_tteplan <- file.path(root, "tteplan")
@@ -90,21 +91,8 @@ s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
   es <- plan$enrollment_spec(1)
   es$n_threads <- 1L
 
-  if (run_s1ab) {
+  if (run_s1a) {
     s1a_run_real(skel_path, list(es), plan$spec, work_dir)
-    # .s1b_worker RETURNS its outputs (phase 4); batchit commits them in the
-    # real run, so the fixture writes the enrolled-ids file itself -- s1c
-    # reads it from work_dir.
-    s1b <- swereg:::.s1b_worker(
-      enrollment_spec = es,
-      spec = plan$spec,
-      work_dir = work_dir,
-      skel_basenames = basename(skel_path)
-    )
-    qs2::qs_save(
-      s1b$enrolled_ids,
-      swereg:::.s1b_enrolled_ids_path(work_dir, es$enrollment_id)
-    )
   }
 
   list(
@@ -117,44 +105,84 @@ s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
   )
 }
 
-test_that(".s1c_worker returns list(panel=) and writes no panel file", {
+test_that(".s1c_worker returns enrolled_ids + counts and writes no file", {
   fx <- s1c_fixture()
+  eid <- fx$es$enrollment_id
 
-  # work_dir stays: s1c READS the s1b enrolled-ids file from it.
-  expect_true("work_dir" %in% names(formals(swereg:::.s1c_worker)))
-
-  panel_path <- swereg:::.s1c_panel_path(
-    fx$work_dir,
-    fx$es$enrollment_id,
-    basename(fx$skel_path)
+  # work_dir stays: s1c READS the s1a pre-chunks from it. The final counts
+  # path does NOT -- a worker is handed no destination.
+  need <- names(formals(swereg:::.s1c_worker))
+  expect_setequal(
+    need,
+    c("enrollment_spec", "spec", "work_dir", "skel_basenames")
   )
-  expect_false(file.exists(panel_path))
+  expect_false("enrollment_counts_path" %in% need)
+
+  # The dead attrition-file constructor is gone from the namespace entirely.
+  expect_false(exists(
+    ".s1c_attrition_path",
+    envir = asNamespace("swereg"),
+    inherits = FALSE
+  ))
+
+  enrolled_path <- swereg:::.s1c_enrolled_ids_path(fx$work_dir, eid)
+  attrition_path <- file.path(
+    fx$work_dir,
+    sprintf("s1c_attrition_enr%s.qs2", eid)
+  )
+  expect_false(file.exists(enrolled_path))
   before <- sort(list.files(fx$work_dir))
 
   res <- swereg:::.s1c_worker(
     enrollment_spec = fx$es,
-    file_path = fx$skel_path,
     spec = fx$spec,
-    work_dir = fx$work_dir
+    work_dir = fx$work_dir,
+    skel_basenames = basename(fx$skel_path)
   )
 
-  expect_named(res, "panel")
-  expect_s3_class(res$panel, "TTEEnrollment")
-  expect_true(nrow(res$panel$data) > 0L)
-  # The old code wrote the panel itself; the new one must not.
-  expect_false(file.exists(panel_path))
+  expect_named(res, c("enrolled_ids", "counts"))
+
+  expect_s3_class(res$enrolled_ids, "data.table")
+  expect_true(nrow(res$enrolled_ids) > 0L)
+  expect_true(all(
+    c("enrollment_period_id", "intervention") %in% names(res$enrolled_ids)
+  ))
+
+  expect_named(res$counts, c("attrition", "matching"))
+  expect_s3_class(res$counts$attrition, "data.table")
+  expect_s3_class(res$counts$matching, "data.table")
+  expect_true(nrow(res$counts$attrition) > 0L)
+  expect_true(all(
+    c("enrollment_period_id", "criterion", "n_persons", "n_person_trials") %in%
+      names(res$counts$attrition)
+  ))
+  expect_true(all(
+    c(
+      "enrollment_period_id",
+      "n_intervention_total",
+      "n_comparator_total",
+      "n_intervention_enrolled",
+      "n_comparator_enrolled"
+    ) %in%
+      names(res$counts$matching)
+  ))
+
+  # The old code wrote all three files itself; the new one must not, and the
+  # attrition file must not reappear under any code path.
+  expect_false(file.exists(enrolled_path))
+  expect_false(file.exists(attrition_path))
   expect_identical(sort(list.files(fx$work_dir)), before)
 })
 
-test_that("s1c dispatch declares one absolute output per item via run_and_write", {
-  fx <- s1c_fixture(run_s1ab = FALSE)
+test_that("s1c dispatch declares two absolute outputs via run_and_write", {
+  fx <- s1c_fixture(run_s1a = FALSE)
 
   cap <- new.env(parent = emptyenv())
   testthat::local_mocked_bindings(
     # All four sub-steps now dispatch through .batch_run_and_write(), so the
-    # symbol guard below is what selects s1c; s1a and s1b return NULL and run
-    # no subprocess. `.batch_run` is stubbed only because nothing should reach
-    # it any more -- if something does, it must not fork.
+    # symbol guard below is what selects s1c; every other target returns NULL
+    # and runs no subprocess. `.batch_run` is stubbed only because nothing
+    # should reach it any more -- if something does, it must not fork.
     .batch_run = function(...) invisible(NULL),
     .batch_run_and_write = function(target, ...) {
       if (!identical(target$symbol, ".s1c_worker")) {
@@ -182,6 +210,7 @@ test_that("s1c dispatch declares one absolute output per item via run_and_write"
 
   a <- cap$args
   expect_identical(a$style, "return")
+  # s1c runs one item per call, sequentially, with a single subworker.
   expect_identical(a$n_workers, 1L)
   expect_identical(a$dev_path, "/tmp/fake_dev_path")
   expect_identical(a$label, "s1c")
@@ -189,43 +218,41 @@ test_that("s1c dispatch declares one absolute output per item via run_and_write"
 
   items <- a$items
   outputs <- a$outputs
-  n_expected <- length(unique(fx$plan$ett$enrollment_id)) *
-    length(fx$plan$skeleton_files)
-  expect_length(items, n_expected)
-  expect_length(outputs, n_expected)
+  expect_length(items, 1L)
+  expect_length(outputs, 1L)
   expect_identical(names(outputs), names(items))
   expect_true(all(grepl("^s1c_", names(items))))
-  expect_identical(anyDuplicated(names(items)), 0L)
 
-  # Item formals: complete for .s1c_worker (work_dir included), and no
-  # output path among them.
+  # Item formals: complete for .s1c_worker (work_dir included, because s1c
+  # reads from it), and no output path among them.
   need <- names(formals(swereg:::.s1c_worker))
-  expect_setequal(need, c("enrollment_spec", "file_path", "spec", "work_dir"))
+  expect_setequal(need, c("enrollment_spec", "spec", "work_dir", "skel_basenames"))
   for (it in items) {
     expect_setequal(names(it), need)
-    expect_false(any(grepl("panel", names(it))))
+    expect_false("enrollment_counts_path" %in% names(it))
   }
 
-  # One declared output per item, named `panel`, absolute, matching the
-  # canonical s1c panel path.
-  for (o in outputs) {
-    expect_named(o, "panel")
-    expect_true(is.character(o))
-    expect_match(o[["panel"]], "^/")
-  }
+  # Two declared outputs per item, in different directories, both absolute.
+  # `style = "return"` requires these names to equal the returned list's.
+  o <- outputs[[1L]]
+  expect_true(is.character(o))
+  expect_named(o, c("enrolled_ids", "counts"))
+  expect_match(o[["enrolled_ids"]], "^/")
+  expect_match(o[["counts"]], "^/")
+
+  it <- items[[1L]]
+  eid <- it$enrollment_spec$enrollment_id
   expect_identical(
-    unname(vapply(outputs, function(o) o[["panel"]], character(1))),
-    unname(vapply(
-      names(items),
-      function(id) {
-        it <- items[[id]]
-        swereg:::.s1c_panel_path(
-          it$work_dir,
-          it$enrollment_spec$enrollment_id,
-          basename(it$file_path)
-        )
-      },
-      character(1)
-    ))
+    o[["enrolled_ids"]],
+    swereg:::.s1c_enrolled_ids_path(it$work_dir, eid)
   )
+  expect_identical(
+    o[["counts"]],
+    swereg:::.enrollment_counts_path(
+      normalizePath(fx$plan$dir_tteplan, mustWork = FALSE),
+      fx$plan$project_prefix,
+      eid
+    )
+  )
+  expect_false(identical(dirname(o[["enrolled_ids"]]), dirname(o[["counts"]])))
 })

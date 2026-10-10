@@ -1,7 +1,7 @@
-# --- Shared preparation helpers (used by s1a and s1b workers) ----------------
+# --- Shared preparation helpers (used by s1a and s1d workers) ----------------
 
 #' Read skeleton, apply exclusions, optionally derive confounders, set treatment.
-#' Used by `.s1b_worker()` (full, with confounders); the scout path
+#' Used by `.s1d_worker_impl()` (full, with confounders); the scout path
 #' (`.s1a_worker_multi()`) reads the canonical once and calls
 #' `.s1_prepare_loaded()` directly.
 #' @noRd
@@ -117,8 +117,8 @@
 #'
 #' `recruit_week_index` names the week that recruited each person into each
 #' enrollment period. It travels the whole scout chain: these tuples reach
-#' `.s1b_worker()`, the comparator draw keeps it, and it lands in `enrolled_ids`
-#' on disk. The s1c enrollment then reads it back on `entry_dt`.
+#' `.s1c_worker()`, the comparator draw keeps it, and it lands in `enrolled_ids`
+#' on disk. The s1d enrollment then reads it back on `entry_dt`.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
   if (!"period_id" %in% names(skeleton)) {
@@ -219,7 +219,7 @@
   # Per-trial summary: drop rows where enrollment_period_id is NA
   # (person-weeks that fall outside any trial period). Without this filter,
   # those rows collapse into a `(enrollment_period_id = NA, criterion)` group.
-  # The per-batch aggregation step of `.s1b_worker()` then sums its
+  # The per-batch aggregation step of `.s1c_worker()` then sums its
   # `n_persons` with the genuine `before_global` row, which inflates the
   # reported global cohort by ~2x in CONSORT.
   before_row <- pt0[

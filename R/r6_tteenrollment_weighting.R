@@ -455,7 +455,7 @@ TTEEnrollment$set(
     # swereg MUST NOT overwrite an observed follow-up value with the
     # entry-window value here. That value describes the recruiting week.
     # `$s1b_fill_followup_confounders()` supplies a missing follow-up value
-    # from the last observed value of the same person-trial, and s1d runs it
+    # from the last observed value of the same person-trial, and s1e runs it
     # before this step.
     .tte_stop_on_missing_ipcw_confounders(
       working_data,

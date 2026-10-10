@@ -16,10 +16,10 @@
 #     -> enrollment_spec()
 #     -> TTEDesign
 #     -> .tte_s1_cache_columns()
-#     -> the s1b / s1c workers
+#     -> the s1c / s1d workers
 #
 # `.tte_s1_cache_columns()` is the link that fails most quietly. It is a named
-# allow-list, so a column missing from it is dropped before s1b and s1c ever
+# allow-list, so a column missing from it is dropped before s1c and s1d ever
 # read the cache. Nothing errors and nothing warns.
 
 skip_if_not_installed("data.table")

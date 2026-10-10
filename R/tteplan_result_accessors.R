@@ -874,7 +874,7 @@
 
 #' The stored follow-up fill summary, one row per enrollment and confounder.
 #'
-#' `.s1d_worker()` stores the table [tteenrollment_fill_summary()] returns on
+#' `.s1e_worker()` stores the table [tteenrollment_fill_summary()] returns on
 #' the enrollment object. `.s3_enrollment_worker()` carries it into
 #' `plan$results_enrollment[[eid]]$fill_summary`.
 #'

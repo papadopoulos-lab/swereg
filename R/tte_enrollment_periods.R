@@ -4,7 +4,7 @@
 #' Assign the calendar period of each week from isoyearweek and period_width
 #'
 #' Single source of truth for the isoyearweek -> period_id mapping. Used by
-#' `.s1_eligible_tuples()` (s1a scout) and `enroll()` Phase A (s1b full enrollment).
+#' `.s1_eligible_tuples()` (s1a scout) and `enroll()` Phase A (s1d panel build).
 #'
 #' @param data A data.table with an `isoyearweek` column. Modified by reference.
 #' @param period_width Integer, the width of the enrollment period in weeks.

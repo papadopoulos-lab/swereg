@@ -491,7 +491,7 @@ test_that("the scout path drops the same candidate person-trials as the direct p
 })
 
 test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
-  # The reachability witness for the production path. `.s1b_worker()` draws
+  # The reachability witness for the production path. `.s1c_worker()` draws
   # comparators from the pooled `s1a_pre_*` tuples and never reads a
   # person-week, so the tuples this function returns MUST already be
   # qualified. It is the frame `.s1a_worker_multi()` calls.
@@ -531,7 +531,7 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
   expect_equal(nrow(land), 1L)
 
   # The recruiting week is written into the tuples, which is how it reaches
-  # `.s1b_worker()`, then `enrolled_ids` on disk, then s1c.
+  # `.s1c_worker()`, then `enrolled_ids` on disk, then s1d.
   expect_true("recruit_week_index" %in% names(res$tuples))
   expect_equal(
     unname(res$tuples[enrollment_period_id == period0 & id == "I1"]$recruit_week_index),
@@ -542,7 +542,7 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
 test_that("the recruiting week reaches the entry rows of both enrollment paths", {
   # `enroll()` builds `entry_dt` from an explicit column list, so a column that
   # is not named there is dropped before Phase B ever sees it. This drives the
-  # direct path and the pre-matched path that s1c takes.
+  # direct path and the pre-matched path that s1d takes.
   weeks <- .lme_weeks()
   period0 <- .lme_period0(weeks)
   late <- .lme_person("LATE", weeks, tx = 3L, eligible = 3:8)
@@ -560,7 +560,7 @@ test_that("the recruiting week reaches the entry rows of both enrollment paths",
   )
   expect_true("recruit_week_index" %in% names(tuples))
 
-  # Pre-matched mode: `enrolled_ids` carries the column in, exactly as s1b
+  # Pre-matched mode: `enrolled_ids` carries the column in, exactly as s1c
   # writes it. The enrollment MUST accept it and build a panel.
   enrolled_ids <- tuples[enrollment_period_id == period0]
   pre <- TTEEnrollment$new(

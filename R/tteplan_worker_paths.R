@@ -12,10 +12,10 @@
 
 # --- s1 work directory + path constructors -----------------------------------
 #
-# Loop 1 splits into four sub-steps (s1a..s1d). Each sub-step runs in a
-# subprocess (parallel for skeleton-level work, single for enrollment-level
-# work) and communicates with the next sub-step via files in a per-project
-# work directory:
+# Loop 1 splits into four sub-steps (s1a, s1c, s1d, s1e). Each sub-step runs
+# in a subprocess (parallel for skeleton-level work, single for
+# enrollment-level work) and communicates with the next sub-step via files in
+# a per-project work directory:
 #
 #   {data_meta_dir}/s1_work/{project_prefix}/   the default
 #   {work_root}/s1_work_{project_prefix}/       when a root is given
@@ -34,8 +34,8 @@
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
-#   s1b_enrolled_ids_enr{eid}.qs2                 ← post-draw enrolled IDs
-#   s1c_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
+#   s1c_enrolled_ids_enr{eid}.qs2                 ← post-draw enrolled IDs
+#   s1d_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
 
@@ -113,8 +113,8 @@
 # .s1a_outputs_for_skeleton() and the worker calls .s1a_cache_name() /
 # .s1a_pre_name() with the same enrollment id.
 #
-# The names are batchit keys; the VALUES are the on-disk paths that s1b, s1c
-# and s1d later read back through .s1a_cache_path() / .s1a_pre_path(). Keeping
+# The names are batchit keys; the VALUES are the on-disk paths that s1c, s1d
+# and s1e later read back through .s1a_cache_path() / .s1a_pre_path(). Keeping
 # both in one function is what makes "declared here" and "read there" provably
 # the same string.
 
@@ -141,12 +141,12 @@
 }
 
 #' @noRd
-.s1b_enrolled_ids_path <- function(work_dir, eid) {
-  return(file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid)))
+.s1c_enrolled_ids_path <- function(work_dir, eid) {
+  return(file.path(work_dir, sprintf("s1c_enrolled_ids_enr%s.qs2", eid)))
 }
 #' @noRd
-.s1c_panel_path <- function(work_dir, eid, skel_basename) {
-  return(file.path(work_dir, sprintf("s1c_panel_enr%s_%s", eid, skel_basename)))
+.s1d_panel_path <- function(work_dir, eid, skel_basename) {
+  return(file.path(work_dir, sprintf("s1d_panel_enr%s_%s", eid, skel_basename)))
 }
 
 #' Restore enrollment counts from per-enrollment sidecar files on disk.

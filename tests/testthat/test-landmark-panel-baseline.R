@@ -18,7 +18,7 @@
 #    follow-up interval.
 # 3. `$s2_ipw()` fits the propensity score on `.tte_entry__<v>`, and not on the
 #    first follow-up interval value that now sits at `tstart == 0`.
-# 4. `.s1d_worker()` hands `impute_fn` the `.tte_entry__` names. Imputation is
+# 4. `.s1e_worker()` hands `impute_fn` the `.tte_entry__` names. Imputation is
 #    name-list driven, so the plain names would leave the snapshot unimputed.
 
 skip_if_not_installed("data.table")
@@ -298,10 +298,10 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
 # PROOF 4
 # ---------------------------------------------------------------------------
 
-# `.s1d_worker()` resolves both its destinations through
+# `.s1e_worker()` resolves both its destinations through
 # `.batch_where_to_write_output()`, so it only runs inside a real
-# `staged_writer` dispatch. The fixture therefore runs s1a, s1b and s1c for
-# real, then issues the s1d dispatch exactly as the call site does.
+# `staged_writer` dispatch. The fixture therefore runs s1a, s1c and s1d for
+# real, then issues the s1e dispatch exactly as the call site does.
 #
 # The capture has to cross a process boundary, so `impute_fn` writes the names
 # it is handed to a file and the test reads the file back.
@@ -332,7 +332,7 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
   ))
 }
 
-.lpb_s1d_fixture <- function(env = parent.frame()) {
+.lpb_s1e_fixture <- function(env = parent.frame()) {
   root <- withr::local_tempdir(.local_envir = env)
   dir_spec <- file.path(root, "spec")
   dir_tteplan <- file.path(root, "tteplan")
@@ -376,25 +376,25 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
   bn <- basename(skel_path)
 
   .lpb_s1a_run_real(skel_path, list(es), plan$spec, work_dir)
-  s1b <- swereg:::.s1b_worker(
+  s1c <- swereg:::.s1c_worker(
     enrollment_spec = es,
     spec = plan$spec,
     work_dir = work_dir,
     skel_basenames = bn
   )
   qs2::qs_save(
-    s1b$enrolled_ids,
-    swereg:::.s1b_enrolled_ids_path(work_dir, es$enrollment_id)
+    s1c$enrolled_ids,
+    swereg:::.s1c_enrolled_ids_path(work_dir, es$enrollment_id)
   )
-  s1c <- swereg:::.s1c_worker(
+  s1d <- swereg:::.s1d_worker(
     enrollment_spec = es,
     file_path = skel_path,
     spec = plan$spec,
     work_dir = work_dir
   )
   qs2::qs_save(
-    s1c$panel,
-    swereg:::.s1c_panel_path(work_dir, es$enrollment_id, bn)
+    s1d$panel,
+    swereg:::.s1d_panel_path(work_dir, es$enrollment_id, bn)
   )
 
   dir_out <- file.path(root, "out")
@@ -412,7 +412,7 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
   )
 }
 
-.lpb_s1d_dispatch <- function(fx, impute_fn, id = "s1d_entry_names") {
+.lpb_s1e_dispatch <- function(fx, impute_fn, id = "s1e_entry_names") {
   items <- list(list(
     enrollment_spec = fx$es,
     spec = fx$spec,
@@ -427,13 +427,13 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
 
   invisible(utils::capture.output(
     res <- swereg:::.batch_run_and_write(
-      target = swereg:::.batch_target("swereg", ".s1d_worker"),
+      target = swereg:::.batch_target("swereg", ".s1e_worker"),
       items = items,
       outputs = outputs,
       style = "staged_writer",
       n_workers = 1L,
       dev_path = swereg:::.swereg_dev_path(),
-      label = "s1d"
+      label = "s1e"
     ),
     type = "output"
   ))
@@ -447,7 +447,7 @@ test_that("imputation receives the entry-snapshot names", {
   skip_if_not_installed("withr")
   skip_if_not_installed("processx")
 
-  fx <- .lpb_s1d_fixture()
+  fx <- .lpb_s1e_fixture()
   conf <- fx$es$design$confounder_vars
   expect_identical(conf, "rd_age_continuous")
 
@@ -460,7 +460,7 @@ test_that("imputation receives the entry-snapshot names", {
     }
   })
 
-  .lpb_s1d_dispatch(fx, impute_fn = capture_fn)
+  .lpb_s1e_dispatch(fx, impute_fn = capture_fn)
 
   # The worker ran and reached `impute_fn`.
   expect_true(file.exists(cap_path))

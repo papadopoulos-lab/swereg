@@ -3,11 +3,11 @@
 # swereg builds a trial panel by two routes, and both must land on the same
 # qualified enrollment.
 #
-#   production : .s1a_worker_multi -> .s1b_worker -> .s1c_worker
+#   production : .s1a_worker_multi -> .s1c_worker -> .s1d_worker
 #   direct     : TTEEnrollment$new(..., ratio = )
 #
 # The production route is the one a project runs. There is no `s1a.R`,
-# `s1b.R` or `s1c.R` script: `s1.R` calls
+# `s1c.R` or `s1d.R` script: `s1.R` calls
 # `$s1_generate_enrollments_and_ipw()`, and the three sub-stages are internal.
 # This file therefore drives the internal workers, and the s1a stage runs as a
 # real subprocess through the batchit commit engine.
@@ -120,17 +120,17 @@ skip_if_not_installed("processx")
   pre_path <- swereg:::.s1a_pre_path(fx$work_dir, fx$es$enrollment_id, fx$bn)
   pre <- swereg::qs2_read(pre_path)
 
-  s1b <- swereg:::.s1b_worker(
+  s1c <- swereg:::.s1c_worker(
     enrollment_spec = fx$es,
     spec = fx$plan$spec,
     work_dir = fx$work_dir,
     skel_basenames = fx$bn
   )
   qs2::qs_save(
-    s1b$enrolled_ids,
-    swereg:::.s1b_enrolled_ids_path(fx$work_dir, fx$es$enrollment_id)
+    s1c$enrolled_ids,
+    swereg:::.s1c_enrolled_ids_path(fx$work_dir, fx$es$enrollment_id)
   )
-  s1c <- swereg:::.s1c_worker(
+  s1d <- swereg:::.s1d_worker(
     enrollment_spec = fx$es,
     file_path = fx$skel_path,
     spec = fx$plan$spec,
@@ -140,8 +140,8 @@ skip_if_not_installed("processx")
   list(
     pre_path = pre_path,
     tuples = pre$tuples,
-    enrolled_ids = s1b$enrolled_ids,
-    panel = s1c$panel$data
+    enrolled_ids = s1c$enrolled_ids,
+    panel = s1d$panel$data
   )
 }
 
@@ -207,7 +207,7 @@ test_that("the direct and production paths agree on qualified enrollment", {
   prepared <- .lpp_prepared(fx)
   direct <- .lpp_direct(fx, prepared)
 
-  # The reachability witness. The s1a subprocess wrote the file that s1b
+  # The reachability witness. The s1a subprocess wrote the file that s1c
   # reads, so the production classification really ran out of process.
   expect_true(file.exists(prod$pre_path))
   expect_gt(nrow(prod$tuples), 0L)
@@ -241,7 +241,7 @@ test_that("the direct and production paths agree on qualified enrollment", {
   )
   expect_identical(direct_int, prod_int)
 
-  # Every enrolled id the production route hands to s1c is qualified too.
+  # Every enrolled id the production route hands to s1d is qualified too.
   enrolled_int <- .lpp_periods(
     prod$enrolled_ids[intervention == TRUE],
     "id",

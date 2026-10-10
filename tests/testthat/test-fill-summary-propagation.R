@@ -1,6 +1,6 @@
-# The fill summary must survive the whole way from s1d to s3.
+# The fill summary must survive the whole way from s1e to s3.
 #
-# `.s1d_worker()` computes the table and stores it on the enrollment object.
+# `.s1e_worker()` computes the table and stores it on the enrollment object.
 # Nothing recomputes it after that. `.s2_worker()` loads that object, runs
 # `$s4_prepare_for_analysis()` on it and returns it, so the table rides along.
 # `.s3_enrollment_worker()` loads the analysis file and copies the table into
@@ -44,7 +44,7 @@ skip_if_not_installed("processx")
   ))
 }
 
-# Build a small real plan and run s1a, s1b and s1c, so the panel chunk s1d
+# Build a small real plan and run s1a, s1c and s1d, so the panel chunk s1e
 # reads is genuinely on disk. Two confounders, so the summary carries a row the
 # plant never touches.
 .fsp_fixture <- function(env = parent.frame(), confounder_vars) {
@@ -91,25 +91,25 @@ skip_if_not_installed("processx")
   bn <- basename(skel_path)
 
   .fsp_s1a_run_real(skel_path, list(es), plan$spec, work_dir)
-  s1b <- swereg:::.s1b_worker(
+  s1c <- swereg:::.s1c_worker(
     enrollment_spec = es,
     spec = plan$spec,
     work_dir = work_dir,
     skel_basenames = bn
   )
   qs2::qs_save(
-    s1b$enrolled_ids,
-    swereg:::.s1b_enrolled_ids_path(work_dir, es$enrollment_id)
+    s1c$enrolled_ids,
+    swereg:::.s1c_enrolled_ids_path(work_dir, es$enrollment_id)
   )
-  s1c <- swereg:::.s1c_worker(
+  s1d <- swereg:::.s1d_worker(
     enrollment_spec = es,
     file_path = skel_path,
     spec = plan$spec,
     work_dir = work_dir
   )
   qs2::qs_save(
-    s1c$panel,
-    swereg:::.s1c_panel_path(work_dir, es$enrollment_id, bn)
+    s1d$panel,
+    swereg:::.s1d_panel_path(work_dir, es$enrollment_id, bn)
   )
 
   dir_out <- file.path(root, "out")
@@ -127,8 +127,8 @@ skip_if_not_installed("processx")
   )
 }
 
-# The real s1d dispatch, exactly as the call site issues it.
-.fsp_s1d_dispatch <- function(fx, id = "s1d_fill_summary") {
+# The real s1e dispatch, exactly as the call site issues it.
+.fsp_s1e_dispatch <- function(fx, id = "s1e_fill_summary") {
   items <- list(list(
     enrollment_spec = fx$es,
     spec = fx$spec,
@@ -143,20 +143,20 @@ skip_if_not_installed("processx")
 
   invisible(utils::capture.output(
     res <- swereg:::.batch_run_and_write(
-      target = swereg:::.batch_target("swereg", ".s1d_worker"),
+      target = swereg:::.batch_target("swereg", ".s1e_worker"),
       items = items,
       outputs = outputs,
       style = "staged_writer",
       n_workers = 1L,
       dev_path = swereg:::.swereg_dev_path(),
-      label = "s1d"
+      label = "s1e"
     ),
     type = "output"
   ))
   res
 }
 
-# Plant one NA in the panel chunk `.s1c_worker()` wrote, so the summary holds a
+# Plant one NA in the panel chunk `.s1d_worker()` wrote, so the summary holds a
 # value the fill produced. A summary of zeros would let a stage that returned an
 # empty table pass.
 #
@@ -190,7 +190,7 @@ test_that("the fill summary reaches s2 and s3 unchanged", {
   untouched_var <- "ri_highrisk"
   fx <- .fsp_fixture(confounder_vars = c(filled_var, untouched_var))
 
-  panel_path <- swereg:::.s1c_panel_path(
+  panel_path <- swereg:::.s1d_panel_path(
     fx$work_dir,
     fx$es$enrollment_id,
     fx$skel_basenames
@@ -200,11 +200,11 @@ test_that("the fill summary reaches s2 and s3 unchanged", {
   # THE PLANT REACHED THE FILE.
   expect_false(identical(plant$md5_before, plant$md5_after))
 
-  .fsp_s1d_dispatch(fx)
+  .fsp_s1e_dispatch(fx)
   imp <- swereg:::qs2_read(fx$file_imp)
   expected <- imp$fill_summary
 
-  # The table is the one s1d produced, and it is not a table of zeros.
+  # The table is the one s1e produced, and it is not a table of zeros.
   expect_s3_class(expected, "data.table")
   expect_setequal(expected$confounder, c(filled_var, untouched_var))
   expect_identical(expected$rows_filled_n[

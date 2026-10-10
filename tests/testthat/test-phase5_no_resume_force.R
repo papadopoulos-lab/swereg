@@ -33,9 +33,9 @@ test_that("the deleted resume/cache internals are gone from the namespace", {
     ".skeleton_batch_ids",
     ".touch_sentinel",
     ".s1a_done_path",
-    ".s1b_done_path",
     ".s1c_done_path",
     ".s1d_done_path",
+    ".s1e_done_path",
     "tteplan_s1_cache_delete"
   )
   for (fn in deleted) {

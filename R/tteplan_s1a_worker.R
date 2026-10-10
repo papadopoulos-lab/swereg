@@ -26,7 +26,7 @@
 
   tuples <- .s1_eligible_tuples(skeleton, enrollment_spec$design)
 
-  # Landmark qualification. `.s1b_worker()` draws comparators from the pooled
+  # Landmark qualification. `.s1c_worker()` draws comparators from the pooled
   # tuples and never sees a person-week again, so the drop MUST happen here,
   # while the weekly source data is still in hand. Every tuple that reaches
   # `enrolled_ids <- all_tuples[...]` is therefore already observed, eligible
@@ -34,7 +34,7 @@
   # qualified comparators alone.
   #
   # The four cascade rows stack onto the exclusion cascade: same columns, same
-  # units, so `.s1b_worker()` sums them across skeletons unchanged and CONSORT
+  # units, so `.s1c_worker()` sums them across skeletons unchanged and CONSORT
   # reads one continuous table.
   qualified <- .tte_qualify_candidates(
     candidates = tuples,
@@ -61,8 +61,8 @@
     )
   ]
 
-  # Cache prepared skeleton for s1b reuse, projected to only the columns
-  # s1b actually consumes (Lever 1 -- ~10x smaller cache, ~10x faster s1b
+  # Cache prepared skeleton for s1d reuse, projected to only the columns
+  # s1d actually consumes (Lever 1 -- ~10x smaller cache, ~10x faster s1d
   # cache read).
   if (!is.null(cache_path)) {
     cache_cols <- .tte_s1_cache_columns(skeleton, enrollment_spec, spec)
@@ -79,7 +79,7 @@
 # --- internal: union of canonical columns needed across ALL enrollments ----
 #
 # Walks every enrollment_spec + the global spec to collect every column
-# that s1a + s1b for any enrollment will read. Used by .s1a_worker_multi
+# that s1a + s1d for any enrollment will read. Used by .s1a_worker_multi
 # to project the canonical immediately after qs2 deserialisation, so the
 # working skeleton is ~50-100 cols instead of ~1025 (the bulk being
 # registry diagnosis/medication flags that no enrollment touches).
@@ -158,8 +158,8 @@
 # .batch_where_to_write_output(), which answers only inside a staged_writer
 # item and errors on a name the parent did not declare. That turns a
 # parent/worker name drift into a loud child failure instead of a cache file
-# written where s1c will never look for it (which s1c would otherwise absorb
-# by silently recomputing; see .s1c_worker_impl()'s `require_cache`).
+# written where s1d will never look for it (which s1d would otherwise absorb
+# by silently recomputing; see .s1d_worker_impl()'s `require_cache`).
 #
 # Consequence: `.s1a_worker_multi()` is NOT callable outside a staged_writer
 # dispatch. It takes no `work_dir` -- there is nowhere for it to decide to
@@ -222,7 +222,7 @@
   return(invisible(NULL))
 }
 
-# --- internal: enumerate columns s1b will actually read from the cache -----
+# --- internal: enumerate columns s1d will actually read from the cache -----
 #
 # The cache must contain:
 #   - id, isoyearweek, period_id         (keying + grouping)
@@ -231,14 +231,14 @@
 #   - design$treatment_var               (Phase B treatment override)
 #   - design$outcome_vars                (Phase B `max()` aggregation)
 #   - the observation column, when the design names one. This allow-list is
-#     named, so a column absent from it is dropped before s1b and s1c ever
+#     named, so a column absent from it is dropped before s1c and s1d ever
 #     see it. Drop the observation column here and every later landmark step
 #     reads an unobserved person as an ineligible one. Nothing errors and
 #     nothing warns.
 #   - all eligible_* columns             (comparator draw + attrition)
 #   - source variables for any `computed = TRUE` confounder, because
 #     tteplan_apply_derived_confounders() runs against the cached
-#     skeleton in s1b and reads those raw sources (the OR'd
+#     skeleton in s1d and reads those raw sources (the OR'd
 #     `*_combined` column is materialised at apply time).
 .tte_s1_cache_columns <- function(skeleton, enrollment_spec, spec) {
   design <- enrollment_spec$design

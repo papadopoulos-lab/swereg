@@ -82,7 +82,7 @@ test_that("global row's n_persons equals true uniqueN, not double", {
 
 test_that("per-batch aggregation (sum by enrollment_period_id, criterion) does NOT double the global", {
   # Simulates the centralized matching aggregation in
-  # `.s1b_worker()` (R/tteplan_s1_workers.R):
+  # `.s1c_worker()` (R/tteplan_s1_workers.R):
   #   attrition_summary <- all_attrition[,
   #     .(n_persons = sum(n_persons), ...),
   #     by = .(enrollment_period_id, criterion)]

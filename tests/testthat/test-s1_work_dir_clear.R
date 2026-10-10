@@ -8,8 +8,8 @@ test_that(".clear_s1_work_dir() reports the file count and removes the directory
   work_dir <- file.path(withr::local_tempdir(), "proj003")
   dir.create(file.path(work_dir, "sub"), recursive = TRUE)
   writeLines("a", file.path(work_dir, "s1a_pre_enr1.qs2"))
-  writeLines("b", file.path(work_dir, "s1b_enrolled_ids_enr1.qs2"))
-  writeLines("c", file.path(work_dir, "sub", "s1c_panel_enr1.qs2"))
+  writeLines("b", file.path(work_dir, "s1c_enrolled_ids_enr1.qs2"))
+  writeLines("c", file.path(work_dir, "sub", "s1d_panel_enr1.qs2"))
 
   out <- utils::capture.output(n <- .clear_s1_work_dir(work_dir))
 

@@ -1,3 +1,9 @@
+# swereg 27.3.0
+
+## Internal
+
+* **The s1 sub-steps s1b, s1c and s1d are renamed s1c, s1d and s1e (#52).** The name s1b is free for the step that #52 adds before the comparator draw. The log labels, the batchit item ids and the work-directory file names use the new names. s1 clears a leftover work directory with the old names at its start.
+
 # swereg 27.2.0
 
 ## New features

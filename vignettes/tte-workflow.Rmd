@@ -438,7 +438,7 @@ enrollment <- TTEEnrollment$new(
 # from that point on, before any numbered step has run.
 enrollment$enrollment_stage   # "enrolled"
 
-# s1d hands the imputation the `.tte_entry__` snapshot names, not
+# s1e hands the imputation the `.tte_entry__` snapshot names, not
 # the plain confounder names.
 enrollment$s1_impute_confounders(confounder_vars = entry_confounder_cols)
 enrollment$s1b_fill_followup_confounders()

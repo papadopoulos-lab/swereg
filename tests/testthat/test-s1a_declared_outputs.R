@@ -6,9 +6,9 @@
 # `work_dir` argument and streamed them out as it went, so a crash left a
 # partial set behind and nothing downstream could tell.
 #
-# THE RISK THIS FILE EXISTS FOR is not the crash, it is the DRIFT. s1c reads
+# THE RISK THIS FILE EXISTS FOR is not the crash, it is the DRIFT. s1d reads
 # the s1a cache back through `.s1a_cache_path()`; if the path s1a writes and
-# the path s1c reads ever disagree by one character, `.s1c_worker_impl()` used
+# the path s1d reads ever disagree by one character, `.s1d_worker_impl()` used
 # to take its recompute fallback -- no error, no warning, ~10x slower, and a
 # DIFFERENT column set in the committed panel. A silent production-output
 # change hiding behind a performance optimisation. Two things close it, and
@@ -17,7 +17,7 @@
 #   1. the parent declares every path (`.s1a_outputs_for_skeleton()`) and the
 #      worker resolves each by NAME (`.batch_where_to_write_output()`), so a
 #      name drift is a loud child failure; and
-#   2. `.s1c_worker()` passes `require_cache = TRUE`, so a missing cache stops
+#   2. `.s1d_worker()` passes `require_cache = TRUE`, so a missing cache stops
 #      the item instead of recomputing.
 #
 # A captured-dispatch test alone CANNOT prove point 1: capturing the parent's
@@ -269,7 +269,7 @@ test_that("the s1a call site declares 2 x n_enrollments outputs per skeleton", {
   expect_identical(anyDuplicated(unlist(unname(outputs), use.names = FALSE)), 0L)
 
   # THE DRIFT ASSERTION: what the PARENT declares must be, character for
-  # character, what .s1c_worker() later recomputes with .s1a_cache_path() in
+  # character, what .s1d_worker() later recomputes with .s1a_cache_path() in
   # order to read the cache back. This is the pairing whose failure used to be
   # silent.
   for (j in seq_along(fx$skel_basenames)) {
@@ -349,7 +349,7 @@ test_that("a PARENT-ONLY output-name drift fails the real dispatch loudly", {
   expect_length(list.files(fx$work_dir), 0L)
 })
 
-test_that(".s1c_worker requires the s1a cache: a missing one is loud, not silent", {
+test_that(".s1d_worker requires the s1a cache: a missing one is loud, not silent", {
   skip_on_cran()
   fx <- s1a_fixture(n_skel = 1L)
   bn <- fx$skel_basenames[1L]
@@ -357,21 +357,21 @@ test_that(".s1c_worker requires the s1a cache: a missing one is loud, not silent
   eid <- es$enrollment_id
 
   s1a_dispatch(fx, j = 1L)
-  s1b <- swereg:::.s1b_worker(
+  s1c <- swereg:::.s1c_worker(
     enrollment_spec = es,
     spec = fx$spec,
     work_dir = fx$work_dir,
     skel_basenames = bn
   )
   qs2::qs_save(
-    s1b$enrolled_ids,
-    swereg:::.s1b_enrolled_ids_path(fx$work_dir, eid)
+    s1c$enrolled_ids,
+    swereg:::.s1c_enrolled_ids_path(fx$work_dir, eid)
   )
 
   # 1. With the cache present the production worker is happy.
   cache_path <- swereg:::.s1a_cache_path(fx$work_dir, eid, bn)
   expect_true(file.exists(cache_path))
-  ok <- swereg:::.s1c_worker(
+  ok <- swereg:::.s1d_worker(
     enrollment_spec = es,
     file_path = fx$skel_paths[1L],
     spec = fx$spec,
@@ -379,12 +379,12 @@ test_that(".s1c_worker requires the s1a cache: a missing one is loud, not silent
   )
   expect_s3_class(ok$panel, "TTEEnrollment")
 
-  # 2. Remove the cache -- i.e. simulate the drift, where s1c looks somewhere
+  # 2. Remove the cache -- i.e. simulate the drift, where s1d looks somewhere
   #    s1a did not write. The PRODUCTION path must stop, not recompute.
   unlink(cache_path)
   expect_false(file.exists(cache_path))
   err <- tryCatch(
-    swereg:::.s1c_worker(
+    swereg:::.s1d_worker(
       enrollment_spec = es,
       file_path = fx$skel_paths[1L],
       spec = fx$spec,
@@ -399,11 +399,11 @@ test_that(".s1c_worker requires the s1a cache: a missing one is loud, not silent
   # 3. A NULL cache_path is refused the same way -- the guard is on the branch
   #    taken, not merely on file.exists().
   err_null <- tryCatch(
-    swereg:::.s1c_worker_impl(
+    swereg:::.s1d_worker_impl(
       es,
       fx$skel_paths[1L],
       fx$spec,
-      s1b$enrolled_ids,
+      s1c$enrolled_ids,
       cache_path = NULL,
       require_cache = TRUE
     ),
@@ -414,12 +414,12 @@ test_that(".s1c_worker requires the s1a cache: a missing one is loud, not silent
 
   # 4. The fallback SURVIVES for dev/direct callers: require_cache is FALSE by
   #    default and still recomputes from the skeleton file.
-  expect_identical(formals(swereg:::.s1c_worker_impl)$require_cache, FALSE)
-  recomputed <- swereg:::.s1c_worker_impl(
+  expect_identical(formals(swereg:::.s1d_worker_impl)$require_cache, FALSE)
+  recomputed <- swereg:::.s1d_worker_impl(
     es,
     fx$skel_paths[1L],
     fx$spec,
-    s1b$enrolled_ids,
+    s1c$enrolled_ids,
     cache_path = cache_path
   )
   expect_s3_class(recomputed, "TTEEnrollment")

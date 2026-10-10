@@ -1,8 +1,8 @@
-# --- s1c: Panel build worker (formerly .s1b_worker) ------------------------
+# --- s1d: Panel build worker ----------------------------------------------
 
-#' Per-(enrollment, skeleton) panel build worker for sub-step s1c.
+#' Per-(enrollment, skeleton) panel build worker for sub-step s1d.
 #'
-#' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
+#' Reads the s1a cache, restricts to enrolled persons (from s1c), derives
 #' confounders, and expands to the trial-week panel via `TTEEnrollment$new()`.
 #' Dispatched via .batch_run_and_write(style = "return") in a fresh R session:
 #' the worker RETURNS the panel and writes nothing itself, and batchit commits
@@ -13,29 +13,29 @@
 #' of a silent recompute. The recompute fallback produces a different column
 #' set and runs roughly 10x slower, and it used to hide a parent/worker path
 #' drift completely -- no error, no warning, changed production output. A
-#' standalone partial s1c run, or an external `swereg:::.s1c_worker()` caller
+#' standalone partial s1d run, or an external `swereg:::.s1d_worker()` caller
 #' that has not run s1a first, will now fail where it previously recomputed.
-#' Call `.s1c_worker_impl()` directly with `require_cache = FALSE` (the
+#' Call `.s1d_worker_impl()` directly with `require_cache = FALSE` (the
 #' default) if you want the old recomputing behaviour.
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file. Read only on the
 #'   `require_cache = FALSE` recompute fallback, which this worker never
-#'   takes; kept so `.s1c_worker_impl()` has it for dev callers.
+#'   takes; kept so `.s1d_worker_impl()` has it for dev callers.
 #' @param spec Parsed study spec.
 #' @param work_dir Per-project s1 work directory (`.s1_work_dir()`). An INPUT
 #'   here, not an output-path source: the worker reads the s1a cache and the
-#'   s1b enrolled-ids file from it.
+#'   s1c enrolled-ids file from it.
 #' @return `list(panel = <TTEEnrollment>)`. Writes nothing.
 #' @noRd
-.s1c_worker <- function(enrollment_spec, file_path, spec, work_dir) {
+.s1d_worker <- function(enrollment_spec, file_path, spec, work_dir) {
   eid <- enrollment_spec$enrollment_id
   skel_basename <- basename(file_path)
   cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
-  enrolled_ids_path <- .s1b_enrolled_ids_path(work_dir, eid)
+  enrolled_ids_path <- .s1c_enrolled_ids_path(work_dir, eid)
 
   enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = 1L)
-  enrollment <- .s1c_worker_impl(
+  enrollment <- .s1d_worker_impl(
     enrollment_spec,
     file_path,
     spec,
@@ -46,13 +46,13 @@
   return(list(panel = enrollment))
 }
 
-# Core panel-build logic, kept separate from .s1c_worker() so dev/verify
+# Core panel-build logic, kept separate from .s1d_worker() so dev/verify
 # scripts and tests can drive it directly with in-memory enrolled_ids
 # instead of having to materialise a work_dir.
 #
 # `require_cache` is the guard against a SILENT production-output change. s1a
 # declares its cache path in the parent and writes it by name in the worker;
-# .s1c_worker() recomputes that same path here to read it back. If those two
+# .s1d_worker() recomputes that same path here to read it back. If those two
 # ever drift by one character the old code just took the `else` branch --
 # ~10x slower, a different column set, no error and no warning. With
 # require_cache = TRUE the branch decision is made ONCE (`use_cache` below,
@@ -62,7 +62,7 @@
 # It stays FALSE by default: dev/verify scripts and direct callers that never
 # ran s1a legitimately want the recompute.
 #' @noRd
-.s1c_worker_impl <- function(
+.s1d_worker_impl <- function(
   enrollment_spec,
   file_path,
   spec,
@@ -80,10 +80,10 @@
   use_cache <- !is.null(cache_path) && file.exists(cache_path)
   if (isTRUE(require_cache) && !use_cache) {
     stop(
-      ".s1c_worker_impl(): the s1a skeleton cache is required but absent: ",
+      ".s1d_worker_impl(): the s1a skeleton cache is required but absent: ",
       if (is.null(cache_path)) "<NULL>" else cache_path,
       "\nThis means s1a never committed the cache this (enrollment, skeleton) ",
-      "pair needs, or the path s1c derives no longer matches the one s1a ",
+      "pair needs, or the path s1d derives no longer matches the one s1a ",
       "declared. Recomputing instead would succeed silently with a DIFFERENT ",
       "column set at ~10x the cost, so it is refused on the production path.",
       call. = FALSE
@@ -153,7 +153,7 @@
 }
 
 
-# --- s1b: Draw worker (single subprocess per enrollment) -------------------
+# --- s1c: Draw worker (single subprocess per enrollment) -------------------
 
 #' Draw sub-step: pool per-skeleton scout outputs for one enrollment, then
 #' draw comparators at the comparator-to-intervention ratio.
@@ -162,7 +162,7 @@
 #' tuples + attrition, samples comparators per `enrollment_period_id`, and
 #' RETURNS the two
 #' declared outputs:
-#'   - `enrolled_ids` (post-draw enrolled IDs for s1c)
+#'   - `enrolled_ids` (post-draw enrolled IDs for s1d)
 #'   - `counts`       (`matching` + `attrition` sidecar the master reads back)
 #'
 #' Runs in a fresh R session via .batch_run_and_write() with `n_workers = 1L`
@@ -180,7 +180,7 @@
 #' @return `list(enrolled_ids = , counts = )`, matching the declared output
 #'   names at the call site.
 #' @noRd
-.s1b_worker <- function(
+.s1c_worker <- function(
   enrollment_spec,
   spec,
   work_dir,
@@ -203,7 +203,7 @@
   missing_pre <- !file.exists(pre_paths)
   if (any(missing_pre)) {
     stop(sprintf(
-      "s1b: %d/%d pre files missing for enrollment '%s'. First missing: %s",
+      "s1c: %d/%d pre files missing for enrollment '%s'. First missing: %s",
       sum(missing_pre),
       length(pre_paths),
       eid,
@@ -281,7 +281,7 @@
 }
 
 
-# --- s1d: Post worker (single subprocess per enrollment) -------------------
+# --- s1e: Post worker (single subprocess per enrollment) -------------------
 
 #' Post sub-step: pool per-skeleton panel chunks for one enrollment, impute,
 #' compute IPW, truncate, and save the final `file_raw` + `file_imp`.
@@ -318,7 +318,7 @@
 #' @param stabilize Logical, stabilize IPW.
 #' @return Invisible NULL.
 #' @noRd
-.s1d_worker <- function(
+.s1e_worker <- function(
   enrollment_spec,
   spec,
   work_dir,
@@ -332,14 +332,14 @@
   panel_paths <- vapply(
     skel_basenames,
     function(bn) {
-      return(.s1c_panel_path(work_dir, eid, bn))
+      return(.s1d_panel_path(work_dir, eid, bn))
     },
     character(1)
   )
   missing_panels <- !file.exists(panel_paths)
   if (any(missing_panels)) {
     stop(sprintf(
-      "s1d: %d/%d panel files missing for enrollment '%s'. First missing: %s",
+      "s1e: %d/%d panel files missing for enrollment '%s'. First missing: %s",
       sum(missing_panels),
       length(panel_paths),
       eid,

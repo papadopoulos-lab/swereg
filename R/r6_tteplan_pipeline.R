@@ -144,7 +144,7 @@ TTEPlan$set(
     }
     # All-subprocess s1 dispatcher. The main R process holds only paths,
     # status flags, and progressors -- never a data.table. Four sub-steps
-    # (s1a..s1d) communicate via files in
+    # (s1a, s1c, s1d, s1e) communicate via files in
     #   {study$data_meta_dir}/s1_work/{project_prefix}/
     # or, when `work_root` is given,
     #   {work_root}/s1_work_{project_prefix}/
@@ -155,19 +155,19 @@ TTEPlan$set(
     # Sub-step    Mode                                 Target
     # --------    ----                                 ------
     # s1a         parallel x skeleton                  .s1a_worker_multi()
-    # s1b         single x enrollment                  .s1b_worker()
-    # s1c         parallel x (enrollment x skeleton)   .s1c_worker()
-    # s1d         single x enrollment                  .s1d_worker()
+    # s1c         single x enrollment                  .s1c_worker()
+    # s1d         parallel x (enrollment x skeleton)   .s1d_worker()
+    # s1e         single x enrollment                  .s1e_worker()
     # All four sub-steps dispatch through .batch_run_and_write(), which
     # commits each item's declared output paths atomically -- all of them,
-    # or none. s1b/s1c use style = "return" (the worker returns the objects,
-    # batchit serializes them). s1a and s1d use style = "staged_writer" (the
+    # or none. s1c/s1d use style = "return" (the worker returns the objects,
+    # batchit serializes them). s1a and s1e use style = "staged_writer" (the
     # worker writes each output itself via .batch_where_to_write_output()):
     #   * s1a because one item writes 2 x n_enrollments files streamed
     #     inside a loop, and holding them all to return at the end would put
     #     every (tuples, attrition) chunk in RAM at once; and
-    #   * s1d because its two outputs are two STATES of one by-reference
-    #     object and cannot be returned together -- see the s1d dispatch
+    #   * s1e because its two outputs are two STATES of one by-reference
+    #     object and cannot be returned together -- see the s1e dispatch
     #     below.
     # In both staged_writer cases the parent declares every path and the
     # worker names outputs only, so a parent/worker drift is a loud child
@@ -318,13 +318,13 @@ TTEPlan$set(
     rm(s1a_items, s1a_outputs)
 
     # ====================================================================
-    # s1b -- per enrollment (single subworker each, run sequentially)
+    # s1c -- per enrollment (single subworker each, run sequentially)
     # ====================================================================
     cat(sprintf(
-      "\n[s1b] Draw comparators (per enrollment, single subworker x %d)\n",
+      "\n[s1c] Draw comparators (per enrollment, single subworker x %d)\n",
       n_enr
     ))
-    p_s1b <- progressr::progressor(steps = n_enr)
+    p_s1c <- progressr::progressor(steps = n_enr)
     for (i in seq_len(n_enr)) {
       eid <- enrollment_ids[i]
       counts_path <- .enrollment_counts_path(
@@ -332,35 +332,35 @@ TTEPlan$set(
         self$project_prefix,
         eid
       )
-      id <- sprintf("s1b_%s", eid)
-      s1b_items <- list(list(
+      id <- sprintf("s1c_%s", eid)
+      s1c_items <- list(list(
         enrollment_spec = all_es[[i]],
         spec = spec,
         work_dir = work_dir,
         skel_basenames = skel_basenames
       ))
-      names(s1b_items) <- id
+      names(s1c_items) <- id
       # The two objects the worker's return value commits to. They live in
       # DIFFERENT directories -- enrolled_ids in work_dir (transient input
-      # to s1c), counts in output_dir (the sidecar the master reads back
+      # to s1d), counts in output_dir (the sidecar the master reads back
       # below) -- which batchit's atomic commit handles as one set. The
       # declared counts path is built from `out_abs`, not `output_dir`,
       # because batchit rejects a relative declared output; it names the
       # same file the read-back below opens via `counts_path`.
-      s1b_outputs <- list(c(
-        enrolled_ids = .s1b_enrolled_ids_path(work_dir, eid),
+      s1c_outputs <- list(c(
+        enrolled_ids = .s1c_enrolled_ids_path(work_dir, eid),
         counts = .enrollment_counts_path(out_abs, self$project_prefix, eid)
       ))
-      names(s1b_outputs) <- id
+      names(s1c_outputs) <- id
       .batch_run_and_write(
-        target = .batch_target("swereg", ".s1b_worker"),
-        items = s1b_items,
-        outputs = s1b_outputs,
+        target = .batch_target("swereg", ".s1c_worker"),
+        items = s1c_items,
+        outputs = s1c_outputs,
         style = "return",
         n_workers = 1L,
         dev_path = swereg_dev_path,
-        p = p_s1b,
-        label = "s1b"
+        p = p_s1c,
+        label = "s1c"
       )
       # Surface the comparator-draw and attrition counts to the plan object.
       if (file.exists(counts_path)) {
@@ -369,24 +369,24 @@ TTEPlan$set(
     }
 
     # ====================================================================
-    # s1c -- per (enrollment, skeleton) (parallel)
+    # s1d -- per (enrollment, skeleton) (parallel)
     # ====================================================================
     cat(sprintf(
-      "\n[s1c] Build panels (per enrollment x per skeleton, parallel x %d)\n",
+      "\n[s1d] Build panels (per enrollment x per skeleton, parallel x %d)\n",
       n_workers
     ))
-    s1c_steps <- n_enr * length(files)
-    s1c_items <- list()
-    s1c_outputs <- list()
+    s1d_steps <- n_enr * length(files)
+    s1d_items <- list()
+    s1d_outputs <- list()
     for (i in seq_len(n_enr)) {
       eid <- enrollment_ids[i]
       es <- all_es[[i]]
       for (j in seq_along(files)) {
-        # Named at construction: the id ("s1c_<enrollment>__<skeleton>") is
+        # Named at construction: the id ("s1d_<enrollment>__<skeleton>") is
         # what a failure among 39k panel builds reports, so it must say
         # exactly which (enrollment, skeleton) pair died, and which stage.
-        id <- sprintf("s1c_%s__%s", eid, skel_basenames[j])
-        s1c_items[[id]] <- list(
+        id <- sprintf("s1d_%s__%s", eid, skel_basenames[j])
+        s1d_items[[id]] <- list(
           enrollment_spec = es,
           file_path = files[j],
           spec = spec,
@@ -394,38 +394,38 @@ TTEPlan$set(
         )
         # The panel chunk the worker's return value commits to. `work_dir` is
         # absolute (.s1_work_dir()), which batchit's atomic commit requires.
-        s1c_outputs[[id]] <- c(
-          panel = .s1c_panel_path(work_dir, eid, skel_basenames[j])
+        s1d_outputs[[id]] <- c(
+          panel = .s1d_panel_path(work_dir, eid, skel_basenames[j])
         )
       }
     }
-    p_s1c <- progressr::progressor(steps = s1c_steps)
-    if (length(s1c_items) > 0L) {
+    p_s1d <- progressr::progressor(steps = s1d_steps)
+    if (length(s1d_items) > 0L) {
       .batch_run_and_write(
-        target = .batch_target("swereg", ".s1c_worker"),
-        items = s1c_items,
-        outputs = s1c_outputs,
+        target = .batch_target("swereg", ".s1d_worker"),
+        items = s1d_items,
+        outputs = s1d_outputs,
         style = "return",
         n_workers = n_workers,
         dev_path = swereg_dev_path,
-        p = p_s1c,
-        label = "s1c"
+        p = p_s1d,
+        label = "s1d"
       )
     }
-    rm(s1c_items, s1c_outputs)
+    rm(s1d_items, s1d_outputs)
 
     # ====================================================================
-    # s1d -- per enrollment (single subworker each, run sequentially)
+    # s1e -- per enrollment (single subworker each, run sequentially)
     # ====================================================================
     cat(sprintf(
-      "\n[s1d] Combine + impute + IPW + save (per enrollment, single subworker x %d)\n",
+      "\n[s1e] Combine + impute + IPW + save (per enrollment, single subworker x %d)\n",
       n_enr
     ))
-    p_s1d <- progressr::progressor(steps = n_enr)
+    p_s1e <- progressr::progressor(steps = n_enr)
     for (i in seq_len(n_enr)) {
       eid <- enrollment_ids[i]
-      id <- sprintf("s1d_%s", eid)
-      s1d_items <- list(list(
+      id <- sprintf("s1e_%s", eid)
+      s1e_items <- list(list(
         enrollment_spec = all_es[[i]],
         spec = spec,
         work_dir = work_dir,
@@ -433,7 +433,7 @@ TTEPlan$set(
         impute_fn = impute_fn,
         stabilize = stabilize
       ))
-      names(s1d_items) <- id
+      names(s1e_items) <- id
       # Declared-output commit, `staged_writer` style. The worker writes
       # each of its two outputs to .batch_where_to_write_output("raw" /
       # "imp") -- staging paths in the final directories -- and batchit
@@ -452,20 +452,20 @@ TTEPlan$set(
       # instead of the raw one. `$clone(deep = TRUE)` does not rescue it
       # either: TTEEnrollment defines no `deep_clone` private method, so R6
       # copies the binding, not the data.table.
-      s1d_outputs <- list(c(
+      s1e_outputs <- list(c(
         raw = file.path(out_abs, ett_loop1$file_raw[i]),
         imp = file.path(out_abs, ett_loop1$file_imp[i])
       ))
-      names(s1d_outputs) <- id
+      names(s1e_outputs) <- id
       .batch_run_and_write(
-        target = .batch_target("swereg", ".s1d_worker"),
-        items = s1d_items,
-        outputs = s1d_outputs,
+        target = .batch_target("swereg", ".s1e_worker"),
+        items = s1e_items,
+        outputs = s1e_outputs,
         style = "staged_writer",
         n_workers = 1L,
         dev_path = swereg_dev_path,
-        p = p_s1d,
-        label = "s1d"
+        p = p_s1e,
+        label = "s1e"
       )
     }
 

@@ -1,11 +1,11 @@
-# s1d's two outputs are ALL-OR-NONE.
+# s1e's two outputs are ALL-OR-NONE.
 #
-# .s1d_worker writes `file_raw`, then spends minutes on imputation, IPW
+# .s1e_worker writes `file_raw`, then spends minutes on imputation, IPW
 # estimation and weight truncation over a multi-GB panel, then writes
 # `file_imp`. Before this, a crash in that window committed `file_raw` and
 # left `file_imp` absent, and nothing downstream could tell.
 #
-# The fix moves s1d onto batchit's declared-output commit engine with
+# The fix moves s1e onto batchit's declared-output commit engine with
 # `style = "staged_writer"`: the worker resolves each destination with
 # `.batch_where_to_write_output("raw" / "imp")` -- attempt-scoped staging
 # files in the FINAL directories -- and batchit renames both into place only
@@ -60,15 +60,15 @@ s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
   ))
 }
 
-# Build a small real plan and run s1a + s1b + s1c in-process, so the s1c panel
-# chunk s1d reads is genuinely on disk. Returns everything the dispatch needs
+# Build a small real plan and run s1a + s1c + s1d in-process, so the s1d panel
+# chunk s1e reads is genuinely on disk. Returns everything the dispatch needs
 # plus the two FINAL output paths (deliberately outside the plan's own naming,
 # so nothing but this test can write them).
 #
 # `confounder_vars` defaults to the single confounder the first three tests
 # use. The fill test passes two, so the summary carries a row the plant does
 # not touch.
-s1d_fixture <- function(
+s1e_fixture <- function(
   env = parent.frame(),
   confounder_vars = "rd_age_continuous"
 ) {
@@ -93,7 +93,7 @@ s1d_fixture <- function(
   qs2::qs_save(sk, skel_path)
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
-    "s1datomic",
+    "s1eatomic",
     confounder_vars
   )
 
@@ -115,27 +115,27 @@ s1d_fixture <- function(
   bn <- basename(skel_path)
 
   s1a_run_real(skel_path, list(es), plan$spec, work_dir)
-  # s1b and s1c RETURN their outputs; batchit commits them in a real run, so
+  # s1c and s1d RETURN their outputs; batchit commits them in a real run, so
   # the fixture writes them itself.
-  s1b <- swereg:::.s1b_worker(
+  s1c <- swereg:::.s1c_worker(
     enrollment_spec = es,
     spec = plan$spec,
     work_dir = work_dir,
     skel_basenames = bn
   )
   qs2::qs_save(
-    s1b$enrolled_ids,
-    swereg:::.s1b_enrolled_ids_path(work_dir, es$enrollment_id)
+    s1c$enrolled_ids,
+    swereg:::.s1c_enrolled_ids_path(work_dir, es$enrollment_id)
   )
-  s1c <- swereg:::.s1c_worker(
+  s1d <- swereg:::.s1d_worker(
     enrollment_spec = es,
     file_path = skel_path,
     spec = plan$spec,
     work_dir = work_dir
   )
   qs2::qs_save(
-    s1c$panel,
-    swereg:::.s1c_panel_path(work_dir, es$enrollment_id, bn)
+    s1d$panel,
+    swereg:::.s1d_panel_path(work_dir, es$enrollment_id, bn)
   )
 
   # A dedicated output directory: the preservation assertions must not be able
@@ -155,8 +155,8 @@ s1d_fixture <- function(
   )
 }
 
-# The REAL dispatch, exactly as the s1d call site issues it.
-s1d_dispatch <- function(fx, impute_fn = NULL, id = "s1d_probe") {
+# The REAL dispatch, exactly as the s1e call site issues it.
+s1e_dispatch <- function(fx, impute_fn = NULL, id = "s1e_probe") {
   items <- list(list(
     enrollment_spec = fx$es,
     spec = fx$spec,
@@ -203,21 +203,21 @@ s1d_dispatch <- function(fx, impute_fn = NULL, id = "s1d_probe") {
 
   invisible(utils::capture.output(
     res <- swereg:::.batch_run_and_write(
-      target = swereg:::.batch_target("swereg", ".s1d_worker"),
+      target = swereg:::.batch_target("swereg", ".s1e_worker"),
       items = items,
       outputs = outputs,
       style = "staged_writer",
       n_workers = 1L,
       dev_path = dev_path,
-      label = "s1d"
+      label = "s1e"
     ),
     type = "output"
   ))
   res
 }
 
-test_that(".s1d_worker is handed no output paths", {
-  need <- names(formals(swereg:::.s1d_worker))
+test_that(".s1e_worker is handed no output paths", {
+  need <- names(formals(swereg:::.s1e_worker))
   expect_setequal(
     need,
     c(
@@ -233,23 +233,23 @@ test_that(".s1d_worker is handed no output paths", {
   expect_false("file_imp_path" %in% need)
 })
 
-test_that("a REAL s1d dispatch commits both outputs, and file_raw is the RAW panel", {
+test_that("a REAL s1e dispatch commits both outputs, and file_raw is the RAW panel", {
   skip_on_cran()
-  fx <- s1d_fixture()
+  fx <- s1e_fixture()
 
   expect_false(file.exists(fx$file_raw))
   expect_false(file.exists(fx$file_imp))
 
-  res <- s1d_dispatch(fx)
+  res <- s1e_dispatch(fx)
 
   expect_true(file.exists(fx$file_raw))
   expect_true(file.exists(fx$file_imp))
   expect_identical(
-    unname(res[["s1d_probe"]]$committed[["raw"]]),
+    unname(res[["s1e_probe"]]$committed[["raw"]]),
     fx$file_raw
   )
   expect_identical(
-    unname(res[["s1d_probe"]]$committed[["imp"]]),
+    unname(res[["s1e_probe"]]$committed[["imp"]]),
     fx$file_imp
   )
 
@@ -286,7 +286,7 @@ test_that("a REAL s1d dispatch commits both outputs, and file_raw is the RAW pan
 
 test_that("a failure BETWEEN the two writes leaves both pre-existing finals byte-identical", {
   skip_on_cran()
-  fx <- s1d_fixture()
+  fx <- s1e_fixture()
 
   # The production RERUN case: both finals already exist. Absence-only would
   # be the empty-directory case and is strictly weaker.
@@ -309,7 +309,7 @@ test_that("a failure BETWEEN the two writes leaves both pre-existing finals byte
     }
   })
 
-  err <- tryCatch(s1d_dispatch(fx, impute_fn = boom), error = function(e) e)
+  err <- tryCatch(s1e_dispatch(fx, impute_fn = boom), error = function(e) e)
 
   # 1. The worker actually RAN and failed inside the intended window. Without
   #    this the test could pass for the wrong reason: an item rejected at
@@ -357,14 +357,14 @@ test_that("a failure BETWEEN the two writes leaves both pre-existing finals byte
   )
 })
 
-test_that("the s1d call site dispatches via run_and_write(style = 'staged_writer')", {
-  fx <- s1d_fixture()
+test_that("the s1e call site dispatches via run_and_write(style = 'staged_writer')", {
+  fx <- s1e_fixture()
 
   cap <- new.env(parent = emptyenv())
   testthat::local_mocked_bindings(
     .batch_run = function(...) invisible(NULL),
     .batch_run_and_write = function(target, ...) {
-      if (!identical(target$symbol, ".s1d_worker")) {
+      if (!identical(target$symbol, ".s1e_worker")) {
         return(invisible(NULL))
       }
       cap$target <- target
@@ -385,23 +385,23 @@ test_that("the s1d call site dispatches via run_and_write(style = 'staged_writer
   )
 
   a <- cap$args
-  expect_identical(cap$target$symbol, ".s1d_worker")
+  expect_identical(cap$target$symbol, ".s1e_worker")
   expect_identical(cap$target$package, "swereg")
   expect_identical(a$style, "staged_writer")
-  # s1d dispatches inside a per-enrollment loop: one item per call, one
+  # s1e dispatches inside a per-enrollment loop: one item per call, one
   # subworker.
   expect_identical(a$n_workers, 1L)
   expect_identical(a$dev_path, "/tmp/fake_dev_path")
-  expect_identical(a$label, "s1d")
+  expect_identical(a$label, "s1e")
   expect_true(is.function(a$p))
 
   expect_length(a$items, 1L)
   expect_length(a$outputs, 1L)
   expect_identical(names(a$outputs), names(a$items))
-  expect_true(all(grepl("^s1d_", names(a$items))))
+  expect_true(all(grepl("^s1e_", names(a$items))))
 
   # No output path may reach the worker as an argument.
-  expect_setequal(names(a$items[[1L]]), names(formals(swereg:::.s1d_worker)))
+  expect_setequal(names(a$items[[1L]]), names(formals(swereg:::.s1e_worker)))
   expect_false("file_raw_path" %in% names(a$items[[1L]]))
   expect_false("file_imp_path" %in% names(a$items[[1L]]))
 
@@ -416,20 +416,20 @@ test_that("the s1d call site dispatches via run_and_write(style = 'staged_writer
 
 # The two weight columns `$s2_ipw()` writes, keyed by person-trial and interval
 # start. Two dispatches are comparable only in that order.
-s1d_weight_key <- function(x) {
+s1e_weight_key <- function(x) {
   d <- data.table::copy(x$data)
   data.table::setorderv(d, c("enrollment_person_trial_id", "tstart"))
   d[, c("enrollment_person_trial_id", "tstart", "ps", "ipw"), with = FALSE]
 }
 
-# Plant ONE NA in the chunk panel `.s1c_worker()` wrote. The row is the second
+# Plant ONE NA in the chunk panel `.s1d_worker()` wrote. The row is the second
 # interval of the first person-trial, in (enrollment_person_trial_id, tstart)
 # order. An observed value precedes it, so the carry has a value to carry.
 #
 # It digests the file either side of the write. A plant that fails to apply
 # looks exactly like a passing check, so the caller compares the two digests
 # before it believes any later assertion.
-s1d_plant_na <- function(panel_path, conf) {
+s1e_plant_na <- function(panel_path, conf) {
   md5_before <- unname(tools::md5sum(panel_path))
   panel <- qs2::qs_read(panel_path)
   d <- panel$data
@@ -450,20 +450,20 @@ s1d_plant_na <- function(panel_path, conf) {
   ))
 }
 
-test_that("s1d fills the follow-up confounders and stores what the fill supplied", {
+test_that("s1e fills the follow-up confounders and stores what the fill supplied", {
   skip_on_cran()
   # TWO confounders. The plant touches one, so the summary MUST report the
   # other as untouched, and a fill that ran over the wrong column shows up.
   filled_var <- "rd_age_continuous"
   untouched_var <- "ri_highrisk"
-  fx <- s1d_fixture(confounder_vars = c(filled_var, untouched_var))
+  fx <- s1e_fixture(confounder_vars = c(filled_var, untouched_var))
   expect_setequal(fx$es$design$confounder_vars, c(filled_var, untouched_var))
 
   # 1. The unplanted run. It is the reference for the weights, and it shows
   #    the fill runs even when there is nothing to fill.
-  s1d_dispatch(fx, id = "s1d_unplanted")
+  s1e_dispatch(fx, id = "s1e_unplanted")
   imp_unplanted <- swereg:::qs2_read(fx$file_imp)
-  weights_unplanted <- s1d_weight_key(imp_unplanted)
+  weights_unplanted <- s1e_weight_key(imp_unplanted)
   expect_true("fill_followup" %in% imp_unplanted$steps_completed)
   expect_false(anyNA(imp_unplanted$data[[filled_var]]))
   expect_false(anyNA(imp_unplanted$data[[untouched_var]]))
@@ -472,14 +472,14 @@ test_that("s1d fills the follow-up confounders and stores what the fill supplied
     c(0L, 0L)
   )
 
-  # 2. Plant ONE NA in the single chunk panel s1c wrote for this enrollment.
-  panel_path <- swereg:::.s1c_panel_path(
+  # 2. Plant ONE NA in the single chunk panel s1d wrote for this enrollment.
+  panel_path <- swereg:::.s1d_panel_path(
     fx$work_dir,
     fx$es$enrollment_id,
     fx$skel_basenames
   )
-  expect_identical(basename(panel_path), "s1c_panel_enr01_skel_a.qs2")
-  plant <- s1d_plant_na(panel_path, filled_var)
+  expect_identical(basename(panel_path), "s1d_panel_enr01_skel_a.qs2")
+  plant <- s1e_plant_na(panel_path, filled_var)
   expect_gt(plant$plant_rows_n, 1L)
   expect_false(is.na(plant$observed_before))
 
@@ -490,7 +490,7 @@ test_that("s1d fills the follow-up confounders and stores what the fill supplied
   expect_identical(sum(is.na(planted[[untouched_var]])), 0L)
 
   # 3. The planted run, through the same real dispatch.
-  s1d_dispatch(fx, id = "s1d_planted")
+  s1e_dispatch(fx, id = "s1e_planted")
   raw <- swereg:::qs2_read(fx$file_raw)
   imp <- swereg:::qs2_read(fx$file_imp)
 
@@ -527,5 +527,5 @@ test_that("s1d fills the follow-up confounders and stores what the fill supplied
 
   # The fill moves no weight. `$s2_ipw()` fits the `.tte_entry__` snapshot,
   # and the plant never touched it.
-  expect_equal(s1d_weight_key(imp), weights_unplanted)
+  expect_equal(s1e_weight_key(imp), weights_unplanted)
 })
