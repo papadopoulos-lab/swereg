@@ -104,15 +104,17 @@
 }
 
 
-#' Format the IRR (95% CI) cell for a single row. Returns a string.
+#' Format the IRR and interval cell for a single row. Returns a string.
+#'
+#' It formats the bounds it is given, whatever level they were computed at.
 #'
 #' Estimability is READ, not re-tested. `$s3_analyze()` calls
 #' `.tte_irr_estimable()` beside the ratio and stores the answer, and
 #' `$get_estimates()` carries it as `irr_estimable`. A ratio the producer
 #' called inestimable renders as an EMPTY cell. An intervention arm with no
 #' event gives a ratio of exactly 0, and the producer calls it inestimable. A
-#' positive ratio below 0.01 prints with two significant digits, through
-#' `.ff_irr_num()`.
+#' positive ratio or bound below 0.01 prints with two significant digits,
+#' through `.ff_irr_num()`. Values of 0.01 and above keep two decimals.
 #'
 #' A result cached before that column existed passes `NA`, and
 #' `.tte_irr_estimable_stored()` then applies the one shared rule. That is the

@@ -50,6 +50,61 @@ test_that(".tte_mde gives NA MDE values when e0 or E1 is 0", {
   )
 })
 
+test_that(".tte_mde rejects a power below 0.5", {
+  # A power below (1 - conf_level) / 2 makes k negative, which swaps the
+  # protective and harmful ratios. 0.49 is below the accepted range but keeps
+  # k positive at conf_level 0.95.
+  for (p in c(0.01, 0.49)) {
+    expect_error(
+      swereg:::.tte_mde(50, 1000, 400, power = p, conf_level = 0.95),
+      "`power` must be a single finite number with 0.5 <= power < 1",
+      label = paste("power =", p)
+    )
+  }
+})
+
+test_that(".tte_mde_check_level rejects power 0.01 on its own", {
+  # Call the checker directly, so the orientation guard in .tte_mde() cannot
+  # raise the error in its place.
+  expect_error(
+    swereg:::.tte_mde_check_level(0.01, "power"),
+    "power"
+  )
+})
+
+test_that(".tte_mde stops on a swapped orientation when the power check is bypassed", {
+  # With the power check removed, power 0.01 makes k negative. Only the
+  # orientation guard can then stop .tte_mde().
+  testthat::local_mocked_bindings(
+    .tte_mde_check_level = function(...) invisible(NULL)
+  )
+  expect_error(
+    swereg:::.tte_mde(50, 1000, 400, power = 0.01, conf_level = 0.95),
+    "orientation"
+  )
+})
+
+test_that(".tte_mde gives protective < 1 < harmful on the accepted range", {
+  cases <- list(
+    list(power = 0.5, conf_level = 0.95),
+    list(power = 0.8, conf_level = 0.95),
+    list(power = 0.99, conf_level = 0.95),
+    list(power = 0.5, conf_level = 0.8)
+  )
+  for (cs in cases) {
+    r <- swereg:::.tte_mde(
+      e0 = c(50, 3),
+      py0 = c(1000, 200),
+      py1 = c(400, 900),
+      power = cs$power,
+      conf_level = cs$conf_level
+    )
+    lab <- paste0("power = ", cs$power, ", conf_level = ", cs$conf_level)
+    expect_true(all(r$mde_protective < 1), label = lab)
+    expect_true(all(r$mde_harmful > 1), label = lab)
+  }
+})
+
 
 # A weighted panel. Every intervention row weighs 3 and every comparator row
 # weighs 0.5, so each weighted total differs from its unweighted total.
@@ -391,4 +446,33 @@ test_that("$export_tables(power = ) sets the power of the MDE", {
   # Higher power needs a larger effect, so the protective MDE moves down.
   expect_lt(at_90[1], at_80[1])
   expect_gt(at_90[2], at_80[2])
+})
+
+
+test_that("$export_tables() rejects a bad power on a plan without unweighted counts", {
+  skip_if_not_installed("openxlsx")
+  # No trial of `.xp_plan("new")` stores unweighted counts, so no MDE cell
+  # reaches `.tte_mde()`. The check MUST still run.
+  plan <- .xp_plan("new")
+  has_unweighted <- vapply(
+    plan$results_ett,
+    function(r) "events_unweighted" %in% names(r$rates_pp_trunc),
+    logical(1)
+  )
+  expect_false(any(has_unweighted))
+  dir <- tempfile("mde-bad-power")
+  dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+  bad <- list(2, 0, NA, NA_real_, c(0.8, 0.9), "0.8")
+  for (i in seq_along(bad)) {
+    path <- file.path(dir, paste0("tables_", i, ".xlsx"))
+    expect_error(
+      suppressMessages(suppressWarnings(
+        plan$export_tables(path = path, power = bad[[i]])
+      )),
+      "`power` must be a single finite number with 0.5 <= power < 1",
+      label = paste("power =", deparse(bad[[i]]))
+    )
+    expect_false(file.exists(path))
+  }
 })

@@ -31,6 +31,8 @@
   output_dir = NULL,
   power = 0.8
 ) {
+  # Checked first. A plan without unweighted counts never calls `.tte_mde()`.
+  .tte_mde_check_level(power, "power")
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
       "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",
@@ -599,25 +601,30 @@
 #' The swereg versions that computed the stored results
 #'
 #' s3 stamps `swereg_version` and `swereg_version_s2` on every result it
-#' stores. A result from an earlier release carries neither.
+#' stores. A result from an earlier release carries neither. The s2 stamp
+#' of one ETT result holds one version per distinct analysis file version.
 #'
 #' @param plan A `TTEPlan`.
 #' @return A list with `s2` and `s3`, each the sorted unique character vector
-#'   of the stamped versions. An absent stamp contributes nothing.
+#'   of the stamped versions. When some results carry the stamp and others do
+#'   not, the vector ends with `"unknown"`. When no result carries the stamp,
+#'   the vector is empty.
 #' @noRd
 .plan_computing_versions <- function(plan) {
   results <- c(plan$results_enrollment, plan$results_ett)
   pick <- function(key) {
-    v <- vapply(
-      results,
-      function(r) {
-        return(as.character(r[[key]] %||% NA_character_)[1L])
-      },
-      character(1),
-      USE.NAMES = FALSE
+    v <- unlist(
+      lapply(results, function(r) {
+        return(as.character(r[[key]] %||% NA_character_))
+      }),
+      use.names = FALSE
     )
-    v <- unique(v[!is.na(v)])
-    return(v[order(numeric_version(v, strict = FALSE))])
+    known <- unique(v[!is.na(v)])
+    known <- known[order(numeric_version(known, strict = FALSE))]
+    if (length(known) > 0L && anyNA(v)) {
+      known <- c(known, "unknown")
+    }
+    return(known)
   }
   return(list(s2 = pick("swereg_version_s2"), s3 = pick("swereg_version")))
 }
@@ -635,8 +642,9 @@
 
 #' Warn when a stored result was computed by another swereg version
 #'
-#' `$export_tables()` and `$export()` call it once each. It warns and
-#' never stops.
+#' It also warns when some stored results carry no recorded version and
+#' others do. `$export_tables()` and `$export()` call it once each. It warns
+#' and never stops.
 #'
 #' @param plan A `TTEPlan`.
 #' @return NULL, invisibly.
@@ -644,11 +652,17 @@
 .plan_warn_computing_versions <- function(plan) {
   export_version <- as.character(utils::packageVersion("swereg"))
   v <- .plan_computing_versions(plan)
-  if (any(c(v$s2, v$s3) != export_version)) {
+  stamps <- c(v$s2, v$s3)
+  unrecorded <- "unknown" %in% stamps
+  other <- any(setdiff(stamps, "unknown") != export_version)
+  if (other || unrecorded) {
     warning(
       "This export runs swereg ",
       export_version,
-      ", but other versions computed the stored results. s2: ",
+      if (other) ", but other versions computed the stored results",
+      ". ",
+      if (unrecorded) "Some stored results carry no recorded version. ",
+      "s2: ",
       .plan_format_versions(v$s2),
       ". s3: ",
       .plan_format_versions(v$s3),

@@ -294,3 +294,27 @@ test_that("the forest summary tables carry the study level in their headers", {
     all(c("ITT 90% CI", "PP 90% CI") %in% all_cells[["Effect modification"]])
   )
 })
+
+
+test_that("tteenrollment_irr_combine() prints a ratio below 0.01 as nonzero", {
+  irr_row <- function(irr, lo, hi) {
+    return(data.table::data.table(
+      IRR = irr,
+      IRR_lower = lo,
+      IRR_upper = hi,
+      IRR_pvalue = 0.001,
+      warn = FALSE
+    ))
+  }
+  results <- list(
+    ETT00001 = list(irr_pp = irr_row(0.004, 0.002, 0.008)),
+    ETT00002 = list(irr_pp = irr_row(0.54, 0.40, 0.71))
+  )
+  got <- tteenrollment_irr_combine(results, "irr_pp")
+  # Below 0.01: two significant digits, the rule of the results sheets.
+  expect_identical(got$IRR[1], "0.0040")
+  expect_identical(got[["95% CI"]][1], "0.0020 to 0.0080")
+  # At or above 0.01: two decimals, as before.
+  expect_identical(got$IRR[2], "0.54")
+  expect_identical(got[["95% CI"]][2], "0.40 to 0.71")
+})

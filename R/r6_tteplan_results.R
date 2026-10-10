@@ -357,6 +357,13 @@ TTEPlan$set(
       }
       # This version ran the recompute, so it replaces the carried s3 stamp.
       # `swereg_version_s2` comes back from the worker, read off the file.
+      # A stamp carried forward keeps every version it holds, in the form s3
+      # stores.
+      if (!is.null(new_result[["swereg_version_s2"]])) {
+        new_result[["swereg_version_s2"]] <- .s2_version_union(
+          new_result[["swereg_version_s2"]]
+        )
+      }
       new_result[["swereg_version"]] <- as.character(utils::packageVersion(
         "swereg"
       ))

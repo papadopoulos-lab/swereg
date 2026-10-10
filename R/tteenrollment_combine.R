@@ -196,11 +196,11 @@ tteenrollment_irr_combine <- function(
   ci_hdr <- paste0(.ff_conf_pct(conf_level), "% CI")
   result <- dt[, .(
     ett_id,
-    IRR = format(round(IRR, 2), nsmall = 2),
+    IRR = .irr_combine_num(IRR),
     ci = paste0(
-      format(round(IRR_lower, 2), nsmall = 2),
+      .irr_combine_num(IRR_lower),
       " to ",
-      format(round(IRR_upper, 2), nsmall = 2)
+      .irr_combine_num(IRR_upper)
     ),
     `p-value` = format.pval(IRR_pvalue, digits = 3)
   )]
@@ -218,6 +218,23 @@ tteenrollment_irr_combine <- function(
   }
 
   return(result)
+}
+
+
+#' Format an IRR column for `tteenrollment_irr_combine()`.
+#'
+#' A value in (0, 0.01) gets two significant digits, the rule of
+#' `.ff_irr_num()`, so it does not print as `0.00`. Every other value keeps
+#' two decimals, padded to a common width by `format()`.
+#'
+#' @param x Numeric vector.
+#' @return A character vector as long as `x`.
+#' @noRd
+.irr_combine_num <- function(x) {
+  out <- format(round(x, 2), nsmall = 2)
+  small <- !is.na(x) & x > 0 & x < 0.01
+  out[small] <- .ff_irr_num(x[small])
+  return(out)
 }
 
 

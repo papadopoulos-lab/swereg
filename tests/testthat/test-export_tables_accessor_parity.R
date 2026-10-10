@@ -268,7 +268,10 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_enrollment[[enr_todo[i]]]$swereg_version <- s3_version",
     "if (is.null(self$results_ett[[eid]])) {",
     "self$results_ett[[eid]] <- list(enrollment_id = ett_todo$enrollment_id[m$ett_i],",
+    "s2_prev <- if (\"swereg_version_s2\" %in% names(self$results_ett[[eid]])) {",
+    "list(self$results_ett[[eid]]$swereg_version_s2)",
     "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]",
+    "self$results_ett[[eid]]$swereg_version_s2 <- do.call(.s2_version_union,",
     "self$results_ett[[eid]]$swereg_version <- s3_version"
   ),
   `.plan_computing_versions` = c(

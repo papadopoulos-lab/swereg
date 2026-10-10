@@ -281,7 +281,7 @@ test_that("item 6h names the ETTs without a record beside the ETTs with one", {
       eids[1],
       ". Whether each factor was fitted separately in each arm ",
       "(estimate_ipcw_pp_separately_by_treatment) was not recorded ",
-      "(computed before swereg 27.2.0) for ETT ",
+      "(s1 or s2 ran before swereg 27.2.0) for ETT ",
       eids[2],
       "."
     )
@@ -294,7 +294,7 @@ test_that("item 6h names the ETTs without a record beside the ETTs with one", {
       eids[1],
       ". Whether the loss and deviation models were generalized additive ",
       "models (estimate_ipcw_pp_with_gam) was not recorded ",
-      "(computed before swereg 27.2.0) for ETT ",
+      "(s1 or s2 ran before swereg 27.2.0) for ETT ",
       eids[2],
       "."
     )
@@ -311,7 +311,7 @@ test_that("item 6h says a plan computed before 27.2.0 recorded no settings", {
     paste0(
       "Whether each factor was fitted separately in each arm ",
       "(estimate_ipcw_pp_separately_by_treatment) was not recorded ",
-      "(computed before swereg 27.2.0)."
+      "(s1 or s2 ran before swereg 27.2.0)."
     )
   )
   expect_identical(
@@ -319,7 +319,7 @@ test_that("item 6h says a plan computed before 27.2.0 recorded no settings", {
     paste0(
       "Whether the loss and deviation models were generalized additive ",
       "models (estimate_ipcw_pp_with_gam) was not recorded ",
-      "(computed before swereg 27.2.0)."
+      "(s1 or s2 ran before swereg 27.2.0)."
     )
   )
   # The default MUST NOT stand in for a value nobody recorded.

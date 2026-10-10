@@ -1087,8 +1087,23 @@ TTEPlan$set(
             computed_at = Sys.time()
           )
         }
+        # The s2 stamp of each worker is merged, not overwritten. The PP and
+        # ITT analysis files of one ETT can come from different s2 versions.
+        s2_prev <- if (
+          "swereg_version_s2" %in% names(self$results_ett[[eid]])
+        ) {
+          list(self$results_ett[[eid]]$swereg_version_s2)
+        } else {
+          list()
+        }
         for (k in names(all_results[[j]])) {
           self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]
+        }
+        if (!is.null(all_results[[j]])) {
+          self$results_ett[[eid]]$swereg_version_s2 <- do.call(
+            .s2_version_union,
+            c(s2_prev, list(all_results[[j]]$swereg_version_s2))
+          )
         }
         self$results_ett[[eid]]$swereg_version <- s3_version
         s2_versions <- c(
@@ -1158,3 +1173,29 @@ TTEPlan$set(
     return(invisible(self))
   }
 )
+
+#' Merge the s2 versions of several analysis files into one stamp
+#'
+#' One ETT result merges the returns of several s3 workers. Its PP and ITT
+#' analysis files can come from different s2 versions, so the stamp keeps
+#' every version.
+#'
+#' @param ... Character vectors of s2 versions. `NULL` and `NA` mean an
+#'   analysis file without a recorded version.
+#' @return The sorted unique non-NA versions, followed by `NA_character_`
+#'   when any input carried no version.
+#' @noRd
+.s2_version_union <- function(...) {
+  v <- unlist(
+    lapply(list(...), function(x) {
+      return(as.character(x %||% NA_character_))
+    }),
+    use.names = FALSE
+  )
+  known <- unique(v[!is.na(v)])
+  known <- known[order(numeric_version(known, strict = FALSE))]
+  if (anyNA(v)) {
+    known <- c(known, NA_character_)
+  }
+  return(known)
+}

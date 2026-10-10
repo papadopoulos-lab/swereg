@@ -1009,7 +1009,7 @@
 #'
 #' @param plan A `TTEPlan`.
 #' @return A list named by ETT, one element per stored result. An element is
-#'   `NULL` for a result that s2 computed before swereg 27.2.0.
+#'   `NULL` for a result whose s1 or s2 ran before swereg 27.2.0.
 #' @noRd
 .plan_ipcw_pp_options <- function(plan) {
   return(lapply(plan$results_ett, function(r) r[["ipcw_pp_options"]]))
@@ -1020,9 +1020,10 @@
 #' Each setting gets one sentence, and the sentence names the ETTs of each
 #' value when the ETTs differ.
 #'
-#' A result without the record came from s2 before swereg 27.2.0. Its setting
-#' reads `not recorded (computed before swereg 27.2.0)`, never the default,
-#' because the default does not show what an old s2 run used.
+#' A result has no record when s2 ran before swereg 27.2.0, or when s2 built
+#' its analysis file from an s1 file of before 27.2.0. Its setting reads
+#' `not recorded (s1 or s2 ran before swereg 27.2.0)`, never the default,
+#' because the default does not show what s2 used.
 #'
 #' @param opts The list `.plan_ipcw_pp_options()` returns.
 #' @return A named character vector with the elements `by_arm` and `gam`.
@@ -1139,7 +1140,7 @@
       unknown,
       " (",
       arg,
-      ") was not recorded (computed before swereg 27.2.0)",
+      ") was not recorded (s1 or s2 ran before swereg 27.2.0)",
       if (mixed) .target_6h_for_etts(names(vals)[!known]),
       ". "
     )

@@ -198,6 +198,11 @@ test_that("export warns once and the sheet shows a fixture stamped by an old ver
       if (i %% 2L == 0L) "27.10.0" else "27.9.0"
     plan$results_ett[[eids[i]]]$swereg_version_s2 <- "26.1.0"
   }
+  # Every result carries a stamp, so no cell adds `unknown`.
+  for (eid in names(plan$results_enrollment)) {
+    plan$results_enrollment[[eid]][["swereg_version"]] <- "27.9.0"
+    plan$results_enrollment[[eid]]$swereg_version_s2 <- "26.1.0"
+  }
 
   path <- withr::local_tempfile(fileext = ".xlsx")
   ws <- testthat::capture_warnings(suppressMessages(
@@ -222,6 +227,185 @@ test_that("export warns once and the sheet shows a fixture stamped by an old ver
   expect_length(
     grep("other versions computed the stored results", ws),
     1L
+  )
+})
+
+test_that("export names unknown when only some results carry a version", {
+  skip_if_not_installed("openxlsx")
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  # Every ETT result carries the running version. The enrollment results
+  # carry none, as a result from before 27.2.0 does.
+  for (eid in names(plan$results_ett)) {
+    plan$results_ett[[eid]][["swereg_version"]] <- .sv_running()
+    plan$results_ett[[eid]]$swereg_version_s2 <- .sv_running()
+  }
+  expect_gt(length(plan$results_enrollment), 0L)
+  expect_null(plan$results_enrollment[[1L]][["swereg_version"]])
+
+  mixed <- paste0(.sv_running(), ", unknown")
+  path <- withr::local_tempfile(fileext = ".xlsx")
+  ws <- testthat::capture_warnings(suppressMessages(
+    plan$export_tables(path = path)
+  ))
+  hit <- grep("Some stored results carry no recorded version", ws, value = TRUE)
+  expect_length(hit, 1L)
+  expect_match(
+    hit,
+    paste0("s2: ", mixed, ". s3: ", mixed, ". export: "),
+    fixed = TRUE
+  )
+  expect_no_match(hit, "other versions computed", fixed = TRUE)
+
+  d <- openxlsx::read.xlsx(path, sheet = "Provenance", colNames = FALSE)
+  prov <- stats::setNames(d[[2L]], d[[1L]])
+  expect_identical(unname(prov["swereg version (s2)"]), mixed)
+  expect_identical(unname(prov["swereg version (s3)"]), mixed)
+
+  ws <- testthat::capture_warnings(try(
+    plan$export(list(list(type = "not_a_type")), dir = withr::local_tempdir()),
+    silent = TRUE
+  ))
+  expect_length(grep("Some stored results carry no recorded version", ws), 1L)
+
+  # A plan whose results all lack the stamps reads `unknown` and does not
+  # warn.
+  for (eid in names(plan$results_ett)) {
+    plan$results_ett[[eid]][["swereg_version"]] <- NULL
+    plan$results_ett[[eid]]$swereg_version_s2 <- NULL
+  }
+  path <- withr::local_tempfile(fileext = ".xlsx")
+  ws <- testthat::capture_warnings(suppressMessages(
+    plan$export_tables(path = path)
+  ))
+  expect_length(grep("recorded version|other versions computed", ws), 0L)
+  d <- openxlsx::read.xlsx(path, sheet = "Provenance", colNames = FALSE)
+  prov <- stats::setNames(d[[2L]], d[[1L]])
+  expect_identical(unname(prov["swereg version (s2)"]), "unknown")
+  expect_identical(unname(prov["swereg version (s3)"]), "unknown")
+})
+
+# A plan whose ETTs name a separate ITT analysis file, and a dispatcher whose
+# workers read `pp` off a PP analysis file and `itt` off an ITT one.
+# `plan` re-runs s3 on a plan that already holds results, and `...` passes the
+# scope arguments to `$s3_analyze()`.
+.sv_run_s3_pp_itt <- function(pp, itt, plan = NULL, ...) {
+  if (is.null(plan)) {
+    plan <- .sv_plan()
+    plan$ett$file_analysis_itt <- c(
+      "analysis_itt_001.qs2",
+      "analysis_itt_002.qs2"
+    )
+  }
+  fake <- .sv_fake_batch_run(NA_character_)
+  testthat::local_mocked_bindings(
+    .batch_run = function(target, items, n_workers, ...) {
+      out <- fake(target, items, n_workers, ...)
+      for (i in seq_along(items)) {
+        # The enrollment items name no file here: the analysis files are
+        # absent, so `which.min()` of their sizes is empty.
+        is_itt <- any(grepl(
+          "analysis_itt_",
+          items[[i]]$analysis_path,
+          fixed = TRUE
+        ))
+        out[[i]]$swereg_version_s2 <- if (is_itt) itt else pp
+      }
+      return(out)
+    },
+    .package = "swereg"
+  )
+  output_dir <- withr::local_tempdir()
+  suppressWarnings(utils::capture.output(
+    plan$s3_analyze(output_dir = output_dir, n_workers = 1L, ...)
+  ))
+  return(plan)
+}
+
+test_that("one ETT keeps the s2 version of both its PP and ITT analysis files", {
+  skip_if_not_installed("openxlsx")
+  plan <- .sv_run_s3_pp_itt(pp = "27.2.0", itt = "26.1.0")
+  for (eid in c("ETT00001", "ETT00002")) {
+    expect_identical(
+      plan$results_ett[[eid]]$swereg_version_s2,
+      c("26.1.0", "27.2.0")
+    )
+  }
+  prov <- .sv_provenance(plan)
+  expect_identical(unname(prov["swereg version (s2)"]), "26.1.0, 27.2.0")
+  ws <- testthat::capture_warnings(try(
+    plan$export(list(list(type = "not_a_type")), dir = withr::local_tempdir()),
+    silent = TRUE
+  ))
+  hit <- grep("other versions computed the stored results", ws, value = TRUE)
+  expect_length(hit, 1L)
+  expect_match(hit, "s2: 26.1.0, 27.2.0. s3: ", fixed = TRUE)
+
+  # An unstamped ITT analysis file adds NA to the stamp and `unknown` to the
+  # Provenance cell and the warning.
+  plan <- .sv_run_s3_pp_itt(pp = "27.2.0", itt = NA_character_)
+  expect_identical(
+    plan$results_ett[["ETT00001"]]$swereg_version_s2,
+    c("27.2.0", NA_character_)
+  )
+  prov <- .sv_provenance(plan)
+  expect_identical(unname(prov["swereg version (s2)"]), "27.2.0, unknown")
+  ws <- testthat::capture_warnings(try(
+    plan$export(list(list(type = "not_a_type")), dir = withr::local_tempdir()),
+    silent = TRUE
+  ))
+  hit <- grep("Some stored results carry no recorded version", ws, value = TRUE)
+  expect_length(hit, 1L)
+  expect_match(hit, "s2: 27.2.0, unknown. s3: ", fixed = TRUE)
+})
+
+test_that("a re-run of s3 replaces a stored s2 stamp", {
+  skip_if_not_installed("openxlsx")
+  plan <- .sv_run_s3_pp_itt(pp = "27.2.0", itt = "27.2.0")
+  # A stored result from an s2 version that the re-run no longer reads.
+  for (eid in c("ETT00001", "ETT00002")) {
+    plan$results_ett[[eid]]$swereg_version_s2 <- c("26.0.0")
+  }
+  # A scoped re-run takes the per-ETT clear, not the whole-list reset.
+  plan <- .sv_run_s3_pp_itt(
+    pp = "27.2.0",
+    itt = "27.2.0",
+    plan = plan,
+    enrollment_ids = "01"
+  )
+  for (eid in c("ETT00001", "ETT00002")) {
+    expect_identical(
+      plan$results_ett[[eid]]$swereg_version_s2,
+      "27.2.0",
+      label = paste(eid, "stored s2 stamp")
+    )
+  }
+  prov <- .sv_provenance(plan)
+  expect_identical(unname(prov["swereg version (s2)"]), "27.2.0")
+  expect_false(any(grepl("26.0.0", prov, fixed = TRUE)))
+})
+
+test_that("a recompute keeps every version of a carried s2 stamp", {
+  plan <- .sv_run_s3_pp_itt(pp = "27.2.0", itt = "26.1.0")
+  plan$results_enrollment[["01"]]$swereg_version_s2 <- c("26.1.0", "27.2.0")
+  dir <- withr::local_tempdir()
+  for (f in unique(c(plan$ett$file_analysis, plan$ett$file_raw))) {
+    file.create(file.path(dir, f))
+  }
+  # A worker return without the field, so the stored stamp is carried.
+  testthat::local_mocked_bindings(
+    .s3_enrollment_worker = function(...) {
+      return(list(n_baseline = 4242L))
+    },
+    .package = "swereg"
+  )
+  suppressMessages(
+    plan$recompute_baselines(output_dir = dir, enrollment_ids = "01", force = TRUE)
+  )
+  expect_identical(
+    plan$results_enrollment[["01"]]$swereg_version_s2,
+    c("26.1.0", "27.2.0")
   )
 })
 

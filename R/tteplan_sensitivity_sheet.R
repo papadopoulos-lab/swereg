@@ -67,7 +67,8 @@
 
 
 #' Excel number formats for the 9 fixed measurement columns. `NA` marks a
-#' column that stays a human-formatted display string (IRR, 95% CI) -- those
+#' column that stays a human-formatted display string (IRR, and the interval
+#' under the key `95% CI`) -- those
 #' are inherently composite, like Table 1's "n (%)". Every other column is
 #' written as a bare number and formatted in Excel so it sorts and sums and
 #' never trips the "number stored as text" warning.
@@ -254,9 +255,11 @@
 #' sheet. Returns a named list of **typed** cells keyed by internal
 #' disambiguating column names (`col_key_prefix` prepended to the 9 fixed
 #' column names): events / PY / rate / p-value are bare numerics (formatted in
-#' Excel via `.apply_measurement_numfmt()`); IRR and 95% CI stay display strings.
-#' `.ff_irr_num()` formats the ratio and its bounds, so a ratio below 0.01
-#' keeps two significant digits.
+#' Excel via `.apply_measurement_numfmt()`); IRR and the interval (key
+#' `95% CI`) stay display strings.
+#' `.ff_irr_num()` formats the ratio and its bounds. Any positive ratio or bound
+#' below 0.01 keeps two significant digits. Values of 0.01 and above keep two
+#' decimals.
 #' Display headers are written separately by the sheet writer, so the prefix
 #' never appears in the worksheet.
 #' @noRd

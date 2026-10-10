@@ -33,13 +33,14 @@
 #' @param output_dir Optional directory holding the cached `.qs2` files.
 #'   Used by the lazy `recompute_baselines()` refresh. Defaults to
 #'   `self$output_dir`.
-#' @param power Numeric(1) strictly between 0 and 1, default 0.8. The power
+#' @param power Numeric(1), at least 0.5 and below 1, default 0.8. The power
 #'   of the minimum detectable effect (MDE) on the `PP results` and
 #'   `ITT results` sheets. Each sheet reports the expected intervention events
 #'   under the null and the protective and harmful MDE incidence rate ratio.
 #'   The MDE is a naive Poisson calculation on the unweighted counts, at the
 #'   study confidence level. It ignores the weights and the repeated
-#'   contributions of one person, so it understates the true MDE. It is not
+#'   contributions of one person. So it can differ from the detectable effect
+#'   of the weighted estimator with person-clustered standard errors. It is not
 #'   observed power (Hoenig and Heisey 2001). A plan analysed before 27.2.0
 #'   stored no unweighted counts, and its three MDE cells are blank.
 TTEPlan$set(
