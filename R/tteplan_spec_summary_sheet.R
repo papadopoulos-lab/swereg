@@ -636,6 +636,14 @@
   }
   add_blank()
 
+  # -- Rare-condition rule --------------------------------------------------
+  # The rule, the excluded conditions and the final adjustment set, from the
+  # frozen decision. A spec without a sparse_rule adds no row.
+  invisible(lapply(
+    .tte_sparse_spec_rows(plan, st_header, st_label),
+    function(rw) add_row(rw$a, rw$b, rw$sa, rw$sb)
+  ))
+
   # -- Outcomes -------------------------------------------------------------
   add_header("Outcomes")
   for (out in spec$outcomes) {

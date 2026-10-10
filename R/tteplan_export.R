@@ -159,6 +159,12 @@
   toc_names <- c(toc_names, "Study Specification")
   toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
 
+  # --- Sparse conditions sheet (only with a sparse_rule decision) ---
+  if (isTRUE(.write_sparse_conditions_sheet(wb, plan))) {
+    toc_names <- c(toc_names, "Sparse conditions")
+    toc_desc <- c(toc_desc, "The rare-condition rule: counts and decision")
+  }
+
   # --- Target trial protocol sheet ---
   # One sheet documents ONE ETT, so the caller names it through
   # `protocol_ett_id`. Without it, prefer any ETT of the Table 1
@@ -201,7 +207,9 @@
 
   # --- Table 1: Baseline for chosen enrollment ---
   t1_label <- .enrollment_label(plan, table1_enrollment)
-  t1_baselines <- plan$get_baselines()
+  # Table 1 drops the conditions the rare-condition rule excluded, and its
+  # footnote names them.
+  t1_baselines <- .tte_sparse_drop_baseline_rows(plan$get_baselines(), plan)
   t1_arms <- .baseline_arm_labels(t1_baselines, table1_enrollment)
   t1_panel <- function(weighting, variant) {
     return(.baseline_panel(
@@ -236,7 +244,8 @@
       " (",
       t1_label,
       ")"
-    )
+    ),
+    footnote = .tte_sparse_table1_footnote(plan)
   )
   toc_names <- c(toc_names, "Table 1")
   toc_desc <- c(

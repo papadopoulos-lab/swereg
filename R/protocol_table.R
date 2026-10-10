@@ -206,7 +206,13 @@
     follow_up_label = fu_label,
     # The assignment row names the stratum of the comparator draw, and the
     # stratum is the enrollment period. Its width comes from the plan.
-    period_width = plan$period_width
+    period_width = plan$period_width,
+    # The rare-condition rule: its lines in the three cells, and the
+    # conditions the frozen decision excluded. All are empty without a rule.
+    sparse_specification = .tte_sparse_protocol_lines(plan, "specification"),
+    sparse_emulation = .tte_sparse_protocol_lines(plan, "emulation"),
+    sparse_analysis = .tte_sparse_protocol_lines(plan, "analysis"),
+    sparse_excluded_vars = .tte_sparse_report(plan)$excluded_vars
   ))
 }
 
@@ -297,7 +303,7 @@
           )
         )
       }
-      out
+      c(out, ctx$sparse_specification)
     },
     treatment_strategies = {
       tx <- enrollment[["treatment"]]
@@ -463,7 +469,7 @@
           ")"
         ))
       }
-      out
+      c(out, ctx$sparse_emulation)
     },
     treatment_strategies = c(
       paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
@@ -578,9 +584,13 @@
           " bootstrap replicates that resample persons"
         )
       )
+      # A condition the rare-condition rule excluded is not adjusted for.
       for (conf in spec[["confounders"]]) {
         impl <- conf[["implementation"]]
         v <- .protocol_impl_variable(impl)
+        if (v %in% ctx$sparse_excluded_vars) {
+          next
+        }
         if (isTRUE(impl[["computed"]])) {
           out <- c(
             out,
@@ -590,7 +600,7 @@
           out <- c(out, paste0("Adjust for ", v))
         }
       }
-      out
+      c(out, ctx$sparse_analysis)
     },
     character()
   )

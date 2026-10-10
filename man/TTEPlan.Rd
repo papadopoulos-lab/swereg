@@ -163,7 +163,7 @@ or NULL when the spec has none. s1b writes it. Read it through
 candidate, in the order of \code{sparse_rule$candidates}:
 \describe{
 \item{variable, label}{The computed confounder and its name.}
-\item{n_\if{html}{\out{<enrollment>}}\emph{intervention, n}\if{html}{\out{<enrollment>}}_comparator}{The
+\item{\verb{n_<enrollment>_intervention}, \verb{n_<enrollment>_comparator}}{The
 count of persons who hold the condition at baseline, per driving
 enrollment and arm. A person holds it when one of her eligible
 person-trials in that arm holds it at the recruiting week. The

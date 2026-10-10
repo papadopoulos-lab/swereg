@@ -737,6 +737,9 @@
     enrolled_after_comparator_draw = "Enrolled after the comparator draw",
     analysis_dataset = "Analysis dataset (per-protocol)"
   )
+  # The step-2 rows of the rare-condition rule, from the frozen decision. Each
+  # names its condition and the rule.
+  labels <- c(labels, .tte_sparse_consort_labels(plan))
   if (is.null(spec)) {
     return(labels)
   }

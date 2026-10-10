@@ -68,8 +68,17 @@
 
 #' Write a swereg_table1 data.table to a worksheet with bold header styling
 #' and a fitted Variable column.
+#'
+#' `footnote` is one string, or `NULL`. The function writes it two rows below
+#' the table.
 #' @noRd
-.write_tableone_sheet <- function(wb, sheet_name, t1_dt, title = NULL) {
+.write_tableone_sheet <- function(
+  wb,
+  sheet_name,
+  t1_dt,
+  title = NULL,
+  footnote = NULL
+) {
   # smd_numeric is a programmatic contract, not a display column.
   t1_dt <- .t1_drop_numeric(t1_dt)
   openxlsx::addWorksheet(wb, sheet_name)
@@ -100,6 +109,14 @@
       border = "bottom"
     )
   )
+  if (!is.null(footnote)) {
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      footnote,
+      startRow = start_row + nrow(t1_dt) + 2L
+    )
+  }
   ncols <- ncol(t1_dt)
   widths <- c(50, 16, rep(22, max(0, ncols - 2L)))
   return(openxlsx::setColWidths(wb, sheet_name, cols = seq_len(ncols), widths = widths))

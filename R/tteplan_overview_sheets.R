@@ -38,7 +38,9 @@
       n_baseline = n_base
     ))
   })
-  dt <- data.table::rbindlist(rows)
+  # With a sparse_rule decision, a last column says whether each enrollment
+  # drove the decision or inherited it.
+  dt <- .tte_sparse_role_column(data.table::rbindlist(rows), plan)
   return(openxlsx::writeData(wb, "Enrollments", dt))
 }
 
@@ -63,7 +65,7 @@
       n_events = if (length(hit) > 0L) est$n_events[hit[1L]] else NA
     ))
   })
-  dt <- data.table::rbindlist(rows)
+  dt <- .tte_sparse_role_column(data.table::rbindlist(rows), plan)
   return(openxlsx::writeData(wb, "ETTs", dt))
 }
 

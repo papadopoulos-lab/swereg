@@ -226,6 +226,9 @@
       paste0("  - ", b$lines)
     )
   }
+  # The rare-condition rule applies after every criterion above, in every
+  # enrollment. Its lines come from the frozen decision.
+  parts <- c(parts, .tte_sparse_6a_lines(plan))
   if (length(parts) > 0L) {
     elig_text <- paste(parts, collapse = "\n")
   }
@@ -500,8 +503,10 @@
   # 6g: Confounders
   conf_text <- NULL
   if (!is.null(spec$confounders)) {
+    # The final adjustment set: the confounders the rare-condition rule did
+    # not make exclusion criteria.
     parts <- vapply(
-      spec$confounders,
+      .tte_sparse_keep_confounders(plan, spec$confounders),
       function(c) {
         impl <- c$implementation
         if (isTRUE(impl$computed)) {
@@ -519,7 +524,7 @@
       },
       character(1)
     )
-    conf_text <- paste(parts, collapse = "\n")
+    conf_text <- paste(c(parts, .tte_sparse_6g_lines(plan)), collapse = "\n")
   }
   item(
     "6",
@@ -646,6 +651,8 @@
       "(e.g., no prior intervention within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
       incl_7a_text,
       "Exclusion criteria were evaluated cumulatively, and the number of persons and person-trials remaining after each criterion was recorded for the participant flow diagram. ",
+      # The methods sentences of the rare-condition rule, or nothing.
+      .tte_sparse_methods_text(plan),
       # 7b: Treatment strategies
       "Treatment strategies (6b): Treatment status was determined from registry data in every week of the person-week skeleton. ",
       "The treatment variable and its values came from the study configuration. ",

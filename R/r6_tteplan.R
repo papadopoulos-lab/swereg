@@ -149,7 +149,7 @@ TTEPlan <- R6::R6Class(
     #'   candidate, in the order of `sparse_rule$candidates`:
     #'   \describe{
     #'     \item{variable, label}{The computed confounder and its name.}
-    #'     \item{n_<enrollment>_intervention, n_<enrollment>_comparator}{The
+    #'     \item{`n_<enrollment>_intervention`, `n_<enrollment>_comparator`}{The
     #'       count of persons who hold the condition at baseline, per driving
     #'       enrollment and arm. A person holds it when one of her eligible
     #'       person-trials in that arm holds it at the recruiting week. The

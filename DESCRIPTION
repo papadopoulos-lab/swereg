@@ -164,6 +164,7 @@ Collate:
     'tteplan_s1b_sparse.R'
     'tteplan_s2_s3_workers.R'
     'tteplan_sensitivity_sheet.R'
+    'tteplan_sparse_report.R'
     'tteplan_spec_schema.R'
     'tteplan_spec_summary_sheet.R'
     'tteplan_validate_spec.R'
