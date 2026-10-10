@@ -2,8 +2,8 @@
 # Forest plot: the data the figure draws
 # =============================================================================
 # These functions assemble one row per emulated trial from the stored results.
-# `.build_forest_df()` and `.build_itt_vs_pp_df()` read them through
-# `plan$get_estimates()`. The design note sits at the top of `R/forest_plot.R`.
+# `.build_forest_df()` reads them through `plan$get_estimates()`. The design
+# note sits at the top of `R/forest_plot.R`.
 # =============================================================================
 
 #' Read the estimand and the weighting a result slot name stands for.
@@ -283,73 +283,3 @@
 #' `PP results` and `ITT results` sheets print no benefit-or-harm label today.
 #' @noRd
 .FOREST_RD_DECISION_COLS <- c("nnt", "nnt_direction")
-
-
-#' Build one row per ETT carrying the IRR point + CI + p-value for BOTH
-#' estimands (per-protocol truncated and intention-to-treat), keyed off the
-#' shared label columns from `.build_forest_df()`. Used by the "ITT vs PP forest"
-#' overlay sheet. Returns NULL when the per-protocol arm has no plottable rows.
-#' @noRd
-.build_itt_vs_pp_df <- function(
-  plan,
-  keep_ett_ids = NULL,
-  group_labels = NULL
-) {
-  ett_id <- irr <- lo <- hi <- pvalue <- irr_estimable <- NULL # nolint
-  irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL # nolint
-  i.irr_itt <- i.lo_itt <- i.hi_itt <- i.pvalue_itt <- NULL # nolint
-  i.irr_estimable_itt <- NULL # nolint
-  pp <- .build_forest_df(
-    plan,
-    "rates_pp_trunc",
-    "irr_pp_trunc",
-    keep_ett_ids,
-    group_labels
-  )
-  itt <- .build_forest_df(
-    plan,
-    "rates_itt",
-    "irr_itt",
-    keep_ett_ids,
-    group_labels
-  )
-  if (is.null(pp)) {
-    return(NULL)
-  }
-  base <- data.table::copy(pp)
-  data.table::setnames(
-    base,
-    c("irr", "lo", "hi", "pvalue", "irr_estimable"),
-    c("irr_pp", "lo_pp", "hi_pp", "pvalue_pp", "irr_estimable_pp")
-  )
-  if (!is.null(itt)) {
-    iv <- itt[, .(
-      ett_id,
-      irr_itt = irr,
-      lo_itt = lo,
-      hi_itt = hi,
-      pvalue_itt = pvalue,
-      irr_estimable_itt = irr_estimable
-    )]
-    base[
-      iv,
-      on = "ett_id",
-      `:=`(
-        irr_itt = i.irr_itt,
-        lo_itt = i.lo_itt,
-        hi_itt = i.hi_itt,
-        pvalue_itt = i.pvalue_itt,
-        irr_estimable_itt = i.irr_estimable_itt
-      )
-    ]
-  } else {
-    base[, `:=`(
-      irr_itt = NA_real_,
-      lo_itt = NA_real_,
-      hi_itt = NA_real_,
-      pvalue_itt = NA_real_,
-      irr_estimable_itt = NA
-    )]
-  }
-  return(base)
-}

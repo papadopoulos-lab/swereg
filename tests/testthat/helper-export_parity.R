@@ -618,13 +618,11 @@
 .xp_with_render_capture <- function(expr) {
   cap <- new.env(parent = emptyenv())
   cap$forest <- list()
-  cap$overlay <- list()
   cap$love <- list()
   cap$consort <- list()
   ns <- "swereg"
   orig_love <- swereg:::.render_love_plot
   orig_forest <- swereg:::.render_combined_forest_plot
-  orig_overlay <- swereg:::.render_itt_vs_pp_overlay
   orig_dot <- swereg:::.build_consort_dot
   on.exit(
     {
@@ -634,7 +632,6 @@
         orig_forest,
         ns
       )
-      utils::assignInNamespace(".render_itt_vs_pp_overlay", orig_overlay, ns)
       utils::assignInNamespace(".build_consort_dot", orig_dot, ns)
     },
     add = TRUE
@@ -656,14 +653,6 @@
     ns
   )
   utils::assignInNamespace(
-    ".render_itt_vs_pp_overlay",
-    function(df, ...) {
-      cap$overlay[[length(cap$overlay) + 1L]] <- df
-      orig_overlay(df, ...)
-    },
-    ns
-  )
-  utils::assignInNamespace(
     ".build_consort_dot",
     function(...) {
       out <- orig_dot(...)
@@ -675,7 +664,6 @@
   force(expr)
   list(
     forest = cap$forest,
-    overlay = cap$overlay,
     love = cap$love,
     consort = cap$consort
   )

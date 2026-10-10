@@ -207,7 +207,8 @@
 #' @param use_gam Logical. `TRUE` fits with `mgcv::bam()`.
 #' @return `list(q = , formula = , fit = )`. `fit` names the fit that made
 #'   `q`: `"glm"`, `"bam, discrete = TRUE"`, or
-#'   `"bam, discrete = FALSE, after the discrete prediction failed"`.
+#'   `"bam, discrete = FALSE, after the discrete prediction failed with an
+#'   object-not-found error"`.
 #' @noRd
 .tte_ipcw_fit_one <- function(
   fit_data,
@@ -289,7 +290,10 @@
     return(NULL)
   })
   if (is.null(q)) {
-    fit_used <- "bam, discrete = FALSE, after the discrete prediction failed"
+    fit_used <- paste0(
+      "bam, discrete = FALSE, after the discrete prediction failed ",
+      "with an object-not-found error"
+    )
     fit <- fit_with(discrete = FALSE)
     q <- predict_q(fit)
   }

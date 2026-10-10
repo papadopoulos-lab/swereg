@@ -364,7 +364,7 @@ TTEPlan$set(
           new_result[["swereg_version_s2"]]
         )
       }
-      new_result[["swereg_version"]] <- as.character(utils::packageVersion(
+      new_result[["swereg_version_s3"]] <- as.character(utils::packageVersion(
         "swereg"
       ))
       self$results_enrollment[[eid]] <- new_result

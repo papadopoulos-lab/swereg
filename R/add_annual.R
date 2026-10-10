@@ -5,7 +5,8 @@
 #' such as yearly income, employment status, or annual health assessments.
 #'
 #' @param skeleton A data.table containing the main skeleton structure with id and time variables
-#' @param data A data.table containing the annual data to be merged
+#' @param data A data.table containing the annual data to be merged. The
+#'   function does not add or change any column of `data`.
 #' @param id_name Character string specifying the name of the ID variable in the data
 #' @param isoyear Integer specifying the ISO year for which the data applies
 #' @return The skeleton data.table is modified by reference with annual data merged in.
@@ -59,7 +60,6 @@ add_annual <- function(
   # The caller's own expressions and frame. `.ensure_dt_alloc()` writes a
   # grown table back to the matching binding. See R/dt_alloc.R.
   skeleton_expr <- substitute(skeleton)
-  data_expr <- substitute(data)
   caller_env <- parent.frame()
 
   # Validate inputs
@@ -104,15 +104,10 @@ add_annual <- function(
             " skeleton IDs found in data. Some individuals will have missing values.", call. = FALSE)
   }
 
-  # Guarantee the column-slot headroom each write needs, before it runs. See
-  # R/dt_alloc.R for the defect this prevents.
-  data <- .ensure_dt_alloc(
-    data,
-    n_new = as.integer(!"isoyear" %in% names(data)),
-    x_expr = data_expr,
-    env = caller_env,
-    fn_name = "add_annual()"
-  )
+  # The join needs an `isoyear` column on `data`. It is written to a copy, so
+  # the caller's `data` keeps its columns and values. `data` holds one row per
+  # person, and the skeleton holds one row per person and week.
+  data <- data.table::copy(data)
   data[, isoyear := isoyear]
 
   # A person with more than one row in `data` has no single annual value.

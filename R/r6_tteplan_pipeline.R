@@ -1091,10 +1091,10 @@ TTEPlan$set(
         if (is.null(enr_results[[i]])) {
           next
         }
-        self$results_enrollment[[enr_todo[i]]]$swereg_version <- s3_version
+        self$results_enrollment[[enr_todo[i]]][["swereg_version_s3"]] <- s3_version
         s2_versions <- c(
           s2_versions,
-          enr_results[[i]]$swereg_version_s2 %||% NA_character_
+          enr_results[[i]][["swereg_version_s2"]] %||% NA_character_
         )
       }
       rm(enr_results)
@@ -1137,7 +1137,7 @@ TTEPlan$set(
         s2_prev <- if (
           "swereg_version_s2" %in% names(self$results_ett[[eid]])
         ) {
-          list(self$results_ett[[eid]]$swereg_version_s2)
+          list(self$results_ett[[eid]][["swereg_version_s2"]])
         } else {
           list()
         }
@@ -1147,13 +1147,13 @@ TTEPlan$set(
         if (!is.null(all_results[[j]])) {
           self$results_ett[[eid]]$swereg_version_s2 <- do.call(
             .s2_version_union,
-            c(s2_prev, list(all_results[[j]]$swereg_version_s2))
+            c(s2_prev, list(all_results[[j]][["swereg_version_s2"]]))
           )
         }
-        self$results_ett[[eid]]$swereg_version <- s3_version
+        self$results_ett[[eid]][["swereg_version_s3"]] <- s3_version
         s2_versions <- c(
           s2_versions,
-          all_results[[j]]$swereg_version_s2 %||% NA_character_
+          all_results[[j]][["swereg_version_s2"]] %||% NA_character_
         )
         for (slot in grep("^irr_", names(all_results[[j]]), value = TRUE)) {
           v <- all_results[[j]][[slot]]

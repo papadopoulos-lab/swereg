@@ -9,9 +9,22 @@
 
 * **swereg refuses a `TTEPlan` or a `TTEEnrollment` saved before 27.3.0.** The plan schema is 6 and the enrollment schema is 7. Rebuild the plan with s0 and re-run s1, then s2 and s3.
 
+## Bug fixes
+
+* **The forest axis labels ticks below 0.1 when a plotted bound needs them (#56).** The ticks are 1 and 3 times each power of 10, down to the first tick at or below the smallest bound. Before, a ratio of 0.004 had no labelled tick below 0.1.
+* **A forest label format drops a ` ({field}...)` group when that field is empty, for any field (#56).** Before, only `({outcome_role})` was dropped, so `({follow_up}w)` printed `(w)`.
+* **`add_annual()` does not add or change any column of the caller's `data` (#56).** Before, it wrote `isoyear` into `data`.
+* **`tteenrollment_irr_combine()` pads every value of a column to one width (#56).** Before, `0.0040` stood beside ` 1.23`.
+* **The MDE columns accept two ratios that round to 1, which happens at about 1e32 comparator events (#56).** Before, the orientation check stopped the export.
+
 ## Internal
 
 * **The s1 sub-steps s1b, s1c and s1d are renamed s1c, s1d and s1e (#52).** The name s1b is free for the step that #52 adds before the comparator draw. The log labels, the batchit item ids and the work-directory file names use the new names. s1 clears a leftover work directory with the old names at its start.
+* **The s3 stamp on each stored result is renamed `swereg_version_s3` (#56).** Under the old name `swereg_version`, `$swereg_version` read `swereg_version_s2` when the s3 stamp was absent. swereg refuses plans saved before 27.3.0, so no reader falls back to the old name.
+* **The IPCW fit label names the error that starts the refit (#56).** It reads "bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error".
+* **The internal writers `.write_combined_rates()`, `.write_combined_rates_irr()`, `.write_combined_irr()` and `.write_itt_vs_pp_forest()` are removed (#56).** No export called them. Six helpers that only they called go with them: `.prepare_combine_data()`, `.build_itt_vs_pp_df()`, `.render_itt_vs_pp_overlay()`, `.rename_treatment_columns()`, `.ett_descriptions()` and `.ff_ci_only()`.
+* **`ignore_unused_imports()` is removed (#56).** `tools:::.check_packages_used()` finds `mgcv` and `survey` through the top-level functions that call them.
+* **The validation evidence hash covers the parsed code of the estimator files, not their bytes.** An edit to comments, roxygen, whitespace or blank lines no longer makes the evidence stale.
 
 # swereg 27.2.0
 

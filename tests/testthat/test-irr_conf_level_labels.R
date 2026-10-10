@@ -89,87 +89,21 @@ skip_if_not_installed("openxlsx")
   out
 }
 
-.lbl_overlay_labels <- function(rendered) {
-  out <- character(0)
-  for (i in seq_len(length(rendered$plot))) {
-    for (d in ggplot2::ggplot_build(rendered$plot[[i]])$data) {
-      if ("label" %in% names(d)) {
-        out <- c(out, as.character(d$label))
-      }
-    }
-  }
-  out
-}
-
 test_that("IRR interval labels state a non-default conf_level", {
-  skip_if_not_installed("ggplot2")
   plan <- .lbl_plan(conf_level = 0.9)
-  img_dir <- tempfile("img")
-  dir.create(img_dir)
-  on.exit(unlink(img_dir, recursive = TRUE), add = TRUE)
-
   wb <- openxlsx::createWorkbook()
-  swereg:::.write_itt_vs_pp_forest(
-    wb,
-    "ITT vs PP forest",
-    plan,
-    keep_ett_ids = "ETT00001",
-    img_dir = img_dir,
-    img_basename = "itt_vs_pp"
-  )
   swereg:::.write_effect_modification(wb, "Effect modification", plan)
-  sheets <- c("ITT vs PP forest", "Effect modification")
-  all_cells <- .lbl_sheet_cells(wb, sheets)
-  for (sheet in sheets) {
-    cells <- all_cells[[sheet]]
-    expect_true(all(c("ITT 90% CI", "PP 90% CI") %in% cells), info = sheet)
-    expect_false(any(grepl("95% CI", cells, fixed = TRUE)), info = sheet)
-  }
-
-  df <- swereg:::.build_itt_vs_pp_df(plan, keep_ett_ids = "ETT00001")
-  drawn <- .lbl_overlay_labels(
-    swereg:::.render_itt_vs_pp_overlay(df, conf_level = 0.9)
-  )
-  expect_true(all(c("PP IRR (90% CI)", "ITT IRR (90% CI)") %in% drawn))
-  expect_false(any(grepl("95% CI", drawn, fixed = TRUE)))
+  cells <- .lbl_sheet_cells(wb, "Effect modification")[[1]]
+  expect_true(all(c("ITT 90% CI", "PP 90% CI") %in% cells))
+  expect_false(any(grepl("95% CI", cells, fixed = TRUE)))
 })
 
 test_that("IRR interval labels default to 95 when the study names no level", {
-  skip_if_not_installed("ggplot2")
   plan <- .lbl_plan()
   wb <- openxlsx::createWorkbook()
   swereg:::.write_effect_modification(wb, "Effect modification", plan)
   cells <- .lbl_sheet_cells(wb, "Effect modification")[[1]]
   expect_true(all(c("ITT 95% CI", "PP 95% CI") %in% cells))
-
-  df <- swereg:::.build_itt_vs_pp_df(plan, keep_ett_ids = "ETT00001")
-  drawn <- .lbl_overlay_labels(swereg:::.render_itt_vs_pp_overlay(df))
-  expect_true(all(c("PP IRR (95% CI)", "ITT IRR (95% CI)") %in% drawn))
-})
-
-test_that("the ITT vs PP forest writer passes the study level to its figure", {
-  skip_if_not_installed("ggplot2")
-  plan <- .lbl_plan(conf_level = 0.9)
-  img_dir <- tempfile("img")
-  dir.create(img_dir)
-  on.exit(unlink(img_dir, recursive = TRUE), add = TRUE)
-  seen <- NULL
-  orig <- swereg:::.render_itt_vs_pp_overlay
-  local_mocked_bindings(
-    .render_itt_vs_pp_overlay = function(df, ...) {
-      seen <<- list(...)$conf_level
-      orig(df, ...)
-    }
-  )
-  swereg:::.write_itt_vs_pp_forest(
-    openxlsx::createWorkbook(),
-    "ITT vs PP forest",
-    plan,
-    keep_ett_ids = "ETT00001",
-    img_dir = img_dir,
-    img_basename = "itt_vs_pp"
-  )
-  expect_identical(seen, 0.9)
 })
 
 test_that("the results and sensitivity sheets head the IRR interval at conf_level", {
@@ -263,39 +197,6 @@ test_that("tteenrollment_combined_combine() heads the interval at conf_level", {
   expect_false("95% CI" %in% names(d90))
 })
 
-test_that("the forest summary tables carry the study level in their headers", {
-  plan <- .lbl_plan(conf_level = 0.9)
-  img_dir <- tempfile("img")
-  dir.create(img_dir)
-  on.exit(unlink(img_dir, recursive = TRUE), add = TRUE)
-  # The figure is not under test here. A stub keeps it out of the run.
-  local_mocked_bindings(
-    .render_itt_vs_pp_overlay = function(df, ...) stop("figure not drawn")
-  )
-  wb <- openxlsx::createWorkbook()
-  expect_warning(
-    swereg:::.write_itt_vs_pp_forest(
-      wb,
-      "ITT vs PP forest",
-      plan,
-      keep_ett_ids = "ETT00001",
-      img_dir = img_dir,
-      img_basename = "itt_vs_pp"
-    ),
-    "figure not drawn"
-  )
-  swereg:::.write_effect_modification(wb, "Effect modification", plan)
-  sheets <- c("ITT vs PP forest", "Effect modification")
-  all_cells <- .lbl_sheet_cells(wb, sheets)
-  expect_true(
-    all(c("ITT 90% CI", "PP 90% CI") %in% all_cells[["ITT vs PP forest"]])
-  )
-  expect_true(
-    all(c("ITT 90% CI", "PP 90% CI") %in% all_cells[["Effect modification"]])
-  )
-})
-
-
 test_that("tteenrollment_irr_combine() prints a ratio below 0.01 as nonzero", {
   irr_row <- function(irr, lo, hi) {
     return(data.table::data.table(
@@ -314,7 +215,8 @@ test_that("tteenrollment_irr_combine() prints a ratio below 0.01 as nonzero", {
   # Below 0.01: two significant digits, the rule of the results sheets.
   expect_identical(got$IRR[1], "0.0040")
   expect_identical(got[["95% CI"]][1], "0.0020 to 0.0080")
-  # At or above 0.01: two decimals, as before.
-  expect_identical(got$IRR[2], "0.54")
-  expect_identical(got[["95% CI"]][2], "0.40 to 0.71")
+  # At or above 0.01: two decimals, padded on the left to the width of
+  # "0.0040" (#56).
+  expect_identical(got$IRR[2], "  0.54")
+  expect_identical(got[["95% CI"]][2], "  0.40 to   0.71")
 })

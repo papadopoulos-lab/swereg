@@ -9,7 +9,8 @@ add_annual(skeleton, data, id_name, isoyear)
 \arguments{
 \item{skeleton}{A data.table containing the main skeleton structure with id and time variables}
 
-\item{data}{A data.table containing the annual data to be merged}
+\item{data}{A data.table containing the annual data to be merged. The
+function does not add or change any column of \code{data}.}
 
 \item{id_name}{Character string specifying the name of the ID variable in the data}
 

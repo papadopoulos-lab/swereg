@@ -158,44 +158,9 @@ test_that(".sensitivity_row_fmt prints a ratio below 0.01 with two significant d
   cells <- swereg:::.sensitivity_row_fmt(m, "")
   expect_identical(cells[["IRR"]], "0.54")
   expect_identical(cells[["95% CI"]], "0.40 to 0.71")
-  # The forest label and the forest table interval use the same rule.
+  # The forest label uses the same rule.
   expect_identical(
     swereg:::.ff_irr_ci(0.004, 0.0013, 0.012, TRUE),
     "0.0040 (0.0013 to 0.01)"
   )
-  expect_identical(swereg:::.ff_ci_only(0.0013, 0.012), "0.0013 to 0.01")
-})
-
-test_that(".build_itt_vs_pp_df merges PP and ITT IRRs onto shared rows", {
-  plan <- make_min_plan()
-  df <- swereg:::.build_itt_vs_pp_df(plan, keep_ett_ids = "ETT00001")
-  expect_true(all(c("irr_pp", "irr_itt") %in% names(df)))
-  expect_equal(df$irr_pp[1], 0.54)
-  expect_equal(df$irr_itt[1], 0.61)
-})
-
-test_that(".write_itt_vs_pp_forest: ITT IRR + PP IRR columns are real numbers", {
-  skip_if_not_installed("ggplot2")
-  plan <- make_min_plan()
-  wb <- openxlsx::createWorkbook()
-  img_dir <- tempfile("img")
-  dir.create(img_dir)
-  on.exit(unlink(img_dir, recursive = TRUE), add = TRUE)
-  swereg:::.write_itt_vs_pp_forest(
-    wb,
-    "ITT vs PP forest",
-    plan,
-    keep_ett_ids = "ETT00001",
-    title = "ITT vs PP",
-    img_dir = img_dir,
-    img_basename = "itt_vs_pp"
-  )
-  p <- tempfile(fileext = ".xlsx")
-  on.exit(unlink(p), add = TRUE)
-  openxlsx::saveWorkbook(wb, p, overwrite = TRUE)
-  d <- openxlsx::read.xlsx(p, sheet = "ITT vs PP forest", startRow = 3)
-  expect_true(is.numeric(d[[4]])) # ITT IRR
-  expect_true(is.numeric(d[[7]])) # PP IRR
-  expect_equal(d[[4]][1], 0.61)
-  expect_equal(d[[7]][1], 0.54)
 })

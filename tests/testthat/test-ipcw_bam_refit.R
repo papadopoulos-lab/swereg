@@ -55,7 +55,7 @@ test_that("s(x) + factor(g) predicts through a refit without discrete", {
   expect_no_error(res <- .ibr_fit(d, c("s(x)", "factor(g)")))
   expect_identical(
     res$fit,
-    "bam, discrete = FALSE, after the discrete prediction failed"
+    "bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error"
   )
   expect_equal(
     res$q,
@@ -70,7 +70,7 @@ test_that("s(x) + splines::ns(tt, df = 3) predicts through a refit without discr
   expect_no_error(res <- .ibr_fit(d, c("s(x)", "splines::ns(tt, df = 3)")))
   expect_identical(
     res$fit,
-    "bam, discrete = FALSE, after the discrete prediction failed"
+    "bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error"
   )
   expect_equal(
     res$q,

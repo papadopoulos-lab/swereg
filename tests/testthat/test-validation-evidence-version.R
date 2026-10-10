@@ -1,9 +1,10 @@
 # The validation evidence (vignettes/tte-validation-evidence.rds) records the
-# md5 of the estimator source files in `$meta$estimator_hash`. This test is
-# always on, under R CMD check too: evidence from other estimator source does
-# not measure the shipped estimators. A version bump alone changes no
-# estimator, so the evidence still stands. `$meta$swereg` records the version
-# that generated it.
+# md5 of the parsed code of the estimator source files in
+# `$meta$estimator_hash`. A comment-only edit leaves that md5 unchanged.
+# This test is always on, under R CMD check too: evidence from other
+# estimator source does not measure the shipped estimators. A version bump
+# alone changes no estimator, so the evidence still stands. `$meta$swereg`
+# records the version that generated it.
 #
 # Under R CMD check, val_package_root() resolves to the unpacked source in
 # <pkg>.Rcheck/00_pkg_src/swereg. val_estimator_hash() stops when an

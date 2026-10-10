@@ -225,7 +225,8 @@ tteenrollment_irr_combine <- function(
 #'
 #' A value in (0, 0.01) gets two significant digits, the rule of
 #' `.ff_irr_num()`, so it does not print as `0.00`. Every other value keeps
-#' two decimals, padded to a common width by `format()`.
+#' two decimals. Every value is padded on the left to the width of the
+#' longest.
 #'
 #' @param x Numeric vector.
 #' @return A character vector as long as `x`.
@@ -234,7 +235,7 @@ tteenrollment_irr_combine <- function(
   out <- format(round(x, 2), nsmall = 2)
   small <- !is.na(x) & x > 0 & x < 0.01
   out[small] <- .ff_irr_num(x[small])
-  return(out)
+  return(format(out, justify = "right"))
 }
 
 
@@ -246,9 +247,7 @@ tteenrollment_irr_combine <- function(
 #' ratio (with its interval and p-value) in one place.
 #'
 #' The returned data.table still uses the generic `_Intervention`/`_Comparator`
-#' column suffixes from [tteenrollment_rates_combine()]. The workbook writer
-#' in `.write_combined_rates_irr()` applies `.rename_treatment_columns()`
-#' afterwards when the featured ETTs share a single enrollment.
+#' column suffixes from [tteenrollment_rates_combine()].
 #'
 #' @param results Named list of per-ETT result lists.
 #' @param rates_slot Character scalar, name of the slot with `$rates()` output

@@ -126,7 +126,7 @@ test_that("images match on inventory, dimensions and renderer input", {
 
     # The DATA each renderer received. This is the figure's content, before a
     # rasteriser turns it into pixels, so it holds on every machine.
-    for (renderer in c("forest", "overlay", "love", "consort")) {
+    for (renderer in c("forest", "love", "consort")) {
       expect_equal(
         got$renderer[[renderer]],
         want$renderer[[renderer]],
@@ -191,11 +191,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   # describe how a result was computed, and no accessor returns them.
   ".plan_ipcw_pp_options" = "cache inspector",
   # A filename literal, not a read.
-  ".enrollment_counts_path" = "filename literal",
-  # Unreachable. Nothing in the package calls these three, and they hand raw
-  # slot objects to `tteenrollment_rates_combine()`, which no accessor feeds.
-  ".prepare_combine_data" = "unreachable",
-  ".write_combined_rates_irr" = "unreachable"
+  ".enrollment_counts_path" = "filename literal"
 )
 
 # The participant-flow renderers used to sit on this list. They read
@@ -229,16 +225,10 @@ test_that("images match on inventory, dimensions and renderer input", {
   `.plan_counted_enrollment_ids` = c(
     "ids <- names(plan$enrollment_counts)"
   ),
-  `.prepare_combine_data` = c(
-    "results <- plan$results_ett"
-  ),
   `.restore_enrollment_counts` = c(
     "if (!is.null(plan$enrollment_counts[[eid]])) {",
     "counts_path <- .enrollment_counts_path(output_dir, plan$project_prefix,",
     "plan$enrollment_counts[[eid]] <- qs2_read(counts_path)"
-  ),
-  `.write_combined_rates_irr` = c(
-    "results <- plan$results_ett"
   ),
   `tteplan_load` = c(
     "fields <- c(\"spec\", \"enrollment_counts\", \"period_width\",",
@@ -265,14 +255,14 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_enrollment[[eid]] <- NULL",
     "self$results_ett[[eid]] <- NULL",
     "self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]",
-    "self$results_enrollment[[enr_todo[i]]]$swereg_version <- s3_version",
+    "self$results_enrollment[[enr_todo[i]]][[\"swereg_version_s3\"]] <- s3_version",
     "if (is.null(self$results_ett[[eid]])) {",
     "self$results_ett[[eid]] <- list(enrollment_id = ett_todo$enrollment_id[m$ett_i],",
     "s2_prev <- if (\"swereg_version_s2\" %in% names(self$results_ett[[eid]])) {",
-    "list(self$results_ett[[eid]]$swereg_version_s2)",
+    "list(self$results_ett[[eid]][[\"swereg_version_s2\"]])",
     "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]",
     "self$results_ett[[eid]]$swereg_version_s2 <- do.call(.s2_version_union,",
-    "self$results_ett[[eid]]$swereg_version <- s3_version"
+    "self$results_ett[[eid]][[\"swereg_version_s3\"]] <- s3_version"
   ),
   `.plan_computing_versions` = c(
     "results <- c(plan$results_enrollment, plan$results_ett)"
@@ -386,7 +376,6 @@ test_that("no consumer reads a result slot directly", {
     ".write_effect_modification",
     ".write_combined_baseline",
     ".build_forest_df",
-    ".build_itt_vs_pp_df",
     ".plan_cohort_counts",
     ".write_attrition_sheet",
     ".format_enrollment_summary",
@@ -403,34 +392,6 @@ test_that("no consumer reads a result slot directly", {
       info = paste0(nm, " still names a stored result list")
     )
   }
-})
-
-
-test_that(".prepare_combine_data survives an absent description", {
-  # One emulated trial with no stored `description` used to stop the whole
-  # call, including the trials the caller asked for. The description now comes
-  # from `plan$ett`, which holds one row per trial.
-  plan <- .xp_plan("new")
-  plan$results_ett[["ETT00002"]]$description <- NULL
-  plan$results_ett[["ETT00003"]]$description <- c("two", "strings")
-
-  prep <- swereg:::.prepare_combine_data(plan, "rates_pp_trunc")
-  expect_false(is.null(prep))
-  expect_true("ETT00002" %in% names(prep$wrapped))
-  expect_identical(prep$ett_desc[["ETT00002"]], "ETT00002")
-  expect_identical(prep$ett_desc[["ETT00003"]], "ETT00003")
-
-  # And a subset the caller asked for is unaffected by a neighbour's gap.
-  kept <- swereg:::.prepare_combine_data(
-    plan,
-    "rates_pp_trunc",
-    keep_ett_ids = c("ETT00001", "ETT00002")
-  )
-  expect_identical(names(kept$wrapped), c("ETT00001", "ETT00002"))
-  expect_identical(
-    unname(kept$ett_desc),
-    c("ETT00001", "ETT00002")
-  )
 })
 
 

@@ -609,7 +609,7 @@
 
 #' The swereg versions that computed the stored results
 #'
-#' s3 stamps `swereg_version` and `swereg_version_s2` on every result it
+#' s3 stamps `swereg_version_s3` and `swereg_version_s2` on every result it
 #' stores. A result from an earlier release carries neither. The s2 stamp
 #' of one ETT result holds one version per distinct analysis file version.
 #'
@@ -635,7 +635,7 @@
     }
     return(known)
   }
-  return(list(s2 = pick("swereg_version_s2"), s3 = pick("swereg_version")))
+  return(list(s2 = pick("swereg_version_s2"), s3 = pick("swereg_version_s3")))
 }
 
 #' Format a version set for the Provenance sheet and the export warning

@@ -27,9 +27,9 @@
 #' `.build_forest_df()`: `{outcome_name}`, `{outcome_description}`,
 #' `{enrollment_name}`, `{enrollment_id}`, `{intervention_name}`,
 #' `{comparator_name}`, `{follow_up}`, `{ett_id}`. Unknown placeholders are
-#' left unchanged. The formatter drops a parenthesised placeholder that has no
-#' value, and the space before it. An outcome with no role then shows no `()`
-#' for `({outcome_role})`.
+#' left unchanged. The formatter drops a parenthesised group that starts with
+#' a placeholder that has no value, and the space before it. A row with no
+#' follow-up then shows no `(w)` for `({follow_up}w)`.
 #'
 #' `fmt` MAY be a character vector named by ETT id. The row then takes the
 #' format named by its own `ett_id`.
@@ -61,7 +61,7 @@
       val <- ""
     }
     if (!nzchar(paste(val, collapse = ""))) {
-      out <- gsub(paste0(" ?\\(\\{", key, "\\}\\)"), "", out)
+      out <- gsub(paste0(" ?\\(\\{", key, "\\}[^()]*\\)"), "", out)
     }
     out <- gsub(paste0("{", key, "}"), as.character(val), out, fixed = TRUE)
   }
@@ -433,15 +433,4 @@
     )
   }
   return(seen)
-}
-
-
-#' Format a bare "lo to hi" confidence-interval display string. NA when either
-#' bound is non-finite.
-#' @noRd
-.ff_ci_only <- function(lo, hi) {
-  if (!is.finite(lo) || !is.finite(hi)) {
-    return(NA_character_)
-  }
-  return(sprintf("%s to %s", .ff_irr_num(lo), .ff_irr_num(hi)))
 }

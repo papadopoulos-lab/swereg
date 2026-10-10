@@ -68,37 +68,3 @@
   dt <- .tte_sparse_role_column(data.table::rbindlist(rows), plan)
   return(openxlsx::writeData(wb, "ETTs", dt))
 }
-
-#' The description of each emulated trial, read from `plan$ett`.
-#'
-#' `plan$ett` is an INPUT and it holds one row per emulated trial, so every
-#' identifier has a description whatever the analysis stored.
-#'
-#' The stored result carries a `description` field too. Reading THAT over the
-#' whole result list stopped an export. One trial's copy could be absent, or
-#' could be more than one string. A single stale entry then blocked the trials
-#' the caller had asked for. `$reload_spec()` no longer refreshes the stored
-#' copy, so the field is now more likely to be absent.
-#'
-#' @param plan A TTEPlan.
-#' @param ett_ids Character vector of identifiers, in the wanted order.
-#' @return A named character vector as long as `ett_ids`. An identifier the
-#'   grid does not carry falls back to the identifier itself.
-#' @noRd
-.ett_descriptions <- function(plan, ett_ids) {
-  ett_ids <- as.character(ett_ids)
-  out <- stats::setNames(ett_ids, ett_ids)
-  ett <- plan$ett
-  if (
-    is.null(ett) ||
-      nrow(ett) == 0L ||
-      !all(c("ett_id", "description") %in% names(ett))
-  ) {
-    return(out)
-  }
-  hit <- match(ett_ids, as.character(ett$ett_id))
-  desc <- as.character(ett$description)[hit]
-  ok <- !is.na(hit) & !is.na(desc)
-  out[ok] <- desc[ok]
-  return(out)
-}

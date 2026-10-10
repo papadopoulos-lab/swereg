@@ -2,7 +2,7 @@
 # Every stored s3 result names the swereg versions that computed it
 # =============================================================================
 #
-# s3 stamps `swereg_version` (the version that ran s3) and `swereg_version_s2`
+# s3 stamps `swereg_version_s3` (the version that ran s3) and `swereg_version_s2`
 # (the version that ran s2 on the analysis file) inside every entry of
 # `results_enrollment` and `results_ett`. s3 calls the methods of the
 # serialised analysis enrollment, so an analysis file from another release
@@ -99,16 +99,19 @@ test_that("s3 stamps both versions on every stored result", {
   plan <- .sv_plan()
   .sv_run_s3(plan, .sv_running())
 
-  # Read the stamp with `[[`. `$swereg_version` partially matches
-  # `swereg_version_s2` when the stamp is absent, and then reads the s2 value.
+  # The s3 stamp is `swereg_version_s3`. Under the old name
+  # `swereg_version`, `$swereg_version` partially matched `swereg_version_s2`
+  # when the stamp was absent, and then read the s2 value.
   for (eid in c("ETT00001", "ETT00002")) {
-    expect_identical(plan$results_ett[[eid]][["swereg_version"]], .sv_running())
+    expect_identical(plan$results_ett[[eid]][["swereg_version_s3"]], .sv_running())
+    expect_false("swereg_version" %in% names(plan$results_ett[[eid]]))
     expect_identical(plan$results_ett[[eid]]$swereg_version_s2, .sv_running())
   }
   expect_identical(
-    plan$results_enrollment[["01"]][["swereg_version"]],
+    plan$results_enrollment[["01"]][["swereg_version_s3"]],
     .sv_running()
   )
+  expect_false("swereg_version" %in% names(plan$results_enrollment[["01"]]))
   expect_identical(
     plan$results_enrollment[["01"]]$swereg_version_s2,
     .sv_running()
@@ -145,7 +148,7 @@ test_that("the stamps survive a save and load round trip", {
 
   reloaded <- swereg::tteplan_locate_and_load(dir)
   expect_identical(
-    reloaded$results_ett[["ETT00002"]][["swereg_version"]],
+    reloaded$results_ett[["ETT00002"]][["swereg_version_s3"]],
     .sv_running()
   )
   expect_identical(
@@ -153,7 +156,7 @@ test_that("the stamps survive a save and load round trip", {
     "27.1.0"
   )
   expect_identical(
-    reloaded$results_enrollment[["01"]][["swereg_version"]],
+    reloaded$results_enrollment[["01"]][["swereg_version_s3"]],
     .sv_running()
   )
   expect_identical(
@@ -174,10 +177,10 @@ test_that("the Provenance sheet shows the versions that s3 stamped", {
   expect_false("swereg version" %in% names(prov))
 
   # A plan computed before the stamps existed reads `unknown`.
-  plan$results_enrollment[["01"]][["swereg_version"]] <- NULL
+  plan$results_enrollment[["01"]][["swereg_version_s3"]] <- NULL
   plan$results_enrollment[["01"]]$swereg_version_s2 <- NULL
   for (eid in names(plan$results_ett)) {
-    plan$results_ett[[eid]][["swereg_version"]] <- NULL
+    plan$results_ett[[eid]][["swereg_version_s3"]] <- NULL
     plan$results_ett[[eid]]$swereg_version_s2 <- NULL
   }
   prov <- .sv_provenance(plan)
@@ -194,13 +197,13 @@ test_that("export warns once and the sheet shows a fixture stamped by an old ver
   # sorts after 27.9.0 as a version and before it as a string.
   eids <- names(plan$results_ett)
   for (i in seq_along(eids)) {
-    plan$results_ett[[eids[i]]][["swereg_version"]] <-
+    plan$results_ett[[eids[i]]][["swereg_version_s3"]] <-
       if (i %% 2L == 0L) "27.10.0" else "27.9.0"
     plan$results_ett[[eids[i]]]$swereg_version_s2 <- "26.1.0"
   }
   # Every result carries a stamp, so no cell adds `unknown`.
   for (eid in names(plan$results_enrollment)) {
-    plan$results_enrollment[[eid]][["swereg_version"]] <- "27.9.0"
+    plan$results_enrollment[[eid]][["swereg_version_s3"]] <- "27.9.0"
     plan$results_enrollment[[eid]]$swereg_version_s2 <- "26.1.0"
   }
 
@@ -238,11 +241,11 @@ test_that("export names unknown when only some results carry a version", {
   # Every ETT result carries the running version. The enrollment results
   # carry none, as a result from before 27.2.0 does.
   for (eid in names(plan$results_ett)) {
-    plan$results_ett[[eid]][["swereg_version"]] <- .sv_running()
+    plan$results_ett[[eid]][["swereg_version_s3"]] <- .sv_running()
     plan$results_ett[[eid]]$swereg_version_s2 <- .sv_running()
   }
   expect_gt(length(plan$results_enrollment), 0L)
-  expect_null(plan$results_enrollment[[1L]][["swereg_version"]])
+  expect_null(plan$results_enrollment[[1L]][["swereg_version_s3"]])
 
   mixed <- paste0(.sv_running(), ", unknown")
   path <- withr::local_tempfile(fileext = ".xlsx")
@@ -272,7 +275,7 @@ test_that("export names unknown when only some results carry a version", {
   # A plan whose results all lack the stamps reads `unknown` and does not
   # warn.
   for (eid in names(plan$results_ett)) {
-    plan$results_ett[[eid]][["swereg_version"]] <- NULL
+    plan$results_ett[[eid]][["swereg_version_s3"]] <- NULL
     plan$results_ett[[eid]]$swereg_version_s2 <- NULL
   }
   path <- withr::local_tempfile(fileext = ".xlsx")
@@ -413,7 +416,7 @@ test_that("a recompute re-stamps the s3 version and keeps the worker's s2 stamp"
   plan <- .sv_plan()
   suppressWarnings(.sv_run_s3(plan, "27.1.0"))
   # A stored result from an older s3, as a plan saved by that release holds.
-  plan$results_enrollment[["01"]][["swereg_version"]] <- "27.0.0"
+  plan$results_enrollment[["01"]][["swereg_version_s3"]] <- "27.0.0"
   dir <- withr::local_tempdir()
   for (f in unique(c(plan$ett$file_analysis, plan$ett$file_raw))) {
     file.create(file.path(dir, f))
@@ -432,7 +435,7 @@ test_that("a recompute re-stamps the s3 version and keeps the worker's s2 stamp"
 
   after <- plan$results_enrollment[["01"]]
   expect_identical(after[["n_baseline"]], 4242L)
-  expect_identical(after[["swereg_version"]], .sv_running())
+  expect_identical(after[["swereg_version_s3"]], .sv_running())
   expect_identical(after[["swereg_version_s2"]], "27.1.5")
 })
 
@@ -503,7 +506,7 @@ test_that("real s2 and s3 workers carry the s2 stamp to the stored results", {
   )))
   expect_gt(length(plan$results_ett), 0L)
   for (r in c(plan$results_ett, plan$results_enrollment)) {
-    expect_identical(r[["swereg_version"]], .sv_running())
+    expect_identical(r[["swereg_version_s3"]], .sv_running())
     expect_identical(r$swereg_version_s2, .sv_running())
   }
 })

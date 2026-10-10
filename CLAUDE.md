@@ -80,8 +80,11 @@ Run the checks that match the change:
   Before a release, regenerate the evidence and run the full tier. The
   always-on `test-validation-evidence-version.R` fails while
   `$meta$estimator_hash` differs from the source.
-- **A version bump**: no regeneration. The evidence stands until an
-  estimator file changes.
+- **A comment-only edit to an estimator file**: no regeneration.
+  `val_estimator_hash()` hashes the parsed code of each file, so an edit to
+  comments, roxygen, whitespace or blank lines leaves the hash unchanged.
+- **A version bump**: no regeneration. The evidence stands until the parsed
+  code of an estimator file changes.
 
 ## Architecture and data flow
 

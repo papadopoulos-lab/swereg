@@ -38,9 +38,7 @@ ratio (with its interval and p-value) in one place.
 }
 \details{
 The returned data.table still uses the generic \verb{_Intervention}/\verb{_Comparator}
-column suffixes from \code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}}. The workbook writer
-in \code{.write_combined_rates_irr()} applies \code{.rename_treatment_columns()}
-afterwards when the featured ETTs share a single enrollment.
+column suffixes from \code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}}.
 }
 \seealso{
 Other tte_methods:

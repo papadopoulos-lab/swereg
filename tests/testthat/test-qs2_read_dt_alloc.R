@@ -296,12 +296,13 @@ test_that("qs2_read over-allocates a data.table in an R6 private field", {
 })
 
 
-test_that("add_annual writes isoyear into a rawbatch table the caller keeps", {
-  # `add_annual()` runs `data[, isoyear := isoyear]` on its `data` argument.
-  # A rawbatch table read straight off disk carried no over-allocation. That
-  # write went to a shallow copy, and the caller kept a table without the
-  # column. `RegistryStudy$load_rawbatch()` goes through `qs2_read()`, so the
-  # write now reaches the caller.
+test_that("a by-reference write reaches a rawbatch table the caller keeps", {
+  # A rawbatch table read straight off disk carried no over-allocation. A
+  # by-reference write inside a function went to a shallow copy, and the
+  # caller kept a table without the column. `RegistryStudy$load_rawbatch()`
+  # goes through `qs2_read()`, so the write now reaches the caller. Since
+  # 27.3.0 `add_annual()` writes nothing into its `data`, so a plain writer
+  # stands in for it here.
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
     data_rawbatch_dir = dir,
@@ -315,11 +316,10 @@ test_that("add_annual writes isoyear into a rawbatch table the caller keeps", {
   )
 
   annual <- study$load_rawbatch(1L)[["annual"]]
-  expect_false("isoyear" %in% names(annual))
+  expect_false("added_by_reference" %in% names(annual))
 
-  skeleton <- create_skeleton(1:3, 2021, "2021-52")
-  add_annual(skeleton, annual, id_name = "lopnr", isoyear = 2021)
+  add_col_by_reference(annual)
 
-  expect_true("isoyear" %in% names(annual))
-  expect_identical(unique(annual$isoyear), 2021)
+  expect_true("added_by_reference" %in% names(annual))
+  expect_identical(unique(annual$added_by_reference), 1L)
 })

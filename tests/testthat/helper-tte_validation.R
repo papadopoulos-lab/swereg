@@ -39,9 +39,13 @@ val_n_replicates <- function(scenario) {
   "R/tte_risk_difference.R"
 )
 
-# The md5 of the estimator source files, read from the package root `root`.
-# It is the md5 of one line per file, `<path> <md5 of the file>`, in the order
-# of .VAL_ESTIMATOR_FILES. A missing file is an error, never a skipped file.
+# The md5 of the parsed code of the estimator source files, read from the
+# package root `root`. Each file is parsed without source references, so
+# comments, roxygen, whitespace and blank lines do not enter the hash. Each
+# top-level expression is deparsed, and the per-file hash is the md5 of those
+# lines in file order. The result is the md5 of one line per file,
+# `<path> <per-file hash>`, in the order of .VAL_ESTIMATOR_FILES. A missing
+# file is an error, never a skipped file.
 val_estimator_hash <- function(root) {
   paths <- file.path(root, .VAL_ESTIMATOR_FILES)
   missing <- .VAL_ESTIMATOR_FILES[!file.exists(paths)]
@@ -54,11 +58,24 @@ val_estimator_hash <- function(root) {
       call. = FALSE
     )
   }
-  lines <- paste(.VAL_ESTIMATOR_FILES, unname(tools::md5sum(paths)))
-  tmp <- tempfile()
-  on.exit(unlink(tmp), add = TRUE)
-  writeLines(lines, tmp)
-  unname(tools::md5sum(tmp))
+  md5_of_lines <- function(x) {
+    tmp <- tempfile()
+    on.exit(unlink(tmp), add = TRUE)
+    writeLines(x, tmp, useBytes = TRUE)
+    unname(tools::md5sum(tmp))
+  }
+  control <- c("keepNA", "keepInteger", "niceNames", "showAttributes")
+  file_hashes <- vapply(
+    paths,
+    function(path) {
+      exprs <- parse(path, keep.source = FALSE, encoding = "UTF-8")
+      code <- unlist(lapply(exprs, deparse, control = control))
+      md5_of_lines(code)
+    },
+    character(1L),
+    USE.NAMES = FALSE
+  )
+  md5_of_lines(paste(.VAL_ESTIMATOR_FILES, file_hashes))
 }
 
 # The package root as seen from the tests: the source tree under
