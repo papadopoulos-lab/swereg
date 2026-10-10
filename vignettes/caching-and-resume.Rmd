@@ -28,8 +28,8 @@ from.
 
 **The TTE stages (s1–s3) hold no caching or resume opinion of their own** —
 that was deliberately removed (Phase 5′; see `PROJECT.md`). `s1`'s work
-directory is transient dataflow between its four internal sub-steps, cleared
-at the start of every call and removed again on success; `s3_analyze()`
+directory is transient dataflow between its internal sub-steps s1a to s1e, cleared
+at the start of every call and removed again on success. `s3_analyze()`
 recomputes every targeted result on every call. A killed s1 restarts from
 zero, and a mid-run s3 crash means a full recompute — accepted costs, not
 bugs. This vignette is therefore only about the skeleton pipeline below s1,

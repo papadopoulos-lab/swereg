@@ -144,9 +144,9 @@ TTEPlan <- R6::R6Class(
     #'   differences that `$reload_spec()` chose not to apply, or NULL.
     spec_reload_skipped_diffs = NULL,
     #' @field sparse_decision The frozen decision of the spec's `sparse_rule`,
-    #'   or NULL when the spec has none. s1b writes it. Read it through
-    #'   `$get_sparse_decision()`. It is a data.table with one row per
-    #'   candidate, in the order of `sparse_rule$candidates`:
+    #'   or NULL when the spec has none or s1 has not run. s1b writes it. Read
+    #'   it through `$get_sparse_decision()`. It is a data.table with one row
+    #'   per candidate, in the order of `sparse_rule$candidates`:
     #'   \describe{
     #'     \item{variable, label}{The computed confounder and its name.}
     #'     \item{`n_<enrollment>_intervention`, `n_<enrollment>_comparator`}{The

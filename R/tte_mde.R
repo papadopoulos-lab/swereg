@@ -45,8 +45,9 @@
   protective <- ifelse(ok, exp(-k * se), NA_real_)
   harmful <- ifelse(ok, exp(k * se), NA_real_)
   both <- is.finite(protective) & is.finite(harmful)
-  # At about 1e32 events, `exp(k * se)` rounds to 1. A pair with both ratios
-  # within 1e-12 of 1 MUST only hold protective <= 1 <= harmful.
+  # At >= 6.37e32 comparator events at 95% confidence and 80% power,
+  # `exp(k * se)` rounds to 1. A pair with both ratios within 1e-12 of 1
+  # MUST only hold protective <= 1 <= harmful.
   near_one <- abs(protective - 1) <= 1e-12 & abs(harmful - 1) <= 1e-12
   stopifnot(
     "MDE orientation: protective < 1 < harmful" = all(

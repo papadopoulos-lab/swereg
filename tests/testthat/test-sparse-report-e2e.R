@@ -42,7 +42,7 @@ spr_e2e_sheet <- function(sheet, ...) {
 SPR_E2E_CRITERION <- "Excluded (fewer than 10 at baseline): Prior rare condition B"
 SPR_E2E_LABEL <- paste(
   "Prior rare condition B (rare-condition rule: fewer than 10 persons at",
-  "baseline in the smallest arm of the driving comparisons)"
+  "baseline in the smallest arm of the driving comparison)"
 )
 
 test_that("the loaded plan, the Sparse conditions sheet and the Attrition step-2 rows agree", {

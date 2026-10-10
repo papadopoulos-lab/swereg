@@ -101,6 +101,78 @@ test_that("Study Specification states the rule, the exclusions and the adjustmen
   )
 })
 
+# The Confounders block of Study Specification, from its header to the
+# blank row that ends it.
+spr_report_confounder_rows <- function(ss) {
+  a <- which(ss[[1]] == "Confounders")
+  rest <- ss[[1]][(a + 1L):nrow(ss)]
+  b <- a + which(is.na(rest) | !nzchar(trimws(rest)))[1L] - 1L
+  return(ss[[1]][(a + 1L):b])
+}
+
+test_that("Study Specification marks each confounder the rule excluded", {
+  plan <- spr_report_fast_plan()
+  ss <- spr_report_read_sheet(
+    function(wb) swereg:::.write_spec_summary(wb, plan),
+    "Study Specification"
+  )
+  expect_identical(
+    grep("^Prior", spr_report_confounder_rows(ss), value = TRUE),
+    c(
+      "Prior rare condition A (excluded by the rare-condition rule)",
+      "Prior common condition",
+      "Prior rare condition B (excluded by the rare-condition rule)"
+    )
+  )
+})
+
+test_that("Study Specification marks no confounder without an exclusion", {
+  for (plan in list(
+    spr_report_fast_plan(none_excluded = TRUE),
+    local({
+      p <- spr_report_fast_plan()
+      p$sparse_decision <- NULL
+      p
+    })
+  )) {
+    ss <- spr_report_read_sheet(
+      function(wb) swereg:::.write_spec_summary(wb, plan),
+      "Study Specification"
+    )
+    expect_identical(
+      grep("^Prior", spr_report_confounder_rows(ss), value = TRUE),
+      c(
+        "Prior rare condition A",
+        "Prior common condition",
+        "Prior rare condition B"
+      )
+    )
+  }
+})
+
+test_that("the rule sentence is singular for one driver and plural for two", {
+  plan <- spr_report_fast_plan()
+  stem <- paste0(
+    "A candidate condition held by fewer than 10 persons in the smallest ",
+    "arm of the driving comparison becomes an exclusion criterion of ",
+    "every comparison. "
+  )
+  expect_identical(
+    swereg:::.tte_sparse_rule_sentence(10L, plan, "01"),
+    paste0(stem, "The driving comparison is ", FAST_DRIVER)
+  )
+  stem <- sub("driving comparison ", "driving comparisons ", stem, fixed = TRUE)
+  expect_identical(
+    swereg:::.tte_sparse_rule_sentence(10L, plan, c("01", "02")),
+    paste0(
+      stem,
+      "The driving comparisons are ",
+      FAST_DRIVER,
+      ", enrollment 02 (Treated vs control 02)"
+    )
+  )
+})
+
 test_that("Study Specification carries no rule rows without a sparse_rule", {
   plan <- spr_report_fast_plan()
   plan$spec$sparse_rule <- NULL
@@ -238,7 +310,7 @@ test_that("CONSORT labels each step-2 row with its condition and the rule", {
   )
   rule_line <- paste0(
     "\\n(rare-condition rule: fewer than 10 persons at baseline in the ",
-    "smallest arm of the driving comparisons)"
+    "smallest arm of the driving comparison)"
   )
   expect_identical(
     unname(labels[c(crit_b, crit_a)]),
@@ -264,12 +336,12 @@ test_that("CONSORT labels each step-2 row with its condition and the rule", {
   )
   expect_match(
     dot,
-    "- Prior rare condition B (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparisons) (n = 4 persons / 50 person-trials)",
+    "- Prior rare condition B (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 4 persons / 50 person-trials)",
     fixed = TRUE
   )
   expect_match(
     dot,
-    "- Prior rare condition A (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparisons) (n = 3 persons / 30 person-trials)",
+    "- Prior rare condition A (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 3 persons / 30 person-trials)",
     fixed = TRUE
   )
 })
@@ -280,8 +352,8 @@ test_that("TARGET 6a lists the rule and the final exclusions", {
   expect_true(any(grepl(
     paste0(
       "- Rare-condition rule: A candidate condition held by fewer than 10 ",
-      "persons in the smallest arm of the driving comparisons becomes an ",
-      "exclusion criterion of every comparison. The driving comparisons are ",
+      "persons in the smallest arm of the driving comparison becomes an ",
+      "exclusion criterion of every comparison. The driving comparison is ",
       FAST_DRIVER,
       ". The rule is decided from baseline counts in the eligible ",
       "population, before the comparator draw and without follow-up ",
@@ -314,6 +386,19 @@ test_that("TARGET 6g lists the final adjustment set", {
   )
 })
 
+test_that("the CONSORT rule line is plural for two driving enrollments", {
+  plan <- spr_report_fast_plan()
+  plan$sparse_decision[, decided_by := "01, 02"]
+  expect_identical(
+    unname(swereg:::.tte_sparse_consort_labels(plan)),
+    paste0(
+      c("Prior rare condition B", "Prior rare condition A"),
+      "\\n(rare-condition rule: fewer than 10 persons at baseline in the ",
+      "smallest arm of the driving comparisons)"
+    )
+  )
+})
+
 test_that("the TARGET methods text states the rule, the threshold and the inheritance", {
   plan <- spr_report_fast_plan()
   txt <- paste(spr_report_checklist(plan), collapse = " ")
@@ -324,7 +409,7 @@ test_that("the TARGET methods text states the rule, the threshold and the inheri
       "10 persons. The rule was decided from baseline counts in the eligible ",
       "population, before the comparator draw and without follow-up ",
       "outcomes. The counts were of eligible persons per arm in the driving ",
-      "comparisons: ",
+      "comparison: ",
       FAST_DRIVER,
       ". A person counted once in an arm when any of her eligible ",
       "person-trials in that arm held the condition at its recruiting-week ",
@@ -333,7 +418,7 @@ test_that("the TARGET methods text states the rule, the threshold and the inheri
       "became an exclusion criterion of every comparison. Every other ",
       "candidate stayed a confounder. The comparisons that did not drive the ",
       "rule inherited its decision and the adjustment set of the driving ",
-      "comparisons. The rule excluded Prior rare condition B, Prior rare ",
+      "comparison. The rule excluded Prior rare condition B, Prior rare ",
       "condition A. The final adjustment set was Age, Prior common condition."
     ),
     fixed = TRUE
@@ -397,8 +482,8 @@ test_that("the protocol eligibility specification cell states the feasibility ru
         paste0(
           "Rare-condition rule, a pre-specified feasibility rule. A ",
           "candidate condition held by fewer than 10 persons in the smallest ",
-          "arm of the driving comparisons becomes an exclusion criterion of ",
-          "every comparison. The driving comparisons are ",
+          "arm of the driving comparison becomes an exclusion criterion of ",
+          "every comparison. The driving comparison is ",
           FAST_DRIVER,
           ". Every other candidate stays a confounder"
         ),
@@ -412,8 +497,9 @@ test_that("the protocol eligibility specification cell states the feasibility ru
           "outcomes"
         ),
         paste0(
-          "A randomised trial cannot make eligibility depend on enrolled ",
-          "counts. The emulation applies this rule for feasibility"
+          "A randomised trial cannot make eligibility depend on counts in ",
+          "its own eligible population. The emulation applies this rule ",
+          "for feasibility"
         )
       ),
       collapse = "\n"

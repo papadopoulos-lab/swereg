@@ -391,7 +391,7 @@ vignette("rowdep-rowind-concept", package = "swereg")
 ## TTE (Target Trial Emulation) system
 
 ### Spec-driven configuration
-`tteplan_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`.
+`tteplan_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`, `sparse_rule`, `standing_methods`, `subgroups`, `target_trial`.
 
 Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`

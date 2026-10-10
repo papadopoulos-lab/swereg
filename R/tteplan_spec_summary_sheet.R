@@ -619,9 +619,16 @@
         )
     )
   }
+  # The frozen rare-condition decision marks each confounder it excluded.
+  sparse_excluded <- .tte_sparse_report(plan)$excluded_vars
   for (conf in spec$confounders) {
     cimpl <- conf$implementation
-    add_item(conf$name)
+    add_item(paste0(
+      conf$name,
+      if (isTRUE(cimpl$variable %in% sparse_excluded)) {
+        " (excluded by the rare-condition rule)"
+      }
+    ))
     if (isTRUE(cimpl$computed)) {
       sv_display <- cimpl$source_variable_combined %||% cimpl$source_variable
       derived <- cimpl$variable %||% sv_display

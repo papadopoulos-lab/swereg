@@ -158,9 +158,9 @@ called to refresh cosmetic labels.}
 differences that \verb{$reload_spec()} chose not to apply, or NULL.}
 
     \item{\code{sparse_decision}}{The frozen decision of the spec's \code{sparse_rule},
-or NULL when the spec has none. s1b writes it. Read it through
-\verb{$get_sparse_decision()}. It is a data.table with one row per
-candidate, in the order of \code{sparse_rule$candidates}:
+or NULL when the spec has none or s1 has not run. s1b writes it. Read
+it through \verb{$get_sparse_decision()}. It is a data.table with one row
+per candidate, in the order of \code{sparse_rule$candidates}:
 \describe{
 \item{variable, label}{The computed confounder and its name.}
 \item{\verb{n_<enrollment>_intervention}, \verb{n_<enrollment>_comparator}}{The

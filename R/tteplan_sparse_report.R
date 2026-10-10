@@ -107,15 +107,31 @@
   ))
 }
 
-#' The rule in two present-tense sentences, without a final full stop
+#' "the driving comparison" for one driving enrollment, else the plural
 #' @noRd
-.tte_sparse_rule_sentence <- function(min_n, drivers) {
+.tte_sparse_driving <- function(ids) {
+  if (length(ids) == 1L) {
+    return("the driving comparison")
+  }
+  return("the driving comparisons")
+}
+
+#' The rule in two present-tense sentences, without a final full stop.
+#' Both sentences are singular for one driving enrollment.
+#' @noRd
+.tte_sparse_rule_sentence <- function(min_n, plan, ids) {
   return(paste0(
     "A candidate condition held by fewer than ",
     min_n,
-    " persons in the smallest arm of the driving comparisons becomes an ",
-    "exclusion criterion of every comparison. The driving comparisons are ",
-    drivers
+    " persons in the smallest arm of ",
+    .tte_sparse_driving(ids),
+    " becomes an exclusion criterion of every comparison. ",
+    if (length(ids) == 1L) {
+      "The driving comparison is "
+    } else {
+      "The driving comparisons are "
+    },
+    .tte_sparse_drivers(plan, ids)
   ))
 }
 
@@ -264,10 +280,7 @@
     row(
       "Rule:",
       paste0(
-        .tte_sparse_rule_sentence(
-          rule$min_n,
-          .tte_sparse_drivers(plan, rule$decided_by)
-        ),
+        .tte_sparse_rule_sentence(rule$min_n, plan, rule$decided_by),
         ". Every other candidate stays a confounder. The rule is ",
         .TTE_SPARSE_BASIS,
         ". The other comparisons inherit the decision."
@@ -370,7 +383,9 @@
       ex$label,
       "\\n(rare-condition rule: fewer than ",
       ex$threshold,
-      " persons at baseline in the smallest arm of the driving comparisons)"
+      " persons at baseline in the smallest arm of ",
+      .tte_sparse_driving(rpt$decided_by),
+      ")"
     ),
     .tte_sparse_criterion(ex$threshold, ex$label)
   ))
@@ -400,12 +415,11 @@
   if (is.null(rule)) {
     return(character())
   }
-  drivers <- .tte_sparse_drivers(plan, rule$decided_by)
   rpt <- .tte_sparse_report(plan)
   return(c(
     paste0(
       "- Rare-condition rule: ",
-      .tte_sparse_rule_sentence(rule$min_n, drivers),
+      .tte_sparse_rule_sentence(rule$min_n, plan, rule$decided_by),
       ". The rule is ",
       .TTE_SPARSE_BASIS,
       ". Candidates: ",
@@ -471,7 +485,9 @@
     "The rule was ",
     .TTE_SPARSE_BASIS,
     ". ",
-    "The counts were of eligible persons per arm in the driving comparisons: ",
+    "The counts were of eligible persons per arm in ",
+    .tte_sparse_driving(rule$decided_by),
+    ": ",
     .tte_sparse_drivers(plan, rule$decided_by),
     ". ",
     "A person counted once in an arm when any of her eligible person-trials ",
@@ -482,7 +498,9 @@
     " persons in the smallest arm became an exclusion criterion of every ",
     "comparison. Every other candidate stayed a confounder. ",
     "The comparisons that did not drive the rule inherited its decision and ",
-    "the adjustment set of the driving comparisons. ",
+    "the adjustment set of ",
+    .tte_sparse_driving(rule$decided_by),
+    ". ",
     outcome
   ))
 }
@@ -499,13 +517,12 @@
     return(character())
   }
   rpt <- .tte_sparse_report(plan)
-  drivers <- .tte_sparse_drivers(plan, rule$decided_by)
   return(switch(
     where,
     specification = c(
       paste0(
         "Rare-condition rule, a pre-specified feasibility rule. ",
-        .tte_sparse_rule_sentence(rule$min_n, drivers),
+        .tte_sparse_rule_sentence(rule$min_n, plan, rule$decided_by),
         ". Every other candidate stays a confounder"
       ),
       paste0(
@@ -514,8 +531,9 @@
       ),
       paste0("The rule is ", .TTE_SPARSE_BASIS),
       paste0(
-        "A randomised trial cannot make eligibility depend on enrolled ",
-        "counts. The emulation applies this rule for feasibility"
+        "A randomised trial cannot make eligibility depend on counts in its ",
+        "own eligible population. The emulation applies this rule for ",
+        "feasibility"
       )
     ),
     emulation = if (is.null(rpt)) {
