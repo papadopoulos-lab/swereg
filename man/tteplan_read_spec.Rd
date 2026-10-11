@@ -36,6 +36,11 @@ as its own key, or a washout type under \code{implementation}
 \item A washout declares \code{implementation$type}, and the two types are
 \code{no_prior_value} and \code{only_prior_value}
 \item Each exclusion criterion must have \code{implementation$source_variable}
+\item An exclusion criterion MUST NOT have the window
+\code{lifetime_before_and_after_baseline} on a variable of an outcome. That
+window reads the weeks after time zero, so the criterion selects on
+the follow-up outcome. The rule covers the global
+\code{exclusion_criteria} and each enrollment's \code{additional_exclusion}
 \item Each outcome must have \code{implementation$variable}
 \item Each enrollment must have \code{id}, \code{treatment$implementation$variable}
 and \code{treatment$implementation$seed}

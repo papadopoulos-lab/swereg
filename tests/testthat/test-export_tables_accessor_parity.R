@@ -162,6 +162,8 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".tteplan_fill_summary" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
+  # s2 rewrites every analysis file, so it drops the stored results.
+  "TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp" = "producer",
   "TTEPlan$public_methods$s3_analyze" = "producer",
   "TTEPlan$public_methods$recompute_baselines" = "producer",
   ".restore_enrollment_counts" = "persistence loader",
@@ -191,7 +193,15 @@ test_that("images match on inventory, dimensions and renderer input", {
   # describe how a result was computed, and no accessor returns them.
   ".plan_ipcw_pp_options" = "cache inspector",
   # A filename literal, not a read.
-  ".enrollment_counts_path" = "filename literal"
+  ".enrollment_counts_path" = "filename literal",
+  # A GUARD ON THE CACHE. The writers call it to check that each stored result
+  # carries the s1 run id of the plan (#52). The id is provenance, and no
+  # accessor returns it.
+  ".tte_assert_one_s1_run" = "cache inspector",
+  # A GUARD ON THE CACHE. The writers call it to check that each stored result
+  # carries the current s2 run id of its ETT. The id is provenance, and no
+  # accessor returns it.
+  ".tte_assert_one_s2_run" = "cache inspector"
 )
 
 # The participant-flow renderers used to sit on this list. They read
@@ -238,6 +248,8 @@ test_that("images match on inventory, dimensions and renderer input", {
     ".restore_enrollment_counts(plan, plan$output_dir, unique(plan$ett$enrollment_id))"
   ),
   `TTEPlan$public_methods$s1_generate_enrollments_and_ipw` = c(
+    "self$results_enrollment <- NULL",
+    "self$results_ett <- NULL",
     "if (is.null(self$enrollment_counts)) {",
     "self$enrollment_counts <- list()",
     ".restore_enrollment_counts(self, output_dir, enrollment_ids)",
@@ -256,13 +268,29 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_ett[[eid]] <- NULL",
     "self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]",
     "self$results_enrollment[[enr_todo[i]]][[\"swereg_version_s3\"]] <- s3_version",
+    "self$results_enrollment[[enr_todo[i]]][[\"s1_run_id\"]] <- self$s1_run_id",
+    "self$results_enrollment[[enr_todo[i]]][[\"s2_run_id\"]] <- enr_s2_run[[enr_todo[i]]]",
     "if (is.null(self$results_ett[[eid]])) {",
     "self$results_ett[[eid]] <- list(enrollment_id = ett_todo$enrollment_id[m$ett_i],",
     "s2_prev <- if (\"swereg_version_s2\" %in% names(self$results_ett[[eid]])) {",
     "list(self$results_ett[[eid]][[\"swereg_version_s2\"]])",
     "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]",
     "self$results_ett[[eid]]$swereg_version_s2 <- do.call(.s2_version_union,",
-    "self$results_ett[[eid]][[\"swereg_version_s3\"]] <- s3_version"
+    "self$results_ett[[eid]][[\"swereg_version_s3\"]] <- s3_version",
+    "self$results_ett[[eid]][[\"s1_run_id\"]] <- self$s1_run_id",
+    "self$results_ett[[eid]][[\"s2_run_id\"]] <- .tte_s2_run_of(ett_todo)[m$ett_i]"
+  ),
+  `TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp` = c(
+    "self$results_enrollment <- NULL",
+    "self$results_ett <- NULL"
+  ),
+  `.tte_assert_one_s1_run` = c(
+    "has_results <- length(plan$results_enrollment) > 0L || length(plan$results_ett) >",
+    "stale <- c(stale_of(plan$results_enrollment), stale_of(plan$results_ett))"
+  ),
+  `.tte_assert_one_s2_run` = c(
+    "stale <- c(ok_of(plan$results_enrollment, function(k) ett$enrollment_id ==",
+    "k), ok_of(plan$results_ett, function(k) ett$ett_id =="
   ),
   `.plan_computing_versions` = c(
     "results <- c(plan$results_enrollment, plan$results_ett)"
@@ -538,7 +566,8 @@ test_that("supported states keep their content", {
   # is supported, and each lost a cell when the export path first moved onto
   # the accessors. The cells below are the ones that blanked.
   export <- function(mutate) {
-    plan <- mutate(.xp_plan("new"))
+    # A stored result that a test replaces carries the stamp s3 would set.
+    plan <- tte_stamp_stages(mutate(.xp_plan("new")))
     dir <- withr::local_tempdir(.local_envir = parent.frame(2))
     path <- file.path(dir, "tables.xlsx")
     suppressMessages(suppressWarnings(
@@ -637,7 +666,8 @@ test_that("a stored all-NA shape keeps its row", {
   # below is well formed, and every value inside it is `NA`. The row belongs on
   # the sheet, with blank cells where the numbers are missing.
   export <- function(mutate) {
-    plan <- mutate(.xp_plan("new"))
+    # A stored result that a test replaces carries the stamp s3 would set.
+    plan <- tte_stamp_stages(mutate(.xp_plan("new")))
     dir <- withr::local_tempdir(.local_envir = parent.frame(2))
     path <- file.path(dir, "tables.xlsx")
     suppressMessages(suppressWarnings(

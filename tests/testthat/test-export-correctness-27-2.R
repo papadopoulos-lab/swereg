@@ -85,7 +85,8 @@ ec_plan <- function() {
     ETT00003 = one("ETT00003", "02"),
     ETT00004 = one("ETT00004", "02")
   )
-  return(plan)
+  # The stamps that the real s1, s2 and s3 set. The writers stop without them.
+  return(tte_stamp_stages(plan))
 }
 
 ec_exposures <- list(

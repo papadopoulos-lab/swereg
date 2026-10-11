@@ -4,11 +4,9 @@
 #' `qs2::qs_save` or with `qs2_write_atomic`. The call goes straight to
 #' `qs2::qs_read`.
 #'
-#' Files in the qdata format (`qs2::qd_save`) are no longer readable through
-#' this function. An earlier version tried `qs2::qd_read` first and fell back to
-#' the standard reader; that attempt is gone, so a qdata file now raises the
-#' underlying qs2 error `qdata format detected, use qs2::qd_read`. swereg has
-#' never written qdata files itself.
+#' The function does not read the qdata format (`qs2::qd_save`). A qdata file
+#' raises the qs2 error `qdata format detected, use qs2::qd_read`. swereg
+#' writes no qdata file.
 #'
 #' @section Stored objects from an older schema:
 #' The reader refuses a [TTEEnrollment] below schema 7 and a [TTEPlan] below
@@ -229,7 +227,7 @@ qs2_read <- function(file, nthreads = 1L) {
 #' same PID on two machines could pick the same temp path for the same target.
 #' Same directory is required: `file.rename()` is not atomic across filesystems.
 #'
-#' The implementation now lives in [batchit::write_qs2_atomically()]; this is a
+#' The implementation lives in [batchit::write_qs2_atomically()]; this is a
 #' thin delegation, and the contract above is what swereg promises its own
 #' users. One visible consequence: the rename-failure error is raised by
 #' batchit, so its prefix reads `write_qs2_atomically()` rather than

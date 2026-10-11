@@ -48,7 +48,7 @@ this package's data lives on a share that two hosts mount at once -- so the
 same PID on two machines could pick the same temp path for the same target.
 Same directory is required: \code{file.rename()} is not atomic across filesystems.
 
-The implementation now lives in \code{\link[batchit:write_qs2_atomically]{batchit::write_qs2_atomically()}}; this is a
+The implementation lives in \code{\link[batchit:write_qs2_atomically]{batchit::write_qs2_atomically()}}; this is a
 thin delegation, and the contract above is what swereg promises its own
 users. One visible consequence: the rename-failure error is raised by
 batchit, so its prefix reads \code{write_qs2_atomically()} rather than

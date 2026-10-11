@@ -745,10 +745,9 @@
 #' structural field raises an error, and `plan$spec` keeps its old value.
 #'
 #' It writes nothing into `self$results_ett`. A description is input-derived,
-#' `plan$ett` is where it lives, and the accessors join it from there. This
-#' function used to mirror the new description onto each cached result as well.
-#' A stale result then carried a current label, which is the exact staleness a
-#' reader needs to see.
+#' `plan$ett` is where it lives, and the accessors join it from there. A copy
+#' of the new description on a cached result would give a stale result a
+#' current label. That label would hide the staleness a reader needs to see.
 #'
 #' A study that needs the label a result was computed under MUST store it under
 #' its own immutable name. It MUST NOT overwrite one during a spec reload.

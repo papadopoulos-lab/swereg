@@ -109,7 +109,15 @@ Other tte_classes:
   \describe{
     \item{\code{project_prefix}}{Character, string used for file naming.}
 
-    \item{\code{ett}}{NULL or a data.table with per-ETT columns.}
+    \item{\code{ett}}{NULL or a data.table with per-ETT columns. The column
+\code{s1_run_id} holds the id of the s1 run whose files s2 last wrote
+the analysis files from. It is absent before the first s2, and \code{NA}
+while s2 writes or after an s2 that failed. A later s1 run does not
+change it. s3 refuses an ETT whose value differs from the current
+\code{s1_run_id} of the plan. The column \code{s2_run_id} holds the id of the
+s2 run that wrote the analysis files. It follows the same rules as
+\code{s1_run_id}, and it changes on every s2 run. s3 copies it into each
+result it stores.}
 
     \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
 
@@ -181,7 +189,21 @@ outcomes.}
 
     \item{\code{sparse_rule_hash}}{The hash of the \code{sparse_rule} that made
 \code{sparse_decision}, or NULL. s1c, s2 and s3 stop when the hash of the
-rule in \code{spec} differs from it.}
+rule in \code{spec} differs from it. \verb{$export()}, \verb{$export_tables()} and
+\verb{$print_target_checklist()} stop on that difference too, when the
+plan holds a decision or a stored result. \verb{$excel_spec_summary()} and
+\verb{$print_spec_summary()} then show the rule as not decided yet.}
+
+    \item{\code{s1_run_id}}{The id of the last s1 run when that run completed,
+and NULL otherwise.
+The id is a digest of \code{sparse_decision} and \code{sparse_rule_hash}, then
+a token unique to the run. s1 sets it to NULL after its input checks,
+and drops \code{results_enrollment} and \code{results_ett} at the same point.
+s1 sets the id after s1e writes every output. s2 and s3 stop unless
+the id matches the current decision. s2 copies the id into the
+\code{s1_run_id} column of \code{ett}, and s3 into each result it stores.
+\verb{$export()}, \verb{$export_tables()} and \verb{$print_target_checklist()} stop
+when a stored result carries another id.}
 
     \item{\code{spec_version}}{Character. Spec version tag (e.g. \code{"v003"}) that
 selects the YAML filename and the results sub-directory.}
@@ -348,8 +370,8 @@ The MDE is a naive Poisson calculation on the unweighted counts, at the
 study confidence level. It ignores the weights and the repeated
 contributions of one person. So it can differ from the detectable effect
 of the weighted estimator with person-clustered standard errors. It is not
-observed power (Hoenig and Heisey 2001). A plan analysed before 27.2.0
-stored no unweighted counts, and its three MDE cells are blank.}
+observed power (Hoenig and Heisey 2001). A stored result without
+unweighted counts gives three blank MDE cells.}
     }
     \if{html}{\out{</div>}}
   }
@@ -498,6 +520,12 @@ and the store can change before s1 runs. \code{FALSE} skips it.}
 For each ETT, loads the imputed enrollment file, calls
 \verb{$s4_prepare_for_analysis()} (outcome + IPCW-PP + weight combination +
 truncation), and saves the analysis-ready file.
+
+s2 rewrites the analysis files of every ETT, so it drops the stored s3
+results before it writes. It stamps each ETT with a new s2 run id in the
+\code{s2_run_id} column of \verb{$ett}. s3 copies that id into each result it
+stores. \verb{$export()}, \verb{$export_tables()} and \verb{$print_target_checklist()}
+refuse a stored result whose s2 run id is not the current one of its ETT.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
@@ -640,6 +668,12 @@ are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
 Console-friendly summary derived from the study specification stored
 on this plan. When \verb{$code_registry} is available, variable names are
 shown in red and matched code details in blue (ANSI colors).
+A spec with a \code{sparse_rule} also prints the rare-condition rule: \code{min_n},
+the driving enrollments, the candidates and the decision. Before s1 the
+decision reads \verb{not decided yet (s1 has not run)}. A stored decision prints
+only when the rule in \verb{$spec} still hashes to \verb{$sparse_rule_hash} and s1
+completed for it. Otherwise the decision reads
+\verb{not decided yet (s1 has not completed for this rule)}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_spec_summary()}
@@ -982,6 +1016,11 @@ recompute has no analysis file on disk. That enrollment counts as neither.
 A skipped enrollment never reaches that check, so a current enrollment
 raises no warning about a missing file.
 
+The method stops when an ETT of a named enrollment does not carry the s2
+stamp of the current s1 run, as \verb{$s3_analyze()} does. Its analysis files
+then do not come from the current s1 run. A recomputed panel takes the s1
+and s2 run stamps of the analysis file it reads.
+
 \verb{$export_tables()} calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
@@ -1192,12 +1231,21 @@ Present when the plan was built from a spec.}
 \subsection{\code{TTEPlan$excel_spec_summary()}}{
   Export the study specification to a standalone Excel file.
 
-Writes a formatted summary of the spec (design, criteria, confounders,
-outcomes, enrollments) with ICD-10/ATC code annotations from the code
-registry. No analysis results required.
+Writes the preregistration sheets of the plan. The Study Specification
+sheet summarises the spec (design, criteria, confounders, outcomes,
+enrollments) with ICD-10/ATC code annotations from the code registry. The
+Target trial protocol sheet documents one ETT. The Sparse conditions sheet
+is written only when the plan holds a current sparse decision: the rule in
+\verb{$spec} still hashes to \verb{$sparse_rule_hash}, and s1 completed for it.
+Without one, the Study Specification sheet reads the rule as not decided
+yet.
+Each sheet holds the same cells as the sheet of that name that
+\verb{$export_tables()} writes for the same plan state and the same
+\code{protocol_ett_id}. No sheet reads an s2 or s3 result, so the method runs
+straight after s0.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$excel_spec_summary(path = NULL)}
+    \preformatted{TTEPlan$excel_spec_summary(path = NULL, protocol_ett_id = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -1206,6 +1254,9 @@ registry. No analysis results required.
       \item{\code{path}}{Optional output path override. If \code{NULL} (default), writes
 to \code{self$spec_xlsx} (that is, \verb{spec_<version>.xlsx} inside
 \code{self$dir_results}, where \verb{<version>} is \code{self$spec_version}).}
+      \item{\code{protocol_ett_id}}{Optional ETT id that the Target trial protocol
+sheet documents. \code{NULL} (default) takes the first ETT of the grid. An id
+the plan does not hold warns and falls back to the first ETT.}
     }
     \if{html}{\out{</div>}}
   }

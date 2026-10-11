@@ -290,11 +290,10 @@ TTEDesign <- R6::R6Class(
 
     #' @description Check this object's schema version against the current
     #' class version. It stops when the object carries an older schema.
-    #' @details swereg 26.9.0 moved time zero to the first week after the
-    #' enrollment period. A `tstart == 0` row of a schema-2 object is a row of
-    #' the enrollment period. A 26.9.0 reader takes it for a time-zero row.
-    #' The check refuses the object, so that reinterpretation cannot happen in
-    #' silence.
+    #' @details Time zero is the first week after the enrollment period. A
+    #' `tstart == 0` row of a schema-2 object is a row of the enrollment
+    #' period. A schema-3 reader takes it for a time-zero row. The check
+    #' refuses the object, so that reinterpretation cannot happen in silence.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_DESIGN_SCHEMA_VERSION

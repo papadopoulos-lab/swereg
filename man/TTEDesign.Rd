@@ -8,11 +8,10 @@ Holds column name mappings that define the schema for trial data. This
 allows specifying variable names once and reusing them across all TTE
 workflow functions.
 
-swereg 26.9.0 moved time zero to the first week after the
-enrollment period. A \code{tstart == 0} row of a schema-2 object is a row of
-the enrollment period. A 26.9.0 reader takes it for a time-zero row.
-The check refuses the object, so that reinterpretation cannot happen in
-silence.
+Time zero is the first week after the enrollment period. A
+\code{tstart == 0} row of a schema-2 object is a row of the enrollment
+period. A schema-3 reader takes it for a time-zero row. The check
+refuses the object, so that reinterpretation cannot happen in silence.
 }
 \section{The interval convention}{
 

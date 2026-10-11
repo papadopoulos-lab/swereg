@@ -34,6 +34,11 @@
 #'   \item A washout declares `implementation$type`, and the two types are
 #'     `no_prior_value` and `only_prior_value`
 #'   \item Each exclusion criterion must have `implementation$source_variable`
+#'   \item An exclusion criterion MUST NOT have the window
+#'     `lifetime_before_and_after_baseline` on a variable of an outcome. That
+#'     window reads the weeks after time zero, so the criterion selects on
+#'     the follow-up outcome. The rule covers the global
+#'     `exclusion_criteria` and each enrollment's `additional_exclusion`
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id`, `treatment$implementation$variable`
 #'     and `treatment$implementation$seed`
@@ -555,6 +560,14 @@ tteplan_read_spec <- function(spec_path) {
   # The sparse_rule reads the variable names derived above, so it is checked
   # after the confounders.
   spec <- .tte_check_sparse_rule(spec)
+
+  # An exclusion on an outcome variable that reads the weeks after time zero
+  # selects on the follow-up outcome. This check runs last, and
+  # `tteplan_check_spec()` relies on that order.
+  outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
+  if (length(outcome_selecting) > 0L) {
+    stop(.tte_outcome_selecting_message(outcome_selecting), call. = FALSE)
+  }
 
   # Warn about open questions
   if (!is.null(spec$open_questions)) {

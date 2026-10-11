@@ -111,7 +111,7 @@ test_that("the schema pins the measured legacy and metadata sets", {
 
 test_that("the schema declares the keys swereg reads but no specification uses", {
   # These are the 14 paths the schema declares beyond the 124 the fleet uses,
-  # and the 4 paths of the sparse_rule block that 27.3.0 added.
+  # and the 4 paths of the sparse_rule block that 27.2.1 added.
   # `inclusion_criteria$criteria` is the replacement container. `subgroups`,
   # `observed_var$column` and `study$implementation$conf_level` are read by
   # swereg. No specification in the fleet carried any of them when the schema

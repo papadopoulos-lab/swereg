@@ -41,8 +41,8 @@
 #'   study confidence level. It ignores the weights and the repeated
 #'   contributions of one person. So it can differ from the detectable effect
 #'   of the weighted estimator with person-clustered standard errors. It is not
-#'   observed power (Hoenig and Heisey 2001). A plan analysed before 27.2.0
-#'   stored no unweighted counts, and its three MDE cells are blank.
+#'   observed power (Hoenig and Heisey 2001). A stored result without
+#'   unweighted counts gives three blank MDE cells.
 TTEPlan$set(
   "public",
   "export_tables",

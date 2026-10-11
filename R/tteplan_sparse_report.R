@@ -20,15 +20,39 @@
   "comparator draw and without follow-up outcomes"
 )
 
+#' The models the adjustment set enters, as every output states it
+#'
+#' `$s2_ipw()` fits the treatment model on the adjustment set alone. The
+#' loss and deviation censoring models of `s6_ipcw_pp()` add `flex(tstart)`
+#' and `flex(period_id)`, and the time-zero model adds nothing. The outcome
+#' model of `.tte_fit_irr()` holds the treatment, `flex(tstart)` and
+#' `flex(enrollment_period_id)`, and no confounder.
+#' @noRd
+.TTE_ADJUSTMENT_SET_MODELS <- paste(
+  "The adjustment set enters the treatment model and the per-protocol",
+  "censoring models. The treatment model and the time-zero censoring model",
+  "hold the adjustment set alone, with no time term and no calendar term.",
+  "The loss and",
+  "deviation censoring models add the time since time zero and the calendar",
+  "period of follow-up. The outcome model holds no confounder: it holds the",
+  "treatment, the time since time zero and the trial index."
+)
+
 #' The reporting view of the frozen sparse_rule decision
 #'
 #' Reads `plan$get_sparse_decision()`, and the spec only for the names of the
 #' confounders. A plan without the accessor, as a test's list plan, has no
 #' decision.
 #'
+#' A decision is reported only when it is current: the rule in `plan$spec`
+#' hashes to `plan$sparse_rule_hash`, and s1 completed for the decision. A
+#' stored decision that fails either test belongs to another rule, or to an s1
+#' run that stopped after s1b. Every output then reads the rule as not decided
+#' yet, through `.tte_sparse_pending()`.
+#'
 #' @param plan A TTEPlan, or a list that carries `spec`.
-#' @return `NULL` when the plan holds no decision. Otherwise a list with these
-#'   elements:
+#' @return `NULL` when the plan holds no current decision. Otherwise a list
+#'   with these elements:
 #'   * `min_n`, and `decided_by`, the driving enrollment ids.
 #'   * `decision`, the decision table.
 #'   * `excluded` and `excluded_vars`, the names and variables of the excluded
@@ -44,7 +68,7 @@
     return(NULL)
   }
   d <- getter()
-  if (is.null(d) || nrow(d) == 0L) {
+  if (is.null(d) || nrow(d) == 0L || !.tte_sparse_decision_is_current(plan)) {
     return(NULL)
   }
   excluded <- d$decision == "excluded"
@@ -77,6 +101,44 @@
     adjustment_set = conf_name[keep],
     adjustment_vars = conf_var[keep]
   ))
+}
+
+#' `TRUE` when the stored decision belongs to the current rule and to a
+#' completed s1
+#'
+#' The rule in `plan$spec` MUST hash to `plan$sparse_rule_hash`, the hash
+#' `.tte_assert_sparse_decision_current()` compares. `plan$s1_run_id` MUST name
+#' a completed s1 run for the decision, as `.tte_s1_run_current()` tests.
+#'
+#' @param plan A TTEPlan, or a list that carries the same fields.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_sparse_decision_is_current <- function(plan) {
+  return(
+    identical(
+      .tte_sparse_rule_hash(plan$spec[["sparse_rule"]]),
+      plan$sparse_rule_hash
+    ) &&
+      .tte_s1_run_current(plan)
+  )
+}
+
+#' The words that say the rule is not decided yet, with the reason
+#'
+#' Without a stored decision, s1 has not run. With a stored decision that is
+#' not current, s1 has not completed for the rule in the spec. Either the rule
+#' changed after s1, or s1 stopped after s1b.
+#'
+#' @param plan A TTEPlan, or a list that carries the same fields.
+#' @return A character scalar.
+#' @noRd
+.tte_sparse_pending <- function(plan) {
+  getter <- plan$get_sparse_decision
+  d <- if (is.function(getter)) getter() else NULL
+  if (is.null(d) || nrow(d) == 0L) {
+    return("not decided yet (s1 has not run)")
+  }
+  return("not decided yet (s1 has not completed for this rule)")
 }
 
 #' Join names for a report line, or say "none"
@@ -114,6 +176,22 @@
     return("the driving comparison")
   }
   return("the driving comparisons")
+}
+
+#' `TRUE` when at least one enrollment of the spec is not in `ids`
+#'
+#' Such an enrollment inherits the decision. When every enrollment drives the
+#' rule, no comparison inherits it.
+#' @noRd
+.tte_sparse_any_inherits <- function(plan, ids) {
+  eids <- vapply(
+    plan$spec$enrollments %||% list(),
+    function(enr) {
+      return(as.character(enr$id))
+    },
+    character(1)
+  )
+  return(any(!eids %in% ids))
 }
 
 #' The rule in two present-tense sentences, without a final full stop.
@@ -283,20 +361,24 @@
         .tte_sparse_rule_sentence(rule$min_n, plan, rule$decided_by),
         ". Every other candidate stays a confounder. The rule is ",
         .TTE_SPARSE_BASIS,
-        ". The other comparisons inherit the decision."
+        ".",
+        if (.tte_sparse_any_inherits(plan, rule$decided_by)) {
+          " The other comparisons inherit the decision."
+        }
       )
     ),
     row("Candidates:", .tte_sparse_join(.tte_sparse_candidate_names(plan)))
   )
   rpt <- .tte_sparse_report(plan)
   if (is.null(rpt)) {
-    out <- c(out, list(row("Decision:", "not made yet: s1 has not run")))
+    out <- c(out, list(row("Decision:", .tte_sparse_pending(plan))))
   } else {
     out <- c(
       out,
       list(
         row("Excluded conditions:", .tte_sparse_join(rpt$excluded)),
-        row("Final adjustment set:", .tte_sparse_join(rpt$adjustment_set))
+        row("Final adjustment set:", .tte_sparse_join(rpt$adjustment_set)),
+        row("Models:", .TTE_ADJUSTMENT_SET_MODELS)
       )
     )
   }
@@ -427,7 +509,7 @@
       "."
     ),
     if (is.null(rpt)) {
-      "- Excluded under the rare-condition rule: not decided yet (s1 has not run)"
+      paste0("- Excluded under the rare-condition rule: ", .tte_sparse_pending(plan))
     } else {
       paste0(
         "- Excluded under the rare-condition rule: ",
@@ -456,6 +538,9 @@
 
 #' The methods sentences of the rule, for TARGET item 7
 #'
+#' Before s1 decides the rule, the text comes from
+#' `.tte_sparse_methods_text_pending()`.
+#'
 #' @return One string that ends in a space, or `""` when the spec has no
 #'   `sparse_rule`.
 #' @noRd
@@ -465,19 +550,20 @@
     return("")
   }
   rpt <- .tte_sparse_report(plan)
-  outcome <- ""
-  if (!is.null(rpt)) {
-    outcome <- paste0(
-      if (length(rpt$excluded) == 0L) {
-        "The rule excluded no condition. "
-      } else {
-        paste0("The rule excluded ", .tte_sparse_join(rpt$excluded), ". ")
-      },
-      "The final adjustment set was ",
-      .tte_sparse_join(rpt$adjustment_set),
-      ". "
-    )
+  if (is.null(rpt)) {
+    return(.tte_sparse_methods_text_pending(plan, rule))
   }
+  outcome <- paste0(
+    if (length(rpt$excluded) == 0L) {
+      "The rule excluded no condition. "
+    } else {
+      paste0("The rule excluded ", .tte_sparse_join(rpt$excluded), ". ")
+    },
+    "The final adjustment set of the treatment model and the censoring ",
+    "models was ",
+    .tte_sparse_join(rpt$adjustment_set),
+    ". The outcome model held no confounder. "
+  )
   return(paste0(
     "A pre-specified rare-condition rule was applied, with a threshold of ",
     rule$min_n,
@@ -497,11 +583,56 @@
     rule$min_n,
     " persons in the smallest arm became an exclusion criterion of every ",
     "comparison. Every other candidate stayed a confounder. ",
-    "The comparisons that did not drive the rule inherited its decision and ",
-    "the adjustment set of ",
-    .tte_sparse_driving(rule$decided_by),
-    ". ",
+    if (.tte_sparse_any_inherits(plan, rule$decided_by)) {
+      paste0(
+        "The comparisons that did not drive the rule inherited its decision ",
+        "and the adjustment set of ",
+        .tte_sparse_driving(rule$decided_by),
+        ". "
+      )
+    },
     outcome
+  ))
+}
+
+#' The methods sentences of a declared rule that s1 has not decided yet
+#'
+#' Item 6a says the rule is not decided yet. These sentences state the rule
+#' in the future tense and claim no count and no exclusion.
+#'
+#' @param plan A TTEPlan.
+#' @param rule The `sparse_rule` block of the spec.
+#' @return One string that ends in a space.
+#' @noRd
+.tte_sparse_methods_text_pending <- function(plan, rule) {
+  return(paste0(
+    "A pre-specified rare-condition rule is declared, with a threshold of ",
+    rule$min_n,
+    " persons. ",
+    "The rule will be ",
+    .TTE_SPARSE_BASIS,
+    ". ",
+    "The counts will be of eligible persons per arm in ",
+    .tte_sparse_driving(rule$decided_by),
+    ": ",
+    .tte_sparse_drivers(plan, rule$decided_by),
+    ". ",
+    .TTE_SPARSE_COUNT_DEFINITION,
+    " A candidate condition held by fewer than ",
+    rule$min_n,
+    " persons in the smallest arm will become an exclusion criterion of ",
+    "every comparison. Every other candidate will stay a confounder. ",
+    if (.tte_sparse_any_inherits(plan, rule$decided_by)) {
+      paste0(
+        "The comparisons that do not drive the rule will inherit its ",
+        "decision and the adjustment set of ",
+        .tte_sparse_driving(rule$decided_by),
+        ". "
+      )
+    },
+    "The rule is ",
+    .tte_sparse_pending(plan),
+    ". "
   ))
 }
 
@@ -532,7 +663,7 @@
       )
     },
     emulation = if (is.null(rpt)) {
-      "Rare-condition rule: not decided yet (s1 has not run)"
+      paste0("Rare-condition rule: ", .tte_sparse_pending(plan))
     } else {
       c(
         paste0(
@@ -551,7 +682,8 @@
       character()
     } else {
       paste0(
-        "Final adjustment set, after the rare-condition rule: ",
+        "Final adjustment set of the treatment and censoring models, ",
+        "after the rare-condition rule: ",
         .tte_sparse_join(rpt$adjustment_set)
       )
     }

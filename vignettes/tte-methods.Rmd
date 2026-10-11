@@ -65,8 +65,8 @@ four sections:
   truth for every validation cell. The numbers are rendered from a saved
   results file.
 - **Implementation mapping** (Section 4). The function, argument, option,
-  column and test file behind each step of Section 1, and notes on changes to
-  the estimators.
+  column and test file behind each step of Section 1, and the source of the
+  validation evidence.
 
 Section 1 describes what the code computes. Where the implementation differs
 from a standard reference construction, Section 1 states the difference and
@@ -254,8 +254,8 @@ for the next time zero.
 
 Each enrolled person-trial is split into follow-up intervals of the same width
 as the enrollment period. Their number is the horizon divided by the width,
-rounded up. The first interval opens at time zero, and the last one is clipped
-at the horizon. Follow-up time counts weeks from time zero.
+rounded up. The first interval opens at time zero, and the last one ends at
+the horizon. Follow-up time counts weeks from time zero.
 
 For each person-trial, follow-up stops at the first of these events:
 
@@ -269,18 +269,18 @@ For each person-trial, follow-up stops at the first of these events:
 A protocol deviation stops per-protocol follow-up at the start of the first
 discordant week beyond the tolerance of the arm. That week is not per-protocol
 follow-up, so an outcome in it or later is not counted, even in the same
-follow-up interval. The row that reaches the deviation is clipped there and
-marked as censored by deviation. This is the rule of Danaei et al. (2013,
-p. 77) and of `expand_until_switch()` in TrialEmulation (Su et al. 2024).
-Releases 26.9.0 to 26.15.0 counted the deviation week as follow-up. Releases
-26.7.3 to 26.15.0 also counted an outcome later in the follow-up interval of
-the deviation.
+follow-up interval. The interval that contains the deviation is kept, but it
+ends at the start of the deviation week and is marked as censored by
+deviation. It contributes its person-time before that week. This is the rule
+of Danaei et al. (2013, p. 77) and of `expand_until_switch()` in
+TrialEmulation (Su et al. 2024).
 
 A gap is a week without observation between two observed weeks. It stops
 follow-up under both estimands at the start of its first absent week, and no
 tolerance applies. An outcome in that week or later is never counted, even in
-the same follow-up interval. The row that reaches the gap is clipped there and
-marked as censored by loss of observation.
+the same follow-up interval. The interval that contains the gap is kept. It
+ends at the start of the first absent week and is marked as censored by loss
+of observation.
 
 Two stops can fall on the same week. One rule then labels the row:
 
@@ -308,13 +308,13 @@ absent week breaks a run. No grace period applies, and the pipeline does not
 clone person-trials. A treatment deviation never stops follow-up under the
 intention-to-treat analogue.
 
-Rows at and before the stop are kept. The row that reaches the stop is clipped
-at that week, so it holds the person-time before the stop and none after it.
-The outcome sits at its exact week: the row that holds it is clipped there and
-carries the event. Person-time is the stop minus the start, in weeks, on a
-half-open interval. A time-updated confounder takes its value in the first
-week of the interval. The loss and deviation models of 1.8.2 fit on the
-clipped rows. A deviation at time zero leaves the person-trial no row, and the
+Rows at and before the stop are kept, and rows after it are dropped. The row
+that contains the stop is kept, but it ends at that week. It holds the
+person-time before the stop and none after it. The row that holds the outcome
+ends at the week of the outcome and carries the event. Person-time is the
+stop minus the start, in weeks, on a half-open interval. A time-updated
+confounder takes its value in the first week of the interval. The loss and
+deviation models of 1.8.2 fit on these shortened rows. A deviation at time zero leaves the person-trial no row, and the
 time-zero model of 1.8.2 keeps it in the weights.
 
 ## 1.5 Outcomes
@@ -347,8 +347,7 @@ enrolled person-trials.
 - The per-protocol estimand is the effect of sustained intervention versus the
   sustained comparator strategy. Follow-up is censored at a deviation, when a
   run of discordant weeks exceeds the arm's tolerance (1.4). The product of
-  the
-  treatment and censoring weights estimates it.
+  the treatment and censoring weights estimates it.
 
 Each estimand is reported on two scales. The relative scale is the marginal
 incidence rate ratio (IRR) of 1.8.4. The absolute scale is the risk difference
@@ -504,10 +503,6 @@ ${a}$. Each model fits on the rows where its cause can be observed:
    zero, including those that deviate there and keep no row.
    `$s4_prepare_for_analysis()` keeps them in `$time_zero_deviation`.
 
-Releases before 27.1.1 fitted one model for both causes, on every row
-including the rows with an outcome. A row with an outcome cannot be censored,
-so that model read it as evidence of staying uncensored.
-
 The two row-level models are discrete-time complementary log-log generalised
 additive models with a person-time offset. For cause ${r}$, loss L or
 deviation D:
@@ -525,7 +520,7 @@ $q^{r}_{m,j} = \exp\{-\exp(\eta^{r}_{m,j})\Delta_{m,j}\}$. One linear
 predictor therefore gives ${q}(4) = {q}(1)^{4}$.
 
 That identity makes a four-week row and a one-week row comparable. It matters
-because the last row is clipped at its exact stop, so it can be narrower than
+because the last row ends at its exact stop, so it can be narrower than
 a whole interval. A logit link carries no such identity.
 
 Both time terms follow the term ladder of 1.8.9. The follow-up term
@@ -608,10 +603,13 @@ W_{i,m,j} = SW^{A}_{i,m} \times SW^{C}_{i,m,j} \;\; \text{(per-protocol)},
 W_{i,m,j} = SW^{A}_{i,m} \;\; \text{(intention-to-treat)}.
 $$
 
-Weights are truncated at the 1st and 99th percentiles of the pooled rows of
-all person-trials. The intention-to-treat analysis truncates the treatment
-weight. The per-protocol analysis truncates the product and not its
-components, so extreme components can offset each other. Primary analyses use
+Truncation sets a weight below the 1st percentile to the 1st percentile, and a
+weight above the 99th percentile to the 99th percentile. It removes no row. The
+percentiles come from all rows of the panel, pooled over arms and trials. The
+intention-to-treat analysis truncates the treatment weight once per enrollment,
+before the outcome is prepared. The per-protocol analysis truncates the product
+and not its components, so extreme components can offset each other. It takes
+the percentiles from the rows of each ETT's analysis file. Primary analyses use
 truncated weights. The untruncated per-protocol result is reported beside them
 as a sensitivity analysis (1.9).
 
@@ -622,9 +620,9 @@ stopifnot(claim("pp_spread"))
 stopifnot(claim("pp_rmse"))
 ```
 
-Truncation trades bias for variance. Clipping the weight tails reduces the
-variance of the estimator. It also under-corrects the confounding or selection
-that the clipped weights carried, and that moves the estimate. Under
+Truncation trades bias for variance. It reduces the variance of the
+estimator. It also under-corrects the confounding or
+selection that the truncated weights carried, and that moves the estimate. Under
 near-violations of treatment positivity, it moves the estimate toward the
 null. In the simulations of Section 3.8, the bias of the truncated
 per-protocol fit grew with how strongly a measured covariate drove the loss.
@@ -652,7 +650,8 @@ $$
 $$
 
 Here $u_{m,j}$ is the start of interval ${j}$ in weeks from time zero, and
-${m}$ is the trial. The person-weeks are the width of the row after clipping.
+${m}$ is the trial. The person-weeks are the width of the row up to its stop
+(1.4).
 Both time terms follow the term ladder of 1.8.9 without the penalised spline.
 Each is a natural cubic spline of 3 degrees of freedom with 4 or more distinct
 values in the analysis data, a factor with 2 or 3, and absent with 1.
@@ -876,7 +875,7 @@ trials.
 | Effect modification (1.8.8) | flex(`tstart`) + flex(`enrollment_period_id`) | arm × factor(subgroup) | log person-weeks | quasi-Poisson | survey-weighted GLM |
 | Heterogeneity across trials (1.8.8) | flex(`tstart`) | arm × ns(`enrollment_period_id`, df = min(3, ${n}$ − 1)) | log person-weeks | quasi-Poisson | survey-weighted GLM |
 
-The person-weeks of the offset are the width of the row after clipping (1.8.4).
+The person-weeks of the offset are the width of the row up to its stop (1.8.4).
 The loss and deviation models each count the distinct values of their own risk
 set. The time-zero numerator is the proportion of the arm that deviates at
 time zero, and it needs no model.
@@ -997,8 +996,8 @@ interval number ${k}$ sits at $({k} - 1)\,{w}$ weeks.
 
 Danaei et al. (2013, p. 76) index follow-up by month of follow-up.
 TrialEmulation indexes it by `followup_time`, the visit number (Su et al.
-2024, p. 16). Both are interval numbers. The clipped width still enters the
-offset through the person-weeks. Figure C shows two person-trials under both
+2024, p. 16). Both are interval numbers. The shorter width of the last row
+still enters the offset through the person-weeks. Figure C shows two person-trials under both
 readings.
 
 ```{r time-term-intervals, fig.width = 7, fig.height = 3.4, fig.cap = "Figure C. Bars are the rows of two person-trials, and the red row ends at an event in week 10. Dots place each row at tstart, and crosses place it at tstop."}
@@ -1048,19 +1047,13 @@ rows of zero width leave. An outcome model
 counts them in the rows it fits, so a subgroup IRR counts the rows of its
 subgroup level.
 
-#### Column names and stored objects
-
-Earlier releases named the calendar-period column `trial_id`. On a follow-up
-row that column held the calendar period of the row, and not the trial. The
-name hid that the outcome model read the calendar period. swereg now names each
-column by what it holds: `period_id` for the calendar period of a row, and
-`enrollment_period_id` for the trial.
+#### Stored enrollments and plans
 
 A saved R6 object runs the method bodies it was saved with. A stored
-enrollment or plan from an earlier release would fit the earlier time terms
-with no warning. swereg therefore refuses to read a stored enrollment below
-schema 6 and a stored plan below schema 5. Rebuild the plan with s0, then run
-s1, s2 and s3 again.
+enrollment or plan with an older schema can therefore fit other time terms
+with no warning. swereg refuses to read a stored enrollment below schema 7
+and a stored plan below schema 6. Rebuild the plan with s0, then run s1, s2
+and s3 again.
 
 ## 1.9 Sensitivity analyses
 
@@ -1224,8 +1217,8 @@ week gave the probability of a deviation at time zero. It was fitted on every
 person-trial, including those that the deviation left with no follow-up. Its
 numerator was the proportion that deviated at time zero.
 
-We truncated the weights at the 1st and 99th percentiles (Danaei et al.
-2013). We fitted a weighted quasi-Poisson marginal structural model of the
+We truncated the weights at the 1st and 99th percentiles: a weight outside
+them was set to the nearer percentile (Danaei et al. 2013). We fitted a weighted quasi-Poisson marginal structural model of the
 event indicator on the assigned arm, with log person-time as the offset. It
 included terms for the trial and for the time since time zero at the start of
 each interval (Danaei et al. 2013; Su et al. 2024). Each was a natural spline
@@ -1295,9 +1288,8 @@ Provenance: generated `r ev$meta$generated_utc` with swereg
 stopifnot(claim("tri_s3_itt_design"))
 ```
 
-The battery follows one principle. An estimator is validated when it
-recovers a truth that is *known by construction*, not when it agrees with
-another implementation. Agreement between two packages is corroborating
+An estimator is validated when it recovers a truth that is known by
+construction, not when it agrees with another implementation. Agreement between two packages is corroborating
 evidence only. Two correct implementations of the same estimand must agree,
 but two implementations can also agree while both miss the truth. The
 battery includes a scenario that shows this: informative loss under the ITT
@@ -1323,8 +1315,8 @@ The Monte Carlo truth ignores censoring. Where the hazard ratio changes over
 follow-up and loss removes later periods, it differs from the exact truth.
 A bias against it then includes that difference, which Section 3.9 measures.
 
-Five layers separate concerns, so that a failure localises to a pipeline
-segment:
+The battery has five layers. Each layer tests one segment of the pipeline, so
+a failure points to that segment:
 
 ```{r}
 layers <- data.table(
@@ -1361,13 +1353,12 @@ noise <- ev$triangle_reps[, .(s = sd(sw_est)), by = .(scenario, estimand)][
 ]
 ```
 
-Interpreting single-dataset cells requires one calibration. At the sample
-sizes used here, one simulated dataset carries Monte Carlo noise (standard
-deviation) of `r noise` on the log-IRR scale. A single-run gap of that order
-is therefore indistinguishable from zero. All cells run at fixed seeds and
-are exactly reproducible. The multi-replicate cells (Tables 5, 8, 13–17, 18
-and 19) quantify bias and coverage across repeated draws, free of this
-caveat.
+At the sample sizes used here, one simulated dataset carries Monte Carlo
+noise (standard deviation) of `r noise` on the log-IRR scale. A single-run gap
+of that order therefore cannot be told apart from zero. All cells run at fixed
+seeds and are exactly reproducible. The multi-replicate cells (Tables 5, 8,
+13–17, 18 and 19) measure bias and coverage across repeated draws, so this
+single-dataset noise does not limit them.
 
 ## 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -1397,8 +1388,8 @@ switching to separate the PP and ITT truths. Loss to follow-up, when
 present, is geometric dropout from a per-person hazard. Independent loss has
 a constant hazard of 0.06 per period. Informative loss has the hazard
 $\mathrm{expit}(-2.4 + 0.9\,L_{0i})$, so dropout selects on the confounder
-that also drives treatment and outcome. The three standard scenarios switch
-the nuisance parameters only, leaving the true effect identical:
+that also drives treatment and outcome. The three standard scenarios change
+the nuisance parameters only. The true effect is the same in all three:
 
 ```{r}
 dgp <- data.table(
@@ -1451,14 +1442,14 @@ knitr::kable(
 
 ## 3.3 Cross-package validation matrix
 
-Each scenario dataset is fed through the full triangle (known
+Each scenario dataset goes through the full triangle (known
 potential-outcome truth, swereg, and `TrialEmulation`) for both estimands.
 Estimates are compared on a common rate-ratio scale. `TrialEmulation` reports
 odds ratios from pooled logistic regression. The Zhang–Yu relation converts
 them with the reference-arm per-period event risk of the Monte Carlo truth
 simulation (Zhang and Yu 1998; Section 3.7). The truth is
-the exact log-IRR of Section 3.9. `TrialEmulation` is a peer required to
-recover the truth itself, not an oracle.
+the exact log-IRR of Section 3.9. `TrialEmulation` must also recover the
+truth. The comparison does not use it as the reference.
 
 ```{r}
 tri <- copy(ev$triangle)
@@ -1508,12 +1499,12 @@ In Table 4, every interval of both packages covers the exact truth. That
 includes the s3 per-protocol cell, whose censoring weights (1.8.2) model the
 informative loss. In the s3 ITT cell both estimates are below the truth
 (swereg `r x31$itt_sw`, TrialEmulation `r x31$itt_te`), and they differ from
-each other by `r x31$itt_gap`. A single dataset nonetheless provides limited evidence. At
-N = 20,000 one estimate carries Monte Carlo noise of `r noise` on
-the log-IRR scale. Point estimates therefore deviate visibly from the truth
-even under an unbiased estimator, and sampling variation alone sets the size
-of any one gap. Replication gives a stronger assessment. The full triangle
-is repeated on 20 independent datasets per scenario. That reduces the Monte
+each other by `r x31$itt_gap`. One dataset is weak evidence. At N = 20,000
+one estimate carries Monte Carlo noise of `r noise` on the log-IRR scale.
+Point estimates therefore differ visibly from the truth even under an
+unbiased estimator, and sampling variation alone sets the size of any one
+gap. Replication gives stronger evidence. The full triangle is repeated on 20
+independent datasets per scenario. That reduces the Monte
 Carlo standard error of the estimated bias by a factor of $\sqrt{20}$.
 
 ```{r}
@@ -1678,8 +1669,8 @@ patchwork::wrap_plots(
 ```
 
 Averaging over 20 datasets reduces the Monte Carlo standard error of the
-estimated bias to at most `r x33r$max_se`. That resolves systematic effects
-that no single dataset can. Table 5 and Figures 1 and 2 show three results.
+estimated bias to at most `r x33r$max_se`. At that precision a systematic bias
+shows that no single dataset can show. Table 5 and Figures 1 and 2 show three results.
 
 In s1 and s2, every fit is within 3.5 Monte Carlo standard errors of the exact
 truth, for both estimands (Figure 1). This holds for swereg with truncated and
@@ -1713,15 +1704,15 @@ loss weight and assumes loss independent of the outcome (assumption 4 of
 1.7). Informative loss therefore biases it in any correct implementation. The
 exact limit of an ITT fit without loss weights is `r x33r$lim3` from the
 truth. Each of the three means is within 3.5 Monte Carlo standard errors of
-that limit.
-Cross-package agreement is therefore not evidence of correctness, which is why
-every layer of this battery is anchored to a known truth.
+that limit. Agreement between packages is therefore not evidence of
+correctness. For this reason, every layer of the battery compares the
+estimates with a known truth.
 
 ## 3.4 Stress matrix
 
 The stress cells reuse the Section 3.2 data-generating process with one or
-two parameters pushed to an extreme. Each cell probes a specific failure
-mode. Table 6 specifies the designs; the cells then follow in order.
+two parameters set to an extreme. Each cell tests one failure mode. Table 6
+gives the designs.
 
 ```{r}
 st_note <- function(cl) ev$stress[cell == cl & estimand == "pp", note]
@@ -1789,20 +1780,20 @@ stopifnot(claim("stress_attrition"))
 stopifnot(claim("stress_determinism"))
 ```
 
-Three observations from Table 7. At an event risk of `r rare_pct` per
-period, the per-protocol fit completes, including its spline-based censoring
-models. Its interval covers the truth (bias `r x32a$rare_pp`). Under a true
-null, the interval covers zero: the weighting and pooling machinery does not
-make an effect from noise. In the attrition cell, confounder-driven dropout
+Table 7 shows three results. At an event risk of `r rare_pct` per period,
+the per-protocol fit completes, including its spline-based censoring models.
+Its interval covers the truth (bias `r x32a$rare_pp`). Under a true null, the
+interval covers zero: the weighting and the pooling do not create an effect
+from noise. In the attrition cell, confounder-driven dropout
 removes `r attr_pct` of the person-periods. There, the per-protocol
 interval covers the truth (bias `r x32a$attr_pp`). The ITT estimator carries
-no loss weight by construction. It is displaced (bias `r x32a$attr_itt`), and
-its interval excludes the truth. This is the designed failure that motivates
-the estimand distinction in practice.
+no loss weight by construction. It is biased (bias `r x32a$attr_itt`), and
+its interval excludes the truth. The cell is designed to make it fail, and
+the failure shows why the choice of estimand matters.
 
-Determinism: refitting the per-protocol estimator on identical data
-reproduced the estimate to a maximum absolute difference of
-`r format(ev$stress_determinism$max_abs_delta)`; the pipeline has no
+A second fit of the per-protocol estimator on identical data reproduces the
+estimate to a maximum absolute difference of
+`r format(ev$stress_determinism$max_abs_delta)`. The pipeline has no
 uncontrolled stochastic step.
 
 ```{r}
@@ -1869,9 +1860,9 @@ stopifnot(claim("stress_trunc_monotone"))
 Table 9 shows the cost side of the tradeoff stated in 1.8.3. Its design has
 propensity scores near the boundary (maximum raw stabilised weight
 `r tc[1, sprintf("%.0f", wmax_raw)]`). Each tightening of the truncation
-percentiles moves the estimate further toward the null.
-When extreme weights are structural rather than sporadic, the appropriate
-response is to restrict the eligible population, not to truncate harder.
+percentiles moves the estimate further toward the null. When extreme weights
+are structural, not sporadic, restrict the eligible population instead of
+truncating harder (1.9).
 
 ```{r}
 tv <- copy(ev$stress_tv)
@@ -1901,7 +1892,7 @@ x32tv <- list(
 stopifnot(claim("stress_tv"))
 ```
 
-The feedback cell marks the limit of the per-protocol estimator's validity.
+The feedback cell shows where the per-protocol estimator stops being valid.
 Here a time-varying confounder is affected by treatment and drives both
 adherence and the outcome. IPCW with time-updated covariates is less biased
 than IPCW with covariates frozen at baseline (|bias| `r x32tv$up` against
@@ -1909,14 +1900,14 @@ than IPCW with covariates frozen at baseline (|bias| `r x32tv$up` against
 excludes the truth. Part of that bias is the working-model average under a
 time-ramping effect, and not selection. The ITT estimand needs no censoring
 model against this feedback, and its interval covers the truth in the same
-data (bias `r x32tv$itt`).
-Where treatment–confounder feedback is central to the question, g-methods
-beyond this pipeline are indicated, exactly as stated in 1.7.
+data (bias `r x32tv$itt`). Where treatment–confounder feedback is central to
+the question, g-methods are indicated, and this pipeline does not implement
+them (1.7).
 
 ## 3.5 Full-pipeline truth recovery (plan layer)
 
 The layers above validate the estimators on pre-built person-period panels.
-This layer validates everything that sits on top of them in production:
+This layer validates the production steps around them:
 
 - the machine-readable specification;
 
@@ -1944,14 +1935,14 @@ The weekly outcome hazard is constant at 0.0025 untreated and doubled while
 treated. The marginal per-week incidence rate ratio among sustained users is
 therefore exactly 2.0. Scenario B adds a binary frailty carried by 30% of
 persons. It doubles both the initiation probability and the outcome hazard,
-so it is a genuine baseline confounder. Mixture-averaging over the two risk
+so it is a baseline confounder. Mixture-averaging over the two risk
 groups with first-event depletion attenuates the marginal truth to
 `r ev$plan[cell == "B_none", sprintf("%.3f", truth_pp)]`.
 
 Loss, when present, is geometric. Its weekly hazard is 2%, or under
 informative loss 1% in the low-risk group and 3% in the high-risk group.
 Loss multiplies person-time equally in both arms. The truth is therefore
-unchanged, and loss is purely a nuisance the machinery must tolerate. The
+unchanged, and loss is only a nuisance that the pipeline must tolerate. The
 ITT truth in the discontinuation cell
 (`r sprintf("%.2f", ev$plan[cell == "DISC", truth_itt])`) is simulated
 directly. It is the do(initiate)-versus-do(never) contrast with natural
@@ -2017,8 +2008,8 @@ stopifnot(claim("plan_ipw_removes_confounding"))
 stopifnot(claim("plan_disc"))
 ```
 
-Two rows warrant comment. In the confounded no-loss cell (B_none) the
-frailty does real confounding work. The crude rate ratio in the enrolled ITT
+Two rows of Table 12 need comment. In the confounded no-loss cell (B_none)
+the frailty confounds the crude comparison. The crude rate ratio in the enrolled ITT
 panel is `r x33$crude`, and the IPW-weighted rate ratio is `r x33$ipw`,
 against a marginal truth of `r x33$truth_b`. On the log scale, the weighting
 removes more than 90% of the planted confounding. In the discontinuation
@@ -2099,8 +2090,8 @@ each miss.
 
 ## 3.6 Coverage calibration
 
-The final layer asks whether the reported uncertainty can be trusted. It
-draws 200 replicates per scenario at 3,000 persons and refits each one end
+The last layer tests whether the reported intervals have their nominal
+coverage. It draws 200 replicates per scenario at 3,000 persons and refits each one end
 to end. It then counts the fraction of nominal 95% intervals that cover the
 truth. The truth is the
 exact log-IRR of Section 3.9. Both estimands use the primary truncated weight,
@@ -2193,10 +2184,9 @@ The ITT interval covers `r x34$i1` in s1 and `r x34$i2` in s2. In s3 the ITT
 point estimate carries the design bias of an analysis without loss weights.
 Its mean bias is `r x34$ib3` (MC SE `r x34$ise3`), and the exact limit is
 `r x34$lim3`. At N = 3,000 that bias is less than a third of the spread of
-single estimates (MC sd `r x34$isd3`). Coverage at this sample size therefore
-does not show it. The
-validation tier therefore checks the s3 ITT bias against its design limit,
-and not the s3 ITT coverage.
+single estimates (MC sd `r x34$isd3`). Coverage at this sample size does not
+show it. The validation tier therefore checks the s3 ITT bias against its
+design limit, and not the s3 ITT coverage.
 
 ## 3.7 Marginal versus conditional estimands
 
@@ -2225,17 +2215,16 @@ gaps are larger
 `r tri[estimand == "pp" & scenario == "s3", gap]` in s3). In those cells the
 two packages also correct the loss by different routes: censoring weights
 against conditioning. In s1, which has no confounding, both gaps are below
-0.001. The primary correctness guarantee is
-each implementation's agreement with the known simulated truth on its own
-scale. Section 3.8 measures where each route's advantage holds, and where
-both end.
+0.001. The main check of correctness is the agreement of each
+implementation with the known simulated truth, on its own scale. Section 3.8
+measures where each route has the advantage, and where both fail.
 
 ## 3.8 Boundary of validity: the truncation tradeoff across scenarios
 
 The s3 per-protocol cell raised two questions that a single scenario cannot
 answer. The first is whether the conditional-adjustment route is always the
 better one. The second is whether truncation is always a cost. This section
-varies the design one knob at a time around the s3 configuration:
+varies the design one parameter at a time around the s3 configuration:
 
 - the strength of the dependence of loss on the confounder (0.45, 0.9 and
   1.5 on $L_0$);
@@ -2342,7 +2331,7 @@ baseline covariate in the outcome model. Its 95% Monte Carlo interval holds
 zero in these three cells. That holds only because the covariate it
 conditions on drives this loss exactly.
 
-No uniform ranking generalises. With the selection reversed, only the
+No ranking holds in every cell. With the selection reversed, only the
 truncated fit's 95% Monte Carlo interval holds zero (`r x16$rev_t`). The
 untruncated fit (`r x16$rev_u`) and `TrialEmulation` (`r x16$rev_te`) are
 below zero. With a harmful effect, only the untruncated fit's interval holds
@@ -2357,26 +2346,28 @@ stopifnot(claim("grid_unmeasured_silent"))
 
 The two unmeasured-driver cells locate the boundary set by assumption (5)
 of the analysis plan (1.7). In both, every mean bias is negative, toward an
-exaggerated protective effect. The `TrialEmulation` fit is displaced the
-most: `r x16u$loss_te` with dropout on the unmeasured factor, and `r x16u$adh_te`
+exaggerated protective effect. The `TrialEmulation` fit has the largest
+bias: `r x16u$loss_te` with dropout on the unmeasured factor, and `r x16u$adh_te`
 with the unmeasured factor driving adherence. Its 95% Monte Carlo interval
 excludes zero in both. The swereg mean biases are `r x16u$loss_t`
 (truncated) and `r x16u$loss_u` (untruncated) in the dropout cell, and
 `r x16u$adh_t` and `r x16u$adh_u` in the adherence cell. No weighting or
 conditioning on measured covariates corrects selection on an unobserved
-variable. Two further observations. First, the `TrialEmulation` displacement
-in the unmeasured-loss cell contradicts an intuition: dropout independent of
-treatment should cancel between arms in a ratio. Events deplete high-risk
-person-time faster in the comparator arm. An identical dropout process
-therefore interacts differently with the two arms' risk sets, and the ratio
-does not escape. Second, truncated and untruncated mean biases differ less in
-these cells (`r x16$d_unm`) than in the measured-covariate cells
-(`r x16$d_meas`). The truncated-versus-untruncated divergence responds to
-weight instability from measured covariates. It remains largely silent about
-unmeasured drivers.
-Their detection needs design-based approaches (negative-control outcomes,
-sensitivity analyses for unmeasured selection) rather than weight
-diagnostics.
+variable.
+
+The `TrialEmulation` bias in the unmeasured-loss cell runs against an
+intuition: dropout independent of treatment should cancel between arms in a
+ratio. Events deplete high-risk person-time faster in the comparator arm. An
+identical dropout process therefore acts differently on the risk sets of the
+two arms, and the ratio is biased too.
+
+Truncated and untruncated mean biases differ less in these cells
+(`r x16$d_unm`) than in the measured-covariate cells (`r x16$d_meas`). The
+divergence between truncated and untruncated fits responds to weight
+instability from measured covariates. It shows little of the bias from
+unmeasured drivers. To detect those, use design-based approaches
+(negative-control outcomes, sensitivity analyses for unmeasured selection),
+not weight diagnostics.
 
 ```{r}
 fb <- copy(ev$feedback_grid)
@@ -2418,7 +2409,7 @@ knitr::kable(
 stopifnot(claim("feedback_boundary"))
 ```
 
-Table 17 is the boundary the SAP declares in 1.7, now measured. Here the
+Table 17 measures the boundary that the SAP states in 1.7. Here the
 determinants of censoring are time-varying and affected by treatment. Each of the
 three approaches is biased, more than 3.5 Monte Carlo standard errors from
 zero: time-updated censoring weights, frozen covariates and baseline
@@ -2426,10 +2417,9 @@ conditioning. Each bias is `r x17$lo` to `r x17$hi` times the largest
 absolute mean bias of the truncated swereg fit and of `TrialEmulation` in
 Table 16 (`r x17$b16`). The comparison leaves out the untruncated fit,
 because its bias in the harsh cell comes from unstable weights. The
-time-updated weights give the smallest of the three biases.
-All three estimates are therefore
-unusable, and comparing them identifies only which approach fails least,
-not an approach that works. When a time-varying confounder is itself
+time-updated weights give the smallest of the three biases. All three
+estimates are therefore unusable. The comparison shows only which approach
+fails least. When a time-varying confounder is itself
 affected by earlier treatment, valid estimation needs methods designed for
 that feedback. Examples are the parametric g-formula and g-estimation of
 structural nested models (Hernán and Robins 2016). This pipeline implements
@@ -2548,8 +2538,8 @@ does truncation raise the spread of single-dataset estimates, to 0.001. The
 truncated fit has the lower RMSE in `r x38$trunc_lower_rmse_n` of them. Neither
 variant is uniformly better. Truncation has its largest RMSE advantages where
 the untruncated weights are unstable, in the harsh and harmful-effect cells.
-The pipeline's convention is therefore
-retained on the evidence. The truncated fit is the primary analysis: its
+The evidence therefore supports the pipeline's convention. The truncated fit
+is the primary analysis: its
 largest RMSE across the `r x38$cells_n` cells is `r x38$rm_t_max`, against
 `r x38$rm_u_max` for the untruncated fit. The untruncated fit is always
 exported alongside (1.8.3). A material divergence between the two indicates
@@ -2562,8 +2552,9 @@ appropriate:
 - restriction of the eligible population where extreme weights are
   structural;
 
-- when the censoring drivers are time-varying and treatment-affected, the
-  recognition that no weighting scheme in this pipeline suffices (Table 17).
+- when the censoring drivers are time-varying and affected by treatment,
+  acceptance that no weighting scheme in this pipeline is sufficient
+  (Table 17).
 
 ## 3.9 Risk difference and log-IRR against exact truths
 
@@ -2739,8 +2730,8 @@ validation evidence.
 | SAP | Step | Implementation |
 |:--|:--|:--|
 | Values, 1.1, 1.4 | Width of the enrollment period | `period_width` argument of `tteplan_from_spec_and_registrystudy()`, default `4L`. It also sets the width of each follow-up interval. `vignette("tte-timing")` states the timing rules with worked examples |
-| 1.1 | Global and per-enrollment criteria | Global: `inclusion_criteria$isoyears`, `inclusion_criteria$criteria` and `exclusion_criteria`. Per enrollment: `additional_inclusion` (`age_range`, `isoyear_range`, `has_event`, washouts) and `additional_exclusion`, applied after the global criteria by `tteplan_apply_exclusions()`. `tteplan_read_spec()` refuses a second `age_range` in one enrollment, because every `age_range` writes the one column `eligible_age`. It also refuses a second `isoyear_range`, and an `isoyear_range` outside `inclusion_criteria$isoyears` (26.13.0). An `isoyear_range` writes a column of its own, so the age range still applies. Since 26.14.0, TARGET item 6a lists the criteria per enrollment, and the protocol table states an enrollment-level exclusion as "is TRUE" |
-| 1.1 | Look-back windows | `window` takes a number of weeks, `"N year"` or `"N years"` (read as 52N weeks), or `lifetime_before_baseline`. A value of 99999 or more, `Inf` included, means lifetime. Since 26.12.0 the window counts calendar ISO weeks from `isoyearweek`, not rows (`any_events_prior_to()`). An exclusion with `window: lifetime_before_and_after_baseline` reads every row of the person, after baseline as well |
+| 1.1 | Global and per-enrollment criteria | Global: `inclusion_criteria$isoyears`, `inclusion_criteria$criteria` and `exclusion_criteria`. Per enrollment: `additional_inclusion` (`age_range`, `isoyear_range`, `has_event`, washouts) and `additional_exclusion`, applied after the global criteria by `tteplan_apply_exclusions()`. `tteplan_read_spec()` refuses a second `age_range` in one enrollment, because every `age_range` writes the one column `eligible_age`. It also refuses a second `isoyear_range`, and an `isoyear_range` outside `inclusion_criteria$isoyears`. An `isoyear_range` writes a column of its own, so the age range still applies. TARGET item 6a lists the criteria per enrollment, and the protocol table states an enrollment-level exclusion as "is TRUE" |
+| 1.1 | Look-back windows | `window` takes a number of weeks, `"N year"` or `"N years"` (read as 52N weeks), or `lifetime_before_baseline`. A value of 99999 or more, `Inf` included, means lifetime. The window counts calendar ISO weeks from `isoyearweek`, not rows (`any_events_prior_to()`). An exclusion with `window: lifetime_before_and_after_baseline` reads every row of the person, after baseline as well. `tteplan_read_spec()` refuses that window on an outcome variable |
 | 1.1, 1.8.7 | Washout / new-user exclusion | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. A missing value in the window makes the rule `NA`, and the week is then ineligible. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`, so it skips missing weeks |
 | 1.1 | Prevalent-user warning | `tteplan_validate_spec()` warns when no washout covers the enrollment's intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when no skeleton is loaded (`global_max_isoyearweek` supplied). Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
 | 1.2, 1.4 | Arm values and the weekly status | `treatment.implementation`: `variable`, `intervention_value` and `comparator_value`. The pipeline writes `rd_intervention`: `TRUE` at the intervention value, `FALSE` at the comparator value, `NA` otherwise. It also writes `eligible_valid_treatment`, which is `TRUE` where `rd_intervention` is not `NA` |
@@ -2749,7 +2740,7 @@ validation evidence.
 | 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` ("Candidate person-trials, before the time-zero checks"), `landmark_observed` ("Not under observation at time zero") and `landmark_event_free` ("Event before time zero"). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
 | 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
-| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` and that lacks `weeks_to_observation_gap` was enrolled before swereg 26.15.0. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. `qs2_read()` refuses a stored enrollment from before schema 6, which includes every enrollment saved before 26.15.0, so such a file cannot be read. Rebuild the plan with s0 and re-run s1 |
+| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` can lack `weeks_to_observation_gap`. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. `qs2_read()` refuses a stored enrollment below schema 7, and a stored enrollment that lacks the column is below schema 7, so such a file cannot be read. Rebuild the plan with s0 and re-run s1 |
 | 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
 | 1.8.2 | IPCW censoring models | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`. When its prediction stops with an "object not found" error, swereg fits the same formula again with `discrete = FALSE`. Other prediction errors stop s2. The denominator is `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum's proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. |
 | 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |
@@ -2762,7 +2753,7 @@ validation evidence.
 
 ## 4.2 Where the validation numbers come from
 
-The evidence layers in Section 3 are permanent, executable tests:
+Each evidence layer of Section 3 is an executable test:
 
 | Section | Layer | Test file | Gate |
 |:--|:--|:--|:--|

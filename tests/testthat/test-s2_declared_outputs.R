@@ -69,6 +69,9 @@ test_that("s2 dispatch declares one absolute output per item via run_and_write",
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
 
   cap <- new.env(parent = emptyenv())
   testthat::local_mocked_bindings(

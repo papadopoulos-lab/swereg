@@ -2,9 +2,6 @@
 # whether it is stale, one builds the panel, and one writes a panel to a
 # worksheet.
 
-#' (removed) -- main Table 1 is now stored separately by the enrollment
-#' worker as `table1_ipw_trunc_main`, so no on-the-fly stripping is needed.
-
 #' Is one enrollment's cached baseline result too old to export?
 #'
 #' `$export_tables()` calls this over `self$results_enrollment` and re-runs

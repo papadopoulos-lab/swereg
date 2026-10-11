@@ -51,9 +51,8 @@
 #' baseline adjustment MUST read every confounder at the same instant.
 #'
 #' A panel with no snapshot reads the collapsed value of the follow-up interval.
-#' That is what every release before this one did. Two panels reach that state:
-#' one built by an earlier release, and one whose entry rows carried no
-#' `recruit_week_index`.
+#' Two panels reach that state: one whose builder wrote no snapshot columns,
+#' and one whose entry rows carried no `recruit_week_index`.
 #'
 #' @param data A data.table.
 #' @param confounder_vars Character vector of confounder names.

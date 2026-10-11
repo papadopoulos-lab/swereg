@@ -337,8 +337,8 @@
 #'
 #' `enroll()` writes `weeks_to_observation_gap` whenever the design declares
 #' `observed_var`. A non-empty panel that `enroll()` built with
-#' `observed_var` and that lacks the column was enrolled before swereg
-#' 26.15.0.
+#' `observed_var` and that lacks the column is a legacy panel. A swereg that
+#' did not write the column built it.
 #'
 #' @param data The panel.
 #' @param design The [TTEDesign] of the enrollment, or `NULL`.
@@ -370,8 +370,8 @@
 #' is numbered one interval too early. All of those rows open at or after the
 #' gap, so `s5_prepare_outcome()` drops them.
 #'
-#' A panel enrolled before swereg 26.15.0 lacks `weeks_to_observation_gap`
-#' (see `.tte_is_legacy_gap_panel()`). Its weekly rows are gone, so swereg
+#' A legacy panel lacks `weeks_to_observation_gap` (see
+#' `.tte_is_legacy_gap_panel()`). Its weekly rows are gone, so swereg
 #' cannot recompute the gap. This function then leaves the record end alone,
 #' and warns with `.TTE_LEGACY_GAP_WARNING`. The warning says three
 #' things:
@@ -380,7 +380,7 @@
 #' - An outcome after such a gap may be counted.
 #' - A re-run of s1 removes the limitation.
 #'
-#' [qs2_read()] refuses an enrollment saved before schema 6, so this panel
+#' [qs2_read()] refuses an enrollment saved before schema 7, so this panel
 #' reaches the function only from an object in memory.
 #'
 #' @param data The panel inside `s5_prepare_outcome()`. It MUST carry

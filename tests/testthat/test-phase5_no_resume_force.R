@@ -156,6 +156,9 @@ test_that("s3_analyze clears only ETTs it will recompute (combined scope keeps s
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
   plan$results_enrollment <- list(E1 = list(x = 1), E2 = list(SURVIVE = TRUE))
   plan$results_ett <- list(T1 = list(x = 1), T2 = list(SURVIVE = TRUE))
 

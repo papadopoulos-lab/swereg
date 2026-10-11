@@ -8,15 +8,13 @@
 #' the worker RETURNS the panel and writes nothing itself, and batchit commits
 #' the returned `panel` element to the declared output path atomically.
 #'
-#' CONTRACT CHANGE (s1a staged_writer phase): the production path now passes
-#' `require_cache = TRUE`, so a missing s1a cache is a LOUD ERROR here instead
-#' of a silent recompute. The recompute fallback produces a different column
-#' set and runs roughly 10x slower, and it used to hide a parent/worker path
-#' drift completely -- no error, no warning, changed production output. A
-#' standalone partial s1d run, or an external `swereg:::.s1d_worker()` caller
-#' that has not run s1a first, will now fail where it previously recomputed.
-#' Call `.s1d_worker_impl()` directly with `require_cache = FALSE` (the
-#' default) if you want the old recomputing behaviour.
+#' The production path passes `require_cache = TRUE`, so a missing s1a cache
+#' stops here. The recompute fallback produces a different column set and
+#' runs roughly 10x slower. It would also hide a parent/worker path drift:
+#' no error, no warning, changed production output. A standalone partial s1d
+#' run, or an external `swereg:::.s1d_worker()` caller that has not run s1a
+#' first, therefore stops. To recompute instead, call `.s1d_worker_impl()`
+#' directly with `require_cache = FALSE` (the default).
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file. Read only on the
@@ -331,7 +329,7 @@
 #' in-process. That indirection is what makes the pair ALL-OR-NONE: the two
 #' writes land on attempt-scoped staging files, and batchit renames both into
 #' place only after the item returns. Minutes of imputation + IPW + weight
-#' truncation sit between them, and a failure anywhere in that window now
+#' truncation sit between them, and a failure anywhere in that window
 #' leaves both final paths untouched -- absent if they were absent,
 #' byte-identical to their previous contents if they existed.
 #'

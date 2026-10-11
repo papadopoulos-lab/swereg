@@ -95,7 +95,15 @@ TTEPlan <- R6::R6Class(
   public = list(
     #' @field project_prefix Character, string used for file naming.
     project_prefix = NULL,
-    #' @field ett NULL or a data.table with per-ETT columns.
+    #' @field ett NULL or a data.table with per-ETT columns. The column
+    #'   `s1_run_id` holds the id of the s1 run whose files s2 last wrote
+    #'   the analysis files from. It is absent before the first s2, and `NA`
+    #'   while s2 writes or after an s2 that failed. A later s1 run does not
+    #'   change it. s3 refuses an ETT whose value differs from the current
+    #'   `s1_run_id` of the plan. The column `s2_run_id` holds the id of the
+    #'   s2 run that wrote the analysis files. It follows the same rules as
+    #'   `s1_run_id`, and it changes on every s2 run. s3 copies it into each
+    #'   result it stores.
     ett = NULL,
     #' @field skeleton_files Character vector of skeleton file paths.
     skeleton_files = NULL,
@@ -167,8 +175,22 @@ TTEPlan <- R6::R6Class(
     sparse_decision = NULL,
     #' @field sparse_rule_hash The hash of the `sparse_rule` that made
     #'   `sparse_decision`, or NULL. s1c, s2 and s3 stop when the hash of the
-    #'   rule in `spec` differs from it.
+    #'   rule in `spec` differs from it. `$export()`, `$export_tables()` and
+    #'   `$print_target_checklist()` stop on that difference too, when the
+    #'   plan holds a decision or a stored result. `$excel_spec_summary()` and
+    #'   `$print_spec_summary()` then show the rule as not decided yet.
     sparse_rule_hash = NULL,
+    #' @field s1_run_id The id of the last s1 run when that run completed,
+    #'   and NULL otherwise.
+    #'   The id is a digest of `sparse_decision` and `sparse_rule_hash`, then
+    #'   a token unique to the run. s1 sets it to NULL after its input checks,
+    #'   and drops `results_enrollment` and `results_ett` at the same point.
+    #'   s1 sets the id after s1e writes every output. s2 and s3 stop unless
+    #'   the id matches the current decision. s2 copies the id into the
+    #'   `s1_run_id` column of `ett`, and s3 into each result it stores.
+    #'   `$export()`, `$export_tables()` and `$print_target_checklist()` stop
+    #'   when a stored result carries another id.
+    s1_run_id = NULL,
 
     # --- Directory candidates and embedded study ---
 

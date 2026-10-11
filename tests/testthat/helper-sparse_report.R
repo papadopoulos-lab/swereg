@@ -68,7 +68,7 @@ spr_report_pipeline <- function(rule = spr_report_rule(), sk = spr_skeleton()) {
 # helper-sparse_rule.R. The counts per arm are rare_b 3, common 50 and rare_a
 # 4, so at min_n = 10 the rule excludes rare_b and rare_a. The labels are the
 # confounder names of the spec. `none_excluded = TRUE` marks every candidate
-# adjusted.
+# adjusted. The plan carries the stamps of a completed s1 for that decision.
 spr_report_fast_plan <- function(none_excluded = FALSE, env = parent.frame()) {
   plan <- spr_plan_no_s1(env = env)
   d <- data.table::copy(plan$sparse_decision)
@@ -83,7 +83,7 @@ spr_report_fast_plan <- function(none_excluded = FALSE, env = parent.frame()) {
     d[, decision := "adjusted"]
   }
   plan$sparse_decision <- d
-  return(plan)
+  return(tte_stamp_stages(plan))
 }
 
 # Write one sheet writer's output to a file and read it back as text cells.

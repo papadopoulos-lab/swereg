@@ -19,7 +19,14 @@ tteplan_from_spec_and_registrystudy(
 }
 \arguments{
 \item{study}{A \link{RegistryStudy} R6 object, typically loaded via
-\code{\link[=registrystudy_load]{registrystudy_load()}}. Owns the rawbatch and skeleton path candidates.}
+\code{\link[=registrystudy_load]{registrystudy_load()}}. Owns the rawbatch and skeleton path candidates.
+A list MAY stand in for it, as the package tests do. The list MUST carry
+\code{skeleton_files}. Without a \code{work_root}, s1 reads \code{data_meta_dir} from
+it for its work directory. A list has no \verb{$assert_skeletons_consistent()}, so pass
+\code{check_skeletons = FALSE} here and to
+\verb{$s1_generate_enrollments_and_ipw()}. With
+\code{global_max_isoyearweek = NULL} and a first file named
+\verb{skeleton_<n>.qs2}, the list also needs \verb{$load_skeleton()}.}
 
 \item{candidate_dir_spec}{Character vector of candidate directories that
 contain the spec YAML \code{spec_vXXX.yaml}. The first existing directory is

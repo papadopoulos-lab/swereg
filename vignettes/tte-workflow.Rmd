@@ -16,11 +16,10 @@ knitr::opts_chunk$set(
 
 # Target trial emulation with swereg
 
-This vignette walks through the full target trial emulation (TTE)
-workflow in swereg: from skeleton files on disk to ETT-level
-per-protocol effect estimates. It keeps the epidemiological rationale
-and the technical R6/subprocess mechanics on the same page. Read it
-from the top down.
+This vignette describes the target trial emulation (TTE) workflow in
+swereg, from skeleton files on disk to ETT-level per-protocol effect
+estimates. It covers the epidemiological rationale and the R6 and
+subprocess mechanics together. Read it from the top down.
 
 For the methodological mapping to reference papers (Hernán 2008/2016,
 Danaei 2013, Caniglia 2023, Cashin 2025) see
@@ -31,8 +30,8 @@ skeleton files are built in the first place see
 
 ## The TTE concept in one page
 
-A randomized trial of an intervention gives you the causal effect
-*for free* when the randomization is valid. Treatment assignment is
+A randomized trial of an intervention identifies the causal effect
+directly when the randomization is valid. Treatment assignment is
 then independent of potential outcomes, so a comparison of observed
 outcomes across arms is an unbiased estimator of the effect.
 
@@ -44,25 +43,25 @@ reasons:
 - Randomization would be unethical.
 - The outcome is too rare to power a feasible trial.
 
-Target trial emulation is a discipline for doing observational
-analyses as if they were trials. **Write down the protocol of the
-target trial** first: eligibility, treatment arms, assignment,
-outcome, follow-up and analysis plan. Then use observational data to
-build a dataset that mimics that protocol as closely as possible.
-The mimic is imperfect in specific, nameable ways, and each
-imperfection has a specific statistical correction.
+Target trial emulation analyses observational data as if they came
+from a trial. First write down the protocol of the target trial:
+eligibility, treatment arms, assignment, outcome, follow-up and
+analysis plan. Then use observational data to build a dataset that
+follows that protocol as closely as possible. The emulation differs
+from the trial in specific, named ways, and each difference has a
+specific statistical correction.
 
 ### The emulation failures
 
 Hernán and Robins (2016) name four specific failure modes that
 observational analyses suffer which randomized trials do not:
 
-1. **Treatment assignment is not random** -- people who choose the
-   intervention differ systematically from people who don't. Corrected
-   with baseline confounder adjustment, typically via inverse
+1. **Treatment assignment is not random.** People who choose the
+   intervention differ systematically from people who do not. The
+   correction is baseline confounder adjustment, typically by inverse
    probability of treatment weighting (IPW).
 
-2. **Time zero is not well-defined** -- in a trial, time zero is the
+2. **Time zero is not well-defined.** In a trial, time zero is the
    moment of randomization. In observational data there is no such
    moment, so you have to define one. swereg uses *enrollment
    periods*: each enrollment period of `period_width` weeks opens one
@@ -72,12 +71,12 @@ observational analyses suffer which randomized trials do not:
    observation and free of every enrollment outcome. See
    `vignette("tte-timing")`.
 
-3. **Follow-up is informatively truncated** -- people drop out of
+3. **Follow-up is informatively truncated.** People drop out of
    observation (emigration, death, end of data) in ways that depend
-   on their baseline or time-varying characteristics. Corrected with
-   inverse probability of censoring weighting (IPCW).
+   on their baseline or time-varying characteristics. The correction
+   is inverse probability of censoring weighting (IPCW).
 
-4. **Treatment is not adherent** -- in a trial, adherence is
+4. **Treatment is not adherent.** In a trial, adherence is
    enforced (or non-adherence is measured and modeled). In
    observational data, people switch treatments over time. swereg
    reads the weekly treatment assessments and censors per-protocol
@@ -95,9 +94,9 @@ arm"). Each person can appear in multiple sequential trials as long
 as they remain eligible and non-initiated.
 
 This produces a *long panel*: one row per person per trial per
-follow-up week. It is huge, and the structure is uniform. The
-statistical operations are straightforward once you have it: the
-comparator draw, IPW, and pooled logistic or Poisson regression.
+follow-up week. The panel is large, and its structure is uniform. On
+that panel the statistical operations are standard: the comparator
+draw, IPW, and pooled logistic or Poisson regression.
 
 ## The swereg TTE model
 
@@ -107,9 +106,9 @@ and two parallelized loops.
 ### TTEDesign: column name schema
 
 `TTEDesign` holds the names of the columns that define the trial
-schema: person ID, treatment, outcome, confounders, time. It's
-constructed once and reused across every enrollment. Think of it as
-the "schema" of a trial, not the trial itself.
+schema: person ID, treatment, outcome, confounders, time. swereg
+constructs it once and reuses it across every enrollment. It holds
+the schema of a trial and no trial data.
 
 ### TTEEnrollment: one sequence of trials
 
@@ -141,30 +140,33 @@ holds `TRUE`. A person is a comparator when all of those weeks hold
 not stop a comparator classification. A candidate person-trial with no
 such week is ineligible for that trial, and enters neither arm. See
 `vignette("tte-methods")`, section 1.3 (Assignment procedures), for the
-full statement of that rule. The draw is a computational
-shortcut compared to full cloning -- see `vignette("tte-methodology")`
-for the trade-offs.
+full statement of that rule. The draw needs less computation than
+full cloning. `vignette("tte-methodology")` describes the trade-offs.
 
 ### TTEPlan: the ETT grid builder
 
 `TTEPlan` holds the **ETT grid**: the Cartesian product of
 *enrollments × outcomes × follow-up durations*. One ETT is one
-final analysis-ready dataset. The plan knows how to run the two
-loops that produce those datasets.
+final analysis-ready dataset. The plan runs the two loops that
+produce those datasets.
 
 ```{r, eval = FALSE}
-# spec is a YAML file; study is a RegistryStudy with built skeletons
+# study is a RegistryStudy with built skeletons. The spec is
+# /path/to/spec/spec_v001.yaml.
 plan <- swereg::tteplan_from_spec_and_registrystudy(
-  spec  = "my_study/spec.yaml",
-  study = study
+  study = study,
+  candidate_dir_spec = "/path/to/spec",
+  candidate_dir_tteplan = "/path/to/plans/my_study",
+  candidate_dir_results = "/path/to/results",
+  spec_version = "v001"
 )
-plan$ett
-#>     ett_id enrollment_id  outcome_var  follow_up_weeks  file_raw  file_imp  file_analysis
-#>  1:  ETT01            01  osd_i21_to_i24             52  ...       ...       ...
-#>  2:  ETT02            01  osd_i21_to_i24            156  ...       ...       ...
-#>  3:  ETT03            01  osd_i21_to_i24            260  ...       ...       ...
-#>  4:  ETT04            01  osd_i60_i61_i63            52  ...       ...       ...
-#>  5:  ETT05            01  osd_i60_i61_i63           156  ...       ...       ...
+plan$ett[, .(ett_id, enrollment_id, outcome_var, follow_up, file_analysis)]
+#>      ett_id enrollment_id     outcome_var follow_up                  file_analysis
+#> 1: ETT00001            01  osd_i21_to_i24        52 my_study_analysis_ETT00001.qs2
+#> 2: ETT00002            01  osd_i21_to_i24       156 my_study_analysis_ETT00002.qs2
+#> 3: ETT00003            01  osd_i21_to_i24       260 my_study_analysis_ETT00003.qs2
+#> 4: ETT00004            01 osd_i60_i61_i63        52 my_study_analysis_ETT00004.qs2
+#> 5: ETT00005            01 osd_i60_i61_i63       156 my_study_analysis_ETT00005.qs2
 #> ...
 ```
 
@@ -176,11 +178,11 @@ first two, and Loop 2 produces the third.
 
 ## The spec YAML
 
-All of the clinical + methodological decisions live in a YAML file
-that gets parsed into a nested R list by `tteplan_read_spec()`.
-The top-level sections are:
+The clinical and methodological decisions are in a YAML file.
+`tteplan_read_spec()` parses it into a nested R list. The example
+below shows the top-level sections.
 
-The example below uses a classic TTE setup. It is a new-user
+The example uses a classic TTE setup. It is a new-user
 comparison of statin initiation against no statin initiation, for
 primary prevention of myocardial infarction and stroke. The
 population is adults aged 40 to 75 with no prior cardiovascular
@@ -314,9 +316,9 @@ skeleton is one example. It deletes every person-week up to and
 including first immigration, every person-week on or after
 emigration, and every person-week after death. It keeps the death
 week itself. A real `observed` column there would hold `TRUE` on
-every retained row. It could not represent an absent week. Row
-presence as a silent proxy stays forbidden. The sentinel is what
-makes the assumption explicit and testable.
+every retained row. It could not represent an absent week. swereg
+does not accept row presence as a silent proxy. The sentinel makes
+the assumption explicit and testable.
 
 `tteplan_validate_spec()` checks a named column against the
 skeleton: the column MUST exist and it MUST be logical.
@@ -358,7 +360,9 @@ The distinction between "lifetime_before" and
 outcomes. A prior myocardial infarction excludes a person backward
 only, because forward is the outcome. A condition that confounds
 treatment choice whatever its timing excludes a person in both
-directions.
+directions. `tteplan_read_spec()` and `tteplan_check_spec()` refuse
+`"lifetime_before_and_after_baseline"` on an outcome variable, because the
+criterion would then select on the follow-up outcome.
 
 ### Computed confounders
 
@@ -371,8 +375,7 @@ time-zero". Non-computed confounders read a column directly (e.g.
 `rd_age_continuous` is already on the skeleton).
 
 The `computed` flag is the same mechanism swereg uses for computed
-exclusion criteria -- rolling windows over existing skeleton
-columns, nothing fancier.
+exclusion criteria: a rolling window over existing skeleton columns.
 
 ### Enrollments and the comparator draw
 
@@ -389,8 +392,8 @@ comparator, and the comparator sampling ratio.
 ## Loop 1: enrollment + IPW
 
 `plan$s1_generate_enrollments_and_ipw()` runs one iteration per
-`enrollment_id` (NOT per ETT -- several ETTs with different
-outcomes can share the same enrollment). Each iteration spawns a
+`enrollment_id`, not per ETT, because several ETTs with different
+outcomes can share the same enrollment. Each iteration starts a
 worker subprocess that:
 
 1. Loads the skeleton files for the batches assigned to this
@@ -414,15 +417,21 @@ worker subprocess that:
    `$s3_truncate_weights()`.
 10. Saves the result as `file_imp` (`{prefix}_imp_{enrollment_id}.qs2`).
 
-Step 2 is where swereg enforces that every skeleton consumed by
-the plan is pipeline-consistent. Near the top of
-`tteplan_from_spec_and_registrystudy()` we call
-`study$assert_skeletons_consistent()`, so if any batch's
-`pipeline_hash` differs from the study's current pipeline hash,
-the plan construction errors loudly. That gate stops one failure
-mode. Without it you edit a code in `ICD10_CODES`, rebuild skeletons
-for only some batches, and then silently run an analysis on a
-half-upgraded pipeline.
+swereg checks that every skeleton the plan reads is
+pipeline-consistent. `study$assert_skeletons_consistent()` runs twice:
+
+1. `tteplan_from_spec_and_registrystudy()` calls it when it builds
+   the plan.
+2. `plan$s1_generate_enrollments_and_ipw()` calls it again on the
+   files it is about to read, before step 1 of Loop 1.
+
+The call stops with an error in two cases. The `identity_hash` differs
+between batches, or the stored identity differs from the current
+pipeline identity of the study. `check_skeletons = FALSE` skips the call at
+either point. The check prevents one failure.
+Without it, you can edit a code in `ICD10_CODES` and rebuild
+skeletons for only some batches. The analysis then runs on a mix of
+old and new skeletons with no error.
 
 Steps 5 to 9 are all `TTEEnrollment` calls:
 
@@ -479,9 +488,8 @@ Each iteration:
    (`{prefix}_analysis_{ett_id}.qs2`).
 
 Loop 2 runs sequentially in the main process, and it is not
-parallelized. I/O usually dominates each ETT's cost, and the outcome
-and IPCW-PP models are fast. If that ever stops holding, the
-parallelization is a straightforward extension.
+parallelized. I/O usually dominates the cost of each ETT, and the
+outcome and IPCW-PP models are fast.
 
 ## The analysis file: rates, IRRs, survival curves
 
@@ -509,7 +517,7 @@ enrollment$irr(weight_col = "analysis_weight_pp_trunc")
 enrollment$survival_curve(weight_col = "analysis_weight_pp_trunc")
 ```
 
-The IRR approximation to the hazard ratio is used because the
+swereg uses the IRR approximation to the hazard ratio because the
 alternative, `survey::svycoxph()`, is computationally prohibitive
 at registry scale. For rare outcomes, which dominate TTE studies,
 the quasi-Poisson IRR is a close approximation to a flexible-baseline
@@ -527,8 +535,8 @@ res <- enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
 # res$interaction_coefs: one row per interaction term
 ```
 
-Tests whether the treatment effect varies across the sequential
-trials. A significant result suggests calendar-time effect
+The test checks whether the treatment effect varies across the
+sequential trials. A significant result suggests calendar-time effect
 modification or changing selection on treatment initiation.
 
 ### Effect modification by a baseline subgroup
@@ -551,7 +559,7 @@ enrollment$irr_by_subgroup(
 #>   attr "ratio_of_irrs" = 0.50   (IRR level 1 / IRR level 0)
 ```
 
-The **interaction term** of the single combined model decides whether
+The interaction term of the single combined model decides whether
 the stratum IRRs differ. That term is the `em_pvalue`. Do not decide
 it by comparing the per-stratum confidence intervals. Overlapping CIs
 do not imply equal stratum IRRs, and non-overlapping CIs are not the
@@ -559,7 +567,7 @@ test either. The subgroup variable MUST be a confounder, so the
 marginal weights stay valid within each stratum.
 
 In the spec-driven pipeline, add a top-level `subgroups:` block. The
-analysis then runs automatically per ETT for **both** estimands. It
+analysis then runs automatically per ETT for both estimands. It
 appears in the "Effect modification" sheet of the exported workbook:
 
 ```yaml
@@ -575,12 +583,15 @@ The typical project script has the shape:
 
 ```r
 # 1. Load the study built by the skeleton pipeline
-study <- swereg::registrystudy_load(data_rawbatch_candidates)
+study <- swereg::registrystudy_load(candidate_dir_meta)
 
-# 2. Build the plan from the spec + study
+# 2. Build the plan from the spec + study (s0)
 plan <- swereg::tteplan_from_spec_and_registrystudy(
-  spec  = "my_study/spec.yaml",
-  study = study
+  study = study,
+  candidate_dir_spec = "/path/to/spec",
+  candidate_dir_tteplan = "/path/to/plans/my_study",
+  candidate_dir_results = "/path/to/results",
+  spec_version = "v001"
 )
 
 # 3. Loop 1: enrollment + IPW (parallel across enrollment_ids)
@@ -592,7 +603,7 @@ plan$s2_generate_analysis_files_and_ipcw_pp()
 # 5. Per-ETT analysis
 for (i in seq_len(nrow(plan$ett))) {
   x_ett_id         <- plan$ett$ett_id[i]
-  x_file_analysis  <- plan$ett$file_analysis[i]
+  x_file_analysis  <- file.path(plan$dir_tteplan, plan$ett$file_analysis[i])
   x_outcome        <- plan$ett$outcome_var[i]
 
   enrollment <- swereg::qs2_read(x_file_analysis)
@@ -651,9 +662,9 @@ reporting.
 plan$print_target_checklist()
 ```
 
-This is meant to be read, edited into a manuscript supplement, and
-submitted alongside the paper. It doesn't guarantee your analysis is
-correct, just that the reporting is complete.
+Read the output, edit it into a manuscript supplement, and submit it
+with the paper. It does not show that the analysis is correct. It
+shows that the reporting is complete.
 
 ## Reproducibility via provenance
 
@@ -673,7 +684,7 @@ registry. It has no position in the order to record. The hash pins it
 through a field of its own, `Skeleton$trim_fn_hash`, which sits
 alongside the phase order inside the same digest.
 
-Before running Loop 1, the plan asserts the skeletons are consistent
+Before Loop 1 runs, the plan asserts that the skeletons are consistent
 (`study$assert_skeletons_consistent()`). If that passes, every batch
 was built with the same framework, randvars and codes configuration.
 Commit the `spec_vNNN.yaml` file. Then
@@ -684,7 +695,7 @@ Commit the `spec_vNNN.yaml` file. Then
 - **Three R6 classes**: `TTEDesign` (schema), `TTEEnrollment` (one
   sequence of trials), `TTEPlan` (the ETT grid builder).
 - **Two loops**: Loop 1 does enrollment + baseline IPW per
-  enrollment_id in parallel worker subprocesses; Loop 2 does per-protocol
+  enrollment_id in parallel worker subprocesses. Loop 2 does per-protocol
   censoring + IPCW-PP per ETT sequentially.
 - **Spec YAML** captures every clinical and methodological decision
   in a file that medical collaborators can review and the swereg
@@ -704,9 +715,9 @@ Commit the `spec_vNNN.yaml` file. Then
 
 For further reading:
 
-- `vignette("skeleton-pipeline")` -- how the skeleton files
-  consumed by a `TTEPlan` are built and incrementally rebuilt.
-- `vignette("tte-methodology")` -- mapping to reference papers.
-- `vignette("tte-nomenclature")` -- one-page glossary.
-- `?TTEPlan`, `?TTEEnrollment`, `?TTEDesign` -- full method
+- `vignette("skeleton-pipeline")`: how swereg builds and
+  incrementally rebuilds the skeleton files that a `TTEPlan` consumes.
+- `vignette("tte-methodology")`: mapping to reference papers.
+- `vignette("tte-nomenclature")`: one-page glossary.
+- `?TTEPlan`, `?TTEEnrollment`, `?TTEDesign`: full method
   reference.

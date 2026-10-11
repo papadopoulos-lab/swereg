@@ -24,14 +24,14 @@
 #'     "vs none" panels, so keep at 1 unless you have the RAM headroom}
 #' }
 #'
-#' Note: `s2_generate_analysis_files_and_ipcw_pp()` deliberately does NOT use
-#' this --- it stays single-worker (`n_workers = 1L`) for per-ETT memory
-#' isolation.
+#' Note: `s2_generate_analysis_files_and_ipcw_pp()` does not call this
+#' function. Its `n_workers` argument defaults to `1L`. It accepts a larger
+#' whole number, and s2 then runs that many concurrent subprocesses.
 #'
-#' The former box-wide `SWEREG_N_WORKERS` (and `getOption("swereg.n_workers")`)
-#' are retired: a single global knob could silently leak a high worker count
-#' into a heavy stage (3 x ~20 GB s3 workers -> OOM). If the deprecated
-#' `SWEREG_N_WORKERS` is still set, a one-time warning is emitted.
+#' swereg reads no box-wide worker count. A single global knob could silently
+#' leak a high worker count into a heavy stage (3 x ~20 GB s3 workers -> OOM).
+#' When the deprecated `SWEREG_N_WORKERS` is set, the function warns once per
+#' R session and ignores it. It reads no `getOption("swereg.n_workers")`.
 #'
 #' @param stage Optional character stage tag (e.g. `"s1"`, `"s3"`,
 #'   `"skeleton"`, `"rawbatch"`). When `NULL`, no per-stage override is
@@ -73,9 +73,9 @@ default_n_workers <- function(stage = NULL) {
 
 #' Validate a worker count, loudly
 #'
-#' Callers used to do `as.integer(n_workers)` *before* any check, which silently
-#' turned `2.5` into `2` -- so `parallel_pool()`'s own validation never saw the
-#' bad value. Validate first, convert second.
+#' The function checks the value before it converts it. A conversion first,
+#' `as.integer(n_workers)`, silently turns `2.5` into `2`, so no later
+#' validation sees the bad value.
 #'
 #' @param n_workers Candidate worker count.
 #' @param what Caller name, for the error message.

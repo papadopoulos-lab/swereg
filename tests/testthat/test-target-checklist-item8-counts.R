@@ -273,6 +273,7 @@ test_that("Item 8 prints the analysis set with its arm split", {
       n_baseline_comparator = 320
     )
   )
+  tte_stamp_stages(plan)
   lines <- .item8_flow_lines(plan)
 
   expect_identical(
@@ -288,6 +289,7 @@ test_that("Item 8 prints the analysis total alone when the arm counts are NA", {
   plan <- .item8_plan()
   plan$enrollment_counts <- list("01" = list(attrition = .item8_attrition()))
   plan$results_enrollment <- list("01" = list(n_baseline = 500))
+  tte_stamp_stages(plan)
   lines <- .item8_flow_lines(plan)
 
   analysis <- .item8_under(lines, "Analysis dataset (per-protocol):")

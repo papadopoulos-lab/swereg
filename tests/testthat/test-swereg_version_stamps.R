@@ -40,12 +40,16 @@ skip_if_not_installed("qs2")
     file_analysis = c("analysis_001.qs2", "analysis_002.qs2"),
     description = c("ETT00001: A", "ETT00002: A")
   )
-  return(swereg::TTEPlan$new(
+  plan <- swereg::TTEPlan$new(
     project_prefix = "test",
     skeleton_files = "skel.qs2",
     global_max_isoyearweek = "2020-52",
     ett = ett
-  ))
+  )
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
+  return(plan)
 }
 
 # The dispatcher stand-in. Every worker return carries `s2_version` as its

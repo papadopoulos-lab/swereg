@@ -146,6 +146,9 @@ test_that("s2 builds declared-output paths ABSOLUTE from a relative output_dir",
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
 
   captured <- NULL
   testthat::local_mocked_bindings(

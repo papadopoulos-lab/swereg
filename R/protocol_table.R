@@ -556,8 +556,29 @@
     ),
     analysis_plan = {
       # The fixed lines state what s1 to s3 fit. Item 6h of the TARGET
-      # checklist states the same model in full.
-      out <- c(
+      # checklist states the same model in full. The confounder lines sit
+      # between the weight lines and the outcome model line, and each names
+      # the models it enters: the outcome model holds no confounder.
+      # A condition the rare-condition rule excluded is not adjusted for.
+      adjust <- character()
+      for (conf in spec[["confounders"]]) {
+        impl <- conf[["implementation"]]
+        v <- .protocol_impl_variable(impl)
+        if (v %in% ctx$sparse_excluded_vars) {
+          next
+        }
+        adjust <- c(
+          adjust,
+          paste0(
+            "Treatment and censoring models adjust for ",
+            v,
+            if (isTRUE(impl[["computed"]])) {
+              paste0(" (", .format_window_human(impl), ")")
+            }
+          )
+        )
+      }
+      c(
         paste0(
           "Treatment weights: stabilized inverse probability weights from a ",
           "logistic model fitted on the baseline rows"
@@ -568,14 +589,18 @@
           "loss to follow-up, protocol deviation and protocol deviation at ",
           "time zero"
         ),
+        adjust,
+        ctx$sparse_analysis,
         paste0(
           "Truncation: the intention-to-treat weight, and the per-protocol ",
           "product of the treatment and censoring weights, at the 1st and ",
           "99th percentiles"
         ),
         paste0(
-          "Outcome model: survey-weighted quasi-Poisson regression with a ",
-          "person-time offset and person-level clustered standard errors"
+          "Outcome model: survey-weighted quasi-Poisson regression on the ",
+          "treatment, the time since time zero and the trial index, with a ",
+          "person-time offset and person-level clustered standard errors. ",
+          "It holds no confounder"
         ),
         paste0(
           "Absolute scale: cause-specific risk difference, with a percentile ",
@@ -584,23 +609,6 @@
           " bootstrap replicates that resample persons"
         )
       )
-      # A condition the rare-condition rule excluded is not adjusted for.
-      for (conf in spec[["confounders"]]) {
-        impl <- conf[["implementation"]]
-        v <- .protocol_impl_variable(impl)
-        if (v %in% ctx$sparse_excluded_vars) {
-          next
-        }
-        if (isTRUE(impl[["computed"]])) {
-          out <- c(
-            out,
-            paste0("Adjust for ", v, " (", .format_window_human(impl), ")")
-          )
-        } else {
-          out <- c(out, paste0("Adjust for ", v))
-        }
-      }
-      c(out, ctx$sparse_analysis)
     },
     character()
   )

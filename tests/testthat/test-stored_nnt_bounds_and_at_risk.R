@@ -249,7 +249,8 @@ test_that("the stored curve carries the distinct-person count at risk", {
       swereg:::.s3_rd_result("rd_pp_trunc", curve, "ETT00001", "tstop")
     )
   )
-  plan
+  # The stamps that the real s1, s2 and s3 set. The writers stop without them.
+  tte_stamp_stages(plan)
 }
 
 
@@ -481,6 +482,8 @@ test_that("the survival figure draws from storage with no analysis file", {
       arm_labels = c(comparator = "Untreated", intervention = "Treated")
     )
   )
+  # The stamps that the real s1, s2 and s3 set. The writers stop without them.
+  tte_stamp_stages(plan)
   list(dir = dir, plan = plan, panel_files = panel_files)
 }
 

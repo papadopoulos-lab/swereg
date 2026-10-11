@@ -1,13 +1,17 @@
-# swereg 27.3.0
+# swereg 27.2.1
 
 ## New features
 
-* **A spec MAY declare a `sparse_rule` block, which turns a rare baseline condition into an exclusion criterion of the whole study (#52).** The new s1 step s1b counts, per arm in each `decided_by` enrollment, the persons who hold each candidate condition at baseline. A condition whose smallest count is below `min_n` is excluded in every enrollment, and leaves every confounder set. s1 drops a person-trial when the condition holds at that trial's own recruiting week, and the attrition table gets one step per excluded condition. The rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. `plan$get_sparse_decision()` returns the frozen decision. s1c, s2 and s3 stop when the rule in the spec no longer matches it.
-* **Every output that names the population or the adjustment set reads the frozen `sparse_rule` decision (#52).** `$export_tables()` adds a "Sparse conditions" sheet: each candidate, its smallest arm count in the driving enrollments, the enrollment and arm that hold it, and the decision. A count below `min_n` shows as `<min_n`. Study Specification states the rule, the excluded conditions and the final adjustment set, and marks each excluded confounder. Table 1 drops each excluded condition and names it in a footnote. The Enrollments and ETTs sheets say whether each enrollment drove the decision or inherited it. The CONSORT diagram and the attrition sheets label each step-2 row with its condition and the rule. In the TARGET checklist, item 6a states the rule and the exclusions, item 6g the final adjustment set, and item 7 the methods text. In the target trial protocol table, the specification column lists the excluded conditions as eligibility criteria. The emulation column says how the rule chose them and gives the final adjustment set. Five texts state the basis of the rule: the Sparse conditions sheet, Study Specification, TARGET items 6a and 7, and the protocol table. Each says the rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes.
+* **A spec MAY declare a `sparse_rule` block, which turns a rare baseline condition into an exclusion criterion of the whole study (#52).** The new s1 step s1b counts, per arm in each `decided_by` enrollment, the persons who hold each candidate condition at baseline. A condition whose smallest count is below `min_n` is excluded in every enrollment, and leaves every confounder set. s1 drops a person-trial when the condition holds at that trial's own recruiting week, and the attrition table gets one step per excluded condition. The rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. `plan$get_sparse_decision()` returns the frozen decision. s1c, s2 and s3 stop when the rule in the spec no longer matches it. When s1b fails, the plan keeps its previous decision, rule hash and confounder sets.
+* **Every output that names the population or the adjustment set reads the frozen `sparse_rule` decision (#52).** `$export_tables()` adds a "Sparse conditions" sheet: each candidate, its smallest arm count in the driving enrollments, the enrollment and arm that hold it, and the decision. A count below `min_n` shows as `<min_n`. Study Specification states the rule, the excluded conditions and the final adjustment set, and marks each excluded confounder. Table 1 drops each excluded condition and names it in a footnote. The Enrollments and ETTs sheets say whether each enrollment drove the decision or inherited it. The CONSORT diagram and the attrition sheets label each step-2 row with its condition and the rule. In the TARGET checklist, item 6a states the rule and the exclusions, item 6g the final adjustment set, and item 7 the methods text. In the target trial protocol table, the rule's cells depend on the stage. Before s1, the eligibility emulation cell says only that the rule is not decided yet. After s1, the specification column lists the excluded conditions as eligibility criteria. The eligibility emulation cell states the rule and how it chose them, and the Analysis plan cell gives the final adjustment set. Study Specification and TARGET items 6a and 7 state the basis of the rule before and after s1. The Sparse conditions sheet and the protocol table state it after s1. Each says the rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. Study Specification and item 7 say that other comparisons inherit the decision only when at least one enrollment does not drive the rule.
+* **s2, s3, `$export()`, `$export_tables()` and `$print_target_checklist()` refuse the files and results of an earlier s1 run (#52).** s1 drops the stored s3 results, and s3 stops until s2 rewrites each analysis file after the current s1.
+* **`$excel_spec_summary()` writes the Target trial protocol sheet, and the Sparse conditions sheet once s1 has decided the rule.** Both come from the writers of `$export_tables()` and read no s2 or s3 result, so the workbook is a preregistration export from s0 on. The new argument `protocol_ett_id` names the ETT of the protocol sheet.
+* **`$print_spec_summary()` states the rare-condition rule: `min_n`, the driving enrollments, the candidates, and the decision.** Before s1 the decision reads `not decided yet (s1 has not run)`, in the Study Specification sheet and TARGET item 7 too.
 
 ## Breaking changes
 
-* **swereg refuses a `TTEPlan` or a `TTEEnrollment` saved before 27.3.0.** The plan schema is 6 and the enrollment schema is 7. Rebuild the plan with s0 and re-run s1, then s2 and s3.
+* **swereg refuses a `TTEPlan` or a `TTEEnrollment` saved before 27.2.1.** The plan schema is 6 and the enrollment schema is 7. Rebuild the plan with s0 and re-run s1, then s2 and s3.
+* **`tteplan_check_spec()`, `tteplan_read_spec()` and s0 refuse an exclusion criterion with the window `lifetime_before_and_after_baseline` on an outcome variable.** That window reads the weeks after time zero, so the criterion selects on the follow-up outcome. `tteplan_check_spec()` reports it as kind `outcome_selecting_exclusion`.
 
 ## Bug fixes
 
@@ -15,16 +19,33 @@
 * **A forest label format drops a ` ({field}...)` group when that field is empty (#56).** Before, it dropped only a group that held the placeholder alone, such as `({follow_up})`, so `({follow_up}w)` printed `(w)`.
 * **`add_annual()` does not add or change any column of the caller's `data` (#56).** Before, it wrote `isoyear` into `data`.
 * **`tteenrollment_irr_combine()` pads every value of a column to one width (#56).** Before, `0.0040` stood beside ` 1.23`.
-* **The MDE columns accept two ratios that round to 1 (#56).** At 95% confidence and 80% power, that needs >= 6.37e32 comparator events, or >= 1.27e33 when the two arms hold equal person-years. Before, the orientation check stopped the export.
+* **The MDE columns accept two ratios that round to 1 (#56).** With very large event counts, one or both ratios can round to exactly 1. The orientation check allows a 1e-12 tolerance, so such counts no longer stop the export.
+* **s2 drops the stored s3 results, and `$export()`, `$export_tables()` and `$print_target_checklist()` refuse a result from before the last s2 run.** s2 stamps each ETT with a new run id in `ett$s2_run_id`, s3 copies it into each result, and `tteplan_load()` keeps both. A result computed under other IPCW options of the same s1 run is refused.
+* **`$export()`, `$export_tables()` and `$print_target_checklist()` stop when the `sparse_rule` in `plan$spec` changed after s1.** `$excel_spec_summary()` and `$print_spec_summary()` show a stored decision only when it belongs to the current rule and to a completed s1. Otherwise the rule reads `not decided yet (s1 has not completed for this rule)`.
+* **`$recompute_baselines()` refuses an ETT whose analysis files do not come from the current s1 run, as `$s3_analyze()` does.** A recomputed panel takes the s1 and s2 run stamps of the file it reads.
+* **The supplementary baseline sheets, Table S2 onward, drop the conditions the rare-condition rule excluded and carry the Table 1 footnote.**
+* **Study Specification, the protocol table's Analysis plan cell and TARGET items 6g and 7 say which models the adjustment set enters.** The treatment model and the time-zero censoring model hold the adjustment set alone, with no time or calendar term. The loss and deviation censoring models add the time since time zero and the calendar period. The outcome model holds no confounder. Each confounder line of the protocol table reads `Treatment and censoring models adjust for`. It comes before the outcome model line, which names its own terms.
+
+## Documentation
+
+* **A new article, `vignette("tte-preregistration")`, "TTE preregistration: the OSF form", maps each section of the OSF Preregistration form to the specification YAML and the Excel specification.**
+* **The vignettes describe current behaviour only.** The release history is in `NEWS.md`.
+* **The `add_onetime()` help page states that an existing skeleton column is overwritten for each person found in `data`.** It said that the incoming column got an `i.` prefix.
+* **Two vignette claims are corrected.** A `^` in a code pattern is literal, so the pattern matches nothing. The stored-object schema thresholds are 7 for an enrollment and 6 for a plan.
+* **The `study` argument of `tteplan_from_spec_and_registrystudy()` documents the list that MAY stand in for a `RegistryStudy`, and the fields that list needs.**
+* **`vignette("tte-workflow")` calls `tteplan_from_spec_and_registrystudy()` with its real arguments, and `vignette("tte-preregistration")` lists the sheets of the Excel specification.**
+* **The `add_diagnoses()` and `add_cods()` help pages state that a bracket group such as `I2[0-5]` expands to its literal prefixes.** They said that a bracket is taken literally.
+* **The help pages describe current behaviour in the present tense, and name a schema number instead of a release.** The `default_n_workers()` page states that s2 takes `n_workers` above 1.
 
 ## Internal
 
 * **The s1 sub-steps s1b, s1c and s1d are renamed s1c, s1d and s1e (#52).** The name s1b is free for the step that #52 adds before the comparator draw. The log labels, the batchit item ids and the work-directory file names use the new names. s1 clears a leftover work directory with the old names at its start.
-* **The s3 stamp on each stored result is renamed `swereg_version_s3` (#56).** Under the old name `swereg_version`, `$swereg_version` read `swereg_version_s2` when the s3 stamp was absent. swereg refuses plans saved before 27.3.0, so no reader falls back to the old name.
+* **The s3 stamp on each stored result is renamed `swereg_version_s3` (#56).** Under the old name `swereg_version`, `$swereg_version` read `swereg_version_s2` when the s3 stamp was absent. swereg refuses plans saved before 27.2.1, so no reader falls back to the old name.
 * **The IPCW fit label names the error that starts the refit (#56).** It reads "bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error".
 * **The internal writers `.write_combined_rates()`, `.write_combined_rates_irr()`, `.write_combined_irr()` and `.write_itt_vs_pp_forest()` are removed (#56).** No export called them. Six helpers that only they called go with them: `.prepare_combine_data()`, `.build_itt_vs_pp_df()`, `.render_itt_vs_pp_overlay()`, `.rename_treatment_columns()`, `.ett_descriptions()` and `.ff_ci_only()`.
 * **`ignore_unused_imports()` is removed (#56).** `tools:::.check_packages_used()` finds `mgcv` and `survey` through the top-level functions that call them.
 * **The validation evidence hash covers the parsed code of the estimator files, not their bytes.** An edit to comments, roxygen, whitespace or blank lines no longer makes the evidence stale.
+* **The unused internal helpers `.t1_wtd_props()`, `.t1_wtd_missing()` and `validate_date_column()` are removed.** None was exported, and no code called them.
 
 # swereg 27.2.0
 
@@ -5527,6 +5548,11 @@ Contributed by @alexengberg (PR #4).
   DORS -- two functions that can't share a single `combine_as` argument
   because they search different raw-data columns (`hdia`/`dia*` vs
   `ulorsak`/`morsak*`).
+
+  Before this release, a registration with `groups = list(ov, sv, dors)`
+  and `combine_as = "osd"` ran `add_diagnoses()` on DORS data. DORS has
+  none of the code columns that `add_diagnoses()` searches, so every
+  `dors_*` column was `FALSE` and deaths never contributed to `osd_*`.
 
   Derived entries are full first-class citizens of the code registry:
   they get their own fingerprint, participate in the per-entry

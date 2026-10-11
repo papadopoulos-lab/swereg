@@ -8,10 +8,9 @@
 #' row lands at `tstop`.
 #'
 #' A survival risk set at `t` therefore holds every row that spans `t`, and not
-#' only the rows that stop at `t`. The two sets agreed while every stop sat on
-#' the follow-up interval grid. `s5_prepare_outcome()` clips the terminal row at
-#' the exact censoring week, so a stop now falls between two follow-up interval
-#' boundaries and the two sets differ.
+#' only the rows that stop at `t`. The two sets differ, because
+#' `s5_prepare_outcome()` clips the terminal row at the exact censoring week. A
+#' stop can then fall between two follow-up interval boundaries.
 #'
 #' @param tstart Numeric, the exclusive start of each row.
 #' @param tstop Numeric, the inclusive stop of each row.
@@ -34,9 +33,7 @@
 #'
 #' A panel built by hand can omit the column, and it then states no interval at
 #' all. The row is read as covering the one step that ends at its own stop. The
-#' start is then the previous reporting time, and 0 for the first. The
-#' estimator read every row that way before this release, so a panel with no
-#' start column keeps the numbers it had.
+#' start is then the previous reporting time, and 0 for the first.
 #'
 #' @param data A data.table at trial level, one row per person-trial interval.
 #' @param tstart_var Character, the period start column.

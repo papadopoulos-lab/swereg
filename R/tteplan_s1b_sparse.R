@@ -298,6 +298,291 @@
   )
 }
 
+#' The part of an s1 run id that names the decision of the run
+#'
+#' A digest of the frozen decision table and of the rule hash. Two decisions
+#' that differ give two different digests.
+#'
+#' @param plan A TTEPlan.
+#' @return A sha256 string.
+#' @noRd
+.tte_s1_run_basis <- function(plan) {
+  return(digest::digest(
+    list(
+      decision = as.list(plan$sparse_decision),
+      rule = plan$sparse_rule_hash %||% "no sparse_rule"
+    ),
+    algo = "sha256"
+  ))
+}
+
+# The count of s1 run ids that this R process made.
+.tte_s1_runs <- new.env(parent = emptyenv())
+
+#' A new s1 run id for the current decision of the plan
+#'
+#' The id is `<basis>:<token>`, where `<basis>` is `.tte_s1_run_basis()`. The
+#' token holds the UTC time to the microsecond, the process id and a count of
+#' the ids this process made. So no two s1 runs share an id. The token reads
+#' no random number, so the s1 run id does not change the random seed.
+#'
+#' @param plan A TTEPlan.
+#' @return A string.
+#' @noRd
+.tte_s1_run_new_id <- function(plan) {
+  .tte_s1_runs$n <- (.tte_s1_runs$n %||% 0L) + 1L
+  token <- paste(
+    format(Sys.time(), "%Y%m%dT%H%M%OS6", tz = "UTC"),
+    Sys.getpid(),
+    .tte_s1_runs$n,
+    sep = "."
+  )
+  return(paste0(.tte_s1_run_basis(plan), ":", token))
+}
+
+#' `TRUE` when s1 completed for the current decision of the plan
+#'
+#' `plan$s1_run_id` MUST be one string, and its basis MUST be that of the
+#' current decision and rule hash.
+#'
+#' @param plan A TTEPlan.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_s1_run_current <- function(plan) {
+  id <- plan$s1_run_id
+  return(
+    is.character(id) &&
+      length(id) == 1L &&
+      !is.na(id) &&
+      startsWith(id, paste0(.tte_s1_run_basis(plan), ":"))
+  )
+}
+
+#' Stop unless s1 completed for the plan's current sparse decision
+#'
+#' s1 sets the decision in s1b, and s1c, s1d and s1e can still fail after it.
+#' s1 clears `plan$s1_run_id` first and sets it last. s2 and s3 call this, so
+#' they never read enrollment files of an earlier decision.
+#'
+#' @param plan A TTEPlan.
+#' @param where The stage, for the message.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_s1_completed <- function(plan, where) {
+  if (.tte_s1_run_current(plan)) {
+    return(invisible(TRUE))
+  }
+  stop(
+    where,
+    ": s1 did not complete for the current sparse decision of the plan. ",
+    "Run $s1_generate_enrollments_and_ipw() to its end, then run this stage.",
+    call. = FALSE
+  )
+}
+
+#' Set the s2 stamp of every ETT of the plan
+#'
+#' The stamp is two columns of `plan$ett`. `s1_run_id` names the s1 run whose
+#' enrollment files s2 read for the analysis files of that ETT. `s2_run_id`
+#' names the s2 run that wrote them, so it changes on every s2 run, also under
+#' the same s1 run with other IPCW options. s2 sets both to `NA` before it
+#' writes, and to the two run ids after every file is written.
+#'
+#' @param plan A TTEPlan.
+#' @param id The s1 run id, or `NA_character_`.
+#' @param s2_id The s2 run id, or `NA_character_`.
+#' @return `invisible(NULL)`.
+#' @noRd
+.tte_s2_stamp <- function(plan, id, s2_id) {
+  ett <- data.table::copy(plan$ett)
+  data.table::set(
+    ett,
+    j = "s1_run_id",
+    value = rep(as.character(id), nrow(ett))
+  )
+  data.table::set(
+    ett,
+    j = "s2_run_id",
+    value = rep(as.character(s2_id), nrow(ett))
+  )
+  plan$ett <- ett
+  return(invisible(NULL))
+}
+
+#' A new s2 run id
+#'
+#' The id is the s1 run id, then `:s2:`, then a token unique to this R
+#' session, as `.tte_s1_run_new_id()` makes it.
+#'
+#' @param plan A TTEPlan whose s1 completed.
+#' @return A string.
+#' @noRd
+.tte_s2_run_new_id <- function(plan) {
+  .tte_s1_runs$n <- (.tte_s1_runs$n %||% 0L) + 1L
+  token <- paste(
+    format(Sys.time(), "%Y%m%dT%H%M%OS6", tz = "UTC"),
+    Sys.getpid(),
+    .tte_s1_runs$n,
+    sep = "."
+  )
+  return(paste0(plan$s1_run_id, ":s2:", token))
+}
+
+#' The s2 run id of each row of an ETT table
+#'
+#' @param ett Rows of `plan$ett`, or `NULL` for a plan without ETTs.
+#' @return A character vector with one element per row. It is `NA` for a row
+#'   without the stamp, and for every row of a table without the column.
+#' @noRd
+.tte_s2_run_of <- function(ett) {
+  if (is.null(ett)) {
+    return(character(0))
+  }
+  id <- ett[["s2_run_id"]]
+  if (is.null(id)) {
+    return(rep(NA_character_, nrow(ett)))
+  }
+  return(as.character(id))
+}
+
+#' Stop when a stored s3 result comes from an earlier s2 run
+#'
+#' s3 copies the s2 run id of each ETT into the results it stores. s2 can run
+#' again under the same s1 run, with other IPCW options. A result whose
+#' `s2_run_id` differs from the current stamp of its ETT was computed on
+#' analysis files that a later s2 run replaced. An enrollment result MUST carry the
+#' current stamp of one of its ETTs, because s3 reads one of their analysis
+#' files for it.
+#'
+#' @param plan A TTEPlan.
+#' @param where The writer, for the message.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_one_s2_run <- function(plan, where) {
+  ett <- plan$ett
+  current <- .tte_s2_run_of(ett)
+  ok_of <- function(results, of_key) {
+    keys <- names(results) %||% as.character(seq_along(results))
+    ok <- vapply(
+      seq_along(results),
+      function(i) {
+        s <- results[[i]][["s2_run_id"]]
+        if (!is.character(s) || length(s) != 1L || is.na(s)) {
+          return(FALSE)
+        }
+        return(s %in% current[of_key(keys[i])])
+      },
+      logical(1)
+    )
+    return(keys[!ok])
+  }
+  stale <- c(
+    ok_of(plan$results_enrollment, function(k) ett$enrollment_id == k),
+    ok_of(plan$results_ett, function(k) ett$ett_id == k)
+  )
+  if (length(stale) == 0L) {
+    return(invisible(TRUE))
+  }
+  stop(
+    where,
+    ": ",
+    length(stale),
+    " stored s3 result(s) do not come from the current s2 run of their ETT: ",
+    paste(utils::head(stale, 5L), collapse = ", "),
+    if (length(stale) > 5L) ", ...",
+    ". s2 ran after s3, and its options can differ. Run $s3_analyze() ",
+    "after the last $s2_generate_analysis_files_and_ipcw_pp().",
+    call. = FALSE
+  )
+}
+
+#' Stop unless s2 wrote the analysis files of each ETT after the current s1
+#'
+#' s3 calls this after `.tte_assert_s1_completed()`. An ETT whose s2 stamp is
+#' absent, or names an earlier s1 run, has analysis files that the current s1
+#' run did not feed.
+#'
+#' @param plan A TTEPlan.
+#' @param where The stage, for the message.
+#' @param ett_ids The ETTs whose analysis files the stage reads.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_s2_current <- function(plan, where, ett_ids) {
+  ett <- plan$ett
+  stamp <- ett[["s1_run_id"]] %||% rep(NA_character_, nrow(ett))
+  stale <- ett$ett_id[ett$ett_id %in% ett_ids & !stamp %in% plan$s1_run_id]
+  if (length(stale) == 0L) {
+    return(invisible(TRUE))
+  }
+  stop(
+    where,
+    ": s2 did not write the analysis files of ",
+    length(stale),
+    " ETT(s) after the current s1 run: ",
+    paste(utils::head(stale, 5L), collapse = ", "),
+    if (length(stale) > 5L) ", ...",
+    ". Run $s2_generate_analysis_files_and_ipcw_pp(), then run this stage.",
+    call. = FALSE
+  )
+}
+
+#' Stop when a writer would mix the outputs of two s1 runs
+#'
+#' The writers read the sparse decision and the stored s3 results. When the
+#' plan holds a decision or a stored result, the rule in `plan$spec` MUST hash
+#' to `plan$sparse_rule_hash`. The plan MUST NOT hold a decision while s1 is
+#' not complete. Each stored s3 result
+#' MUST carry the s1 run id of the plan, and that run MUST be complete. A plan
+#' with no decision and no stored result passes, as after s0.
+#'
+#' @param plan A TTEPlan.
+#' @param where The writer, for the message.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_one_s1_run <- function(plan, where) {
+  # A decision or a stored result belongs to the rule it was made under. The
+  # rule in plan$spec MAY change after s1, and the writers would then state
+  # the new rule beside the old counts, exclusions and adjustment set.
+  has_results <- length(plan$results_enrollment) > 0L ||
+    length(plan$results_ett) > 0L
+  if (!is.null(plan$sparse_decision) || has_results) {
+    .tte_assert_sparse_decision_current(plan, where)
+  }
+  current <- .tte_s1_run_current(plan)
+  if (!is.null(plan$sparse_decision) && !current) {
+    stop(
+      where,
+      ": the plan holds a sparse decision, but s1 did not complete for it. ",
+      "Run $s1_generate_enrollments_and_ipw() to its end, then s2 and s3.",
+      call. = FALSE
+    )
+  }
+  stale_of <- function(results) {
+    ok <- vapply(
+      results,
+      function(r) {
+        return(current && identical(r[["s1_run_id"]], plan$s1_run_id))
+      },
+      logical(1)
+    )
+    return((names(results) %||% as.character(seq_along(results)))[!ok])
+  }
+  stale <- c(stale_of(plan$results_enrollment), stale_of(plan$results_ett))
+  if (length(stale) == 0L) {
+    return(invisible(TRUE))
+  }
+  stop(
+    where,
+    ": ",
+    length(stale),
+    " stored s3 result(s) do not come from the current s1 run: ",
+    paste(utils::head(stale, 5L), collapse = ", "),
+    if (length(stale) > 5L) ", ...",
+    ". Run s2 and s3 after a completed $s1_generate_enrollments_and_ipw().",
+    call. = FALSE
+  )
+}
+
 #' The confounder entry of each candidate, in the order of `candidates`
 #' @noRd
 .tte_sparse_condition_entries <- function(spec) {

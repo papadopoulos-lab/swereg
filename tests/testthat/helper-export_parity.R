@@ -466,7 +466,8 @@
       )
     )
   )
-  plan
+  # The stamps that the real s1, s2 and s3 set. The writers stop without them.
+  tte_stamp_stages(plan)
 }
 
 # --- the four project shapes -------------------------------------------------

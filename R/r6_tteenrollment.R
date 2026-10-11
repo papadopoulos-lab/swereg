@@ -13,18 +13,24 @@
 # weight combination (combine_weights) are private implementation details.
 # Mutating methods return invisible(self) for $-chaining.
 #
-# Public workflow methods are step-numbered to signal execution order:
-#   0. initialize / print             — construction and display (enrollment)
-#   1. $s1_impute_confounders()       — fill missing confounders
-#   2. $s2_ipw()                      — inverse probability of treatment
-#   3. $s3_truncate_weights()         — clip extreme weights
-#   4. $s4_prepare_for_analysis()     — outcome + IPCW-PP
-#   5. extract / summary / etc.       — data access and diagnostics
+# The step number in a public method name gives the execution order:
+#   0.  initialize / print: construction (calls private enroll) and display
+#   1.  $s1_impute_confounders(): fill missing baseline confounders
+#   1b. $s1b_fill_followup_confounders(): carry follow-up confounders forward
+#   2.  $s2_ipw(): inverse probability of treatment weights
+#   3.  $s3_truncate_weights(): clip extreme weights
+#   4.  $s4_prepare_for_analysis(): calls private s5_prepare_outcome, then
+#       private s6_ipcw_pp when the estimand is "pp"
+#   5.  extract / summary / table1 / weight_summary / check_version: data
+#       access and diagnostics
+#   6.  rates / irr / irr_by_subgroup / heterogeneity_test /
+#       effect_modification_test / survival_curve / risk_difference: estimates
 #
-# The standalone helpers moved to tteenrollment_combine.R. Two sibling files
+# The standalone helpers moved to tteenrollment_combine.R. Three other files
 # carry the rest of the class through $set(). The weight members are in
 # r6_tteenrollment_weighting.R, the estimate members in
-# r6_tteenrollment_estimation.R.
+# r6_tteenrollment_estimation.R, and $s1b_fill_followup_confounders() is in
+# tteenrollment_fill.R.
 # =============================================================================
 
 #' TTEEnrollment class for target trial emulation
@@ -375,15 +381,12 @@ TTEEnrollment <- R6::R6Class(
 
     #' @description Check this object's schema version against the current
     #' class version. It stops when the object carries an older schema.
-    #' @details `.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes
-    #' what a stored field means, or adds a field its readers need. swereg
-    #' 26.10.19 raised it to `4L`. Schema 4 stores the fill summary in
-    #' `fill_summary` and the propensity-model diagnostics in `ps_fit`, and
-    #' this release reads both. swereg 26.15.0 raised it to `5L`, which gives
-    #' the panel column `enrollment_period_id` its current name. 27.2.0
-    #' raised it to `6L`, which names the calendar period of each row
-    #' `period_id`. 27.3.0 raised it to `7L` with the `sparse_rule`, so every
-    #' enrollment that an earlier release built is refused. [qs2_read()]
+    #' @details `.TTE_ENROLLMENT_SCHEMA_VERSION` is `7L`. It rises when a
+    #' stored field changes meaning, or when a reader needs a new field.
+    #' Schema 4 stores the fill summary in `fill_summary` and the
+    #' propensity-model diagnostics in `ps_fit`. Schema 5 names the panel
+    #' column `enrollment_period_id`. Schema 6 names the calendar period of
+    #' each row `period_id`. Schema 7 carries the `sparse_rule`. [qs2_read()]
     #' refuses every enrollment below schema 7 before this check runs. The
     #' check refuses the same objects.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
@@ -428,8 +431,7 @@ TTEEnrollment <- R6::R6Class(
     #' censoring week, and sets `person_weeks` to the clipped width. The
     #' deviated regime therefore contributes no person-time and no outcome, so
     #' the row cannot attribute a post-deviation outcome to the baseline
-    #' treatment. Releases before 26.9.0 deleted the row instead, which threw
-    #' away every valid week it held.
+    #' treatment. The row keeps every valid week it holds.
     #'
     #' Per-protocol follow-up stops at the start of the first discordant week
     #' beyond tolerance, as it stops at the first absent week. That week is

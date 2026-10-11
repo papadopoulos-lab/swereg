@@ -137,6 +137,9 @@ skip_if_not_installed("qs2")
       study = list(implementation = list(conf_level = conf_level))
     )
   }
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
   plan
 }
 

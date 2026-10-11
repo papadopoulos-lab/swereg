@@ -545,25 +545,6 @@ validate_isoyear <- function(isoyear) {
   }
 }
 
-#' Validate date column exists and is proper format
-#' @param data A data.table containing the data
-#' @param date_col Character string with the date column name
-#' @param data_type Character string describing the data type (for error messages)
-#' @return Nothing if valid, stops with error if invalid
-#' @keywords internal
-validate_date_column <- function(data, date_col, data_type = "data") {
-  if (!date_col %in% names(data)) {
-    stop(data_type, " is missing required date column: ", date_col, "\n",
-         "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(", data_type, ")?", call. = FALSE)
-  }
-  
-  # Check if date column has reasonable values
-  if (all(is.na(data[[date_col]]))) {
-    return(warning("Date column '", date_col, "' in ", data_type, " contains only NA values", call. = FALSE))
-  }
-}
-
 #' Validate prescription-specific columns
 #' @param data A data.table containing prescription data
 #' @return Nothing if valid, stops with error if invalid

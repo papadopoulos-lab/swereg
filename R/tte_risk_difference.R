@@ -703,11 +703,11 @@
 #' renders `NNTH <magnitude>`, the number needed to harm. The two are opposite
 #' clinical statements and the label is the only thing that separates them.
 #'
-#' This function used to test the sign of `nntb` instead. That made every
-#' formatter its own decision-maker, and nothing forced two of them to agree.
-#' `.tte_nnt_from_rd()` now makes the decision once, and this function reads it.
+#' `.tte_nnt_from_rd()` makes the decision once, and this function reads it.
+#' It never tests the sign of `nntb`. A formatter that tests the sign is its
+#' own decision-maker, and nothing forces two of them to agree.
 #' `nnt_direction` has no default. A caller that cannot supply one gets an
-#' error. A silent fall back to the sign is the defect this repairs.
+#' error, never a silent fall back to the sign.
 #'
 #' The magnitude never comes from `abs()`. The harm branch negates the value
 #' explicitly, so a reader of this source sees which branch they are in. An
@@ -743,9 +743,8 @@
 #' The labels stay `NNTB` and `NNTH` in full. They are the Cochrane and GRADE
 #' terms; `B` and `H` are not recognised notation.
 #'
-#' Every row gets a cell. An earlier version rendered a number for the primary
-#' outcome only. That guard is gone, so a secondary outcome now shows its own
-#' number needed to treat.
+#' Every row gets a cell, so a secondary outcome shows its own number needed to
+#' treat.
 #'
 #' @param nntb Numeric, as returned by `.tte_nntb()`. `NA` and non-finite
 #'   values render as an empty cell.

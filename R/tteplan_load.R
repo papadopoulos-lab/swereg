@@ -47,6 +47,7 @@ tteplan_load <- function(path) {
     "spec_reload_skipped_diffs",
     "sparse_decision",
     "sparse_rule_hash",
+    "s1_run_id",
     # New fields added by the CandidatePath migration
     "spec_version",
     "dir_tteplan_cp",

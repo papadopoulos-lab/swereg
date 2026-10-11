@@ -16,69 +16,67 @@ knitr::opts_chunk$set(
 
 # Caching and resume: what invalidates what
 
-A full run of this pipeline is measured in **days**, so the skeleton side of
-it avoids redoing work it has already done. That is three caches and one
-commit record, each with different rules about what makes it stale.
+A full run of this pipeline takes **days**, so the skeleton side of it skips
+work that it already did. It keeps three caches and one commit record. Each has
+different rules about what makes it stale.
 
-Getting those rules wrong is not loud. A cache that should have been discarded
-and wasn't produces a run that completes normally and reports nothing unusual —
-it is simply built partly from data you have since replaced. This vignette is
-the map: what is cached, what invalidates it, and what none of it protects you
-from.
+A wrong rule fails silently. A stale cache that swereg does not discard gives a
+run that completes normally and reports nothing unusual. Part of the result then
+comes from data you replaced. This vignette lists what is cached, what
+invalidates it, and what none of it protects you from.
 
-**The TTE stages (s1–s3) hold no caching or resume opinion of their own** —
-that was deliberately removed (Phase 5′; see `PROJECT.md`). `s1`'s work
-directory is transient dataflow between its internal sub-steps s1a to s1e, cleared
-at the start of every call and removed again on success. `s3_analyze()`
-recomputes every targeted result on every call. A killed s1 restarts from
-zero, and a mid-run s3 crash means a full recompute — accepted costs, not
-bugs. This vignette is therefore only about the skeleton pipeline below s1,
-where the caching that remains lives.
+**The TTE stages (s1 to s3) have no caching or resume logic of their own.** `s1`
+uses its work directory only to pass data between its internal sub-steps s1a to
+s1e. `s1` clears that directory at the start of every call and deletes it again
+on success. `s3_analyze()` recomputes every targeted result on every call. A
+killed s1 restarts from zero, and an s3 crash during a run means a full
+recompute. These costs are accepted by design. This vignette therefore covers
+only the skeleton pipeline below s1, where all of the caching is.
 
-Read `vignette("skeleton-pipeline")` first for how skeletons are built, and
-`vignette("tte-workflow")` for what s1–s4 do.
+Read `vignette("skeleton-pipeline")` first for how swereg builds skeletons, and
+`vignette("tte-workflow")` for what s1 to s4 do.
 
 ## The layers
 
 | layer | what it avoids | invalidated by |
 |---|---|---|
-| **1. Rawbatch staging** | re-reading tens of GB of raw registry files | nothing automatic — guarded on existence |
+| **1. Rawbatch staging** | re-reading tens of GB of raw registry files | nothing automatic: swereg checks only that the files exist |
 | **2. Skeleton phases** | rebuilding 2,000+ skeletons for a one-line change | the `body`/`formals` hash of a changed function, or a changed code registry fingerprint |
 | **3. Meta sidecars + derived artifacts** | re-reading whole skeletons to answer provenance and population questions | rewritten with their batch |
-| **—. Skeleton manifest** | *(not a cache — a commit record)* | cleared before every `$process_skeletons()`, recommitted only if the result validates |
+| **Skeleton manifest** | *(a commit record, not a cache)* | cleared before every `$process_skeletons()`, recommitted only if the result validates |
 
 ---
 
-## Layer 1 — rawbatch staging
+## Layer 1: rawbatch staging
 
-`$save_rawbatch()` writes the raw registries into per-batch `.qs2` files. This
-is guarded by existence, not by a hash: once the rawbatches and
-`registrystudy.qs2` exist, a reclean skips staging entirely and does **not**
-re-read the raw delivery.
+`$save_rawbatch()` writes the raw registries into per-batch `.qs2` files. An
+existence check guards this step, not a hash. When the rawbatches and
+`registrystudy.qs2` exist, a reclean skips staging and does **not** re-read the
+raw delivery.
 
-That is a deliberate trade. Re-staging is expensive and the raw delivery is a
-fixed artifact, so the guard is almost always right. But note the consequence:
-**if the raw files change, nothing here notices.** You must delete the
-rawbatches (or the meta file) by hand.
+This is a deliberate trade. Re-staging is expensive and the raw delivery is a
+fixed artifact, so the guard is almost always right. **If the raw files change,
+nothing here detects it.** You must delete the rawbatches (or the meta file) by
+hand.
 
 ```{r eval = FALSE}
 study$delete_rawbatches()   # force a re-stage
 study$delete_meta_file()
 ```
 
-## Layer 2 — skeleton phases
+## Layer 2: skeleton phases
 
-`$process_skeletons()` does not rebuild skeletons; it **replays the phases that
-changed**. Each batch's skeleton carries its own provenance, and the decision
-is per phase:
+`$process_skeletons()` does not rebuild skeletons. It **replays the phases that
+changed**. Each batch's skeleton carries its own provenance, and the decision is
+per phase:
 
-* **Phase 1 (framework).** If `framework_fn`'s hash differs from the one stored
-  on the skeleton — or no skeleton exists — the base is rebuilt from scratch,
-  and every later phase is reset with it.
+* **Phase 1 (framework).** If the hash of `framework_fn` differs from the one
+  stored on the skeleton, or no skeleton exists, swereg rebuilds the base from
+  scratch. It resets every later phase with it.
 * **Phase 1b (trim).** The stored `trim_fn_hash` and `phase_order` join the
-  framework hash in that same gate. A trim edit, a new trim, a removed trim, or
-  a swereg release that reorders the phases all rebuild the base. The trim then
-  runs on that fresh base, and on nothing else.
+  framework hash in that same gate. Each of these rebuilds the base: a trim
+  edit, a new trim, a removed trim, or a swereg version with a different phase
+  order. The trim then runs on that fresh base, and on nothing else.
 * **Phase 2 (codes).** `$sync_with_registry()` diffs the stored entry
   fingerprints against the current ones. It drops the columns of every entry
   that left the registry and applies every entry that joined it. An untouched
@@ -93,44 +91,48 @@ Each randvars hash folds in the framework hash, the trim identity and every code
 registry fingerprint. So any code registry edit moves every randvars hash, and
 the whole sequence replays against the freshly-applied code columns.
 
-**The rewind is not a time machine.** `$sync_randvars()` drops only the columns
-each step *recorded itself as adding*. It cannot restore a column an earlier step
-overwrote. Nothing checks for that, so a step that modifies an existing column
-breaks the replay silently.
+**The rewind removes columns. It does not restore them.** `$sync_randvars()`
+drops only the columns each step *recorded itself as adding*. It cannot restore
+a column that an earlier step overwrote. Nothing checks for that, so a step that
+changes an existing column breaks the replay silently.
 
-Rows are different, and swereg does check them. A code entry or a randvars step
-that changes the row count stops the run. The error names the registration to
-edit. Only the phase-1b trim may delete rows.
+swereg does check rows. A code entry or a randvars step that changes the row
+count stops the run. The error names the registration to edit. Only the
+phase-1b trim may delete rows.
 
-A registered function's own hash is `digest(list(body(fn), formals(fn)))`. Two
-consequences follow, and both matter in practice:
+The hash of a registered function is `digest(list(body(fn), formals(fn)))`.
+This has two consequences.
 
-**Comments are free.** Documentation, changelog entries, and reformatting of
-comments do not change `body()`, so they do not trigger a replay. You can fix a
-comment in a randvars file while a regeneration is running.
+**A comment change does not trigger a replay.** Documentation, changelog
+entries and comment reformatting do not change `body()`. You can fix a comment
+in a randvars file while a regeneration runs.
 
-**Code identity is not data identity.** The hash fingerprints the *registered
-functions*. It says nothing about called helpers, package versions, globals, or
-the raw inputs. **Change the raw data with unchanged code and every hash is
-identical** — layer 2 will conclude it has nothing to replay, and it will be
-wrong.
+**The hash covers code, not data.** It fingerprints the *registered functions*.
+It says nothing about called helpers, package versions, globals, or the raw
+inputs. **If you change the raw data and keep the code, every hash stays the
+same.** Layer 2 then concludes that it has nothing to replay, and that
+conclusion is wrong.
 
-The skeleton manifest below is downstream of this layer: it records exactly
-which generation layer 2 actually produced, so a rebuild cannot go unnoticed
-by anyone reading the manifest. It does **not** rescue the case above — if
-layer 2 never rewrites the batch, there is no new generation to notice. For
-changed raw data you must invalidate layer 1 by hand.
+The skeleton manifest below depends on this layer. It records which generation
+layer 2 produced, so a reader of the manifest sees every rebuild. It does
+**not** help in the case above. If layer 2 never rewrites the batch, there is no
+new generation to see. For changed raw data, you must invalidate layer 1 by
+hand.
 
 ## The skeleton manifest (not a cache)
 
-A manifest is `$process_skeletons()`'s **commit record**. It attests that, at
-commit time, every batch's provenance sidecar was readable, the set was
-complete and internally uniform, and it matched the study's pipeline
-fingerprint. It does **not** prove the skeleton bytes match their sidecars,
-that the raw inputs were current, or that any content is correct.
+A manifest is the **commit record** of `$process_skeletons()`. It attests
+that, at commit time:
 
-It lives in the `skeleton_manifest` field of `RegistryStudy` and is written into
-the ordinary `registrystudy.qs2` by the ordinary `$save_meta()`. No extra file.
+* every batch's provenance sidecar was readable
+* the set was complete and internally uniform
+* the set matched the study's pipeline fingerprint
+
+It does **not** prove that the skeleton bytes match their sidecars, that the raw
+inputs were current, or that any content is correct.
+
+It lives in the `skeleton_manifest` field of `RegistryStudy`. `$save_meta()`
+writes it into `registrystudy.qs2`, so it needs no extra file.
 
 ```{r eval = FALSE}
 study <- registrystudy_load("/path/to/meta/dir")
@@ -146,59 +148,55 @@ str(study$skeleton_manifest)
 ```
 
 `pipeline_hash` **fingerprints the registered pipeline code**. `identity` is a
-**generation token** derived from per-batch provenance metadata — it digests the
+**generation token** derived from per-batch provenance metadata. It digests the
 ordered per-batch `(batch, pipeline_hash, built_at)` triples. Neither is a
 content hash of the skeleton data.
 
-`built_at` is what makes `identity` a *generation* token rather than a code one:
-when a batch and its provenance are rewritten, its `built_at` changes, so
-`identity` moves even though the code did not. Conversely an incremental run
-that skips every already-current batch rewrites nothing, so `identity` is
-unchanged.
+`built_at` makes `identity` a *generation* token and not a code token. When
+swereg rewrites a batch and its provenance, the `built_at` of that batch
+changes. `identity` then moves, although the code did not. An incremental run
+that skips every current batch rewrites nothing, so `identity` stays the same.
 
 ### The commit protocol
 
-The manifest is **cleared before a single batch is touched**, and only
-recommitted at the end if the finished dataset earns it:
+swereg **clears the manifest before it touches a single batch**. It recommits
+the manifest at the end only if the finished dataset passes these checks:
 
 1. **Provenance readable** for every batch.
-2. **Exactly one distinct `pipeline_hash`** — more means an interrupted replay
-   left a mix of old and new skeletons.
-3. **That hash equals the study's current `$pipeline_hash()`.** Internal
-   agreement is not currency: a dataset can be perfectly self-consistent and
-   simply out of date.
-4. **Batch IDs are exactly `seq_len(expected)`.** A count cannot distinguish
-   1..N from 2..N+1 — and a *first* build interrupted at batch 272 leaves 272
-   mutually-consistent skeletons that a hash-only check waves straight through,
-   after which s1 analyses 12% of the cohort and looks fine doing it.
+2. **Exactly one distinct `pipeline_hash`.** More than one means that an
+   interrupted replay left a mix of old and new skeletons.
+3. **That hash equals the study's current `$pipeline_hash()`.** A dataset can
+   be fully self-consistent and still out of date.
+4. **Batch IDs are exactly `seq_len(expected)`.** A count cannot tell 1..N from
+   2..N+1. A *first* build interrupted at batch 272 leaves 272 mutually
+   consistent skeletons, and a hash-only check accepts them. s1 then analyses
+   12% of the cohort and shows no sign of a problem.
 
-Clearing first is what makes a kill safe: a manifest that survived an
-interrupted run would vouch for skeletons it no longer describes, which is worse
-than none.
+The clear-first order makes a kill safe. A manifest that survived an
+interrupted run would vouch for skeletons it no longer describes. That is worse
+than no manifest.
 
-`batches` controls only what a run **processes**, never what is validated —
-validation always covers the whole directory, because that is what s1 reads. A
-subset run (`batches = 1:10`) therefore still commits if the resulting whole
-dataset validates. What a full run (`batches = NULL`) changes is the **failure**
-behaviour: it raises, rather than letting a caller's file-count gate report
-success over a dataset nothing will accept.
+`batches` controls only which batches a run **processes**. Validation always
+covers the whole directory, because s1 reads the whole directory. A subset run
+(`batches = 1:10`) therefore still commits if the resulting whole dataset
+validates. A full run (`batches = NULL`) changes only the **failure**
+behaviour. It raises an error, so a caller's file-count gate cannot report
+success over a dataset that nothing will accept.
 
 ## What none of this protects you from
 
-Stated plainly, because a green run is seductive.
-
 * **Concurrency.** Exactly one `$process_skeletons()` may run against a skeleton
-  directory at a time. **Nothing enforces this.** Two writers interleave as
-  clear(A), clear(B), commit(A), B-replaces-skeletons-and-dies — leaving A's
-  manifest vouching for B's skeletons. Atomic writes cannot fix a logical race.
-  **Serialise your regenerations.**
-* **Identity is not content.** Nothing here digests skeleton bytes. Editing,
-  replacing, restoring from backup, or corrupting a skeleton without
-  correspondingly regenerated provenance may go undetected. The stale-sidecar
-  case below is one instance of this general limit.
+  directory at a time. **Nothing enforces this.** Two writers can interleave as
+  clear(A), clear(B), commit(A), then B replaces skeletons and dies. A's
+  manifest then vouches for B's skeletons. Atomic writes cannot fix a logical
+  race. **Run one regeneration at a time.**
+* **Identity is not content.** Nothing here digests skeleton bytes. If you edit,
+  replace, restore from backup or corrupt a skeleton without regenerating its
+  provenance, swereg may not detect it. The stale-sidecar case below is one
+  instance of this general limit.
 * **A skeleton replaced under its own sidecar.** Validation reads sidecars, not
-  skeletons — opening all of them would mean reading gigabytes every run. Both
-  writes are atomic, but they are separate writes, so a crash between them can
+  skeletons, because opening all skeletons means reading gigabytes every run.
+  Both writes are atomic, but they are separate writes. A crash between them can
   leave a new skeleton with a stale sidecar.
 * **Untracked dependencies.** A function-body fingerprint does not cover called
   helpers, package versions, globals, environment variables, external files,
@@ -207,32 +205,32 @@ Stated plainly, because a green run is seductive.
   existence and layer 2 on code identity, so unchanged code over changed raw
   inputs invalidates nothing. Delete the rawbatches by hand.
 * **Closure-captured state, anywhere.** Functions are hashed by body and formals,
-  so two closures differing only in captured values key identically. This applies
-  to `framework_fn`, `trim_fn` and the randvars steps.
+  so two closures that differ only in captured values get the same key. This
+  applies to `framework_fn`, `trim_fn` and the randvars steps.
 * **Phase-2 code registry entries** are fingerprinted by their declared codes and
   arguments and by the body of the function that applies them, but not by
   anything that function calls.
 * **Adversarial integrity.** These are short cache identifiers, not
   cryptographic authenticity guarantees.
 * **Scientific correctness.** All of this checks identity and completeness. It
-  has nothing to say about whether the contents are right.
+  says nothing about whether the contents are right.
 
-## Recovery: what to actually do
+## Recovery: what to do
 
 | symptom | do this |
 |---|---|
-| Regeneration was killed | Run a **full** `$process_skeletons()` (`batches = NULL`) to completion. The cleared manifest is the protocol working, not damage. |
-| Raw delivery changed, code did not | Nothing will notice on its own. `$delete_rawbatches()`, `$delete_skeletons()`, `$delete_meta_file()`, then re-run the full generator. |
-| "Is my skeleton dir mixed?" | `study$skeleton_pipeline_hashes()` — one distinct `pipeline_hash` and no `NA`s is what you want. Compare it to `study$pipeline_hash()` to see whether it is *current* as well as uniform. |
-| s1's work directory survived a killed run | Nothing to do by hand — the next `$s1_generate_enrollments_and_ipw()` call clears it automatically at start. |
+| Regeneration was killed | Run a **full** `$process_skeletons()` (`batches = NULL`) to completion. A cleared manifest after a kill is the protocol at work. |
+| Raw delivery changed, code did not | Nothing detects this automatically. Run `$delete_rawbatches()`, `$delete_skeletons()`, `$delete_meta_file()`, then re-run the full generator. |
+| "Is my skeleton dir mixed?" | Run `study$skeleton_pipeline_hashes()`. You want one distinct `pipeline_hash` and no `NA`s. Compare it to `study$pipeline_hash()` to see whether it is *current* as well as uniform. |
+| s1's work directory survived a killed run | Nothing. The next `$s1_generate_enrollments_and_ipw()` call clears it at start. |
 
 ## A worked example
 
-From a real production run (2026-07-17), showing layers 1–3 and the manifest
-commit.
+This example comes from a production run on 2026-07-17. It shows layers 1 to 3
+and the manifest commit.
 
-A regeneration had been killed the previous afternoon, leaving the skeleton
-directory **mixed**: 272 batches rebuilt with new code, 1,922 still on the old.
+A regeneration was killed the afternoon before. It left the skeleton directory
+**mixed**: 272 batches rebuilt with new code, 1,922 still on the old code.
 
 ```
                     before                      after
@@ -243,19 +241,14 @@ manifest            NULL                        identity 73180d2cd7417e91
 
 The rerun:
 
-* **Layer 1** skipped raw staging entirely (rawbatches + meta existed).
-* **Layer 2** reached 272/2194 in **56 seconds** — the meta-sidecar fast path
-  found those batches' pipeline already current and skipped them without ever
-  loading the skeleton. The killed run's work was salvaged. It then rebuilt the
-  remaining 1,922 in 7h 35m.
-* **Layer 3** validated and committed:
+* **Layer 1** skipped raw staging (the rawbatches and the meta file existed).
+* **Layers 2 and 3** reached 272/2194 in **56 seconds**. The layer 3 meta
+  sidecars showed the pipeline of those batches already current. Layer 2
+  skipped them without loading the skeleton, so the rerun kept the work of the
+  killed run. Layer 2 then rebuilt the remaining 1,922 in 7h 35m.
+* **The skeleton manifest** validated and committed:
 
   ```
   Skeleton manifest committed: 2194 batches, pipeline 9e079c0876398c90,
                                identity 73180d2cd7417e91
   ```
-
-Had the same spec been run against a different skeleton generation before
-Phase 5′, s1's (now-removed) cache key would have moved and a fresh work
-directory been used. Today s1 rebuilds its transient work directory from
-scratch on every call regardless.

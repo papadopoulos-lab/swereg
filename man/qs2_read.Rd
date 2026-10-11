@@ -20,11 +20,9 @@ Reads a file written in standard qs2 format, that is, one saved with
 \code{qs2::qs_read}.
 }
 \details{
-Files in the qdata format (\code{qs2::qd_save}) are no longer readable through
-this function. An earlier version tried \code{qs2::qd_read} first and fell back to
-the standard reader; that attempt is gone, so a qdata file now raises the
-underlying qs2 error \verb{qdata format detected, use qs2::qd_read}. swereg has
-never written qdata files itself.
+The function does not read the qdata format (\code{qs2::qd_save}). A qdata file
+raises the qs2 error \verb{qdata format detected, use qs2::qd_read}. swereg
+writes no qdata file.
 }
 \section{Stored objects from an older schema}{
 

@@ -92,8 +92,8 @@
 #' Refuse pre-drawn enrollment ids that do not name the trial
 #'
 #' `enroll()` reads the trial of each pre-drawn person-trial from
-#' `enrolled_ids$enrollment_period_id`. An s1 file from an earlier release
-#' carries the trial under `.TTE_RETIRED_PERIOD_COLUMN` instead. The function
+#' `enrolled_ids$enrollment_period_id`. An s1 file written under the retired
+#' column name carries the trial under `.TTE_RETIRED_PERIOD_COLUMN` instead. The function
 #' stops on that column, also when `enrollment_period_id` is present, because
 #' the file then comes from a mixed run.
 #'

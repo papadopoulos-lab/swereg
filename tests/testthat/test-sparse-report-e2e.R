@@ -207,7 +207,7 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
   )
   adjustment$protocol <- spr_report_list_after(
     strsplit(pt[[3]][7], "\n")[[1]],
-    "Final adjustment set, after the rare-condition rule: "
+    "Final adjustment set of the treatment and censoring models, after the rare-condition rule: "
   )
 
   expect_named(

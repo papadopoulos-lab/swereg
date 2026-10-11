@@ -264,7 +264,8 @@ spr_run_s1 <- function(rule = NULL, sk = spr_skeleton()) {
 # A plan built from the fixture spec, with no s1 run. The decision is built by
 # `.s1b_decide()` from a hand-made count table, and the hash is that of the
 # plan's own rule, as s1b leaves them. The tests that read only plan fields
-# use it, so they run in seconds.
+# use it, so they run in seconds. The plan carries the stamps of a completed
+# s1, which the writers need.
 spr_plan_no_s1 <- function(rule = spr_rule(), env = parent.frame()) {
   root <- withr::local_tempdir(.local_envir = env)
   dirs <- file.path(root, c("spec", "tteplan", "results", "meta"))
@@ -295,5 +296,5 @@ spr_plan_no_s1 <- function(rule = spr_rule(), env = parent.frame()) {
   labels <- stats::setNames(r$candidates, r$candidates)
   plan$sparse_decision <- swereg:::.s1b_decide(counts, r, labels)
   plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(r)
-  return(plan)
+  return(tte_stamp_stages(plan))
 }

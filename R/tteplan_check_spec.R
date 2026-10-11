@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the six
+#'     \item{`kind`}{The problem kind. The Details section lists the seven
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports six kinds of problem:
+#' The checker reports seven kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -36,6 +36,12 @@
 #'   \item{`version_mismatch`}{The file name has the form `spec_vNNN.yaml`,
 #'     and `study$implementation$version` is missing or is not `vNNN`. The
 #'     checker skips this check for every other file name.}
+#'   \item{`outcome_selecting_exclusion`}{An exclusion criterion has the
+#'     window `lifetime_before_and_after_baseline` on a variable of an
+#'     outcome. That window reads the weeks after time zero, so the criterion
+#'     selects on the follow-up outcome. The checker writes one row for each
+#'     criterion and outcome. The checker reads the global
+#'     `exclusion_criteria` and each enrollment's `additional_exclusion`.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
 #'     message is the message of that error.}
 #' }
@@ -91,6 +97,8 @@ tteplan_check_spec <- function(spec_path) {
   key_gate_passes <- length(rows) == 0L
   rows <- c(rows, .tte_check_spec_enrollment_ids(spec))
   rows <- c(rows, .tte_check_spec_version(spec, spec_path))
+  outcome_rows <- .tte_check_spec_outcome_exclusions(spec)
+  rows <- c(rows, outcome_rows)
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -102,6 +110,19 @@ tteplan_check_spec <- function(spec_path) {
       },
       error = function(e) conditionMessage(e)
     )
+    # `tteplan_read_spec()` stops on the outcome-selecting exclusions last.
+    # The rows above already report each of them.
+    if (
+      length(outcome_rows) > 0L &&
+        identical(
+          read_error,
+          .tte_outcome_selecting_message(.tte_outcome_selecting_exclusions(
+            spec
+          ))
+        )
+    ) {
+      read_error <- NULL
+    }
     if (!is.null(read_error)) {
       rows <- c(rows, list(.tte_check_spec_row("$", "read_error", read_error)))
     }
@@ -339,4 +360,199 @@ tteplan_check_spec <- function(spec_path) {
       "'."
     )
   )))
+}
+
+
+#' Every exclusion criterion that selects on a follow-up outcome
+#'
+#' The window `lifetime_before_and_after_baseline` reads every week of the
+#' person, after time zero included. When the criterion reads an outcome
+#' variable of the spec, it removes each person who has the outcome during
+#' follow-up. The analysis then selects on its own outcome. This finder reads
+#' the global `exclusion_criteria` and each enrollment's
+#' `additional_exclusion`. The spec declares outcomes at the top level only.
+#'
+#' The finder reads the parsed specification before or after
+#' `tteplan_read_spec()` normalises it, and never stops on a bad shape.
+#'
+#' @param spec The parsed specification.
+#' @return A list with one element per offending criterion and outcome. Each
+#'   element holds `path`, the normalised key path of the window, and
+#'   `message`, which names the criterion, the variable and the outcome.
+#' @noRd
+.tte_outcome_selecting_exclusions <- function(spec) {
+  out <- .tte_spec_outcome_vars(spec)
+  if (is.null(out)) {
+    return(list())
+  }
+  found <- list()
+  exclusions <- .tte_check_spec_get(spec, "exclusion_criteria")
+  if (.tte_spec_is_sequence(exclusions)) {
+    for (i in seq_along(exclusions)) {
+      found <- c(found, .tte_outcome_selecting_one(
+        exclusions[[i]],
+        paste0(
+          "exclusion_criteria[", i, "] '",
+          .tte_spec_scalar_at(exclusions[[i]], "name"), "'"
+        ),
+        "$/exclusion_criteria[]/implementation/window",
+        out
+      ))
+    }
+  }
+  enrollments <- .tte_check_spec_get(spec, "enrollments")
+  if (!.tte_spec_is_sequence(enrollments)) {
+    return(found)
+  }
+  for (i in seq_along(enrollments)) {
+    extra <- .tte_check_spec_get(enrollments[[i]], "additional_exclusion")
+    if (!.tte_spec_is_sequence(extra)) {
+      next
+    }
+    for (j in seq_along(extra)) {
+      found <- c(found, .tte_outcome_selecting_one(
+        extra[[j]],
+        paste0(
+          "enrollments[", i, "] '",
+          .tte_spec_scalar_at(enrollments[[i]], "id"),
+          "' additional_exclusion[", j, "] '",
+          .tte_spec_scalar_at(extra[[j]], "name"), "'"
+        ),
+        "$/enrollments[]/additional_exclusion[]/implementation/window",
+        out
+      ))
+    }
+  }
+  return(found)
+}
+
+
+#' The variables and the name of each outcome of a parsed specification
+#'
+#' @param spec The parsed specification.
+#' @return `NULL` when `outcomes` is not a sequence. Otherwise a list with
+#'   `vars`, the variables of each outcome, and `names`, the name of each
+#'   outcome, or its variables when it has no name.
+#' @noRd
+.tte_spec_outcome_vars <- function(spec) {
+  outcomes <- .tte_check_spec_get(spec, "outcomes")
+  if (!.tte_spec_is_sequence(outcomes)) {
+    return(NULL)
+  }
+  vars <- lapply(outcomes, function(o) {
+    return(.tte_spec_vars(.tte_check_spec_get(o, c("implementation", "variable"))))
+  })
+  nm <- vapply(outcomes, .tte_spec_scalar_at, character(1), "name")
+  nm[is.na(nm)] <- vapply(vars[is.na(nm)], paste, character(1), collapse = ", ")
+  return(list(vars = vars, names = nm))
+}
+
+
+#' One scalar of a parsed YAML entry, as text
+#' @noRd
+.tte_spec_scalar_at <- function(entry, key) {
+  return(.tte_check_spec_scalar(.tte_check_spec_get(entry, key)))
+}
+
+
+#' The findings of one exclusion criterion
+#'
+#' One finding per outcome that shares a variable with a criterion of the
+#' window `lifetime_before_and_after_baseline`.
+#'
+#' @param ec One exclusion criterion of the parsed specification.
+#' @param label The criterion's label, for the message.
+#' @param path The normalised key path of the window.
+#' @param out A list: `vars`, the variables of each outcome, and `names`, the
+#'   name of each outcome.
+#' @return A list of findings, each `list(path = , message = )`.
+#' @noRd
+.tte_outcome_selecting_one <- function(ec, label, path, out) {
+  window <- .tte_check_spec_scalar(
+    .tte_check_spec_get(ec, c("implementation", "window"))
+  )
+  if (!identical(window, "lifetime_before_and_after_baseline")) {
+    return(list())
+  }
+  sv <- .tte_spec_vars(
+    .tte_check_spec_get(ec, c("implementation", "source_variable"))
+  )
+  rows <- list()
+  for (k in seq_along(out$vars)) {
+    shared <- intersect(sv, out$vars[[k]])
+    if (length(shared) == 0L) {
+      next
+    }
+    rows <- c(rows, list(list(
+      path = path,
+      message = paste0(
+        label,
+        " has the window lifetime_before_and_after_baseline on '",
+        paste(shared, collapse = "', '"),
+        "', which is the variable of outcome '",
+        out$names[k],
+        "'. That window reads the weeks after time zero, so the criterion ",
+        "excludes each person who has the outcome during follow-up. Use ",
+        "lifetime_before_baseline, or a window that ends before time zero."
+      )
+    )))
+  }
+  return(rows)
+}
+
+
+#' `TRUE` when a parsed YAML value is a sequence, an unnamed list
+#' @noRd
+.tte_spec_is_sequence <- function(x) {
+  return(is.list(x) && is.null(names(x)))
+}
+
+
+#' The variable names of one `variable` or `source_variable` value
+#'
+#' @param x A parsed YAML value: one name, or a sequence of names.
+#' @return A character vector of the distinct non-missing names. It is empty
+#'   when `x` holds no atomic value.
+#' @noRd
+.tte_spec_vars <- function(x) {
+  if (!is.atomic(x) && !is.list(x)) {
+    return(character(0))
+  }
+  v <- unlist(x, use.names = FALSE)
+  if (!is.atomic(v)) {
+    return(character(0))
+  }
+  return(unique(as.character(v[!is.na(v)])))
+}
+
+
+#' Rows for every exclusion criterion that selects on a follow-up outcome
+#'
+#' @param spec The parsed specification.
+#' @return A list of rows of kind `outcome_selecting_exclusion`.
+#' @noRd
+.tte_check_spec_outcome_exclusions <- function(spec) {
+  return(lapply(.tte_outcome_selecting_exclusions(spec), function(f) {
+    return(.tte_check_spec_row(
+      f$path,
+      "outcome_selecting_exclusion",
+      f$message
+    ))
+  }))
+}
+
+
+#' The error message of the outcome-selecting exclusions
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param found A list from `.tte_outcome_selecting_exclusions()`.
+#' @return A character scalar.
+#' @noRd
+.tte_outcome_selecting_message <- function(found) {
+  return(paste(
+    vapply(found, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
 }

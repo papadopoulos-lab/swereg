@@ -202,10 +202,10 @@
 #' re-tested the threshold would be a second decision site, and two displays of
 #' one ratio could then disagree.
 #'
-#' A result stored before that column existed passes `NA`. The rule is then
-#' applied here, by the ONE function that holds it. That is the consumer
-#' deriving what the producer did not store, and three live projects hold such
-#' results. Rendering nothing for them would blank a ratio that used to print.
+#' A result without that column passes `NA`. The rule is then applied here,
+#' by the ONE function that holds it. That is the consumer deriving what the
+#' producer did not store. Rendering nothing for such a result would blank a
+#' ratio that has a value.
 #'
 #' @param irr Numeric(1), the stored ratio.
 #' @param irr_estimable Logical(1), the stored decision, or `NA`.

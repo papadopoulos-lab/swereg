@@ -68,7 +68,7 @@ test_that("the forest axis labels a tick at or below the smallest bound", {
 })
 
 # Nothing below 0.1, so the axis is the one it was before item 2: the same
-# visible ticks and the same drawn range, measured on 27.3.0 before the change.
+# visible ticks and the same drawn range, measured on 27.2.1 before the change.
 test_that("the forest axis is unchanged when no bound is below 0.1", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("patchwork")

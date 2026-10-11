@@ -19,8 +19,10 @@
 #'
 #'   Matching is **prefix-only** via \code{startsWith()}. A pattern like
 #'   \code{"I21"} matches \code{"I21"}, \code{"I210"}, \code{"I219"}, etc.
-#'   This is not regex -- characters such as \code{^}, \code{$}, \code{*},
-#'   \code{[A-Z]} are taken literally and will not match anything.
+#'   This is not regex -- characters such as \code{^}, \code{$} and
+#'   \code{*} are taken literally and will not match anything. A bracket
+#'   group such as \code{"I2[0-5]"} expands to its literal prefixes before
+#'   the match.
 #'
 #'   Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
 #'   any source row whose code matches the (un-prefixed) pattern is masked
@@ -196,8 +198,10 @@ add_cods <- function(
 #'
 #'   Matching is **prefix-only** via \code{startsWith()}. A pattern like
 #'   \code{"F32"} matches \code{"F32"}, \code{"F320"}, \code{"F321"}, etc.
-#'   This is not regex -- characters such as \code{^}, \code{$}, \code{*},
-#'   \code{[A-Z]} are taken literally and will not match anything.
+#'   This is not regex -- characters such as \code{^}, \code{$} and
+#'   \code{*} are taken literally and will not match anything. A bracket
+#'   group such as \code{"I2[0-5]"} expands to its literal prefixes before
+#'   the match.
 #'
 #'   Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
 #'   any source row whose code matches the (un-prefixed) pattern is masked

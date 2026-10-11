@@ -282,8 +282,8 @@ utils::globalVariables("..keep_cols")
 #' interval, so the lower tertile ties with the boundary knot. `ns()` then
 #' moves that knot just inside the boundary, and warns.
 #'
-#' The warning does not mark a fit problem. Measured in 27.2.0 on a panel with
-#' 4 distinct values of `tstart`: the basis is full rank and the fit converges.
+#' The warning does not mark a fit problem. Measured on a panel with 4
+#' distinct values of `tstart`: the basis is full rank and the fit converges.
 #' The treatment coefficient and its standard error equal those of the
 #' `factor(tstart)` fit, because both terms span the same columns. On a panel
 #' with 8 values, the ratio differs from the `factor(tstart)` fit by 0.04%.

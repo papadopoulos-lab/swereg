@@ -389,6 +389,8 @@ test_that("TARGET 6g lists the final adjustment set", {
 test_that("the CONSORT rule line is plural for two driving enrollments", {
   plan <- spr_report_fast_plan()
   plan$sparse_decision[, decided_by := "01, 02"]
+  # A changed decision needs the stamps of a new s1 run.
+  plan <- tte_stamp_stages(plan)
   expect_identical(
     unname(swereg:::.tte_sparse_consort_labels(plan)),
     paste0(
@@ -419,7 +421,105 @@ test_that("the TARGET methods text states the rule, the threshold and the inheri
       "candidate stayed a confounder. The comparisons that did not drive the ",
       "rule inherited its decision and the adjustment set of the driving ",
       "comparison. The rule excluded Prior rare condition B, Prior rare ",
-      "condition A. The final adjustment set was Age, Prior common condition."
+      "condition A. The final adjustment set of the treatment model and the ",
+      "censoring models was Age, Prior common condition. The outcome model ",
+      "held no confounder."
+    ),
+    fixed = TRUE
+  )
+})
+
+# Codex round 2 of #56: a sentence about the comparisons that inherit the
+# decision is written only when at least one enrollment does not drive the
+# rule. Each output that carries one is tested with one driver of two and
+# with both drivers.
+spr_report_all_drive <- function(plan) {
+  plan$spec$sparse_rule$decided_by <- c("01", "02")
+  plan$sparse_decision[, decided_by := "01, 02"]
+  # A changed rule and decision need the hash and the stamps of a new s1 run.
+  plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(plan$spec$sparse_rule)
+  return(tte_stamp_stages(plan))
+}
+SPR_INHERIT_SPEC <- "The other comparisons inherit the decision."
+SPR_INHERIT_METHODS <- "did not drive the rule inherited its decision"
+
+spr_report_rule_cell <- function(plan) {
+  ss <- spr_report_read_sheet(
+    function(wb) swereg:::.write_spec_summary(wb, plan),
+    "Study Specification"
+  )
+  return(spr_report_spec_value(ss, "Rule:"))
+}
+
+test_that("Study Specification states the inheritance only when one enrollment inherits", {
+  plan <- spr_report_fast_plan()
+  expect_match(spr_report_rule_cell(plan), SPR_INHERIT_SPEC, fixed = TRUE)
+  plan <- spr_report_all_drive(plan)
+  rule_cell <- spr_report_rule_cell(plan)
+  expect_no_match(rule_cell, "inherit", fixed = TRUE)
+  expect_match(rule_cell, "without follow-up outcomes.$")
+})
+
+test_that("the TARGET methods text states the inheritance only when one enrollment inherits", {
+  plan <- spr_report_fast_plan()
+  txt <- paste(spr_report_checklist(plan), collapse = " ")
+  expect_match(txt, SPR_INHERIT_METHODS, fixed = TRUE)
+  plan <- spr_report_all_drive(plan)
+  txt <- paste(spr_report_checklist(plan), collapse = " ")
+  expect_no_match(txt, "inherit", fixed = TRUE)
+  expect_match(
+    txt,
+    paste0(
+      "Every other candidate stayed a confounder. The rule excluded Prior ",
+      "rare condition B, Prior rare condition A."
+    ),
+    fixed = TRUE
+  )
+})
+
+# Codex round 6: before s1 decides the rule, item 6a says the decision is not
+# made yet. Item 7 MUST NOT say that the rule was applied.
+test_that("item 7 does not claim an undecided rule was applied", {
+  plan <- spr_report_fast_plan()
+  plan$sparse_decision <- NULL
+  txt <- spr_report_checklist(plan)
+  expect_true(any(grepl(
+    "- Excluded under the rare-condition rule: not decided yet (s1 has not run)",
+    spr_report_item(txt, "6a", "6b"),
+    fixed = TRUE
+  )))
+  item7 <- paste(spr_report_item(txt, "7a-h", "8"), collapse = " ")
+  for (claim in c(
+    "rule was applied",
+    "rule was decided",
+    "counts were",
+    "counted once",
+    "became an exclusion",
+    "stayed a confounder",
+    "inherited its decision",
+    "The rule excluded",
+    "final adjustment set of",
+    "held no confounder"
+  )) {
+    expect_no_match(item7, claim, fixed = TRUE)
+  }
+  expect_match(
+    item7,
+    paste0(
+      "A pre-specified rare-condition rule is declared, with a threshold of ",
+      "10 persons. The rule will be decided from baseline counts in the ",
+      "eligible population, before the comparator draw and without ",
+      "follow-up outcomes. The counts will be of eligible persons per arm in ",
+      "the driving comparison: ",
+      FAST_DRIVER,
+      ". A person counts once in an arm when any of her eligible ",
+      "person-trials in that arm holds the condition at its recruiting-week ",
+      "covariate snapshot. The same person can count in both arms. A ",
+      "candidate condition held by fewer than 10 persons in the smallest arm ",
+      "will become an exclusion criterion of every comparison. Every other ",
+      "candidate will stay a confounder. The comparisons that do not drive ",
+      "the rule will inherit its decision and the adjustment set of the ",
+      "driving comparison. The rule is not decided yet (s1 has not run)."
     ),
     fixed = TRUE
   )
@@ -465,11 +565,14 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
   expect_identical(
     spr_report_list_after(
       plan_emul,
-      "Final adjustment set, after the rare-condition rule: "
+      "Final adjustment set of the treatment and censoring models, after the rare-condition rule: "
     ),
     FAST_ADJUSTMENT_SET
   )
-  expect_true("Adjust for rd_no_osd_common_everbefore (lifetime before baseline)" %in% plan_emul)
+  expect_true(
+    "Treatment and censoring models adjust for rd_no_osd_common_everbefore (lifetime before baseline)" %in%
+      plan_emul
+  )
   expect_false(any(grepl("rare_[ab]", plan_emul)))
 })
 

@@ -8,7 +8,9 @@
 #' @param data A data.table containing the one-time data to be merged
 #' @param id_name Character string specifying the name of the ID variable in the data
 #' @return The skeleton data.table is modified by reference with one-time data merged in.
-#'   Columns from data that already exist in skeleton will be prefixed with "i."
+#'   A column of data that already exists in skeleton is overwritten. Each
+#'   person found in data gets the incoming value. Each person absent from
+#'   data keeps the existing skeleton value.
 #'
 #'   The function also returns the skeleton, invisibly. The return is the
 #'   object the caller passed, while that object has a free column slot for

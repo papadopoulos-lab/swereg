@@ -182,6 +182,15 @@ TTEPlan$set(
         "Create the plan with tteplan_from_spec_and_registrystudy().", call. = FALSE
       )
     }
+    # s1 clears the run id before any other plan field or file changes, and
+    # sets it as the last statement below. s2 and s3 stop while it is absent,
+    # so a run that fails after s1b never pairs the new decision with old
+    # files. Every stored s3 result reads files that this run replaces, so s1
+    # drops them here. A writer called after s1 then reads no result of an
+    # earlier run.
+    self$s1_run_id <- NULL
+    self$results_enrollment <- NULL
+    self$results_ett <- NULL
     # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
     # rejects a relative `outputs` entry. Create the directory BEFORE
     # normalizing: normalizePath(mustWork = FALSE) returns an absolute path
@@ -332,12 +341,15 @@ TTEPlan$set(
     # confounder set. The decision is made from baseline counts in the
     # eligible population, before the comparator draw and without follow-up
     # outcomes.
-    previous_decision <- self$sparse_decision
-    self$sparse_decision <- NULL
-    self$sparse_rule_hash <- NULL
+    #
+    # The new decision and hash go to locals first. The plan's decision,
+    # hash and confounder sets change only after s1b succeeds, so a failed
+    # run leaves the previous decision in place for the retry to restore.
+    new_decision <- NULL
+    new_hash <- NULL
     if (!is.null(spec[["sparse_rule"]])) {
       cat("\n[s1b] Decide the sparse conditions (driving enrollments, single subworker)\n")
-      self$sparse_decision <- .s1b_run(
+      new_decision <- .s1b_run(
         spec = spec,
         all_es = all_es,
         enrollment_ids = enrollment_ids,
@@ -346,11 +358,16 @@ TTEPlan$set(
         dev_path = swereg_dev_path,
         p = progressr::progressor(steps = 1L)
       )
-      self$sparse_rule_hash <- .tte_sparse_rule_hash(spec[["sparse_rule"]])
+      new_hash <- .tte_sparse_rule_hash(spec[["sparse_rule"]])
     }
-    if (
-      .s1b_apply_to_confounders(self, previous_decision, self$sparse_decision)
-    ) {
+    changed <- .s1b_apply_to_confounders(
+      self,
+      self$sparse_decision,
+      new_decision
+    )
+    self$sparse_decision <- new_decision
+    self$sparse_rule_hash <- new_hash
+    if (changed) {
       all_es <- build_all_es()
     }
     .tte_assert_sparse_decision_current(self, "s1c")
@@ -515,6 +532,7 @@ TTEPlan$set(
     # survives the delete warns here, because every output is already saved.
     cat("\n")
     .clear_s1_work_dir(work_dir, label = "Removed s1 work directory", fatal = FALSE)
+    self$s1_run_id <- .tte_s1_run_new_id(self)
     return(invisible(self))
   }
 )
@@ -536,6 +554,12 @@ TTEPlan$set(
 #' For each ETT, loads the imputed enrollment file, calls
 #' `$s4_prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
 #' truncation), and saves the analysis-ready file.
+#'
+#' s2 rewrites the analysis files of every ETT, so it drops the stored s3
+#' results before it writes. It stamps each ETT with a new s2 run id in the
+#' `s2_run_id` column of `$ett`. s3 copies that id into each result it
+#' stores. `$export()`, `$export_tables()` and `$print_target_checklist()`
+#' refuse a stored result whose s2 run id is not the current one of its ETT.
 #' @param output_dir Optional directory override containing imp files and
 #'   where analysis files are saved. If `NULL` (default), uses
 #'   `self$dir_tteplan`.
@@ -572,6 +596,7 @@ TTEPlan$set(
       self,
       "s2_generate_analysis_files_and_ipcw_pp()"
     )
+    .tte_assert_s1_completed(self, "s2_generate_analysis_files_and_ipcw_pp()")
 
     ett <- self$ett
     n_threads <- .threads_per_worker(n_workers)
@@ -658,7 +683,16 @@ TTEPlan$set(
     ))
 
     p <- progressr::progressor(steps = length(items))
-    return(.batch_run_and_write(
+    # The s2 stamp of each ETT names the s1 run whose files s2 read, and this
+    # s2 run. s2 clears it before the first file and sets it after the last.
+    # So s3 refuses the files of an s2 that failed or that ran before the
+    # current s1. s2 rewrites the analysis files of every ETT, and every
+    # stored s3 result reads those files, so s2 drops the stored results.
+    # A writer then never pairs a result with files of other IPCW options.
+    self$results_enrollment <- NULL
+    self$results_ett <- NULL
+    .tte_s2_stamp(self, NA_character_, NA_character_)
+    out <- .batch_run_and_write(
       target = .batch_target("swereg", ".s2_worker"),
       items = items,
       outputs = outputs,
@@ -666,7 +700,9 @@ TTEPlan$set(
       n_workers = n_workers,
       dev_path = swereg_dev_path,
       p = p
-    ))
+    )
+    .tte_s2_stamp(self, self$s1_run_id, .tte_s2_run_new_id(self))
+    return(out)
   }
 )
 
@@ -748,6 +784,7 @@ TTEPlan$set(
     # saw the value.
     n_workers <- .validate_n_workers(n_workers, "s3_analyze()")
     .tte_assert_sparse_decision_current(self, "s3_analyze()")
+    .tte_assert_s1_completed(self, "s3_analyze()")
     if (is.null(output_dir)) {
       output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
     }
@@ -789,6 +826,13 @@ TTEPlan$set(
       )
       all_enrollment_ids <- intersect(all_enrollment_ids, ett_enrollment_ids)
     }
+    # The enrollment loop reads the analysis file of any ETT of a targeted
+    # enrollment, so every one of them MUST carry the current s2 stamp.
+    .tte_assert_s2_current(
+      self,
+      "s3_analyze()",
+      ett$ett_id[ett$enrollment_id %in% all_enrollment_ids]
+    )
 
     if (is.null(self$results_enrollment)) {
       self$results_enrollment <- list()
@@ -829,12 +873,17 @@ TTEPlan$set(
     # --- Build all work items for both loops ---
     # Enrollment items
     enr_items <- list()
+    # The s2 run id of the ETT whose analysis file each enrollment item reads.
+    enr_s2_run <- character(0)
     if (length(enr_todo) > 0L) {
       enr_items <- lapply(enr_todo, function(eid) {
         enr_rows <- ett[ett$enrollment_id == eid]
         analysis_files <- file.path(output_dir, enr_rows$file_analysis)
         sizes <- file.size(analysis_files)
         smallest <- which.min(sizes)
+        # Without a file size there is no smallest file. s2 stamps every
+        # ETT with one id, so the first ETT then gives the same stamp.
+        enr_s2_run[[eid]] <<- .tte_s2_run_of(enr_rows)[c(smallest, 1L)[1L]]
         return(list(
           analysis_path = analysis_files[smallest],
           raw_path = file.path(output_dir, enr_rows$file_raw[1]),
@@ -1092,6 +1141,9 @@ TTEPlan$set(
           next
         }
         self$results_enrollment[[enr_todo[i]]][["swereg_version_s3"]] <- s3_version
+        self$results_enrollment[[enr_todo[i]]][["s1_run_id"]] <- self$s1_run_id
+        self$results_enrollment[[enr_todo[i]]][["s2_run_id"]] <-
+          enr_s2_run[[enr_todo[i]]]
         s2_versions <- c(
           s2_versions,
           enr_results[[i]][["swereg_version_s2"]] %||% NA_character_
@@ -1151,6 +1203,9 @@ TTEPlan$set(
           )
         }
         self$results_ett[[eid]][["swereg_version_s3"]] <- s3_version
+        self$results_ett[[eid]][["s1_run_id"]] <- self$s1_run_id
+        self$results_ett[[eid]][["s2_run_id"]] <-
+          .tte_s2_run_of(ett_todo)[m$ett_i]
         s2_versions <- c(
           s2_versions,
           all_results[[j]][["swereg_version_s2"]] %||% NA_character_

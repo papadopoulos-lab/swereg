@@ -47,3 +47,6 @@ dev/bench/results/*.csv
 
 # Intermediate result blobs from dev/ comparison scripts -- never commit
 dev/**/*.rds
+
+# knitr::knit() run from the repo root writes its default fig.path here
+/figure/

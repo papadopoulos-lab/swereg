@@ -149,6 +149,9 @@ skip_if_not_installed("withr")
     "swereg"
   )
   plan <- .xp_plan("new", subgroups = TRUE, fill_summary = FALSE)
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
   dir <- withr::local_tempdir(.local_envir = parent.frame())
   expect_error(
     suppressWarnings(suppressMessages(utils::capture.output(
@@ -333,6 +336,9 @@ test_that("the estimand set drives the s2 item list and the 6f sentence", {
   # `.xp_plan()` holds eight emulated trials, so the full set builds sixteen
   # items and the reduced set builds eight.
   plan <- .xp_plan("new", subgroups = FALSE, fill_summary = FALSE)
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
   dir <- withr::local_tempdir()
   expect_error(
     suppressWarnings(utils::capture.output(

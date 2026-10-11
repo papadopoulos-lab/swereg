@@ -24,6 +24,13 @@
 #'
 #' @param study A [RegistryStudy] R6 object, typically loaded via
 #'   [registrystudy_load()]. Owns the rawbatch and skeleton path candidates.
+#'   A list MAY stand in for it, as the package tests do. The list MUST carry
+#'   `skeleton_files`. Without a `work_root`, s1 reads `data_meta_dir` from
+#'   it for its work directory. A list has no `$assert_skeletons_consistent()`, so pass
+#'   `check_skeletons = FALSE` here and to
+#'   `$s1_generate_enrollments_and_ipw()`. With
+#'   `global_max_isoyearweek = NULL` and a first file named
+#'   `skeleton_<n>.qs2`, the list also needs `$load_skeleton()`.
 #' @param candidate_dir_spec Character vector of candidate directories that
 #'   contain the spec YAML `spec_vXXX.yaml`. The first existing directory is
 #'   used to locate the spec.

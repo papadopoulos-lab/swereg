@@ -1,8 +1,10 @@
 #' Expand bracketed code patterns to literal prefixes (internal)
 #'
 #' Expands range and character-class brackets in code patterns to a vector
-#' of explicit literal prefixes. Called from inside every \code{add_*()}
-#' function via \code{.swereg_codes_pre()} so that bracket / character-class
+#' of explicit literal prefixes. \code{add_diagnoses()},
+#' \code{add_operations()}, \code{add_cods()},
+#' \code{add_cancer_without_morphology()} and \code{add_rx()} call it through
+#' \code{expand_code_list()}, so that bracket / character-class
 #' / range patterns (e.g. \code{"I2[0-5]"}, \code{"!302[A-Z]"}) are accepted
 #' directly at the call site. The matchers themselves use
 #' \code{startsWith()} on literal prefixes.

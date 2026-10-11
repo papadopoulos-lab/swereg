@@ -123,7 +123,11 @@ skip_if_not_installed("yaml")
 .ipo_plan <- function() {
   if (is.null(.ipo_cache$plan)) {
     dir <- withr::local_tempdir(.local_envir = teardown_env())
-    .ipo_cache$plan <- .ipo_spec_plan(dir)
+    plan <- .ipo_spec_plan(dir)
+    # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+    # without them.
+    tte_stamp_stages(plan)
+    .ipo_cache$plan <- plan
   }
   return(.ipo_cache$plan)
 }

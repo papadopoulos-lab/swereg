@@ -771,3 +771,69 @@
   }
   return(openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70)))
 }
+
+
+#' Write the preregistration workbook
+#'
+#' The body of `TTEPlan$excel_spec_summary()`. It writes the Study
+#' Specification sheet, the Sparse conditions sheet when the plan holds a
+#' sparse decision, and the Target trial protocol sheet. Each sheet comes
+#' from the writer `$export_tables()` uses. No writer here reads an s2 or s3
+#' result, or outcome data, so the workbook can be written after s0.
+#'
+#' @param plan A `TTEPlan`.
+#' @param path Character(1) or NULL, the output `.xlsx` path.
+#' @param protocol_ett_id Character(1) or NULL, the protocol sheet ETT. NULL
+#'   takes the first ETT of the grid.
+#' @return The plan, invisibly.
+#' @noRd
+.plan_excel_spec_summary <- function(plan, path = NULL, protocol_ett_id = NULL) {
+  if (!requireNamespace("openxlsx", quietly = TRUE)) {
+    stop(
+      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",
+      call. = FALSE
+    )
+  }
+  if (is.null(plan$spec)) {
+    stop("Plan has no spec.", call. = FALSE)
+  }
+  protocol_ett_id <- .plan_protocol_ett_id(plan, protocol_ett_id)
+  if (is.null(path)) {
+    path <- plan$spec_xlsx
+    dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
+  }
+  wb <- openxlsx::createWorkbook()
+  .write_spec_summary(wb, plan)
+  .write_sparse_conditions_sheet(wb, plan)
+  .write_protocol_table(wb, "Target trial protocol", plan, protocol_ett_id)
+  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+  message("Spec summary saved to: ", path)
+  return(invisible(plan))
+}
+
+
+#' Normalise the requested protocol ETT to one id, or to NULL
+#'
+#' An id the plan does not hold falls back with a warning, exactly as an
+#' absent argument does. `$export_tables()` and `$excel_spec_summary()` share
+#' this rule.
+#'
+#' @param plan A `TTEPlan`.
+#' @param protocol_ett_id The requested ETT id, or NULL.
+#' @return Character(1), or NULL.
+#' @noRd
+.plan_protocol_ett_id <- function(plan, protocol_ett_id) {
+  if (length(protocol_ett_id) == 0L) {
+    return(NULL)
+  }
+  protocol_ett_id <- as.character(protocol_ett_id)[1L]
+  if (!protocol_ett_id %in% plan$ett$ett_id) {
+    warning(
+      "protocol_ett_id is not an ETT id of this plan (ignored): ",
+      protocol_ett_id,
+      call. = FALSE
+    )
+    return(NULL)
+  }
+  return(protocol_ett_id)
+}

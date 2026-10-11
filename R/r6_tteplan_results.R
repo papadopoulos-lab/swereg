@@ -275,6 +275,11 @@ TTEPlan$set("public", "get_subgroups", function() {
 #' A skipped enrollment never reaches that check, so a current enrollment
 #' raises no warning about a missing file.
 #'
+#' The method stops when an ETT of a named enrollment does not carry the s2
+#' stamp of the current s1 run, as `$s3_analyze()` does. Its analysis files
+#' then do not come from the current s1 run. A recomputed panel takes the s1
+#' and s2 run stamps of the analysis file it reads.
+#'
 #' `$export_tables()` calls this method on its own when a stored panel is
 #' stale. Call it yourself when you want the refresh to be a visible step.
 #' The lazy path costs minutes. Whether it runs at all depends on what a
@@ -308,6 +313,13 @@ TTEPlan$set(
       enrollment_ids <- names(self$results_enrollment)
     }
     ett <- self$ett
+    # The method reads the analysis files of these ETTs. Each MUST carry the
+    # s2 stamp of the current s1 run, as s3 requires.
+    .tte_assert_s2_current(
+      self,
+      "recompute_baselines()",
+      ett$ett_id[ett$enrollment_id %in% enrollment_ids]
+    )
     n_recomputed <- 0L
     n_skipped <- 0L
     for (eid in enrollment_ids) {
@@ -367,6 +379,10 @@ TTEPlan$set(
       new_result[["swereg_version_s3"]] <- as.character(utils::packageVersion(
         "swereg"
       ))
+      # The panel now comes from the analysis file of the current s1 and s2
+      # runs, so it takes their stamps, as s3 sets them.
+      new_result[["s1_run_id"]] <- self$s1_run_id
+      new_result[["s2_run_id"]] <- .tte_s2_run_of(enr_rows[present][smallest])
       self$results_enrollment[[eid]] <- new_result
       n_recomputed <- n_recomputed + 1L
     }

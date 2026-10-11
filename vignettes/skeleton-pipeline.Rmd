@@ -16,34 +16,32 @@ knitr::opts_chunk$set(
 
 # The skeleton pipeline
 
-This vignette describes how `swereg` builds and incrementally
-rebuilds per-batch skeleton files in production. If you just want to
-create a small skeleton and attach some diagnoses by hand, read
-`vignette("skeleton-create")` first. This vignette is for people
-running full-registry pipelines where total build time is measured in
-days and every iteration matters.
+This vignette describes how `swereg` builds per-batch skeleton files
+in production, and how it rebuilds them incrementally. To create a
+small skeleton and add some diagnoses by hand, read
+`vignette("skeleton-create")` first. This vignette is for
+full-registry pipelines, where the total build time is several days.
 
 ## The problem
 
 A production swereg pipeline on Swedish registry data typically has
-two dominant costs:
+two main costs:
 
 1. **Rawbatch creation**: split the raw registry files into
-   per-person-batch subsets, save as `.qs2`. For national-registry
-   scale this is typically many hours of I/O.
+   per-person-batch subsets, and save each as `.qs2`. At
+   national-registry scale this typically takes many hours of I/O.
 2. **Skeleton processing**: for each batch, build a person-week time
    grid, apply censoring, add demographics from LISA, classify
    exposure from LMED, and match ICD-10 / ATC / operation codes
-   across the subset. Typically dominates total pipeline time.
+   across the subset. This step typically takes most of the pipeline
+   time.
 
-Together these add up to a multi-day first build for national-scale
-studies. Before incremental invalidation landed, an edit to one ICD-10
-code triggered the full rebuild. The skeleton was saved as a bare
-`data.table`, with no provenance to diff against.
+Together these give a multi-day first build for national-scale
+studies. A bare `data.table` holds no provenance to compare against,
+so without one an edit to one ICD-10 code forces a full rebuild.
 
-The goal of the phased pipeline is to make that 62h cost
-*proportional to the size of the change*. An edit re-runs only the
-phases it invalidates.
+The phased pipeline makes the rebuild cost *proportional to the size
+of the change*. An edit re-runs only the phases it invalidates.
 
 ## Four phases, and the order they run in
 
@@ -53,25 +51,24 @@ Per batch, `RegistryStudy$process_skeletons()` runs four phases:
 framework  ->  trim  ->  codes  ->  randvars
 ```
 
-Each phase carries its own invalidation rule, so an edit re-runs only
-what it affects. The sections below take the phases in that order.
+Each phase has its own invalidation rule, so an edit re-runs only
+what it affects. The sections below describe the phases in that order.
 
-### Phase 1 -- framework
+### Phase 1: framework
 
 A single user-supplied function, registered via
 `$register_framework(fn)`, with signature
 `function(batch_data, config)`. It returns a fresh `data.table`
 containing the base time grid plus structural censoring (immigration,
-emigration, death). Nothing downstream can exist without it.
+emigration, death). Every later phase needs it.
 
 **Invalidation:** full rebuild whenever
 `digest::digest(list(body(fn), formals(fn)), "xxhash64")` changes.
-Framework edits are expected to be rare (you don't change the time
-grid on a whim), so a conservative "always rebuild on hash change" is
-fine. When phase 1 re-runs, swereg discards every later phase and
+Framework edits are rare, because the time grid seldom changes, so a
+full rebuild on every hash change is acceptable. When phase 1 re-runs, swereg discards every later phase and
 re-applies it from scratch on the fresh base.
 
-### Phase 1b -- trim
+### Phase 1b: trim
 
 At most one user-supplied function, registered via
 `$register_trim(fn)`, with signature
@@ -93,8 +90,8 @@ study$register_trim(function(skeleton, batch_data, config) {
 
 **Invalidation:** full rebuild whenever the trim's identity changes.
 Three changes rebuild the base of every batch: a new trim, a removed
-trim, and an edit to the trim's body. A deletion cannot be rewound,
-so a fresh base is the only correct answer.
+trim, and an edit to the trim's body. swereg cannot undo a row
+deletion, so it must start again from a fresh base.
 
 The trim runs on a rebuild and at no other time. It therefore always
 reads a fresh base, so it MAY delete a fixed count or a fraction
@@ -102,20 +99,20 @@ rather than a predicate. An edit to a code entry or to a randvars
 step rebuilds nothing and re-runs no trim.
 
 A `Skeleton` records the trim in `trim_fn_hash`, not in `phase_order`.
-`phase_order` names the three phases that a swereg release can
-reorder. The trim is pinned immediately after the framework.
+`phase_order` names the three phases whose order a swereg release
+can change. The trim always runs immediately after the framework.
 
 `$register_trim()` stops on a second call. A study has one framework
-by construction, so `$register_framework()` overwrites instead. Two
-trim registrations are a script that means to delete rows in two
+by construction, so `$register_framework()` overwrites instead. A
+second trim registration means that the script deletes rows in two
 places.
 
-### Phase 2 -- code registry
+### Phase 2: code registry
 
 A list of code registrations, each added via `$register_codes()`
 (primary) or `$register_derived_codes()` (derived). Each entry
-contributes one or more columns to the skeleton; the shape of those
-columns is predicted from metadata, not observed from running `fn`.
+adds one or more columns to the skeleton. swereg predicts the shape
+of those columns from metadata. It does not run `fn` to find it.
 
 **Invalidation:** per-entry fingerprint diff.
 `Skeleton$sync_with_registry()` computes
@@ -123,12 +120,10 @@ columns is predicted from metadata, not observed from running `fn`.
 `to_add = current_fingerprints - stored_fingerprints`, drops stale
 entries' columns, then re-applies new entries in registration order.
 When you change one code in one entry, every other entry's
-fingerprint is unchanged, so only that one entry re-runs.
+fingerprint stays the same, so only that entry re-runs in phase 2.
+A code entry edit also replays every phase-3 step.
 
-That is true of the code registry alone. A code entry edit also
-replays every phase-3 step.
-
-### Phase 3 -- randvars
+### Phase 3: randvars
 
 An ordered named list of user-supplied functions, each registered via
 `$register_randvars(name, fn)`. Each has signature
@@ -136,8 +131,8 @@ An ordered named list of user-supplied functions, each registered via
 skeleton. It MUST NOT modify or delete an existing column: the rewind
 tracks only the columns a step records.
 
-**A randvars step MAY read a code registry column**, because phase 2
-already ran. That capability is why the code registry runs first. A
+A randvars step MAY read a code registry column, because phase 2
+runs before phase 3. This is the reason for the phase order. A
 step MUST NOT change the row count. Rewind-and-replay drops columns,
 and it cannot restore rows. Register a row filter as the phase-1b
 trim instead.
@@ -146,20 +141,20 @@ Registration order is execution order. An edit to one step replays
 that step and everything downstream of it. It leaves upstream steps
 untouched.
 
-**Invalidation:** *divergence-point rewind-and-replay*. swereg scans
-the stored `(name, hash)` sequence against the current one, finds the
-first position where either the name or the hash differs, drops the
-stored `added_columns` of every step from that point forward, and
-then replays current steps from that point. Add, remove, edit, and
-reorder are all handled uniformly because any of those operations
-changes either the name sequence or the hash sequence.
+**Invalidation:** *divergence-point rewind-and-replay*. swereg
+compares the stored `(name, hash)` sequence with the current one. It
+finds the first position where the name or the hash differs. It drops
+the stored `added_columns` of every step from that position on, then
+replays the current steps from that position. An add, a removal, an
+edit and a reorder each change the name sequence or the hash
+sequence, so this one rule handles all four.
 
 Each step's hash folds in the framework hash, the trim identity and
-every code registry fingerprint. So a code edit moves every step's
-hash. The divergence point lands at step 1, and the whole sequence
-replays against the freshly-applied code columns.
+every code registry fingerprint. A code edit therefore changes every
+step's hash. The divergence point is step 1, and the whole sequence
+replays against the re-applied code columns.
 
-A typical phase 3 registration block looks like:
+A typical phase 3 registration block:
 
 ```r
 study$register_randvars("demographics",        rv_demographics)
@@ -167,14 +162,14 @@ study$register_randvars("exposure",            rv_exposure)
 study$register_randvars("baseline_exclusion",  rv_baseline_exclusion)
 ```
 
-If `baseline_exclusion` reads a column produced by `exposure` (a
-common pattern: exclusion depends on exposure classification), then
-editing `exposure` triggers the divergence point at step 2 and both
-step 2 and step 3 replay. That dependency is implicit in the
-registration order -- there is no explicit dep graph.
+Exclusion often depends on exposure classification, so
+`baseline_exclusion` often reads a column that `exposure` produces.
+An edit to `exposure` then puts the divergence point at step 2, and
+steps 2 and 3 both replay. Only the registration order records this
+dependency. swereg has no explicit dependency graph.
 
-**A randvars column is counted in the batch meta, and the count caps at
-100 values.** The meta sidecar beside each skeleton counts a logical
+swereg counts each randvars column in the batch meta, and the count
+stops at 100 values. The meta file next to each skeleton counts a logical
 randvars column under its own name. It counts a character or factor column
 once per value the column holds, not once per level a factor declares. A
 column that holds more than 100 distinct values is skipped, and its name
@@ -182,8 +177,8 @@ goes into the meta's `randvars_counts_skipped`. `$compute_summary()` reads
 these counts, so a skipped column contributes no summary row.
 
 An exposure column or a demographic column stays far below the cap. An
-identifier column or a free-text column does not. A value distribution of
-that size belongs in `$compute_population()`.
+identifier column or a free-text column does not. Use
+`$compute_population()` for a value distribution of that size.
 
 ## The `Skeleton` R6 class
 
@@ -214,13 +209,13 @@ sk$pipeline_hash()               # rolled-up provenance scalar
 
 ### Why R6 and not a bare `data.table`?
 
-Because the provenance IS the interesting state. Without it, you
-can't answer "is this skeleton still valid for the current pipeline?"
-without either rebuilding from scratch or trusting a separate
-sidecar file. With it, every batch file can answer the question
-locally via `sk$pipeline_hash() == study$pipeline_hash()`.
+The provenance is the state that matters. Without it, you cannot
+tell if a skeleton is still valid for the current pipeline. You must
+rebuild from scratch or trust a separate sidecar file. With it, each
+batch file answers the question locally via
+`sk$pipeline_hash() == study$pipeline_hash()`.
 
-### The qs2 over-allocation gotcha
+### qs2 files and data.table over-allocation
 
 `data.table` keeps over-allocated pointer slots ("truelength") so
 that an in-place `:=` does not have to reallocate. qs2 does not keep
@@ -238,12 +233,12 @@ sk <- study$load_skeleton(1L)
 data.table::truelength(sk$data) > ncol(sk$data)   # TRUE
 ```
 
-The repair reaches a data.table nested inside a list or inside an R6
-field, not only a bare one. `?qs2_read` states exactly what it
-reaches and what it leaves alone.
+The repair also reaches a data.table nested inside a list or inside
+an R6 field. `?qs2_read` states exactly what it reaches and what it
+leaves alone.
 
-Read your own loader's files with `swereg::qs2_read()` rather than
-`qs2::qs_read()`, and it gets the same repair.
+Read your own loader's files with `swereg::qs2_read()`, not
+`qs2::qs_read()`, to get the same repair.
 
 ## The code registry: primary and derived entries
 
@@ -251,8 +246,8 @@ Read your own loader's files with `swereg::qs2_read()` rather than
 
 A primary entry ties a code list to a `fn` (e.g. `add_diagnoses`,
 `add_cods`, `add_rx`) and a set of raw-data groups to apply it to.
-Optional `combine_as` runs `fn` once more on the rbind of all groups
-to produce a combined column.
+The optional `combine_as` runs `fn` once more on the rbind of all
+groups to make a combined column.
 
 ```r
 study$register_codes(
@@ -263,32 +258,24 @@ study$register_codes(
 )
 ```
 
-For each `(group_prefix, code_name)` pair, a column is written:
+swereg writes one column for each `(group_prefix, code_name)` pair:
 `ov_e11`, `sv_e11`, `ov_vte`, `sv_vte`. Because `combine_as = "os"`
-is set, two additional columns are produced:
-`os_e11 = ov_e11 | sv_e11` and `os_vte = ov_vte | sv_vte`
-(computed by re-running `add_diagnoses` on the rbind of outpatient
-and inpatient rawbatch data, not by ORing the columns).
+is set, it writes two more columns:
+`os_e11 = ov_e11 | sv_e11` and `os_vte = ov_vte | sv_vte`.
+swereg computes them by re-running `add_diagnoses` on the rbind of
+outpatient and inpatient rawbatch data. It does not OR the columns.
 
-### The DORS gotcha and `register_derived_codes()`
+### Combine hospital and DORS codes with `register_derived_codes()`
 
-The pre-derived-codes approach tried to be clever: register ICD-10
-codes once with `groups = list(ov, sv, dors)` and
-`combine_as = "osd"`, hoping to get one column covering all three
-sources. This failed silently because `add_diagnoses` searches for
-`hdia`/`dia*`/`ekod*`/`icd*` columns -- none of which exist in the
-cause-of-death registry. DORS uses `ulorsak` (underlying cause) and
-`morsak*` (contributing causes). So `dors_e11` was always `FALSE`
-and `osd_e11 = ov_e11 | sv_e11 | FALSE` was effectively just hospital
-data. **Deaths never contributed to outcomes.**
+One ICD-10 column that covers hospital data and DORS needs two
+different functions. `add_diagnoses` reads hospital data. It searches
+the `hdia`/`dia*`/`ekod*`/`icd*` columns, and the cause-of-death
+registry has none of them. DORS uses `ulorsak` (underlying cause) and
+`morsak*` (contributing causes), which `add_cods` reads.
 
-The fix needs two different functions -- `add_diagnoses` for hospital,
-`add_cods` for DORS -- sharing one logical combined column. `combine_as`
-can't express that: it reruns the SAME `fn` on rbind data. So we need
-a way to OR together columns that were produced by different
-registrations.
-
-Enter `register_derived_codes()`:
+`combine_as` cannot combine the two, because it reruns the same `fn`
+on the rbind data. `register_derived_codes()` ORs together columns
+that different registrations produce:
 
 ```r
 # 1. Hospital (OV + SV) -> ov_*, sv_*, os_*
@@ -323,28 +310,29 @@ study$register_derived_codes(
 )
 ```
 
-A derived entry doesn't read rawbatch data at all. It iterates its
-own `codes` list, looks up
+A derived entry does not read rawbatch data. It iterates its own
+`codes` list, looks up
 `get("<from[1]>_<nm>")`, `get("<from[2]>_<nm>")`, etc. on the
-skeleton, ORs them, and writes `<as>_<nm>`. Missing source columns
-raise a loud error. Because it runs in registration order during
-phase 2 sync, upstream primary entries are guaranteed to have been
-applied already.
+skeleton, ORs them, and writes `<as>_<nm>`. The phase 2 sync runs the
+entries in registration order and does not reorder them. Register
+every primary entry that a derived entry reads before the derived
+entry. `$register_derived_codes()` does not check the order. A
+missing source column raises an error when the sync applies the
+derived entry.
 
 ### Fingerprint cascade for derived entries
 
 Derived entries fold the fingerprints of their upstream primary
-entries into their own fingerprint. That means editing ANY upstream
-field -- `fn_args`, `groups`, even a single code pattern -- cascades
-into derived replay without the user having to touch the derived
-entry. If you flip `cod_type = "underlying"` to
-`cod_type = "both"` on the DORS primary, the next
-`process_skeletons()` run drops the derived entry's columns and
-rewrites them from the new dorsu output, all on every batch, in
-order, without rebuilding anything else.
+entries into their own fingerprint. An edit to any upstream field
+(`fn_args`, `groups`, or one code pattern) therefore replays the
+derived entry, and you do not touch the derived entry. If you change
+`cod_type = "underlying"` to `cod_type = "both"` on the DORS
+primary, the next `process_skeletons()` run drops the derived entry's
+columns. It then rewrites them from the new dorsu output on every
+batch, in order, and rebuilds nothing else.
 
-Cascade is implemented in `code_registry_fingerprints()` as a
-two-pass walk:
+`code_registry_fingerprints()` implements the cascade as a two-pass
+walk:
 
 1. Compute every primary entry's fingerprint. It depends on `codes`,
    `label`, `groups`, `fn_args`, `combine_as` and the hash of the
@@ -353,11 +341,6 @@ two-pass walk:
    collect the primary fingerprints whose `groups` prefixes or
    `combine_as` appear in the derived's `from`, and hash
    `(kind="derived", codes, from, as, upstream_fps)`.
-
-swereg 26.10.2 added the `fn` hash to that payload, so every primary
-fingerprint moves once. Every code entry re-applies on the next run,
-and every derived entry cascades with its upstream. This release
-rebuilds every skeleton anyway.
 
 ## Registering the pipeline
 
@@ -400,15 +383,14 @@ study$register_randvars("baseline_exclusion",  rv_baseline_exclusion)
 study$process_skeletons(n_workers = 4L)
 ```
 
-The critical invariant: the framework, the trim, the code registry
-and the randvars steps must all be registered on `study` BEFORE
-`$process_skeletons()` is called. There is no callback argument on
-`$process_skeletons()` -- the pipeline is declared on the study
-itself, not passed in per call.
+Register the framework, the trim, the code registry and the randvars
+steps on `study` BEFORE you call `$process_skeletons()`.
+`$process_skeletons()` has no callback argument. The study itself
+holds the pipeline, and no call passes it in.
 
 ## The reload-clobber anti-pattern
 
-A subtle failure mode when running the pipeline repeatedly:
+This pattern fails when you run the pipeline more than once:
 
 ```r
 # WRONG
@@ -421,11 +403,10 @@ if (file.exists(study$meta_file)) {
 }
 ```
 
-The reload path replaces the freshly-registered pipeline with the
-stale on-disk version, silently reverting any edits you just made.
-The fix is to absorb only the persisted *runtime* state (IDs,
-batches, groups_saved) into the fresh study without touching its
-config:
+The reload replaces the newly registered pipeline with the stale
+version on disk. It reverts any edits you just made, with no warning.
+Instead, copy only the persisted *runtime* state (IDs, batches,
+groups_saved) into the new study, and leave its config unchanged:
 
 ```r
 # CORRECT
@@ -467,10 +448,12 @@ study$skeleton_pipeline_hashes()
 study$assert_skeletons_consistent()
 ```
 
-Downstream TTE consumers call `$assert_skeletons_consistent()`
-automatically near the top of
-`tteplan_from_spec_and_registrystudy()`, so you can't accidentally
-build a plan against a half-upgraded skeleton set.
+`tteplan_from_spec_and_registrystudy()` calls
+`$assert_skeletons_consistent()` near its start. The call stops when
+two batches have different pipeline identities. It also stops when the
+batches agree with each other but not with the current pipeline of the
+study. A plan therefore never reads a skeleton that an older pipeline
+built.
 
 ## Expected re-run costs
 
@@ -489,31 +472,31 @@ After the first full build:
 An "edit one ICD-10 code" run re-applies that one entry and replays
 the whole randvars sequence. It never re-runs the framework, the
 trim, or the other code entries. On a national-registry pipeline with
-a multi-day first build, that is still far below a full rebuild.
+a multi-day first build, this costs much less than a full rebuild.
 
 ## Summary
 
-- **Per-batch skeleton files are `Skeleton` R6 objects.** Each carries
+- Per-batch skeleton files are `Skeleton` R6 objects. Each carries
   the framework hash, the trim identity, the phase order, the ordered
   randvars state, and the applied code registry fingerprint map.
-- **Four phases, each with its own invalidation rule**: framework
+- Each of the four phases has its own invalidation rule: framework
   (full rebuild on hash change), trim (full rebuild on identity
   change), codes (per-entry fingerprint diff), randvars
   (divergence-point rewind and replay).
-- **Only the phase-1b trim may delete rows.** A code entry or a
+- Only the phase-1b trim may delete rows. A code entry or a
   randvars step that changes the row count stops the run.
-- **Primary and derived code entries** let you combine outputs from
+- Primary and derived code entries let you combine outputs from
   different registration functions into one logical column. Derived
   entries cascade upstream fingerprint changes automatically.
-- **Provenance verification** via `pipeline_hash()` lets any
-  consumer check whether a skeleton matches the current pipeline.
-- **`adopt_runtime_state_from()`** is the correct reload pattern --
-  never clobber the freshly-registered pipeline by reassigning from
-  disk.
+- `pipeline_hash()` lets any consumer check whether a skeleton
+  matches the current pipeline.
+- `adopt_runtime_state_from()` is the correct reload pattern. Do not
+  reassign the study from disk, because that overwrites the newly
+  registered pipeline.
 
-For further context:
+See also:
 
-- `?RegistryStudy` -- full method reference
-- `?Skeleton` -- per-batch provenance object
-- `vignette("skeleton-concept")` -- why the person-week time grid
-- `vignette("rowdep-rowind-concept")` -- variable-type conventions
+- `?RegistryStudy`: full method reference
+- `?Skeleton`: per-batch provenance object
+- `vignette("skeleton-concept")`: the reason for the person-week time grid
+- `vignette("rowdep-rowind-concept")`: variable-type conventions

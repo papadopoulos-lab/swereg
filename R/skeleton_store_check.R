@@ -24,10 +24,11 @@
     return(invisible(FALSE))
   }
   if (!is.function(study$assert_skeletons_consistent)) {
-    # Fail CLOSED. `study` only has to supply `$skeleton_files`, so a
-    # duck-typed list is a supported input -- but a checking gate that
-    # cannot check must not report success. The caller asked for the
-    # check; if it cannot run, say so and make them opt out on purpose.
+    # Fail CLOSED. A list that carries `skeleton_files` MAY stand in for a
+    # RegistryStudy, as the package tests do. It has no
+    # `$assert_skeletons_consistent()`, and a checking gate that cannot
+    # check must not report success. The caller asked for the check; if it
+    # cannot run, say so and make them opt out on purpose.
     stop(
       "check_skeletons is TRUE but `study` has no ",
       "$assert_skeletons_consistent(): it is not a RegistryStudy, so the ",

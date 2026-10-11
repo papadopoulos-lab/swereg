@@ -35,14 +35,8 @@ devtools::install()
 # Generate fake data (run once or when data structure changes)
 source("dev/generate_fake_data.R")
 
-# Quick functionality test
-source("dev/quick_test.R")
-
-# Full workflow test with all features
-source("dev/test_with_fake_data.R")
-
-# Memory-efficient batched workflow (production-style)
-source("dev/workflow_batched_memory_efficient.R")
+# Regenerate the validation evidence (see the table below for the run time)
+# Rscript dev/generate_validation_evidence.R --max-workers=6
 
 # Load required libraries for manual testing
 library(data.table)
@@ -51,18 +45,18 @@ devtools::load_all(".")
 
 ## How long the checks take
 
-Measured on uppsala (6 cores, R 4.5.2) in October 2026. Since 27.2.0,
-testthat runs the test files in parallel processes (`Config/testthat/parallel`
-in `DESCRIPTION`). `TESTTHAT_CPUS` sets the number of processes, and
+Measured on uppsala (6 cores, R 4.5.2) in October 2026. testthat runs the
+test files in parallel processes (`Config/testthat/parallel` in
+`DESCRIPTION`). `TESTTHAT_CPUS` sets the number of processes, and
 `TESTTHAT_PARALLEL=FALSE` runs the files in one process.
 
 | Check | How to run it | Time |
 |:--|:--|:--|
 | One test file | `testthat::test_file()` after `pkgload::load_all(".")` | `test-vignette-claims.R`: 0.8 s, and 6 s with the package load |
 | Fast validation tier | `tests/testthat/test-validation-fast.R` | 389 to 394 s for 4 cells (2026-10-09), with `TESTTHAT_CPUS=1` and with `TESTTHAT_CPUS=2`. The load average was 8.0 to 11.3 on 6 cores while a Slurm reclean ran. |
-| Full suite, parallel | `NOT_CRAN=true TESTTHAT_CPUS=4`, then `testthat::test_local(".")` | 744 s for 7,473 passing expectations with 4 processes (27.2.0, 2026-10-08). The load average was 1.45 at the start and 4.44 at the end. |
-| Full suite, serial (before 27.2.0) | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
-| `R CMD check --no-manual --as-cran` (serial tests, before 27.2.0) | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |
+| Full suite, parallel | `NOT_CRAN=true TESTTHAT_CPUS=4`, then `testthat::test_local(".")` | 1,157 s for 8,112 passing expectations with 4 processes (2026-10-11), while another project's test suite ran on the same machine. 744 s for 7,473 expectations on 2026-10-08, with a load average of 1.45 to 4.44. |
+| Full suite, serial (measured before the suite ran in parallel) | `NOT_CRAN=true`, every `tests/testthat/test*.R` through `testthat::test_file()` | 2,236 s for 7,395 expectations (phase 5d); 2,624 s for 7,454 expectations while `R CMD check` ran |
+| `R CMD check --no-manual --as-cran` (measured with serial tests) | `R CMD build .` (75 s), then check the tarball with `NOT_CRAN=true` | 1,847 s including the build (2026-10-08); the tests take 27 min of it in elapsed time (33 min of CPU), the fast tier included |
 | Full validation tier | `SWEREG_RUN_VALIDATION=true`, `tests/testthat/test-validation-full.R` | 2,388 s with 4 workers: 707 s for the bias cells, 541 to 578 s for each of the 3 RD coverage cells |
 | The other opt-in files | `test-tte_coverage.R` and `test-tte_stress_matrix.R`, same variable | 961 s and 418 s, measured while other jobs ran |
 | Evidence regeneration | `Rscript dev/generate_validation_evidence.R --max-workers=6` | 7,059 s with Slurm empty; 7,586 s while other jobs ran |
@@ -117,16 +111,17 @@ swereg follows a two-step approach:
 ## Critical data processing rules
 
 ### Always apply make_lowercase_names() with date cleaning
-**ESSENTIAL**: All imported data must be processed with `swereg::make_lowercase_names()` before use. Now includes automatic date cleaning:
+**ESSENTIAL**: All imported data must be processed with `swereg::make_lowercase_names()` before use. Its `date_columns` argument converts the named columns to Date:
 
 ```r
 # Read data
 data <- fread("file.txt")  # or haven::read_sas() etc.
 
-# REQUIRED: Apply lowercase transformation with date cleaning
-swereg::make_lowercase_names(data, date_column = "INDATUM")
+# REQUIRED: Apply lowercase transformation with date cleaning.
+# Name the date columns in lowercase: an uppercase name warns.
+swereg::make_lowercase_names(data, date_columns = "indatum")
 
-# Now safe to use with swereg functions - note that a 'date' column is created
+# The data is now safe to use with swereg functions. `indatum` is a Date.
 swereg::add_diagnoses(skeleton, data, id_name = "lopnr", ...)
 ```
 
@@ -137,10 +132,10 @@ Swedish registry dates come in different precision levels. The `make_lowercase_n
 
 ```r
 # Apply make_lowercase_names with date parsing
-swereg::make_lowercase_names(data, date_columns = "INDATUM")
+swereg::make_lowercase_names(data, date_columns = "indatum")
 
 # Custom defaults for missing date parts
-swereg::make_lowercase_names(data, date_columns = "INDATUM", 
+swereg::make_lowercase_names(data, date_columns = "indatum", 
                             default_month_day = "0101", default_day = "01")
 ```
 
@@ -269,8 +264,8 @@ make_rowind_first_occurrence(skeleton,
 ```
 
 ### Pattern matching for medical codes
-- **Literal prefixes**: `add_*` matches via `startsWith()` on literal prefixes (no regex). Write `"F640"` for any code beginning with F640. Do NOT prefix with `^` -- that is a regex anchor and will never match under `startsWith()`. (Since 26.5.9, the pre-call syntax check warns about this.)
-- **Bracket expansion**: Bracket / character-class / range patterns are accepted directly and expanded automatically: `"I2[0-5]"` -> `c("I20","I21","I22","I23","I24","I25")`; `"FN[ABCDEGW][0-9][0-9]"`; `"!302[A-Z]"`. Multiple bracket groups in one pattern produce the Cartesian product.
+- **Literal prefixes**: `add_*` matches via `startsWith()` on literal prefixes (no regex). Write `"F640"` for any code beginning with F640. Do NOT prefix with `^` -- that is a regex anchor and will never match under `startsWith()`. No check warns about it.
+- **Bracket expansion**: Bracket / character-class / range patterns are accepted directly. `expand_code_list()` in `R/expand_codes.R` expands them before the match: `"I2[0-5]"` -> `c("I20","I21","I22","I23","I24","I25")`; `"FN[ABCDEGW][0-9][0-9]"`; `"!302[A-Z]"`. Multiple bracket groups in one pattern produce the Cartesian product.
 - **Exclusions**: Use `!` prefix to exclude (e.g., `"!F640"`).
 - **Multiple patterns**: Combine in vectors (e.g., `c("F640", "F648", "F649")`).
 - **Historical codes**: ICD-9 uses `[A-Z]` suffixes, ICD-8 uses comma delimiters.
@@ -396,23 +391,23 @@ vignette("rowdep-rowind-concept", package = "swereg")
 Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`
 - **inclusion_criteria.isoyears**: `[start, end]` — global ISO year range filter
-- **exclusion_criteria**: list with `name`, `window` (numeric weeks or `"lifetime"`), `implementation.variable`
-- **enrollments**: each has `id`, `additional_inclusion` (e.g. age range), `additional_exclusion`, `treatment` with `comparator_to_intervention_ratio` and `implementation` (variable, intervention/comparator values, seed)
+- **exclusion_criteria**: list with `name` and an `implementation` block. `implementation.source_variable` names one skeleton column or a list of them. `implementation.window` is `"lifetime_before_baseline"`, `"lifetime_before_and_after_baseline"`, a number of weeks, or `"N year(s)"`. A washout declares `implementation.type`, `no_prior_value` or `only_prior_value`. `tteplan_read_spec()` refuses `lifetime_before_and_after_baseline` on an outcome variable, because that window reads the weeks after time zero
+- **enrollments**: each has `id`, `observed_var`, `intervention_tolerance_weeks`, `comparator_tolerance_weeks`, `treatment`, `additional_inclusion` (e.g. age range) and `additional_exclusion`. `treatment.implementation` holds `variable`, `intervention_value`, `comparator_value`, `comparator_to_intervention_ratio` and `seed`
 
 ### Key TTE functions, one per file
 
 - `tteplan_read_spec(path)` in `R/tteplan_read_spec.R`: parses and validates the YAML, converts windows to weeks
-- `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` in `R/tteplan_apply_exclusions.R`: applies the isoyear filter from `spec$inclusion_criteria$isoyears`, then additional_inclusion, global exclusion_criteria, and additional_exclusion
+- `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` in `R/tteplan_apply_exclusions.R`: applies the isoyear filter from `spec$inclusion_criteria$isoyears`, then the global `inclusion_criteria$criteria`, the enrollment's `additional_inclusion`, the global `exclusion_criteria`, and the enrollment's `additional_exclusion`
 - `tteplan_apply_derived_confounders(skeleton, spec)` in `R/tteplan_apply_derived_confounders.R`: computes rolling-window indicators for `computed: true` confounders
 - `tteplan_validate_spec(spec, skeleton)` in `R/tteplan_validate_spec.R`: checks that every spec variable exists in the skeleton columns
-- `tteplan_from_spec_and_registrystudy(spec, study)` in `R/tteplan_from_spec.R`: creates a TTEPlan with the full ETT grid
+- `tteplan_from_spec_and_registrystudy(study, candidate_dir_spec, candidate_dir_tteplan, candidate_dir_results, spec_version, ...)` in `R/tteplan_from_spec.R`: this is s0. It reads `spec_<spec_version>.yaml` from the first existing `candidate_dir_spec`, and creates a TTEPlan with the full ETT grid. `study` is a `RegistryStudy`
 
 ### R6 classes
 
 Each class is defined in one file and extended with `Class$set()` in siblings.
 
 - **TTEDesign** (`R/r6_ttedesign.R`): holds `confounder_vars`, `time_treatment_var`, `eligible_var`
-- **TTEEnrollment** (`R/r6_tteenrollment.R`): data plus design, lifecycle stages `pre_enrollment` -> `enrolled` -> `analysis_ready`. Four public methods carry step-number prefixes: `$s1_impute_confounders()`, `$s2_ipw()` and `$s3_truncate_weights()` in `R/r6_tteenrollment_weighting.R`, then `$s4_prepare_for_analysis()` in `R/r6_tteenrollment.R`
+- **TTEEnrollment** (`R/r6_tteenrollment.R`): data plus design, lifecycle stages `pre_enrollment` -> `enrolled` -> `analysis_ready`. Five public methods carry step-number prefixes: `$s1_impute_confounders()`, `$s2_ipw()` and `$s3_truncate_weights()` in `R/r6_tteenrollment_weighting.R`, `$s1b_fill_followup_confounders()` in `R/tteenrollment_fill.R`, and `$s4_prepare_for_analysis()` in `R/r6_tteenrollment.R`. `$s4_prepare_for_analysis()` calls the private `s5_prepare_outcome()` and, for the per-protocol estimand, the private `s6_ipcw_pp()`
 - **TTEPlan** (`R/r6_tteplan.R`): ETT grid. The three pipeline methods `$s1_generate_enrollments_and_ipw()`, `$s2_generate_analysis_files_and_ipcw_pp()` and `$s3_analyze()` live in `R/r6_tteplan_pipeline.R`
 
 ## Production workflow pattern
@@ -435,9 +430,9 @@ The `example/` directory contains production-style workflow implementations:
 
 ## Key dependencies
 
-**Core**: data.table, cstime, fs, stringr, dplyr, lubridate, haven  
-**Development**: devtools, usethis, testthat, ggplot2
-**Note**: Package now uses base pipe `|>` instead of magrittr `%>%` (requires R ≥ 4.1)
+**Imports**: `DESCRIPTION` holds the list. The core ones are batchit, data.table, cstime, qs2, R6, mgcv, survey, openxlsx and yaml.
+**Development**: devtools, usethis, testthat
+**Note**: The package uses the base pipe `|>`, not magrittr `%>%` (requires R ≥ 4.1)
 
 ## Version control and release management
 
@@ -580,13 +575,27 @@ The package vignettes follow a progressive learning structure:
 - **Creating the skeleton**: `vignette("skeleton-create")` - Build the time grid, integrate data, derive variables
 - **Analysing the skeleton**: `vignette("skeleton-analyze")` - Collapse to the right granularity and run analyses
 
+### Skeleton add functions
+- **Built-in add functions**: `vignette("builtin-add-functions")`
+- **Custom add functions**: `vignette("custom-add-functions")`
+- **Survival analysis cookbook**: `vignette("cookbook-survival-analysis")`
+
 ### Pipeline (production)
 - **Skeleton pipeline**: `vignette("skeleton-pipeline")` - R6-based RegistryStudy with incremental rebuilds
+- **Caching and resume**: `vignette("caching-and-resume")` - what invalidates what
 - **TTE workflow**: `vignette("tte-workflow")` - Target trial emulation workflow
+
+### Target trial emulation reference
+- `vignette("tte-spec-schema")`: the specification schema
+- `vignette("tte-preregistration")`: the OSF preregistration form
+- `vignette("tte-timing")`: intervals, time zero and the estimand
+- `vignette("tte-nomenclature")`: nomenclature
+- `vignette("tte-methodology")`: mapping to the reference papers
+- `vignette("tte-methods")`: manuscript and statistical analysis plan text
 
 ## Function documentation improvements
 
-All exported functions now include:
+Exported functions carry:
 - **@family tags**: Functions grouped by purpose (data_integration, skeleton_creation, data_preprocessing)
 - **@seealso sections**: Cross-references to related functions and vignettes
 - **Runnable examples**: All examples use synthetic data included in the package
@@ -658,10 +667,10 @@ When creating packages that may serve different audiences (local vs internationa
 
 A refactor can break each invariant below with no error and no warning. Read the named file
 before you change it. Some of these carry a pinning test and some do not. Read the subsection
-rather than assume. Invariants 1, 2 and 4 name their tests. Invariant 7 identifies which parts
-of the generated text carry no test.
+rather than assume. Invariants 1, 2 and 4 name their tests. Invariant 7 names the test files
+that pin parts of the generated text.
 
-Every item names a file and a symbol, checked against the tree on 2026-08-21.
+Every item names a file and a symbol, checked against the tree on 2026-10-11.
 
 ### 1. Hash a function only after `utils::removeSource()`
 
@@ -684,8 +693,7 @@ matching on a list. A derived code entry carries `fn_args` and no `fn`, so `reg$
 access in the fingerprint path MUST use `[[`.
 
 `tests/testthat/test-code_identity.R` pins the guard, under the label
-`.fingerprint_entry stops on an entry with fn_args but no fn`. The guard gained that test in
-26.10.3.
+`.fingerprint_entry stops on an entry with fn_args but no fn`.
 
 ### 3. `.PHASE_ORDER` holds three names on purpose
 
@@ -740,17 +748,16 @@ Both reach a paper.
 labels. Read the sentences. The `paste0()` that builds them does not show you the sentence a
 reader gets. A wrong sentence there is a false methods claim, produced automatically.
 
-Three test files pin parts of the generated text:
+Five test files pin parts of the generated text:
 
 - `tests/testthat/test-comparator-draw-naming.R` pins the assignment sentences of items 6c and 7c.
 - `tests/testthat/test-tte_spec.R` pins the Item 8 attrition counts.
 - `tests/testthat/test-cohort_flow.R` pins the CONSORT box labels.
-
-Nothing pins the Causal contrasts sentence, and that sentence is wrong today.
-`R/tteplan_reporting.R` prints the fixed string
-`"Intention-to-treat and as-treated analyses were not conducted. "` for every plan, which is
-false for an ITT plan. `grep -r "were not conducted" tests/` returns nothing. The follow-up is
-papadopoulos-lab/swereg#24.
+- `tests/testthat/test-target-checklist-prose.R` pins the Causal contrasts sentences of items 6f
+  and 7, which `.TTE_ESTIMANDS` drives.
+- `tests/testthat/test-sparse-report.R` and `tests/testthat/test-spec-summary-rule-and-models.R`
+  pin the rare-condition rule texts and the sentences that name the models the adjustment set
+  enters.
 
 A design word is a claim about the whole pipeline. Matching, stratification, weighting and
 censoring each oblige something downstream. Check the obligation rather than re-read the step
@@ -763,10 +770,10 @@ there, so the source tree is absent and the `skip_if()` fires. The file is then 
 green in CI. Two current instances:
 
 - `tests/testthat/test-comparator-ratio-rename-complete.R`, through `.crr_root()`. It asserts
-  that the retired comparator-ratio key survives in exactly four files, and that every `R/`
-  occurrence sits inside `tteplan_read_spec()` in `R/tteplan_read_spec.R`. Move that function to
-  another file and the test breaks. That test file holds the literal key. Do not copy the key
-  into `CLAUDE.md`: this file is not one of the four, and the test then fails.
+  that the retired comparator-ratio key survives in exactly seven files, and that every
+  occurrence in `R/tteplan_read_spec.R` is a comment inside `tteplan_read_spec()`. Move that
+  function to another file and the test breaks. That test file holds the literal key. Do not
+  copy the key into `CLAUDE.md`: this file is not one of the seven, and the test then fails.
 - `tests/testthat/test-batch_lockdown.R`, through
   `skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")`.
 

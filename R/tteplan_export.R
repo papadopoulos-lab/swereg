@@ -6,9 +6,8 @@
 # name, guards included. The method in `R/r6_tteplan_export.R` or
 # `R/r6_tteplan_spec.R` is a one-call delegate to it.
 #
-# `.plan_export_figure()` and `.plan_export_table()` were private methods of
-# TTEPlan. They are plain functions now, and `.plan_export()` reaches them
-# by name.
+# `.plan_export_figure()` and `.plan_export_table()` are plain functions, and
+# `.plan_export()` reaches them by name.
 
 #' Write the results workbook
 #'
@@ -39,6 +38,8 @@
       call. = FALSE
     )
   }
+  .tte_assert_one_s1_run(plan, "export_tables()")
+  .tte_assert_one_s2_run(plan, "export_tables()")
   if (
     is.null(plan$results_enrollment) ||
       length(plan$results_enrollment) == 0L
@@ -95,21 +96,7 @@
   ett <- plan$ett
   enrollment_ids <- unique(ett$enrollment_id)
 
-  # Normalise the requested protocol ETT to one id, or to NULL. An id the
-  # plan does not hold falls back, exactly as an absent argument does.
-  if (length(protocol_ett_id) > 0L) {
-    protocol_ett_id <- as.character(protocol_ett_id)[1L]
-    if (!protocol_ett_id %in% ett$ett_id) {
-      warning(
-        "protocol_ett_id is not an ETT id of this plan (ignored): ",
-        protocol_ett_id,
-        call. = FALSE
-      )
-      protocol_ett_id <- NULL
-    }
-  } else {
-    protocol_ett_id <- NULL
-  }
+  protocol_ett_id <- .plan_protocol_ett_id(plan, protocol_ett_id)
 
   # Determine table1 enrollment. `$get_baselines()` repeats the baseline
   # size on every row of that enrollment, and it returns a counts-only row
@@ -577,40 +564,10 @@
 }
 
 
-#' Write the study specification to a standalone workbook
-#'
-#' The body of `TTEPlan$excel_spec_summary()`.
-#'
-#' @param plan A `TTEPlan`.
-#' @param path Character(1) or NULL, the output `.xlsx` path.
-#' @return The plan, invisibly.
-#' @noRd
-.plan_excel_spec_summary <- function(plan, path = NULL) {
-  if (!requireNamespace("openxlsx", quietly = TRUE)) {
-    stop(
-      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",
-      call. = FALSE
-    )
-  }
-  if (is.null(plan$spec)) {
-    stop("Plan has no spec.", call. = FALSE)
-  }
-  if (is.null(path)) {
-    path <- plan$spec_xlsx
-    dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
-  }
-  wb <- openxlsx::createWorkbook()
-  .write_spec_summary(wb, plan)
-  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
-  message("Spec summary saved to: ", path)
-  return(invisible(plan))
-}
-
-
 #' The swereg versions that computed the stored results
 #'
 #' s3 stamps `swereg_version_s3` and `swereg_version_s2` on every result it
-#' stores. A result from an earlier release carries neither. The s2 stamp
+#' stores. A stored result MAY carry neither stamp. The s2 stamp
 #' of one ETT result holds one version per distinct analysis file version.
 #'
 #' @param plan A `TTEPlan`.
@@ -698,6 +655,8 @@
   if (!is.list(manifest) || length(manifest) == 0L) {
     stop("manifest must be a non-empty list of exhibit specs", call. = FALSE)
   }
+  .tte_assert_one_s1_run(plan, "export()")
+  .tte_assert_one_s2_run(plan, "export()")
   .plan_warn_computing_versions(plan)
   if (is.null(dir)) {
     dir <- plan$dir_results
@@ -823,7 +782,7 @@
 #     state a level the numbers do not have.
 #' Produce one figure exhibit
 #'
-#' The body of the former private method `TTEPlan$.export_figure()`.
+#' `.plan_export()` calls it for each figure exhibit of the manifest.
 #'
 #' @param plan A `TTEPlan`.
 #' @param spec One exhibit spec from the manifest.
@@ -1272,7 +1231,7 @@
 #     written as CSV (from the computed results_enrollment table1).
 #' Produce one table exhibit
 #'
-#' The body of the former private method `TTEPlan$.export_table()`.
+#' `.plan_export()` calls it for each table exhibit of the manifest.
 #'
 #' @param plan A `TTEPlan`.
 #' @param spec One exhibit spec from the manifest.

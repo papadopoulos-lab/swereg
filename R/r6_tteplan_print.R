@@ -95,6 +95,12 @@ TTEPlan$set("public", "print", function(...) {
 #' Console-friendly summary derived from the study specification stored
 #' on this plan. When `$code_registry` is available, variable names are
 #' shown in red and matched code details in blue (ANSI colors).
+#' A spec with a `sparse_rule` also prints the rare-condition rule: `min_n`,
+#' the driving enrollments, the candidates and the decision. Before s1 the
+#' decision reads `not decided yet (s1 has not run)`. A stored decision prints
+#' only when the rule in `$spec` still hashes to `$sparse_rule_hash` and s1
+#' completed for it. Otherwise the decision reads
+#' `not decided yet (s1 has not completed for this rule)`.
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_spec_summary", function() {
   return(.plan_print_spec_summary(self))
@@ -331,6 +337,8 @@ TTEPlan$set("public", "print_spec_summary", function() {
   }
   cat("\n")
 
+  .plan_print_sparse_rule(plan, bold)
+
   # Outcomes
   cat(bold("Outcomes:"), "\n")
   for (out in spec$outcomes) {
@@ -431,5 +439,30 @@ TTEPlan$set("public", "print_spec_summary", function() {
 
   cat("\n")
 
+  return(invisible(NULL))
+}
+
+
+#' Print the rare-condition rule of the spec summary
+#'
+#' Prints the rows of the Study Specification sheet: `min_n`, the driving
+#' enrollments, the candidates, and the decision. The two style arguments of
+#' `.tte_sparse_spec_rows()` only mark the header row here. A spec without a
+#' `sparse_rule` prints nothing.
+#'
+#' @param plan A `TTEPlan`.
+#' @param bold A function that makes its text bold.
+#' @return `invisible(NULL)`.
+#' @noRd
+.plan_print_sparse_rule <- function(plan, bold) {
+  for (rw in .tte_sparse_spec_rows(plan, "header", "label")) {
+    if (identical(rw$sa, "header")) {
+      cat(bold(paste0(rw$a, ":")), "\n")
+    } else if (!is.na(rw$b)) {
+      cat("  ", formatC(rw$a, width = -22, flag = "-"), rw$b, "\n", sep = "")
+    } else {
+      cat("\n")
+    }
+  }
   return(invisible(NULL))
 }

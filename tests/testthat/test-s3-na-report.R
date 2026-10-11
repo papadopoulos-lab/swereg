@@ -36,12 +36,16 @@ skip_if_not_installed("data.table")
     ),
     description = c("ETT00001: A", "ETT00002: A", "ETT00003: A")
   )
-  return(swereg::TTEPlan$new(
+  plan <- swereg::TTEPlan$new(
     project_prefix = "test",
     skeleton_files = "skel.qs2",
     global_max_isoyearweek = "2020-52",
     ett = ett
-  ))
+  )
+  # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
+  # without them.
+  tte_stamp_stages(plan)
+  return(plan)
 }
 
 # One `$irr()` return value. `warn` is TRUE on the NA path too, which is why

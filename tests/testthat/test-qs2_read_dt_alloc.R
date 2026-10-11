@@ -301,7 +301,7 @@ test_that("a by-reference write reaches a rawbatch table the caller keeps", {
   # by-reference write inside a function went to a shallow copy, and the
   # caller kept a table without the column. `RegistryStudy$load_rawbatch()`
   # goes through `qs2_read()`, so the write now reaches the caller. Since
-  # 27.3.0 `add_annual()` writes nothing into its `data`, so a plain writer
+  # 27.2.1 `add_annual()` writes nothing into its `data`, so a plain writer
   # stands in for it here.
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(

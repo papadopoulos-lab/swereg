@@ -41,12 +41,11 @@
 #' rows would contribute both. The sum then counts every person and every
 #' person-trial of that criterion twice.
 #'
-#' A per-trial fallback stood here and is removed. It summed the per-trial
-#' rows of every criterion, which counts one person once per trial she enters.
-#' Under a mixed input that sum sat one row away from a `uniqueN` count. The
-#' CONSORT delta between the two rows could then be negative. A legacy
-#' attrition file, written before the global rows existed, now produces no
-#' diagram: a missing number is safer than a wrong one.
+#' The function has no per-trial fallback. A sum of the per-trial rows counts
+#' one person once per trial she enters. Under a mixed input that sum sits one
+#' row away from a `uniqueN` count. The CONSORT delta between the two rows can
+#' then be negative. An attrition file without global rows therefore
+#' produces no diagram: a missing number is safer than a wrong one.
 #'
 #' @noRd
 .attrition_overall <- function(att) {

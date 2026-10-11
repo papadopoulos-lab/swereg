@@ -55,7 +55,9 @@
     return(invisible(NULL))
   }
 
-  baselines <- plan$get_baselines()
+  # As on Table 1, the conditions the rare-condition rule excluded are
+  # dropped, and the footnote below names them.
+  baselines <- .tte_sparse_drop_baseline_rows(plan$get_baselines(), plan)
   arm_labels <- .baseline_arm_labels(baselines, eid)
   panel <- function(imputation, weighting) {
     return(.baseline_panel(
@@ -142,6 +144,17 @@
       )
     }
     start_col <- start_col + ncols + 1L
+  }
+  # The Table 1 footnote, two rows below the longest panel, as
+  # `.write_tableone_sheet()` places it.
+  footnote <- .tte_sparse_table1_footnote(plan)
+  if (!is.null(footnote)) {
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      footnote,
+      startRow = data_row + max(vapply(panels, nrow, integer(1))) + 2L
+    )
   }
   return(invisible(NULL))
 }

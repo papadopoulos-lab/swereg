@@ -57,38 +57,6 @@
 }
 
 
-#' Weighted counts and proportions for each level of a categorical variable.
-#'
-#' Proportions are computed against the non-missing weighted denominator so
-#' they sum to 1 across the supplied levels.
-#' @noRd
-.t1_wtd_props <- function(x, w, levels) {
-  if (is.null(w)) w <- rep(1, length(x))
-  ok <- !is.na(x) & !is.na(w) & w > 0
-  xv <- x[ok]
-  wv <- w[ok]
-  sw <- sum(wv)
-  counts <- vapply(levels, function(lv) sum(wv[xv == lv]), numeric(1))
-  props <- if (sw > 0) counts / sw else rep(NA_real_, length(levels))
-  return(list(counts = counts, props = props, sum_w_nonmissing = sw))
-}
-
-
-#' Total weighted denominator (including missing) and weighted missing share.
-#' @noRd
-.t1_wtd_missing <- function(x, w) {
-  if (is.null(w)) w <- rep(1, length(x))
-  ok_w <- !is.na(w) & w > 0
-  total_w <- sum(w[ok_w])
-  miss_w <- sum(w[ok_w & is.na(x)])
-  return(list(
-    total_w = total_w,
-    miss_w = miss_w,
-    miss_pct = if (total_w > 0) 100 * miss_w / total_w else NA_real_
-  ))
-}
-
-
 # --- standardised mean differences -------------------------------------------
 
 #' Continuous SMD: |m1 - m0| / sqrt((s1^2 + s0^2) / 2).

@@ -16,7 +16,7 @@ character columns:
 \item{\code{path}}{The normalised key path of the problem, for example
 \verb{$/study/implementation/version}. A problem with the whole file has
 the path \code{$}.}
-\item{\code{kind}}{The problem kind. The Details section lists the six
+\item{\code{kind}}{The problem kind. The Details section lists the seven
 kinds.}
 \item{\code{message}}{What is wrong, and the repair where swereg knows it.}
 }
@@ -28,7 +28,7 @@ It never stops on a bad specification, so a caller can check many files in
 one pass.
 }
 \details{
-The checker reports six kinds of problem:
+The checker reports seven kinds of problem:
 \describe{
 \item{\code{unreadable}}{The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
@@ -42,6 +42,12 @@ the replacement.}
 \item{\code{version_mismatch}}{The file name has the form \code{spec_vNNN.yaml},
 and \code{study$implementation$version} is missing or is not \code{vNNN}. The
 checker skips this check for every other file name.}
+\item{\code{outcome_selecting_exclusion}}{An exclusion criterion has the
+window \code{lifetime_before_and_after_baseline} on a variable of an
+outcome. That window reads the weeks after time zero, so the criterion
+selects on the follow-up outcome. The checker writes one row for each
+criterion and outcome. The checker reads the global
+\code{exclusion_criteria} and each enrollment's \code{additional_exclusion}.}
 \item{\code{read_error}}{\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops after its key gate. The
 message is the message of that error.}
 }
