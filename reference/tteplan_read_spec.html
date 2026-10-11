@@ -11,7 +11,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -102,6 +103,11 @@ as its own key, or a washout type under <code>implementation</code></p></li>
 <li><p>A washout declares <code>implementation$type</code>, and the two types are
 <code>no_prior_value</code> and <code>only_prior_value</code></p></li>
 <li><p>Each exclusion criterion must have <code>implementation$source_variable</code></p></li>
+<li><p>An exclusion criterion MUST NOT have the window
+<code>lifetime_before_and_after_baseline</code> on a variable of an outcome. That
+window reads the weeks after time zero, so the criterion selects on
+the follow-up outcome. The rule covers the global
+<code>exclusion_criteria</code> and each enrollment's <code>additional_exclusion</code></p></li>
 <li><p>Each outcome must have <code>implementation$variable</code></p></li>
 <li><p>Each enrollment must have <code>id</code>, <code>treatment$implementation$variable</code>
 and <code>treatment$implementation$seed</code></p></li>
@@ -143,6 +149,37 @@ of what produced a run.</p>
 a declaration that gives neither, and a sentinel name swereg does not know.
 It cannot check that a named column exists and is logical, because it reads
 no data. <code><a href="tteplan_validate_spec.html">tteplan_validate_spec()</a></code> runs that check against the skeleton.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-sparse-rule">The sparse_rule<a class="anchor" aria-label="anchor" href="#the-sparse-rule"></a></h2>
+
+
+
+<p>A spec MAY declare one <code>sparse_rule</code> block. It turns a rare baseline
+condition into an exclusion criterion of the whole study.</p>
+<div class="sourceCode"><pre><code>
+sparse_rule:
+  min_n: 100
+  decided_by: ["03"]
+  candidates: [rd_no_osd_i63_everbefore]
+</code></pre></div>
+<ul><li><p><code>min_n</code> MUST be one whole number from 1 to 2147483647, the largest R
+integer.</p></li>
+<li><p><code>decided_by</code> MUST name one or more enrollments of the spec. Quote every
+id: YAML reads an unquoted <code>01</code> as the integer 1, and the parser refuses
+it.</p></li>
+<li><p>Each entry of <code>candidates</code> MUST be the <code>implementation$variable</code> of a
+confounder with <code>computed: true</code>.</p></li>
+</ul><p>s1 counts the persons who hold each candidate condition at baseline, per
+arm, in each driving enrollment. A person counts once per arm when any of
+her eligible person-trials in that arm holds the condition at its
+recruiting week. A condition whose smallest count is below <code>min_n</code> is
+excluded in every enrollment, and leaves every confounder set. Exclusion is
+per person-trial: s1 drops a person-trial when the condition holds at that
+trial's own recruiting week. Every other candidate stays a confounder. The
+rule is decided from baseline counts in the eligible population, before the
+comparator draw and without follow-up outcomes. <a href="TTEPlan.html">TTEPlan</a> stores the
+decision in its <code>sparse_decision</code> field.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

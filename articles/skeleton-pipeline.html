@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -100,35 +101,35 @@
 <div class="section level2">
 <h2 id="the-skeleton-pipeline">The skeleton pipeline<a class="anchor" aria-label="anchor" href="#the-skeleton-pipeline"></a>
 </h2>
-<p>This vignette describes how <code>swereg</code> builds and
-incrementally rebuilds per-batch skeleton files in production. If you
-just want to create a small skeleton and attach some diagnoses by hand,
-read <code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code> first. This vignette is
-for people running full-registry pipelines where total build time is
-measured in days and every iteration matters.</p>
+<p>This vignette describes how <code>swereg</code> builds per-batch
+skeleton files in production, and how it rebuilds them incrementally. To
+create a small skeleton and add some diagnoses by hand, read
+<code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code> first. This vignette is for
+full-registry pipelines, where the total build time is several days.</p>
 <div class="section level3">
 <h3 id="the-problem">The problem<a class="anchor" aria-label="anchor" href="#the-problem"></a>
 </h3>
 <p>A production swereg pipeline on Swedish registry data typically has
-two dominant costs:</p>
+two main costs:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Rawbatch creation</strong>: split the raw registry files
-into per-person-batch subsets, save as <code>.qs2</code>. For
-national-registry scale this is typically many hours of I/O.</li>
+into per-person-batch subsets, and save each as <code>.qs2</code>. At
+national-registry scale this typically takes many hours of I/O.</li>
 <li>
 <strong>Skeleton processing</strong>: for each batch, build a
 person-week time grid, apply censoring, add demographics from LISA,
 classify exposure from LMED, and match ICD-10 / ATC / operation codes
-across the subset. Typically dominates total pipeline time.</li>
+across the subset. This step typically takes most of the pipeline
+time.</li>
 </ol>
-<p>Together these add up to a multi-day first build for national-scale
-studies. Before incremental invalidation landed, an edit to one ICD-10
-code triggered the full rebuild. The skeleton was saved as a bare
-<code>data.table</code>, with no provenance to diff against.</p>
-<p>The goal of the phased pipeline is to make that 62h cost
-<em>proportional to the size of the change</em>. An edit re-runs only
-the phases it invalidates.</p>
+<p>Together these give a multi-day first build for national-scale
+studies. A bare <code>data.table</code> holds no provenance to compare
+against, so without one an edit to one ICD-10 code forces a full
+rebuild.</p>
+<p>The phased pipeline makes the rebuild cost <em>proportional to the
+size of the change</em>. An edit re-runs only the phases it
+invalidates.</p>
 </div>
 <div class="section level3">
 <h3 id="four-phases-and-the-order-they-run-in">Four phases, and the order they run in<a class="anchor" aria-label="anchor" href="#four-phases-and-the-order-they-run-in"></a>
@@ -136,26 +137,27 @@ the phases it invalidates.</p>
 <p>Per batch, <code>RegistryStudy$process_skeletons()</code> runs four
 phases:</p>
 <pre><code><span><span class="va">framework</span>  <span class="op">-&gt;</span>  <span class="va">trim</span>  <span class="op">-&gt;</span>  <span class="va">codes</span>  <span class="op">-&gt;</span>  <span class="va">randvars</span></span></code></pre>
-<p>Each phase carries its own invalidation rule, so an edit re-runs only
-what it affects. The sections below take the phases in that order.</p>
+<p>Each phase has its own invalidation rule, so an edit re-runs only
+what it affects. The sections below describe the phases in that
+order.</p>
 <div class="section level4">
-<h4 id="phase-1-framework">Phase 1 – framework<a class="anchor" aria-label="anchor" href="#phase-1-framework"></a>
+<h4 id="phase-1-framework">Phase 1: framework<a class="anchor" aria-label="anchor" href="#phase-1-framework"></a>
 </h4>
 <p>A single user-supplied function, registered via
 <code>$register_framework(fn)</code>, with signature
 <code>function(batch_data, config)</code>. It returns a fresh
 <code>data.table</code> containing the base time grid plus structural
-censoring (immigration, emigration, death). Nothing downstream can exist
-without it.</p>
+censoring (immigration, emigration, death). Every later phase needs
+it.</p>
 <p><strong>Invalidation:</strong> full rebuild whenever
 <code>digest::digest(list(body(fn), formals(fn)), "xxhash64")</code>
-changes. Framework edits are expected to be rare (you don’t change the
-time grid on a whim), so a conservative “always rebuild on hash change”
-is fine. When phase 1 re-runs, swereg discards every later phase and
-re-applies it from scratch on the fresh base.</p>
+changes. Framework edits are rare, because the time grid seldom changes,
+so a full rebuild on every hash change is acceptable. When phase 1
+re-runs, swereg discards every later phase and re-applies it from
+scratch on the fresh base.</p>
 </div>
 <div class="section level4">
-<h4 id="phase-1b-trim">Phase 1b – trim<a class="anchor" aria-label="anchor" href="#phase-1b-trim"></a>
+<h4 id="phase-1b-trim">Phase 1b: trim<a class="anchor" aria-label="anchor" href="#phase-1b-trim"></a>
 </h4>
 <p>At most one user-supplied function, registered via
 <code>$register_trim(fn)</code>, with signature
@@ -174,90 +176,89 @@ rows the trim leaves behind.</p>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Invalidation:</strong> full rebuild whenever the trim’s
 identity changes. Three changes rebuild the base of every batch: a new
-trim, a removed trim, and an edit to the trim’s body. A deletion cannot
-be rewound, so a fresh base is the only correct answer.</p>
+trim, a removed trim, and an edit to the trim’s body. swereg cannot undo
+a row deletion, so it must start again from a fresh base.</p>
 <p>The trim runs on a rebuild and at no other time. It therefore always
 reads a fresh base, so it MAY delete a fixed count or a fraction rather
 than a predicate. An edit to a code entry or to a randvars step rebuilds
 nothing and re-runs no trim.</p>
 <p>A <code>Skeleton</code> records the trim in
 <code>trim_fn_hash</code>, not in <code>phase_order</code>.
-<code>phase_order</code> names the three phases that a swereg release
-can reorder. The trim is pinned immediately after the framework.</p>
+<code>phase_order</code> names the three phases whose order a swereg
+release can change. The trim always runs immediately after the
+framework.</p>
 <p><code>$register_trim()</code> stops on a second call. A study has one
 framework by construction, so <code>$register_framework()</code>
-overwrites instead. Two trim registrations are a script that means to
-delete rows in two places.</p>
+overwrites instead. A second trim registration means that the script
+deletes rows in two places.</p>
 </div>
 <div class="section level4">
-<h4 id="phase-2-code-registry">Phase 2 – code registry<a class="anchor" aria-label="anchor" href="#phase-2-code-registry"></a>
+<h4 id="phase-2-code-registry">Phase 2: code registry<a class="anchor" aria-label="anchor" href="#phase-2-code-registry"></a>
 </h4>
 <p>A list of code registrations, each added via
 <code>$register_codes()</code> (primary) or
-<code>$register_derived_codes()</code> (derived). Each entry contributes
-one or more columns to the skeleton; the shape of those columns is
-predicted from metadata, not observed from running <code>fn</code>.</p>
+<code>$register_derived_codes()</code> (derived). Each entry adds one or
+more columns to the skeleton. swereg predicts the shape of those columns
+from metadata. It does not run <code>fn</code> to find it.</p>
 <p><strong>Invalidation:</strong> per-entry fingerprint diff.
 <code>Skeleton$sync_with_registry()</code> computes
 <code>to_drop = stored_fingerprints - current_fingerprints</code> and
 <code>to_add = current_fingerprints - stored_fingerprints</code>, drops
 stale entries’ columns, then re-applies new entries in registration
 order. When you change one code in one entry, every other entry’s
-fingerprint is unchanged, so only that one entry re-runs.</p>
-<p>That is true of the code registry alone. A code entry edit also
-replays every phase-3 step.</p>
+fingerprint stays the same, so only that entry re-runs in phase 2. A
+code entry edit also replays every phase-3 step.</p>
 </div>
 <div class="section level4">
-<h4 id="phase-3-randvars">Phase 3 – randvars<a class="anchor" aria-label="anchor" href="#phase-3-randvars"></a>
+<h4 id="phase-3-randvars">Phase 3: randvars<a class="anchor" aria-label="anchor" href="#phase-3-randvars"></a>
 </h4>
 <p>An ordered named list of user-supplied functions, each registered via
 <code>$register_randvars(name, fn)</code>. Each has signature
 <code>function(skeleton, batch_data, config)</code>. A step adds columns
 to the skeleton. It MUST NOT modify or delete an existing column: the
 rewind tracks only the columns a step records.</p>
-<p><strong>A randvars step MAY read a code registry column</strong>,
-because phase 2 already ran. That capability is why the code registry
-runs first. A step MUST NOT change the row count. Rewind-and-replay
-drops columns, and it cannot restore rows. Register a row filter as the
-phase-1b trim instead.</p>
+<p>A randvars step MAY read a code registry column, because phase 2 runs
+before phase 3. This is the reason for the phase order. A step MUST NOT
+change the row count. Rewind-and-replay drops columns, and it cannot
+restore rows. Register a row filter as the phase-1b trim instead.</p>
 <p>Registration order is execution order. An edit to one step replays
 that step and everything downstream of it. It leaves upstream steps
 untouched.</p>
 <p><strong>Invalidation:</strong> <em>divergence-point
-rewind-and-replay</em>. swereg scans the stored
-<code>(name, hash)</code> sequence against the current one, finds the
-first position where either the name or the hash differs, drops the
-stored <code>added_columns</code> of every step from that point forward,
-and then replays current steps from that point. Add, remove, edit, and
-reorder are all handled uniformly because any of those operations
-changes either the name sequence or the hash sequence.</p>
+rewind-and-replay</em>. swereg compares the stored
+<code>(name, hash)</code> sequence with the current one. It finds the
+first position where the name or the hash differs. It drops the stored
+<code>added_columns</code> of every step from that position on, then
+replays the current steps from that position. An add, a removal, an edit
+and a reorder each change the name sequence or the hash sequence, so
+this one rule handles all four.</p>
 <p>Each step’s hash folds in the framework hash, the trim identity and
-every code registry fingerprint. So a code edit moves every step’s hash.
-The divergence point lands at step 1, and the whole sequence replays
-against the freshly-applied code columns.</p>
-<p>A typical phase 3 registration block looks like:</p>
+every code registry fingerprint. A code edit therefore changes every
+step’s hash. The divergence point is step 1, and the whole sequence
+replays against the re-applied code columns.</p>
+<p>A typical phase 3 registration block:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"demographics"</span>,        <span class="va">rv_demographics</span><span class="op">)</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"exposure"</span>,            <span class="va">rv_exposure</span><span class="op">)</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"baseline_exclusion"</span>,  <span class="va">rv_baseline_exclusion</span><span class="op">)</span></span></code></pre></div>
-<p>If <code>baseline_exclusion</code> reads a column produced by
-<code>exposure</code> (a common pattern: exclusion depends on exposure
-classification), then editing <code>exposure</code> triggers the
-divergence point at step 2 and both step 2 and step 3 replay. That
-dependency is implicit in the registration order – there is no explicit
-dep graph.</p>
-<p><strong>A randvars column is counted in the batch meta, and the count
-caps at 100 values.</strong> The meta sidecar beside each skeleton
-counts a logical randvars column under its own name. It counts a
-character or factor column once per value the column holds, not once per
-level a factor declares. A column that holds more than 100 distinct
-values is skipped, and its name goes into the meta’s
+<p>Exclusion often depends on exposure classification, so
+<code>baseline_exclusion</code> often reads a column that
+<code>exposure</code> produces. An edit to <code>exposure</code> then
+puts the divergence point at step 2, and steps 2 and 3 both replay. Only
+the registration order records this dependency. swereg has no explicit
+dependency graph.</p>
+<p>swereg counts each randvars column in the batch meta, and the count
+stops at 100 values. The meta file next to each skeleton counts a
+logical randvars column under its own name. It counts a character or
+factor column once per value the column holds, not once per level a
+factor declares. A column that holds more than 100 distinct values is
+skipped, and its name goes into the meta’s
 <code>randvars_counts_skipped</code>. <code>$compute_summary()</code>
 reads these counts, so a skipped column contributes no summary row.</p>
 <p>An exposure column or a demographic column stays far below the cap.
-An identifier column or a free-text column does not. A value
-distribution of that size belongs in
-<code>$compute_population()</code>.</p>
+An identifier column or a free-text column does not. Use
+<code>$compute_population()</code> for a value distribution of that
+size.</p>
 </div>
 </div>
 <div class="section level3">
@@ -289,14 +290,14 @@ carries its own provenance:</p>
 <div class="section level4">
 <h4 id="why-r6-and-not-a-bare-data-table">Why R6 and not a bare <code>data.table</code>?<a class="anchor" aria-label="anchor" href="#why-r6-and-not-a-bare-data-table"></a>
 </h4>
-<p>Because the provenance IS the interesting state. Without it, you
-can’t answer “is this skeleton still valid for the current pipeline?”
-without either rebuilding from scratch or trusting a separate sidecar
-file. With it, every batch file can answer the question locally via
+<p>The provenance is the state that matters. Without it, you cannot tell
+if a skeleton is still valid for the current pipeline. You must rebuild
+from scratch or trust a separate sidecar file. With it, each batch file
+answers the question locally via
 <code>sk$pipeline_hash() == study$pipeline_hash()</code>.</p>
 </div>
 <div class="section level4">
-<h4 id="the-qs2-over-allocation-gotcha">The qs2 over-allocation gotcha<a class="anchor" aria-label="anchor" href="#the-qs2-over-allocation-gotcha"></a>
+<h4 id="qs2-files-and-data-table-over-allocation">qs2 files and data.table over-allocation<a class="anchor" aria-label="anchor" href="#qs2-files-and-data-table-over-allocation"></a>
 </h4>
 <p><code>data.table</code> keeps over-allocated pointer slots
 (“truelength”) so that an in-place <code>:=</code> does not have to
@@ -312,12 +313,11 @@ already over-allocated:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">data</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>   <span class="co"># TRUE</span></span></code></pre></div>
-<p>The repair reaches a data.table nested inside a list or inside an R6
-field, not only a bare one. <code><a href="../reference/qs2_read.html">?qs2_read</a></code> states exactly what
-it reaches and what it leaves alone.</p>
-<p>Read your own loader’s files with <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>
-rather than <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>, and it gets the same
-repair.</p>
+<p>The repair also reaches a data.table nested inside a list or inside
+an R6 field. <code><a href="../reference/qs2_read.html">?qs2_read</a></code> states exactly what it reaches and
+what it leaves alone.</p>
+<p>Read your own loader’s files with <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>,
+not <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>, to get the same repair.</p>
 </div>
 </div>
 <div class="section level3">
@@ -328,9 +328,9 @@ repair.</p>
 </h4>
 <p>A primary entry ties a code list to a <code>fn</code>
 (e.g. <code>add_diagnoses</code>, <code>add_cods</code>,
-<code>add_rx</code>) and a set of raw-data groups to apply it to.
-Optional <code>combine_as</code> runs <code>fn</code> once more on the
-rbind of all groups to produce a combined column.</p>
+<code>add_rx</code>) and a set of raw-data groups to apply it to. The
+optional <code>combine_as</code> runs <code>fn</code> once more on the
+rbind of all groups to make a combined column.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  codes      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>e11 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E11"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -338,35 +338,30 @@ rbind of all groups to produce a combined column.</p>
 <span>  groups     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span><span class="op">)</span>,</span>
 <span>  combine_as <span class="op">=</span> <span class="st">"os"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For each <code>(group_prefix, code_name)</code> pair, a column is
-written: <code>ov_e11</code>, <code>sv_e11</code>, <code>ov_vte</code>,
-<code>sv_vte</code>. Because <code>combine_as = "os"</code> is set, two
-additional columns are produced: <code>os_e11 = ov_e11 | sv_e11</code>
-and <code>os_vte = ov_vte | sv_vte</code> (computed by re-running
-<code>add_diagnoses</code> on the rbind of outpatient and inpatient
-rawbatch data, not by ORing the columns).</p>
+<p>swereg writes one column for each
+<code>(group_prefix, code_name)</code> pair: <code>ov_e11</code>,
+<code>sv_e11</code>, <code>ov_vte</code>, <code>sv_vte</code>. Because
+<code>combine_as = "os"</code> is set, it writes two more columns:
+<code>os_e11 = ov_e11 | sv_e11</code> and
+<code>os_vte = ov_vte | sv_vte</code>. swereg computes them by
+re-running <code>add_diagnoses</code> on the rbind of outpatient and
+inpatient rawbatch data. It does not OR the columns.</p>
 </div>
 <div class="section level4">
-<h4 id="the-dors-gotcha-and-register_derived_codes">The DORS gotcha and <code>register_derived_codes()</code><a class="anchor" aria-label="anchor" href="#the-dors-gotcha-and-register_derived_codes"></a>
+<h4 id="combine-hospital-and-dors-codes-with-register_derived_codes">Combine hospital and DORS codes with
+<code>register_derived_codes()</code><a class="anchor" aria-label="anchor" href="#combine-hospital-and-dors-codes-with-register_derived_codes"></a>
 </h4>
-<p>The pre-derived-codes approach tried to be clever: register ICD-10
-codes once with <code>groups = list(ov, sv, dors)</code> and
-<code>combine_as = "osd"</code>, hoping to get one column covering all
-three sources. This failed silently because <code>add_diagnoses</code>
-searches for
+<p>One ICD-10 column that covers hospital data and DORS needs two
+different functions. <code>add_diagnoses</code> reads hospital data. It
+searches the
 <code>hdia</code>/<code>dia*</code>/<code>ekod*</code>/<code>icd*</code>
-columns – none of which exist in the cause-of-death registry. DORS uses
+columns, and the cause-of-death registry has none of them. DORS uses
 <code>ulorsak</code> (underlying cause) and <code>morsak*</code>
-(contributing causes). So <code>dors_e11</code> was always
-<code>FALSE</code> and <code>osd_e11 = ov_e11 | sv_e11 | FALSE</code>
-was effectively just hospital data. <strong>Deaths never contributed to
-outcomes.</strong></p>
-<p>The fix needs two different functions – <code>add_diagnoses</code>
-for hospital, <code>add_cods</code> for DORS – sharing one logical
-combined column. <code>combine_as</code> can’t express that: it reruns
-the SAME <code>fn</code> on rbind data. So we need a way to OR together
-columns that were produced by different registrations.</p>
-<p>Enter <code>register_derived_codes()</code>:</p>
+(contributing causes), which <code>add_cods</code> reads.</p>
+<p><code>combine_as</code> cannot combine the two, because it reruns the
+same <code>fn</code> on the rbind data.
+<code>register_derived_codes()</code> ORs together columns that
+different registrations produce:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Hospital (OV + SV) -&gt; ov_*, sv_*, os_*</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
@@ -398,29 +393,31 @@ columns that were produced by different registrations.</p>
 <span>  from  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"os"</span>, <span class="st">"dorsu"</span>, <span class="st">"dorsm"</span><span class="op">)</span>,</span>
 <span>  as    <span class="op">=</span> <span class="st">"osd"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>A derived entry doesn’t read rawbatch data at all. It iterates its
-own <code>codes</code> list, looks up
+<p>A derived entry does not read rawbatch data. It iterates its own
+<code>codes</code> list, looks up
 <code>get("&lt;from[1]&gt;_&lt;nm&gt;")</code>,
 <code>get("&lt;from[2]&gt;_&lt;nm&gt;")</code>, etc. on the skeleton,
-ORs them, and writes <code>&lt;as&gt;_&lt;nm&gt;</code>. Missing source
-columns raise a loud error. Because it runs in registration order during
-phase 2 sync, upstream primary entries are guaranteed to have been
-applied already.</p>
+ORs them, and writes <code>&lt;as&gt;_&lt;nm&gt;</code>. The phase 2
+sync runs the entries in registration order and does not reorder them.
+Register every primary entry that a derived entry reads before the
+derived entry. <code>$register_derived_codes()</code> does not check the
+order. A missing source column raises an error when the sync applies the
+derived entry.</p>
 </div>
 <div class="section level4">
 <h4 id="fingerprint-cascade-for-derived-entries">Fingerprint cascade for derived entries<a class="anchor" aria-label="anchor" href="#fingerprint-cascade-for-derived-entries"></a>
 </h4>
 <p>Derived entries fold the fingerprints of their upstream primary
-entries into their own fingerprint. That means editing ANY upstream
-field – <code>fn_args</code>, <code>groups</code>, even a single code
-pattern – cascades into derived replay without the user having to touch
-the derived entry. If you flip <code>cod_type = "underlying"</code> to
+entries into their own fingerprint. An edit to any upstream field
+(<code>fn_args</code>, <code>groups</code>, or one code pattern)
+therefore replays the derived entry, and you do not touch the derived
+entry. If you change <code>cod_type = "underlying"</code> to
 <code>cod_type = "both"</code> on the DORS primary, the next
-<code>process_skeletons()</code> run drops the derived entry’s columns
-and rewrites them from the new dorsu output, all on every batch, in
-order, without rebuilding anything else.</p>
-<p>Cascade is implemented in <code>code_registry_fingerprints()</code>
-as a two-pass walk:</p>
+<code>process_skeletons()</code> run drops the derived entry’s columns.
+It then rewrites them from the new dorsu output on every batch, in
+order, and rebuilds nothing else.</p>
+<p><code>code_registry_fingerprints()</code> implements the cascade as a
+two-pass walk:</p>
 <ol style="list-style-type: decimal">
 <li>Compute every primary entry’s fingerprint. It depends on
 <code>codes</code>, <code>label</code>, <code>groups</code>,
@@ -431,10 +428,6 @@ the primary fingerprints whose <code>groups</code> prefixes or
 <code>combine_as</code> appear in the derived’s <code>from</code>, and
 hash <code>(kind="derived", codes, from, as, upstream_fps)</code>.</li>
 </ol>
-<p>swereg 26.10.2 added the <code>fn</code> hash to that payload, so
-every primary fingerprint moves once. Every code entry re-applies on the
-next run, and every derived entry cascades with its upstream. This
-release rebuilds every skeleton anyway.</p>
 </div>
 </div>
 <div class="section level3">
@@ -476,16 +469,16 @@ release rebuilds every skeleton anyway.</p>
 <span><span class="co"># ... rawbatch creation (one-time) ...</span></span>
 <span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div>
-<p>The critical invariant: the framework, the trim, the code registry
-and the randvars steps must all be registered on <code>study</code>
-BEFORE <code>$process_skeletons()</code> is called. There is no callback
-argument on <code>$process_skeletons()</code> – the pipeline is declared
-on the study itself, not passed in per call.</p>
+<p>Register the framework, the trim, the code registry and the randvars
+steps on <code>study</code> BEFORE you call
+<code>$process_skeletons()</code>. <code>$process_skeletons()</code> has
+no callback argument. The study itself holds the pipeline, and no call
+passes it in.</p>
 </div>
 <div class="section level3">
 <h3 id="the-reload-clobber-anti-pattern">The reload-clobber anti-pattern<a class="anchor" aria-label="anchor" href="#the-reload-clobber-anti-pattern"></a>
 </h3>
-<p>A subtle failure mode when running the pipeline repeatedly:</p>
+<p>This pattern fails when you run the pipeline more than once:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># WRONG</span></span>
 <span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
@@ -495,11 +488,10 @@ on the study itself, not passed in per call.</p>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">meta_file</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/qs2_read.html">qs2_read</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">meta_file</span><span class="op">)</span>       <span class="co"># CLOBBER</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p>The reload path replaces the freshly-registered pipeline with the
-stale on-disk version, silently reverting any edits you just made. The
-fix is to absorb only the persisted <em>runtime</em> state (IDs,
-batches, groups_saved) into the fresh study without touching its
-config:</p>
+<p>The reload replaces the newly registered pipeline with the stale
+version on disk. It reverts any edits you just made, with no warning.
+Instead, copy only the persisted <em>runtime</em> state (IDs, batches,
+groups_saved) into the new study, and leave its config unchanged:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># CORRECT</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">meta_file</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
@@ -534,10 +526,12 @@ equal over a stale skeleton.</p>
 <span></span>
 <span><span class="co"># Errors loudly if any persisted skeleton is out of sync</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Downstream TTE consumers call
-<code>$assert_skeletons_consistent()</code> automatically near the top
-of <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, so you can’t
-accidentally build a plan against a half-upgraded skeleton set.</p>
+<p><code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> calls
+<code>$assert_skeletons_consistent()</code> near its start. The call
+stops when two batches have different pipeline identities. It also stops
+when the batches agree with each other but not with the current pipeline
+of the study. A plan therefore never reads a skeleton that an older
+pipeline built.</p>
 </div>
 <div class="section level3">
 <h3 id="expected-re-run-costs">Expected re-run costs<a class="anchor" aria-label="anchor" href="#expected-re-run-costs"></a>
@@ -592,49 +586,44 @@ downstream of it in the randvars sequence.</td>
 <p>An “edit one ICD-10 code” run re-applies that one entry and replays
 the whole randvars sequence. It never re-runs the framework, the trim,
 or the other code entries. On a national-registry pipeline with a
-multi-day first build, that is still far below a full rebuild.</p>
+multi-day first build, this costs much less than a full rebuild.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h3>
 <ul>
+<li>Per-batch skeleton files are <code>Skeleton</code> R6 objects. Each
+carries the framework hash, the trim identity, the phase order, the
+ordered randvars state, and the applied code registry fingerprint
+map.</li>
+<li>Each of the four phases has its own invalidation rule: framework
+(full rebuild on hash change), trim (full rebuild on identity change),
+codes (per-entry fingerprint diff), randvars (divergence-point rewind
+and replay).</li>
+<li>Only the phase-1b trim may delete rows. A code entry or a randvars
+step that changes the row count stops the run.</li>
+<li>Primary and derived code entries let you combine outputs from
+different registration functions into one logical column. Derived
+entries cascade upstream fingerprint changes automatically.</li>
 <li>
-<strong>Per-batch skeleton files are <code>Skeleton</code> R6
-objects.</strong> Each carries the framework hash, the trim identity,
-the phase order, the ordered randvars state, and the applied code
-registry fingerprint map.</li>
+<code>pipeline_hash()</code> lets any consumer check whether a
+skeleton matches the current pipeline.</li>
 <li>
-<strong>Four phases, each with its own invalidation rule</strong>:
-framework (full rebuild on hash change), trim (full rebuild on identity
-change), codes (per-entry fingerprint diff), randvars (divergence-point
-rewind and replay).</li>
-<li>
-<strong>Only the phase-1b trim may delete rows.</strong> A code
-entry or a randvars step that changes the row count stops the run.</li>
-<li>
-<strong>Primary and derived code entries</strong> let you combine
-outputs from different registration functions into one logical column.
-Derived entries cascade upstream fingerprint changes automatically.</li>
-<li>
-<strong>Provenance verification</strong> via
-<code>pipeline_hash()</code> lets any consumer check whether a skeleton
-matches the current pipeline.</li>
-<li>
-<strong><code>adopt_runtime_state_from()</code></strong> is the
-correct reload pattern – never clobber the freshly-registered pipeline
-by reassigning from disk.</li>
+<code>adopt_runtime_state_from()</code> is the correct reload
+pattern. Do not reassign the study from disk, because that overwrites
+the newly registered pipeline.</li>
 </ul>
-<p>For further context:</p>
+<p>See also:</p>
 <ul>
 <li>
-<code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code> – full method reference</li>
+<code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>: full method reference</li>
 <li>
-<code><a href="../reference/Skeleton.html">?Skeleton</a></code> – per-batch provenance object</li>
+<code><a href="../reference/Skeleton.html">?Skeleton</a></code>: per-batch provenance object</li>
 <li>
-<code><a href="../articles/skeleton-concept.html">vignette("skeleton-concept")</a></code> – why the person-week time
-grid</li>
+<code><a href="../articles/skeleton-concept.html">vignette("skeleton-concept")</a></code>: the reason for the
+person-week time grid</li>
 <li>
-<code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code> – variable-type
+<code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code>: variable-type
 conventions</li>
 </ul>
 </div>

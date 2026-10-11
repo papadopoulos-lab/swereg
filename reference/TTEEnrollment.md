@@ -19,15 +19,14 @@ Enrollment (the comparator draw + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing `ratio` to
 the constructor.
 
-`.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes what a
-stored field means, or adds a field its readers need. swereg 26.10.19
-raised it to `4L`. Schema 4 stores the fill summary in `fill_summary`
-and the propensity-model diagnostics in `ps_fit`, and this release reads
-both. swereg 26.15.0 raised it to `5L`, which gives the panel column
-`enrollment_period_id` its current name. This release raised it to `6L`,
-which names the calendar period of each row `period_id`.
+`.TTE_ENROLLMENT_SCHEMA_VERSION` is `7L`. It rises when a stored field
+changes meaning, or when a reader needs a new field. Schema 4 stores the
+fill summary in `fill_summary` and the propensity-model diagnostics in
+`ps_fit`. Schema 5 names the panel column `enrollment_period_id`. Schema
+6 names the calendar period of each row `period_id`. Schema 7 carries
+the `sparse_rule`.
 [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
-refuses every enrollment below schema 6 before this check runs. The
+refuses every enrollment below schema 7 before this check runs. The
 check refuses the same objects.
 
 ## Baseline treatment
@@ -964,8 +963,7 @@ before its boundary. `s5_prepare_outcome()` clips that row at the exact
 censoring week, and sets `person_weeks` to the clipped width. The
 deviated regime therefore contributes no person-time and no outcome, so
 the row cannot attribute a post-deviation outcome to the baseline
-treatment. Releases before 26.9.0 deleted the row instead, which threw
-away every valid week it held.
+treatment. The row keeps every valid week it holds.
 
 Per-protocol follow-up stops at the start of the first discordant week
 beyond tolerance, as it stops at the first absent week. That week is not

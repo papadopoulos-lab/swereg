@@ -11,7 +11,7 @@ cause of death, multiple causes, or both."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@ cause of death, multiple causes, or both."><meta property="og:image" content="ht
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -113,8 +114,10 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
 names in the skeleton; values are character vectors of code prefixes.</p>
 <p>Matching is <strong>prefix-only</strong> via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
 <code>"I21"</code> matches <code>"I21"</code>, <code>"I210"</code>, <code>"I219"</code>, etc.
-This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
-<code>[A-Z]</code> are taken literally and will not match anything.</p>
+This is not regex – characters such as <code>^</code>, <code>$</code> and
+<code>*</code> are taken literally and will not match anything. A bracket
+group such as <code>"I2[0-5]"</code> expands to its literal prefixes before
+the match.</p>
 <p>Prefixing a pattern with <code>"!"</code> turns it into a <em>row-level veto</em>:
 any source row whose code matches the (un-prefixed) pattern is masked
 out and does not contribute. The veto is applied per source row

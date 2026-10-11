@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -103,11 +104,11 @@
 <p>swereg uses R6 classes for every piece of state that lives across
 function calls. That state includes the skeleton pipeline, the per-batch
 skeleton files, the trial schema, the per-enrollment data container and
-the ETT grid builder. This vignette is a top-down tour of all six
-classes, and it walks through where each one fits in the data flow.</p>
-<p>It is deliberately high-level. For the framework, trim, codes and
-randvars mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>. For
-the full TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>. For the
+the ETT grid builder. This vignette describes all six classes and where
+each one fits in the data flow.</p>
+<p>It stays at a high level. For the framework, trim, codes and randvars
+mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>. For the full
+TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>. For the
 reference page of each class see <code><a href="../reference/CandidatePath.html">?CandidatePath</a></code>,
 <code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>, <code><a href="../reference/Skeleton.html">?Skeleton</a></code>,
 <code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>, <code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code> and
@@ -134,7 +135,7 @@ reference page of each class see <code><a href="../reference/CandidatePath.html"
 <td>An ordered list of filesystem paths where a directory might live on
 different hosts, plus a cached resolution.</td>
 <td><code>$new(candidates, label)</code></td>
-<td>No – cache cleared on save so objects are portable.</td>
+<td>No. swereg clears the cache on save, so objects are portable.</td>
 </tr>
 <tr class="even">
 <td><strong><code>RegistryStudy</code></strong></td>
@@ -212,13 +213,12 @@ that produce analysis files.</td>
                                      |  trial panel      |
                                      |  (data.table)     |
                                      +-------------------+</code></pre>
-<p>Two things to notice:</p>
+<p>The picture shows two properties:</p>
 <ol style="list-style-type: decimal">
 <li><p><code>CandidatePath</code> is a leaf: other classes <em>hold</em>
-instances of it, but <code>CandidatePath</code> doesn’t hold anything
-from swereg. That’s deliberate – it’s the single type for “multi-host
-directory” knowledge, so its resolution behavior cannot drift between
-users.</p></li>
+instances of it, but <code>CandidatePath</code> holds nothing from
+swereg. It is the single type for “multi-host directory” knowledge, so
+its resolution behavior cannot drift between users.</p></li>
 <li><p><code>TTEPlan</code> holds a reference back to the
 <code>RegistryStudy</code> it was built against. That reference tells a
 Loop 1 worker where the skeleton files live, through
@@ -230,14 +230,14 @@ starts.</p></li>
 <div class="section level3">
 <h3 id="the-data-flow-in-seven-steps">The data flow, in seven steps<a class="anchor" aria-label="anchor" href="#the-data-flow-in-seven-steps"></a>
 </h3>
-<p>Data flows through five different shapes in a full swereg pipeline.
-Each shape has a name, an owner, and a position in the workflow.</p>
+<p>Data flows through seven shapes in a full swereg pipeline. Each shape
+has a name, an owner, and a position in the workflow.</p>
 <div class="section level4">
 <h4 id="raw-registry-files-bytes-on-disk">1. Raw registry files (bytes on disk)<a class="anchor" aria-label="anchor" href="#raw-registry-files-bytes-on-disk"></a>
 </h4>
 <p>The original <code>.txt</code> / <code>.sas7bdat</code> /
 <code>.csv</code> files from SCB, SOS, Riksstroke, etc. swereg does not
-own these – they sit in <code>study$data_raw_dir</code>, which is a
+own these. They are in <code>study$data_raw_dir</code>, which is a
 <code>CandidatePath</code>-resolved location. The runner script reads
 them with <code><a href="../reference/fread_raw.html">swereg::fread_raw()</a></code> and hands them to
 <code>RegistryStudy$save_rawbatch()</code>.</p>
@@ -246,7 +246,7 @@ them with <code><a href="../reference/fread_raw.html">swereg::fread_raw()</a></c
 <h4 id="rawbatches-per-group-per-batch-qs2-files">2. Rawbatches (per-group-per-batch qs2 files)<a class="anchor" aria-label="anchor" href="#rawbatches-per-group-per-batch-qs2-files"></a>
 </h4>
 <p>A <strong>rawbatch</strong> is the intermediate form between raw
-registry files and skeletons. It keeps one giant
+registry files and skeletons. It keeps one large
 <code>inpatient.txt</code> out of memory.
 <code>$save_rawbatch("inpatient", sv)</code> splits the inpatient data
 by person-batch, which is the set of person IDs assigned to batch 1,
@@ -258,13 +258,12 @@ batch 2, and so on. It then writes one <code>.qs2</code> file per
   001_rawbatch_lmed.qs2
   ...
   150_rawbatch_other.qs2</code></pre>
-<p>Rawbatches are <strong>not an R6 class</strong>. They’re plain
-data.tables serialized with qs2, accessed via
-<code>study$load_rawbatch(batch_number)</code> which returns a named
-list of data.tables keyed by group name. They exist as a separate step
-for memory. Each group is loaded and processed separately, so peak RAM
-during skeleton processing equals <code>max(group_size)</code> and not
-<code>sum(all_groups)</code>.</p>
+<p>Rawbatches are not an R6 class. They are plain data.tables serialized
+with qs2. <code>study$load_rawbatch(batch_number)</code> reads them and
+returns a named list of data.tables keyed by group name. They exist as a
+separate step for memory. Each group is loaded and processed separately,
+so peak RAM during skeleton processing equals
+<code>max(group_size)</code> and not <code>sum(all_groups)</code>.</p>
 <p><code>RegistryStudy</code> owns the rawbatch directory via its
 <code>data_rawbatch_cp</code> field (a <code>CandidatePath</code>) and
 exposes <code>$save_rawbatch()</code>, <code>$load_rawbatch()</code>,
@@ -274,8 +273,8 @@ and <code>$delete_rawbatches()</code> methods.</p>
 <h4 id="skeletons-per-batch-skeleton-r6-objects">3. Skeletons (per-batch Skeleton R6 objects)<a class="anchor" aria-label="anchor" href="#skeletons-per-batch-skeleton-r6-objects"></a>
 </h4>
 <p>A <strong>skeleton</strong> is the person-week time grid for one
-batch, with derived columns. This is where most of the interesting state
-lives. Each <code>skeleton_NNN.qs2</code> file is a serialized
+batch, with derived columns. Most of the pipeline state is in the
+skeleton. Each <code>skeleton_NNN.qs2</code> file is a serialized
 <code>Skeleton</code> R6 object carrying:</p>
 <ul>
 <li>
@@ -286,11 +285,12 @@ that built the base grid.</li>
 <li>
 <code>trim_fn_hash</code>: the identity of the phase-1b trim that
 deleted rows from that grid. A sentinel when the study registers no
-trim, and <code>NULL</code> on a skeleton written before the trim phase
-existed.</li>
+trim, and <code>NULL</code> when the skeleton file carries no trim
+identity.</li>
 <li>
-<code>phase_order</code>: the order the phases ran in, so a swereg
-release that reorders them rebuilds instead of reusing the file.</li>
+<code>phase_order</code>: the order the phases ran in. When the
+current pipeline runs the phases in a different order, swereg rebuilds
+the file and does not reuse it.</li>
 <li>
 <code>applied_registry</code>: a fingerprint-keyed map of the
 applied phase-2 code entries, with the metadata needed to recompute
@@ -313,15 +313,16 @@ normal lifecycle is:</p>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div>
 <p><code>RegistryStudy$process_skeletons()</code> orchestrates the four
 phases across all batches, reading and writing <code>Skeleton</code>
-objects one per batch. For the full story of how phase invalidation
-works see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>.</p>
+objects one per batch. <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>
+describes how phase invalidation works.</p>
 </div>
 <div class="section level4">
 <h4 id="person-week-panels-data-table-inside-a-tteenrollment">4. Person-week panels (data.table inside a TTEEnrollment)<a class="anchor" aria-label="anchor" href="#person-week-panels-data-table-inside-a-tteenrollment"></a>
 </h4>
-<p>At the start of Loop 1, the plan loads the right subset of skeletons
-and hands a filtered person-week data.table to a fresh
-<code>TTEEnrollment</code> object:</p>
+<p>In Loop 1 sub-step s1d, each worker reads one skeleton and hands a
+filtered person-week data.table for one enrollment to a fresh
+<code>TTEEnrollment</code> object. Sub-step s1e then binds the panels of
+all skeletons of that enrollment into one:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/TTEEnrollment.html">TTEEnrollment</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  data    <span class="op">=</span> <span class="va">filtered_person_week_dt</span>,</span>
@@ -347,7 +348,7 @@ incidence density sampling within each enrollment period. It takes
 <code>comparator_to_intervention_ratio</code> times that period’s count
 of intervention individuals, or every remaining comparator when the
 enrollment period holds fewer. The draw is seeded and stratified by the
-enrollment period, it reads no other variable, and it forms no matched
+enrollment period. It reads no other variable, and it forms no matched
 set.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "trial"</span></span>
@@ -380,8 +381,8 @@ column, fits IPCW-PP, combines weights, and saves the result as
 <span><span class="co"># enrollment$enrollment_stage -&gt; "analysis_ready"</span></span>
 <span><span class="co"># analysis_weight_pp = ipw * ipcw_pp (not truncated)</span></span>
 <span><span class="co"># analysis_weight_pp_trunc = analysis_weight_pp truncated at 1/99 percentiles</span></span></code></pre></div>
-<p>One <code>file_analysis</code> per row of <code>plan$ett</code>. This
-is where estimation happens.</p>
+<p>Loop 2 writes one <code>file_analysis</code> per row of
+<code>plan$ett</code>. Estimation reads these files.</p>
 </div>
 <div class="section level4">
 <h4 id="estimates-numbers">7. Estimates (numbers)<a class="anchor" aria-label="anchor" href="#estimates-numbers"></a>
@@ -393,8 +394,8 @@ is where estimation happens.</p>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span></code></pre></div>
 <p><code>$irr()</code>/<code>$rates()</code> wrap
 <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm</a></code> and <code>$survival_curve()</code> computes
-a weighted discrete-time survival curve from the panel. They apply the
-weight column correctly; <code>$irr()</code> also includes the
+a weighted discrete-time survival curve from the panel. All three apply
+the weight column. <code>$irr()</code> also includes the
 trial-as-covariate term and returns effect estimates with person-level
 clustered standard errors.</p>
 </div>
@@ -403,13 +404,13 @@ clustered standard errors.</p>
 <h3 id="class-responsibilities-in-detail">Class responsibilities in detail<a class="anchor" aria-label="anchor" href="#class-responsibilities-in-detail"></a>
 </h3>
 <div class="section level4">
-<h4 id="candidatepath-one-thing-only">
-<code>CandidatePath</code> – one thing only<a class="anchor" aria-label="anchor" href="#candidatepath-one-thing-only"></a>
+<h4 id="candidatepath-portable-filesystem-paths">
+<code>CandidatePath</code>: portable filesystem paths<a class="anchor" aria-label="anchor" href="#candidatepath-portable-filesystem-paths"></a>
 </h4>
 <p><code>CandidatePath</code> owns an ordered list of filesystem paths
 and caches the first one that exists on the current host. The cache is
-host-specific, and swereg deliberately does not persist it across save
-and load. [invalidate_candidate_paths()] walks an R6 object tree before
+host-specific, and swereg does not persist it across save and load.
+[invalidate_candidate_paths()] walks an R6 object tree before
 serialization and clears every <code>CandidatePath</code> cache it
 finds. A <code>registrystudy.qs2</code> written on a Linux host
 therefore reads correctly on a Windows host, by re-walking its candidate
@@ -434,15 +435,15 @@ pass a character vector to
 constructor wraps it internally. The active bindings
 <code>study$data_rawbatch_dir</code>,
 <code>study$data_skeleton_dir</code>, etc. call <code>$resolve()</code>
-on the backing <code>CandidatePath</code> so plain character access
-“just works”.</p>
+on the backing <code>CandidatePath</code>, so plain character access
+returns the resolved path.</p>
 </div>
 <div class="section level4">
-<h4 id="registrystudy-the-orchestrator">
-<code>RegistryStudy</code> – the orchestrator<a class="anchor" aria-label="anchor" href="#registrystudy-the-orchestrator"></a>
+<h4 id="registrystudy-the-skeleton-pipeline">
+<code>RegistryStudy</code>: the skeleton pipeline<a class="anchor" aria-label="anchor" href="#registrystudy-the-skeleton-pipeline"></a>
 </h4>
-<p><code>RegistryStudy</code> is the top-level state-holder for the
-skeleton pipeline. Its responsibilities split into four buckets:</p>
+<p><code>RegistryStudy</code> holds the top-level state of the skeleton
+pipeline. Its responsibilities fall into four groups:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Portable directories</strong> via <code>CandidatePath</code>
@@ -465,44 +466,41 @@ the run.</li>
 <code>pipeline_hash</code>,
 <code>assert_skeletons_consistent</code>).</li>
 </ol>
-<p><code>RegistryStudy$process_skeletons()</code> is the method that
-ties everything together. For each batch it loads the rawbatch data,
-runs the four phases with incremental invalidation, and saves a new
-<code>Skeleton</code> object to <code>data_skeleton_dir</code>.
-Parallelism is via a batch-runner worker pool when
-<code>n_workers &gt; 1</code>.</p>
+<p><code>RegistryStudy$process_skeletons()</code> runs the pipeline. For
+each batch it loads the rawbatch data, runs the four phases with
+incremental invalidation, and saves a new <code>Skeleton</code> object
+to <code>data_skeleton_dir</code>. When <code>n_workers &gt; 1</code>, a
+batch-runner worker pool processes the batches in parallel.</p>
 </div>
 <div class="section level4">
-<h4 id="skeleton-per-batch-provenance-data">
-<code>Skeleton</code> – per-batch provenance + data<a class="anchor" aria-label="anchor" href="#skeleton-per-batch-provenance-data"></a>
+<h4 id="skeleton-data-and-provenance-of-one-batch">
+<code>Skeleton</code>: data and provenance of one batch<a class="anchor" aria-label="anchor" href="#skeleton-data-and-provenance-of-one-batch"></a>
 </h4>
 <p><code>Skeleton</code> is the on-disk unit produced by
-<code>RegistryStudy$process_skeletons()</code>. One file per batch. The
-class is deliberately simple: a <code>data</code> field holding a
-data.table and five provenance fields recording what produced it. The
-methods (<code>sync_with_registry</code>, <code>sync_randvars</code>,
+<code>RegistryStudy$process_skeletons()</code>, one file per batch. The
+class holds a <code>data</code> field with a data.table and five
+provenance fields that record what produced it. The methods
+(<code>sync_with_registry</code>, <code>sync_randvars</code>,
 <code>apply_code_entry</code>, <code>drop_code_entry</code>,
 <code>refresh_code_entry_counts</code>, <code>pipeline_hash</code>) are
 invoked by <code>RegistryStudy</code> during processing and can also be
 called manually for inspection or debugging.</p>
-<p>This is not a plain <code>data.table</code>, because the provenance
-is load-bearing. Without it, only a full rebuild answers “is this file
-in sync with the current pipeline?”. With it,
+<p>The skeleton is an R6 object and not a plain <code>data.table</code>,
+because swereg needs the provenance. Without it, only a full rebuild
+answers “is this file in sync with the current pipeline?”. With it,
 <code>sk$pipeline_hash() == study$pipeline_hash()</code> is a cheap
 check that <code>RegistryStudy$assert_skeletons_consistent()</code> runs
 across every persisted batch before Loop 1 consumes them.</p>
 </div>
 <div class="section level4">
 <h4 id="ttedesign-the-trial-schema">
-<code>TTEDesign</code> – the trial schema<a class="anchor" aria-label="anchor" href="#ttedesign-the-trial-schema"></a>
+<code>TTEDesign</code>: the trial schema<a class="anchor" aria-label="anchor" href="#ttedesign-the-trial-schema"></a>
 </h4>
-<p><code>TTEDesign</code> holds column names. That’s it. What’s the
-person ID column called? What’s the treatment column? What are the
-confounder columns? What are the time variables
-(<code>time_treatment_var</code>, <code>time_outcome_var</code>)? What’s
-the eligibility variable?</p>
-<p>Keeping this as a separate class is a discipline choice. Enrollment
-data gets passed through many methods
+<p><code>TTEDesign</code> holds column names and nothing else. It names
+the person ID column, the treatment column, the confounder columns, the
+time variables (<code>time_treatment_var</code>,
+<code>time_outcome_var</code>) and the eligibility variable.</p>
+<p>Enrollment data passes through many methods
 (<code>$s1_impute_confounders</code>, <code>$s2_ipw</code>,
 <code>$s4_prepare_for_analysis</code>, <code>$rates</code>,
 <code>$irr</code>, <code>$survival_curve</code>), and every one of them
@@ -518,10 +516,9 @@ enrollment; <code>TTEEnrollment</code> instances reference the same
 </div>
 <div class="section level4">
 <h4 id="tteenrollment-the-workflow-container">
-<code>TTEEnrollment</code> – the workflow container<a class="anchor" aria-label="anchor" href="#tteenrollment-the-workflow-container"></a>
+<code>TTEEnrollment</code>: the workflow container<a class="anchor" aria-label="anchor" href="#tteenrollment-the-workflow-container"></a>
 </h4>
-<p><code>TTEEnrollment</code> is where most of the TTE complexity lives.
-It holds:</p>
+<p><code>TTEEnrollment</code> holds most of the TTE workflow state:</p>
 <ul>
 <li>
 <code>$data</code>: the data.table currently attached (person-week
@@ -531,19 +528,19 @@ or trial or analysis-ready, depending on lifecycle stage).</li>
 describing the schema.</li>
 <li>
 <code>$data_level</code>: <code>"person_week"</code> or
-<code>"trial"</code> – tracks the major shape transition during
+<code>"trial"</code>. It tracks the major shape transition during
 enrollment.</li>
 <li>
 <code>$enrollment_stage</code>: <code>"pre_enrollment"</code> /
-<code>"enrolled"</code> / <code>"analysis_ready"</code> – a read-only
-active binding. It reads <code>"pre_enrollment"</code> while
+<code>"enrolled"</code> / <code>"analysis_ready"</code>. It is a
+read-only active binding. It reads <code>"pre_enrollment"</code> while
 <code>$data_level</code> is <code>"person_week"</code>,
 <code>"analysis_ready"</code> once <code>$steps_completed</code> holds
 <code>"prepare_outcome"</code>, and <code>"enrolled"</code>
 otherwise.</li>
 </ul>
-<p>Its public methods fall into numbered stages so the intended ordering
-is obvious:</p>
+<p>Its public methods carry stage numbers that give the intended
+order:</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Loop 1</span></span>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">s1_impute_confounders</span>()          <span class="co"># impute_fn; default hot-deck draw</span></span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">s1b_fill_followup_confounders</span>()  <span class="co"># carry forward through follow-up</span></span>
@@ -571,8 +568,8 @@ and mutates nothing. <code>$survival_curve()</code> also saves a plot
 when <code>save_path</code> is given.</p>
 </div>
 <div class="section level4">
-<h4 id="tteplan-the-ett-grid-two-loops">
-<code>TTEPlan</code> – the ETT grid + two loops<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-two-loops"></a>
+<h4 id="tteplan-the-ett-grid-and-two-loops">
+<code>TTEPlan</code>: the ETT grid and two loops<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-and-two-loops"></a>
 </h4>
 <p><code>TTEPlan</code> is the top-level container for a target trial
 emulation project. It owns:</p>
@@ -590,15 +587,27 @@ columns).</li>
 <li>Output directories via <code>CandidatePath</code>
 (<code>dir_tteplan</code>, <code>dir_results</code>).</li>
 </ul>
-<p>Its two big methods drive the parallel workflow:</p>
+<p>Two methods run the workflow:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">s1_generate_enrollments_and_ipw</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
 <span><span class="co"># Loop 1: enroll + collapse + impute + IPW + truncate + save</span></span>
-<span><span class="co">#         One worker subprocess per enrollment_id.</span></span>
+<span><span class="co">#         Five sub-steps. Each item runs in a fresh worker subprocess:</span></span>
+<span><span class="co">#         s1a  one item per skeleton,               n_workers at a time</span></span>
+<span><span class="co">#         s1b  one item, only when the spec has a sparse_rule</span></span>
+<span><span class="co">#         s1c  one item per enrollment,             one at a time</span></span>
+<span><span class="co">#         s1d  one item per enrollment x skeleton,  n_workers at a time</span></span>
+<span><span class="co">#         s1e  one item per enrollment,             one at a time</span></span>
 <span></span>
-<span><span class="va">plan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">plan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
 <span><span class="co"># Loop 2: per-ETT outcome prep + IPCW-PP + weight combine + save</span></span>
-<span><span class="co">#         Sequential in the main process.</span></span></code></pre></div>
+<span><span class="co">#         One worker subprocess per ETT and estimand (pp, itt),</span></span>
+<span><span class="co">#         n_workers at a time (default 1L).</span></span></code></pre></div>
+<p>In Loop 1, <code>n_workers</code> sets how many s1a and s1d items run
+at the same time. It also sets the threads of each worker: the core
+count divided by <code>n_workers</code>, rounded down, and at least 1.
+The default is <code>default_n_workers("s1")</code>. That is the option
+<code>swereg.n_workers.s1</code>, then the environment variable
+<code>SWEREG_N_WORKERS_S1</code>, then 1.</p>
 <p>Plus helpers: <code>$print_target_checklist()</code> for reporting,
 <code>$save(dir)</code> / <code>TTEPlan$load(dir)</code> for
 persistence, <code>$length()</code> / <code>$[[</code> S3 methods for
@@ -608,8 +617,8 @@ ETT grid access.</p>
 <div class="section level3">
 <h3 id="where-the-classes-interact">Where the classes interact<a class="anchor" aria-label="anchor" href="#where-the-classes-interact"></a>
 </h3>
-<p>Here’s the full pipeline from raw files to ETT estimates, with class
-ownership highlighted at each step.</p>
+<p>The diagram below shows the pipeline from raw files to ETT estimates,
+and the class that owns each step.</p>
 <pre><code>       [raw registry files]
               |
               v
@@ -633,14 +642,19 @@ tteplan_from_spec_and_registrystudy(     // reads spec + study, builds TTEPlan
        [TTEPlan with ett grid]
               |
               v
-plan$s1_generate_enrollments_and_ipw()   // Loop 1 in parallel
-              |                          // creates one TTEEnrollment per
-              v                          // enrollment_id, runs s1-s4
+plan$s1_generate_enrollments_and_ipw()   // Loop 1: s1a and s1d run
+              |                          // n_workers at a time. s1d builds
+              |                          // one TTEEnrollment per enrollment
+              |                          // x skeleton. s1e binds them per
+              |                          // enrollment_id and runs s1, s1b,
+              v                          // s2 and s3
        [file_imp per enrollment_id]
               |
               v
-plan$s2_generate_analysis_files_and_    // Loop 2 sequential
-ipcw_pp()                                // reloads TTEEnrollment, runs s5
+plan$s2_generate_analysis_files_and_    // Loop 2: one subprocess per ETT
+ipcw_pp()                                // and estimand, n_workers at a time;
+              |                          // reloads TTEEnrollment, runs s4,
+              |                          // which runs s5, then s6 for pp
               |
               v
        [file_analysis per ETT]
@@ -652,7 +666,7 @@ enrollment$survival_curve(weight_col = ...)
               |
               v
        [estimates]</code></pre>
-<p>Every box in that diagram is either a class method call or a
+<p>Every step in the diagram above is either a class method call or a
 persisted file. Rawbatches and skeletons are the only persisted forms
 between raw data and the TTE workflow. <code>file_imp</code> and
 <code>file_analysis</code> are persisted <code>TTEEnrollment</code>
@@ -664,35 +678,32 @@ objects. The rest is in-memory state during a pipeline run.</p>
 <p>End users of swereg <em>construct</em>:</p>
 <ul>
 <li>
-<code>CandidatePath</code> – essentially never; pass character
-vectors to <code>RegistryStudy$new()</code> instead and let it wrap
-internally.</li>
+<code>CandidatePath</code>: almost never. Pass character vectors to
+<code>RegistryStudy$new()</code>, and it wraps them internally.</li>
 <li>
-<code>RegistryStudy</code> – once per data-generation project, at
-the top of the runner script.</li>
+<code>RegistryStudy</code>: once per data-generation project, at the
+top of the runner script.</li>
 </ul>
 <p>End users of swereg <strong>never construct</strong>:</p>
 <ul>
 <li>
-<code>Skeleton</code> – produced by
-<code>process_skeletons()</code>; accessed via
-<code>study$load_skeleton(i)</code>.</li>
+<code>Skeleton</code>: produced by <code>process_skeletons()</code>,
+and read with <code>study$load_skeleton(i)</code>.</li>
 <li>
-<code>TTEDesign</code> – constructed by
+<code>TTEDesign</code>: constructed by
 <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> from the spec
 YAML.</li>
 <li>
-<code>TTEEnrollment</code> – constructed by the Loop 1 / Loop 2
+<code>TTEEnrollment</code>: constructed by the Loop 1 / Loop 2
 workers.</li>
 <li>
-<code>TTEPlan</code> – constructed by
+<code>TTEPlan</code>: constructed by
 <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>.</li>
 </ul>
-<p>This is intentional. The classes are plumbing. The user-facing
-surface is the runner script, the spec YAML and the per-ETT analysis
-loop. You construct a <code>TTEEnrollment</code> by hand when you debug
-something or write a test. Both are legitimate, and neither is the main
-workflow.</p>
+<p>The classes are internal machinery. The user works with the runner
+script, the spec YAML and the per-ETT analysis loop. You construct a
+<code>TTEEnrollment</code> by hand when you debug something or write a
+test. Neither is the main workflow.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
@@ -716,7 +727,7 @@ workflow.</p>
 </ul>
 </li>
 <li>
-<strong>Rawbatches are not a class</strong>. They’re per-batch
+<strong>Rawbatches are not a class</strong>. They are per-batch
 per-group qs2 files managed by
 <code>RegistryStudy$save_rawbatch()</code> and
 <code>$load_rawbatch()</code>. They bound peak RAM by the largest group,
@@ -725,7 +736,7 @@ and not by the sum of all groups.</li>
 <strong>Data flow</strong>: raw files → rawbatches → skeletons →
 person-week panel → trial panel → <code>file_imp</code> →
 <code>file_analysis</code> → estimates. At most steps, one class owns
-the transformation; at the edges (raw files, persisted qs2), files are
+the transformation. At the edges (raw files, persisted qs2), files are
 plain data.tables.</li>
 <li>
 <strong>End users construct <code>RegistryStudy</code>
@@ -734,20 +745,20 @@ once</strong>. Everything else is constructed by swereg internals.</li>
 <p>For next steps:</p>
 <ul>
 <li>
-<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> – how
-<code>RegistryStudy</code> and <code>Skeleton</code> collaborate during
-<code>$process_skeletons()</code>.</li>
+<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>: how
+<code>RegistryStudy</code> and <code>Skeleton</code> work together
+during <code>$process_skeletons()</code>.</li>
 <li>
-<code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> – how <code>TTEDesign</code>,
-<code>TTEEnrollment</code>, and <code>TTEPlan</code> collaborate during
-Loop 1 and Loop 2.</li>
+<code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>: how <code>TTEDesign</code>,
+<code>TTEEnrollment</code>, and <code>TTEPlan</code> work together
+during Loop 1 and Loop 2.</li>
 <li>
-<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to reference
+<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code>: mapping to reference
 papers.</li>
 <li>
 <code><a href="../reference/CandidatePath.html">?CandidatePath</a></code>, <code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>,
 <code><a href="../reference/Skeleton.html">?Skeleton</a></code>, <code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>,
-<code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code>, <code><a href="../reference/TTEPlan.html">?TTEPlan</a></code> – full method
+<code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code>, <code><a href="../reference/TTEPlan.html">?TTEPlan</a></code>: full method
 reference.</li>
 </ul>
 </div>

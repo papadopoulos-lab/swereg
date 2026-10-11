@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,6 +49,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -168,7 +169,15 @@ boundaries.</p>
 
 
     <dt><code>ett</code></dt>
-<dd><p>NULL or a data.table with per-ETT columns.</p></dd>
+<dd><p>NULL or a data.table with per-ETT columns. The column
+<code>s1_run_id</code> holds the id of the s1 run whose files s2 last wrote
+the analysis files from. It is absent before the first s2, and <code>NA</code>
+while s2 writes or after an s2 that failed. A later s1 run does not
+change it. s3 refuses an ETT whose value differs from the current
+<code>s1_run_id</code> of the plan. The column <code>s2_run_id</code> holds the id of the
+s2 run that wrote the analysis files. It follows the same rules as
+<code>s1_run_id</code>, and it changes on every s2 run. s3 copies it into each
+result it stores.</p></dd>
 
 
     <dt><code>skeleton_files</code></dt>
@@ -250,6 +259,62 @@ called to refresh cosmetic labels.</p></dd>
     <dt><code>spec_reload_skipped_diffs</code></dt>
 <dd><p>Character vector of structural spec
 differences that <code>$reload_spec()</code> chose not to apply, or NULL.</p></dd>
+
+
+    <dt><code>sparse_decision</code></dt>
+<dd><p>The frozen decision of the spec's <code>sparse_rule</code>,
+or NULL when the spec has none or s1 has not run. s1b writes it. Read
+it through <code>$get_sparse_decision()</code>. It is a data.table with one row
+per candidate, in the order of <code>sparse_rule$candidates</code>:</p><dl><dt>variable, label</dt>
+<dd><p>The computed confounder and its name.</p></dd>
+
+<dt><code>n_&lt;enrollment&gt;_intervention</code>, <code>n_&lt;enrollment&gt;_comparator</code></dt>
+<dd><p>The
+count of persons who hold the condition at baseline, per driving
+enrollment and arm. A person holds it when one of her eligible
+person-trials in that arm holds it at the recruiting week. The
+same person can count in both arms.</p></dd>
+
+<dt>smallest, smallest_enrollment, smallest_arm</dt>
+<dd><p>The smallest of
+those counts, and the enrollment and arm that hold it.</p></dd>
+
+<dt>threshold, decided_by</dt>
+<dd><p><code>min_n</code>, and the driving enrollments.</p></dd>
+
+<dt>decision</dt>
+<dd><p><code>"excluded"</code> when <code>smallest</code> is below <code>threshold</code>,
+and <code>"adjusted"</code> otherwise.</p></dd>
+
+<dt>decided_at</dt>
+<dd><p>When s1b ran.</p></dd>
+
+
+</dl><p>The decision is made from baseline counts in the eligible
+population, before the comparator draw and without follow-up
+outcomes.</p></dd>
+
+
+    <dt><code>sparse_rule_hash</code></dt>
+<dd><p>The hash of the <code>sparse_rule</code> that made
+<code>sparse_decision</code>, or NULL. s1c, s2 and s3 stop when the hash of the
+rule in <code>spec</code> differs from it. <code>$export()</code>, <code>$export_tables()</code> and
+<code>$print_target_checklist()</code> stop on that difference too, when the
+plan holds a decision or a stored result. <code>$excel_spec_summary()</code> and
+<code>$print_spec_summary()</code> then show the rule as not decided yet.</p></dd>
+
+
+    <dt><code>s1_run_id</code></dt>
+<dd><p>The id of the last s1 run when that run completed,
+and NULL otherwise.
+The id is a digest of <code>sparse_decision</code> and <code>sparse_rule_hash</code>, then
+a token unique to the run. s1 sets it to NULL after its input checks,
+and drops <code>results_enrollment</code> and <code>results_ett</code> at the same point.
+s1 sets the id after s1e writes every output. s2 and s3 stop unless
+the id matches the current decision. s2 copies the id into the
+<code>s1_run_id</code> column of <code>ett</code>, and s3 into each result it stores.
+<code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop
+when a stored result carries another id.</p></dd>
 
 
     <dt><code>spec_version</code></dt>
@@ -372,6 +437,7 @@ inside <code>self$dir_results</code>, where <code>&lt;version&gt;</code> is <cod
 <li><p><a href="#method-TTEPlan-reload_spec"><code>TTEPlan$reload_spec()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-initialize"><code>TTEPlan$new()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-check_version"><code>TTEPlan$check_version()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_sparse_decision"><code>TTEPlan$get_sparse_decision()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-save"><code>TTEPlan$save()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-clone"><code>TTEPlan$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEPlan-print_target_checklist"></a><div class="section">
@@ -445,8 +511,8 @@ The MDE is a naive Poisson calculation on the unweighted counts, at the
 study confidence level. It ignores the weights and the repeated
 contributions of one person. So it can differ from the detectable effect
 of the weighted estimator with person-clustered standard errors. It is not
-observed power (Hoenig and Heisey 2001). A plan analysed before 27.2.0
-stored no unweighted counts, and its three MDE cells are blank.</p></dd>
+observed power (Hoenig and Heisey 2001). A stored result without
+unweighted counts gives three blank MDE cells.</p></dd>
 
 
 </dl><p></p></div>
@@ -597,7 +663,12 @@ and the store can change before s1 runs. <code>FALSE</code> skips it.</p></dd>
 <p>Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
 For each ETT, loads the imputed enrollment file, calls
 <code>$s4_prepare_for_analysis()</code> (outcome + IPCW-PP + weight combination +
-truncation), and saves the analysis-ready file.</p><div class="section">
+truncation), and saves the analysis-ready file.</p>
+<p>s2 rewrites the analysis files of every ETT, so it drops the stored s3
+results before it writes. It stamps each ETT with a new s2 run id in the
+<code>s2_run_id</code> column of <code>$ett</code>. s3 copies that id into each result it
+stores. <code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code>
+refuse a stored result whose s2 run id is not the current one of its ETT.</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span></span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -739,7 +810,13 @@ are auto-partitioned as <code>floor(detectCores() / n_workers)</code>.</p></dd>
 <p>Print a target trial specification summary.
 Console-friendly summary derived from the study specification stored
 on this plan. When <code>$code_registry</code> is available, variable names are
-shown in red and matched code details in blue (ANSI colors).</p><div class="section">
+shown in red and matched code details in blue (ANSI colors).
+A spec with a <code>sparse_rule</code> also prints the rare-condition rule: <code>min_n</code>,
+the driving enrollments, the candidates and the decision. Before s1 the
+decision reads <code>not decided yet (s1 has not run)</code>. A stored decision prints
+only when the rule in <code>$spec</code> still hashes to <code>$sparse_rule_hash</code> and s1
+completed for it. Otherwise the decision reads
+<code>not decided yet (s1 has not completed for this rule)</code>.</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print_spec_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -1010,6 +1087,10 @@ many it skipped. The method warns when an enrollment it decides to
 recompute has no analysis file on disk. That enrollment counts as neither.
 A skipped enrollment never reaches that check, so a current enrollment
 raises no warning about a missing file.</p>
+<p>The method stops when an ETT of a named enrollment does not carry the s2
+stamp of the current s1 run, as <code>$s3_analyze()</code> does. Its analysis files
+then do not come from the current s1 run. A recomputed panel takes the s1
+and s2 run stamps of the analysis file it reads.</p>
 <p><code>$export_tables()</code> calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
@@ -1266,17 +1347,31 @@ Present when the plan was built from a spec.</p></dd>
 <p></p><hr><a id="method-TTEPlan-excel_spec_summary"></a><div class="section">
 <h3 id="tteplan-excel-spec-summary-"><code>TTEPlan$excel_spec_summary()</code><a class="anchor" aria-label="anchor" href="#tteplan-excel-spec-summary-"></a></h3>
 <p>Export the study specification to a standalone Excel file.</p>
-<p>Writes a formatted summary of the spec (design, criteria, confounders,
-outcomes, enrollments) with ICD-10/ATC code annotations from the code
-registry. No analysis results required.</p><div class="section">
+<p>Writes the preregistration sheets of the plan. The Study Specification
+sheet summarises the spec (design, criteria, confounders, outcomes,
+enrollments) with ICD-10/ATC code annotations from the code registry. The
+Target trial protocol sheet documents one ETT. The Sparse conditions sheet
+is written only when the plan holds a current sparse decision: the rule in
+<code>$spec</code> still hashes to <code>$sparse_rule_hash</code>, and s1 completed for it.
+Without one, the Study Specification sheet reads the rule as not decided
+yet.
+Each sheet holds the same cells as the sheet of that name that
+<code>$export_tables()</code> writes for the same plan state and the same
+<code>protocol_ett_id</code>. No sheet reads an s2 or s3 result, so the method runs
+straight after s0.</p><div class="section">
 <h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span>, protocol_ett_id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
 <dd><p>Optional output path override. If <code>NULL</code> (default), writes
 to <code>self$spec_xlsx</code> (that is, <code>spec_&lt;version&gt;.xlsx</code> inside
 <code>self$dir_results</code>, where <code>&lt;version&gt;</code> is <code>self$spec_version</code>).</p></dd>
+
+      <dt><code>protocol_ett_id</code></dt>
+<dd><p>Optional ETT id that the Target trial protocol
+sheet documents. <code>NULL</code> (default) takes the first ETT of the grid. An id
+the plan does not hold warns and falls back to the first ETT.</p></dd>
 
 
 </dl><p></p></div>
@@ -1356,6 +1451,19 @@ actionable migration message.</p>
 
 </div>
 
+<p></p><hr><a id="method-TTEPlan-get_sparse_decision"></a><div class="section">
+<h3 id="tteplan-get-sparse-decision-"><code>TTEPlan$get_sparse_decision()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-sparse-decision-"></a></h3>
+<p>Read the frozen decision of the spec's <code>sparse_rule</code>.</p><div class="section">
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_sparse_decision</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<p>A copy of the <code>sparse_decision</code> field, or NULL when the spec has
+no <code>sparse_rule</code> or s1 has not run.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-TTEPlan-save"></a><div class="section">
 <h3 id="tteplan-save-"><code>TTEPlan$save()</code><a class="anchor" aria-label="anchor" href="#tteplan-save-"></a></h3>
 <p>Save the plan to disk as <code>tteplan.qs2</code>.</p>
@@ -1367,7 +1475,7 @@ that don't yet have a <code>dir_tteplan_cp</code>).</p>
 <a href="CandidatePath.html">CandidatePath</a> on the plan (and on its embedded <a href="RegistryStudy.html">RegistryStudy</a>) so
 the on-disk file never carries the saving host's resolved paths.
 Reload with <code><a href="tteplan_load.html">tteplan_load()</a></code>.</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span>dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
@@ -1378,7 +1486,7 @@ writes to <code>self$tteplan</code>.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>Invisibly returns the file path.</p>
 </div>
 
@@ -1387,7 +1495,7 @@ writes to <code>self$tteplan</code>.</p></dd>
 <p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="tteplan-clone-"><code>TTEPlan$clone()</code><a class="anchor" aria-label="anchor" href="#tteplan-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>

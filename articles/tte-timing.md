@@ -24,16 +24,15 @@ through 4 is `4 - 1 + 1 = 4`. The same three intervals then bill 5, 5
 and 5, for a total of 15. Both are correct arithmetic. The two differ in
 whether the stop belongs to the interval.
 
-Mixing them is how an off-by-one becomes a silently wrong denominator.
-Nothing errors. A rate simply divides by 15 person-weeks where the panel
-holds 12.
+Code that mixes the two gives a wrong denominator, and nothing errors. A
+rate then divides by 15 person-weeks where the panel holds 12.
 
 ### A boundary is not a duration
 
 A **boundary** is a week index on the follow-up scale. A **duration** is
 a count of weeks. The two corrections are not interchangeable.
 
-`weeks_to_admin_end` needed a `+ 1L`, because
+`weeks_to_admin_end` adds `1L`, because
 [`difftime()`](https://rdrr.io/r/base/difftime.html) counts the whole
 weeks BETWEEN the baseline week and the administrative week. The person
 is under study to the end of the administrative week itself, so the
@@ -178,8 +177,7 @@ tte_enroll(whole, tte_design())$data[
 A person-trial has three instants, and each answers a different
 question.
 
-The table shows the first two enrollment periods of the worked skeleton
-below.
+The table shows the first two enrollment periods of the worked skeleton.
 
 | week index        | 6264  | 6265  | 6266  | 6267  | 6268      | 6269     | 6270     | 6271     |
 |-------------------|-------|-------|-------|-------|-----------|----------|----------|----------|
@@ -241,8 +239,8 @@ starts. The plain `age` column holds the time-updated value of the
 follow-up interval, which is 55.
 
 Entry covariates are therefore read in the **same** week treatment
-starts for an initiator, and not strictly before it. The rule is
-symmetric across the arms: no rule keyed to initiation can be, because a
+starts for an initiator, and not strictly before it. The rule is the
+same in both arms. A rule keyed to initiation cannot be, because a
 comparator never initiates. `$s2_ipw()`, `$table1()` and the time-zero
 censoring model read `.tte_entry__<v>`. The loss and deviation censoring
 models read the time-updated `<v>`, because censoring during follow-up
@@ -323,10 +321,9 @@ deletes every person-week the person was not observed in.
 
 A skeleton that already trims to observed weeks cannot carry a useful
 `observed` column. Every retained row would hold `TRUE`, so the column
-could not represent an absent week. The `NEWS.md` entry for 26.9.0 names
-the trimming rules of the production skeleton.
+could not represent an absent week.
 
-Reading row presence as observation WITHOUT declaring the sentinel stays
+Reading row presence as observation WITHOUT declaring the sentinel is
 forbidden, and
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 stops on a spec that declares neither form.
@@ -359,9 +356,10 @@ tq$landmark_attrition[is.na(enrollment_period_id)]
 #> 3: landmark_event_free
 ```
 
-W does not enroll. Her event sits at `tstart = 0` under the old time
-origin, with the initiation behind it. That is immortal-time
-attribution, and removing it is why the step exists.
+W does not enroll. With time zero at the start of the enrollment period,
+her event would sit at `tstart = 0` and her initiation after it. That is
+immortal-time attribution, and the qualification step exists to remove
+it.
 
 The cascade names the reason. Three criteria join the CONSORT attrition
 table: `landmark_candidates`, `landmark_observed` and
@@ -387,10 +385,10 @@ fitted on the confounders read at the recruiting week.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 states that weight model in section 1.8.1 (Treatment weights).
 
-Qualification runs after the arm classification and before the draw. The
-position is part of the rule. It runs after the classification, so
-attrition reports both arms. It runs before the draw, so the draw
-refills the ratio from qualified comparators alone.
+Qualification runs after the arm classification and before the draw. It
+runs after the classification, so attrition reports both arms. It runs
+before the draw, so the draw refills the ratio from qualified
+comparators alone.
 
 An unqualified comparator therefore cannot shrink the enrolled set.
 
@@ -418,9 +416,9 @@ takes both from the qualified pool. CBAD is not among them.
 
 `enroll()` reads the weekly `time_treatment_var` sequence, and writes
 one exact boundary into `weeks_to_protocol_deviation`. The decision is
-per week, not per follow-up interval, so a woman’s verdict follows what
-she did. It does not follow where her weeks fall against the calendar
-grid.
+per week, not per follow-up interval. The boundary depends on the weeks
+in which she was discordant, and not on where those weeks fall against
+the calendar grid.
 
 An assessment is discordant when `time_treatment_var` does not hold the
 assigned arm of that person-trial. `NA` is discordant in both arms.
@@ -477,13 +475,13 @@ that the end of follow-up cuts short.
 ### The two tolerances are not symmetric
 
 `intervention_tolerance_weeks` and `comparator_tolerance_weeks` are
-separate fields, and each applies to its own arm. They are not symmetric
-because the two arms are not the same object.
+separate fields, and each applies to its own arm. A discordant week
+means a different thing in each arm.
 
 An initiator’s discordant week is a treatment gap, and a short gap is
 often a dispensing artefact rather than a stop. A comparator’s
-discordant week is an initiation, and an initiation is the very event
-that defines the other arm.
+discordant week is an initiation, and an initiation is the event that
+defines the other arm.
 
 Set them from the protocol, and never from each other. The two women
 below share one discordant pattern and get opposite verdicts.
@@ -544,18 +542,21 @@ gap is not a deviation. Both estimands stop her at week 4. Her outcome
 in follow-up week 7 falls in the same follow-up interval as the gap, and
 it does not count.
 
-A plan saved before swereg 26.15.0 warns when it is read, because gaps
-cannot be detected in it.
+An enrolled panel built with `observed_var` but without a
+`weeks_to_observation_gap` column cannot show gaps.
+`s5_prepare_outcome()` then warns that an outcome after a gap may count.
+Re-run s1 (`$s1_generate_enrollments_and_ipw()`) to add the column.
 
-## The terminal follow-up interval is clipped, and it is kept
+## The last follow-up interval ends at the boundary, and it is kept
 
 The panel is one row per person-trial interval. Nothing is expanded
-weekly. Every interval before the boundary is complete follow-up, and
-the interval that reaches the boundary carries the censoring.
+weekly. Every interval before the boundary is complete follow-up. The
+interval that contains the boundary carries the event or the censoring.
 
-`s5_prepare_outcome()` clips that interval at the exact boundary and
-sets `person_weeks` to `tstop - tstart`. The row stays in the analysis
-data. It carries the exposure before the boundary and nothing after it.
+That interval is kept in the analysis data. `s5_prepare_outcome()` sets
+its `tstop` to the exact boundary, and sets `person_weeks` to
+`tstop - tstart`. The row contributes the person-weeks before the
+boundary and none after it.
 
 ``` r
 clip <- rbindlist(list(tte_person("EVENT7", rep(TRUE, n), event_fu = 7L), tte_fillers()))
@@ -588,8 +589,8 @@ tte_prepare(tte_enroll(gone, tte_design()))[
 #> 3:      8    10            2     0            10
 ```
 
-GONE holds ten follow-up weeks and bills ten. The interval-level read
-credited her with twelve, because it read the stop of the last interval.
+GONE holds ten follow-up weeks and bills ten. A read of the stop of the
+last interval would credit her with twelve.
 
 ### The tie, and the priority order
 
@@ -645,8 +646,8 @@ tte_prepare(tte_enroll(adm, tte_design(admin = weeks[10])))[
 ADM enters at week 5 of the skeleton and the administrative week is week
 10. [`difftime()`](https://rdrr.io/r/base/difftime.html) counts 5 whole
 weeks between them, and the `+ 1L` makes the boundary 6. Her two rows
-bill 4 and 2, which is 6. The boundary took the `+ 1L` and the durations
-beside it did not.
+bill 4 and 2, which is 6. The boundary adds `1L`, and the durations do
+not.
 
 Neither the administrative end nor the requested follow-up end is
 rounded to an interval boundary. A six-week requested follow-up stops at
@@ -658,7 +659,9 @@ week six, including for a woman with four-week follow-up intervals.
 
 The population is every candidate person-trial that reaches its time
 zero `L` under observation and free of every enrollment outcome before
-`L`. The whole enrollment period must also classify it into an arm.
+`L`. The whole enrollment period must also classify it into an arm. When
+the spec has a `sparse_rule`, s1 also drops each person-trial that holds
+an excluded condition at its recruiting week.
 
 The comparator draw happens after that, so the ratio counts qualified
 people.
@@ -737,21 +740,6 @@ at time zero.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.2 states the three models and the rows each one fits on.
 
-### Two spec versions are not comparable
-
-A result built on a spec version before swereg 26.9.0, for example
-`v011`, and a result built on 26.9.0, for example `v012`, answer
-different questions.
-
-The difference is a combined change of five things at once: the
-population, the time origin, the censoring rule, the weighting and the
-estimator. It MUST NOT be described as a correction to the same
-estimand. It MUST NOT be attributed to immortal time alone.
-
-Report the two as separate analyses with separate protocols. A
-difference between them decomposes into no single named cause, because
-no single change was made in isolation.
-
 ## Limitations
 
 - **The censoring approximation is compressed.** The panel is one row
@@ -771,14 +759,14 @@ no single change was made in isolation.
   enrollment period removes the immortal time inside it. It does not
   make the trial grid finer, so a person who becomes eligible inside an
   enrollment period waits until its time zero.
-- **The estimand is now landmark-survivor.** It conditions on reaching
-  `L`. People who die or have the outcome inside the enrollment period
-  are not in the population. The estimate says nothing about them (Dafni
+- **The estimand is landmark-survivor.** It conditions on reaching `L`.
+  People who die or have the outcome inside the enrollment period are
+  not in the population. The estimate says nothing about them (Dafni
   2011).
 - **The censoring models carry no adherence history.** The loss and
   deviation models read the time-updated confounders, the start of the
   follow-up interval and its calendar period. No model carries a lagged
-  treatment term. A person whose adherence has been failing for months
+  treatment term. A person whose adherence fails over several months
   therefore looks like one who fails for the first time.
 - **swereg implements no grace period.** A grace period allows
   initiation within a fixed window after assignment without counting it

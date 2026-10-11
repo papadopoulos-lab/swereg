@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -103,10 +104,9 @@
 <div class="section level2">
 <h2 id="what-add_-functions-do">What <code>add_*</code> functions do<a class="anchor" aria-label="anchor" href="#what-add_-functions-do"></a>
 </h2>
-<p><code>add_*</code> functions are the workhorse of swereg: they take
-raw registry data and fold it into a skeleton created by
-<code><a href="../reference/create_skeleton.html">create_skeleton()</a></code>. Every <code>add_*</code> function shares
-the same shape:</p>
+<p><code>add_*</code> functions take raw registry data and add it to a
+skeleton created by <code><a href="../reference/create_skeleton.html">create_skeleton()</a></code>. Every
+<code>add_*</code> function has the same shape:</p>
 <ul>
 <li>
 <strong>First argument</strong> is the skeleton.</li>
@@ -125,10 +125,10 @@ list).</li>
 skeleton runs out of free column slots. A function you write yourself
 does not, so read the section “Column-slot headroom” in
 <code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code> before you write one.</p>
-<p>This vignette walks through every <code>add_*</code> function swereg
-ships with, using the synthetic datasets included in the package. For
-writing your <em>own</em> <code>add_*</code> for a registry swereg
-doesn’t support, see <code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code>.</p>
+<p>This vignette shows every <code>add_*</code> function that swereg
+ships, with the synthetic datasets included in the package. To write
+your <em>own</em> <code>add_*</code> for a registry that swereg does not
+support, see <code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="setup-a-skeleton-we-can-reuse">Setup: a skeleton we can reuse<a class="anchor" aria-label="anchor" href="#setup-a-skeleton-we-can-reuse"></a>
@@ -154,7 +154,7 @@ doesn’t support, see <code><a href="../articles/custom-add-functions.html">vig
 </div>
 <div class="section level2">
 <h2 id="add_onetime-baseline-demographic-data">
-<code>add_onetime()</code> — baseline / demographic data<a class="anchor" aria-label="anchor" href="#add_onetime-baseline-demographic-data"></a>
+<code>add_onetime()</code>: baseline / demographic data<a class="anchor" aria-label="anchor" href="#add_onetime-baseline-demographic-data"></a>
 </h2>
 <p>Use <code><a href="../reference/add_onetime.html">add_onetime()</a></code> for a single value per person that
 never changes (date of birth, sex at birth, country of origin, etc.).
@@ -175,15 +175,15 @@ person.</p>
 <span><span class="co">#&gt; 3:     1     1902-**       1956</span></span></code></pre></div>
 <p>Every row for a given <code>id</code> now carries the same
 <code>fodelseman</code> and <code>doddatum</code> values.</p>
-<p><strong>Column-name collision policy</strong>: if the skeleton
-already has a column with the same name as something in
-<code>data</code>, <code><a href="../reference/add_onetime.html">add_onetime()</a></code> keeps the existing
-skeleton column and prefixes the incoming one with <code>i.</code>
-(data.table’s standard collision marker).</p>
+<p><strong>Column-name collision policy.</strong> If the skeleton
+already has a column with the same name as a column in
+<code>data</code>, <code><a href="../reference/add_onetime.html">add_onetime()</a></code> overwrites it. Each person
+found in <code>data</code> gets the incoming value. Each person absent
+from <code>data</code> keeps the existing skeleton value.</p>
 </div>
 <div class="section level2">
 <h2 id="add_annual-yearly-data-for-a-specific-year">
-<code>add_annual()</code> — yearly data for a specific year<a class="anchor" aria-label="anchor" href="#add_annual-yearly-data-for-a-specific-year"></a>
+<code>add_annual()</code>: yearly data for a specific year<a class="anchor" aria-label="anchor" href="#add_annual-yearly-data-for-a-specific-year"></a>
 </h2>
 <p>Registries that report once per calendar year (SCB LISA income,
 family composition, etc.) go through <code><a href="../reference/add_annual.html">add_annual()</a></code>. You call
@@ -197,16 +197,15 @@ it <em>once per year</em>, and values are attached to
 <span></span>
 <span><span class="va">skeleton</span><span class="op">[</span><span class="va">isoyear</span> <span class="op">==</span> <span class="fl">2020</span> <span class="op">&amp;</span> <span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">isoyear</span>, <span class="va">famtyp</span><span class="op">)</span><span class="op">]</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Empty data.table (0 rows and 3 cols): id,isoyear,famtyp</span></span></code></pre></div>
-<p><strong>Gotcha</strong>: the value only lands on
-<code>is_isoyear == TRUE</code> rows for the matching year. The weekly
-rows (<code>is_isoyear == FALSE</code>) keep <code>NA</code>. If you
-want the value forward-filled onto the weeks, do that explicitly with a
+<p>The value goes only on the <code>is_isoyear == TRUE</code> rows for
+the matching year. The weekly rows (<code>is_isoyear == FALSE</code>)
+keep <code>NA</code>. To carry the value forward onto the weeks, add a
 <code>nafill</code>-style step after all <code><a href="../reference/add_annual.html">add_annual()</a></code> calls
 finish.</p>
 </div>
 <div class="section level2">
 <h2 id="add_diagnoses-icd-codes-from-the-npr">
-<code>add_diagnoses()</code> — ICD codes from the NPR<a class="anchor" aria-label="anchor" href="#add_diagnoses-icd-codes-from-the-npr"></a>
+<code>add_diagnoses()</code>: ICD codes from the NPR<a class="anchor" aria-label="anchor" href="#add_diagnoses-icd-codes-from-the-npr"></a>
 </h2>
 <p>The National Patient Register holds main (<code>hdia</code>) and
 secondary (<code>dia1</code>, <code>dia2</code>, …) diagnoses per
@@ -236,28 +235,27 @@ diagnosis.</p>
 <span><span class="co">#&gt; 1:     6     2002-**   TRUE</span></span>
 <span><span class="co">#&gt; 2:     7     1991-**   TRUE</span></span>
 <span><span class="co">#&gt; 3:    14     1985-**   TRUE</span></span></code></pre></div>
-<p><strong>Pattern syntax</strong> (shared with
-<code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>,
-<code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>):</p>
+<p><strong>Pattern syntax.</strong> <code><a href="../reference/add_operations.html">add_operations()</a></code>,
+<code><a href="../reference/add_cods.html">add_cods()</a></code> and <code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>
+use the same syntax:</p>
 <ul>
 <li>
-<code>"F32"</code> — prefix match (all codes starting with
-F32).</li>
+<code>"F32"</code>: prefix match (all codes starting with F32).</li>
+<li>Patterns are plain prefixes, not regular expressions.
+<code>^</code>, <code>$</code>, <code>*</code> and other regex
+characters are literal, so <code>"^F320"</code> matches nothing.</li>
 <li>
-<code>"^F320"</code> — the leading <code>^</code> is implicit;
-written out for emphasis.</li>
-<li>
-<code>"!F321"</code> — <strong>negation</strong>: drops matches
-starting with F321 from the positive set. Use this to carve out a
-specific sub-code.</li>
+<code>"!F321"</code>: <strong>negation</strong>. It drops matches
+starting with F321 from the positive set. Use this to exclude a specific
+sub-code.</li>
 <li>Multiple entries in one vector are OR’d together.</li>
 </ul>
-<p><strong><code>diag_type</code></strong>: <code>"both"</code> searches
+<p><strong><code>diag_type</code>.</strong> <code>"both"</code> searches
 <code>hdia</code>, <code>dia*</code>, <code>ekod*</code>,
 <code>icd7*</code>, and <code>icd9*</code>. <code>"main"</code> searches
-<code>hdia</code> only — useful when you want the primary reason for
+<code>hdia</code> only. Use it when you want the primary reason for
 admission, not every code listed.</p>
-<p><strong>Splitting by source</strong> (inpatient vs outpatient): the
+<p><strong>Splitting by source</strong> (inpatient vs outpatient). The
 dataset includes a <code>source</code> column. Filter first, then call
 <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> twice:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
@@ -266,7 +264,7 @@ dataset includes a <code>source</code> column. Filter first, then call
 </div>
 <div class="section level2">
 <h2 id="add_operations-surgical-procedure-codes">
-<code>add_operations()</code> — surgical procedure codes<a class="anchor" aria-label="anchor" href="#add_operations-surgical-procedure-codes"></a>
+<code>add_operations()</code>: surgical procedure codes<a class="anchor" aria-label="anchor" href="#add_operations-surgical-procedure-codes"></a>
 </h2>
 <p>Same pattern as <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, but searches the
 <code>op1</code>, <code>op2</code>, … columns of the NPR.</p>
@@ -280,9 +278,9 @@ dataset includes a <code>source</code> column. Filter first, then call
 </div>
 <div class="section level2">
 <h2 id="add_rx-prescription-drugs-lmed">
-<code>add_rx()</code> — prescription drugs (LMED)<a class="anchor" aria-label="anchor" href="#add_rx-prescription-drugs-lmed"></a>
+<code>add_rx()</code>: prescription drugs (LMED)<a class="anchor" aria-label="anchor" href="#add_rx-prescription-drugs-lmed"></a>
 </h2>
-<p>Prescriptions aren’t instantaneous: a dispense covers a treatment
+<p>A prescription is not a point event. A dispense covers a treatment
 period from the prescription date (<code>edatum</code>) to
 <code>edatum + fddd</code> days (<code>fddd</code> = defined daily doses
 dispensed). <code><a href="../reference/add_rx.html">add_rx()</a></code> converts these intervals to ISO week
@@ -311,16 +309,16 @@ ranges and flags every week the patient was covered.</p>
 <p><strong><code>source = "atc"</code></strong> (default) uses prefix
 matching via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> on the <code>atc</code> column.
 <strong><code>source = "produkt"</code></strong> uses exact matching via
-<code>%chin%</code> on the <code>produkt</code> (product name) column —
-useful when ATC granularity isn’t enough (e.g. distinguishing
+<code>%chin%</code> on the <code>produkt</code> (product name) column.
+Use it when ATC granularity is not enough (e.g. to distinguish
 formulations).</p>
-<p><strong>Gotcha</strong>: prescriptions with <code>NA</code>
-<code>fddd</code> or negative durations are dropped with a warning. They
-can’t be placed on the week grid.</p>
+<p><code><a href="../reference/add_rx.html">add_rx()</a></code> drops prescriptions with <code>NA</code>
+<code>fddd</code> or negative durations, with a warning. They cannot be
+placed on the week grid.</p>
 </div>
 <div class="section level2">
 <h2 id="add_cods-cause-of-death">
-<code>add_cods()</code> — cause of death<a class="anchor" aria-label="anchor" href="#add_cods-cause-of-death"></a>
+<code>add_cods()</code>: cause of death<a class="anchor" aria-label="anchor" href="#add_cods-cause-of-death"></a>
 </h2>
 <p>Cause-of-death records have one “underlying” cause
 (<code>ulorsak</code>) and multiple contributing causes
@@ -343,10 +341,9 @@ lets you search either or both.</p>
 </div>
 <div class="section level2">
 <h2 id="add_quality_registry-arbitrary-event-registries">
-<code>add_quality_registry()</code> — arbitrary event
-registries<a class="anchor" aria-label="anchor" href="#add_quality_registry-arbitrary-event-registries"></a>
+<code>add_quality_registry()</code>: arbitrary event registries<a class="anchor" aria-label="anchor" href="#add_quality_registry-arbitrary-event-registries"></a>
 </h2>
-<p>Quality registries (Riksstroke, NKBC, …) don’t follow the ICD-prefix
+<p>Quality registries (Riksstroke, NKBC, …) do not follow the ICD-prefix
 model. <code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code> takes <strong>quoted R
 expressions</strong> evaluated against the dataset columns; each
 expression yields one boolean flag per week.</p>
@@ -376,9 +373,10 @@ coerced to <code>FALSE</code> (“no evidence” is not the same as
 “true”).</p>
 </div>
 <div class="section level2">
-<h2 id="typical-end-to-end-workflow">Typical end-to-end workflow<a class="anchor" aria-label="anchor" href="#typical-end-to-end-workflow"></a>
+<h2 id="typical-workflow">Typical workflow<a class="anchor" aria-label="anchor" href="#typical-workflow"></a>
 </h2>
-<p>The built-ins layer on top of each other. A realistic ordering:</p>
+<p>You call the built-ins one after another on the same skeleton. A
+typical order:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">ids</span>, <span class="fl">2005</span>, <span class="st">"2023-52"</span><span class="op">)</span></span>
 <span></span>
@@ -391,18 +389,18 @@ coerced to <code>FALSE</code> (“no evidence” is not the same as
 <span><span class="fu"><a href="../reference/add_rx.html">add_rx</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">lmed</span>, <span class="st">"p444_lopnr_personnr"</span>, codes <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/add_cods.html">add_cods</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">cod</span>,          <span class="st">"lopnr"</span>, codes <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
 <p>After this you typically derive row-independent (<code>ri_*</code>)
-variables with <code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> — see the
+variables with <code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code>. See the
 “rowdep vs rowind” vignette.</p>
 </div>
 <div class="section level2">
-<h2 id="if-swereg-doesnt-ship-an-add_-for-your-registry">If swereg doesn’t ship an <code>add_*</code> for your registry<a class="anchor" aria-label="anchor" href="#if-swereg-doesnt-ship-an-add_-for-your-registry"></a>
+<h2 id="if-swereg-does-not-ship-an-add_-for-your-registry">If swereg does not ship an <code>add_*</code> for your registry<a class="anchor" aria-label="anchor" href="#if-swereg-does-not-ship-an-add_-for-your-registry"></a>
 </h2>
-<p>Write your own. The contract is small and the pipeline enforces it
-automatically when you register your function via
+<p>Write your own. The contract is small, and the pipeline enforces it
+when you register your function with
 <code>RegistryStudy$register_codes()</code>. See
-<code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code> — same mechanism works for
-Norwegian registries, regional Swedish cohorts, payer claims, and
-anything else with a longitudinal event-per-row shape.</p>
+<code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code>. The same mechanism works
+for Norwegian registries, regional Swedish cohorts, payer claims, and
+any other data with a longitudinal event-per-row shape.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

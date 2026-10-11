@@ -46,6 +46,12 @@ Validation checks:
 
 - Each exclusion criterion must have `implementation$source_variable`
 
+- An exclusion criterion MUST NOT have the window
+  `lifetime_before_and_after_baseline` on a variable of an outcome. That
+  window reads the weeks after time zero, so the criterion selects on
+  the follow-up outcome. The rule covers the global `exclusion_criteria`
+  and each enrollment's `additional_exclusion`
+
 - Each outcome must have `implementation$variable`
 
 - Each enrollment must have `id`, `treatment$implementation$variable`
@@ -93,6 +99,38 @@ does not know. It cannot check that a named column exists and is
 logical, because it reads no data.
 [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
 runs that check against the skeleton.
+
+## The sparse_rule
+
+A spec MAY declare one `sparse_rule` block. It turns a rare baseline
+condition into an exclusion criterion of the whole study.
+
+    sparse_rule:
+      min_n: 100
+      decided_by: ["03"]
+      candidates: [rd_no_osd_i63_everbefore]
+
+- `min_n` MUST be one whole number from 1 to 2147483647, the largest R
+  integer.
+
+- `decided_by` MUST name one or more enrollments of the spec. Quote
+  every id: YAML reads an unquoted `01` as the integer 1, and the parser
+  refuses it.
+
+- Each entry of `candidates` MUST be the `implementation$variable` of a
+  confounder with `computed: true`.
+
+s1 counts the persons who hold each candidate condition at baseline, per
+arm, in each driving enrollment. A person counts once per arm when any
+of her eligible person-trials in that arm holds the condition at its
+recruiting week. A condition whose smallest count is below `min_n` is
+excluded in every enrollment, and leaves every confounder set. Exclusion
+is per person-trial: s1 drops a person-trial when the condition holds at
+that trial's own recruiting week. Every other candidate stays a
+confounder. The rule is decided from baseline counts in the eligible
+population, before the comparator draw and without follow-up outcomes.
+[TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
+stores the decision in its `sparse_decision` field.
 
 ## See also
 

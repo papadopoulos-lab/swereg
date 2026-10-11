@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -60,6 +61,84 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.1" id="swereg-2721">swereg 27.2.1<a class="anchor" aria-label="anchor" href="#swereg-2721"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-2-1">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-1"></a></h3>
+<ul><li>
+<strong>A spec MAY declare a <code>sparse_rule</code> block, which turns a rare baseline condition into an exclusion criterion of the whole study (<a href="https://github.com/papadopoulos-lab/swereg/issues/52" class="external-link">#52</a>).</strong> The new s1 step s1b counts, per arm in each <code>decided_by</code> enrollment, the persons who hold each candidate condition at baseline. A condition whose smallest count is below <code>min_n</code> is excluded in every enrollment, and leaves every confounder set. s1 drops a person-trial when the condition holds at that trial’s own recruiting week, and the attrition table gets one step per excluded condition. The rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. <code>plan$get_sparse_decision()</code> returns the frozen decision. s1c, s2 and s3 stop when the rule in the spec no longer matches it. When s1b fails, the plan keeps its previous decision, rule hash and confounder sets.</li>
+<li>
+<strong>Every output that names the population or the adjustment set reads the frozen <code>sparse_rule</code> decision (<a href="https://github.com/papadopoulos-lab/swereg/issues/52" class="external-link">#52</a>).</strong> <code>$export_tables()</code> adds a “Sparse conditions” sheet: each candidate, its smallest arm count in the driving enrollments, the enrollment and arm that hold it, and the decision. A count below <code>min_n</code> shows as <code>&lt;min_n</code>. Study Specification states the rule, the excluded conditions and the final adjustment set, and marks each excluded confounder. Table 1 drops each excluded condition and names it in a footnote. The Enrollments and ETTs sheets say whether each enrollment drove the decision or inherited it. The CONSORT diagram and the attrition sheets label each step-2 row with its condition and the rule. In the TARGET checklist, item 6a states the rule and the exclusions, item 6g the final adjustment set, and item 7 the methods text. In the target trial protocol table, the rule’s cells depend on the stage. Before s1, the eligibility emulation cell says only that the rule is not decided yet. After s1, the specification column lists the excluded conditions as eligibility criteria. The eligibility emulation cell states the rule and how it chose them, and the Analysis plan cell gives the final adjustment set. Study Specification and TARGET items 6a and 7 state the basis of the rule before and after s1. The Sparse conditions sheet and the protocol table state it after s1. Each says the rule is decided from baseline counts in the eligible population, before the comparator draw and without follow-up outcomes. Study Specification and item 7 say that other comparisons inherit the decision only when at least one enrollment does not drive the rule.</li>
+<li>
+<strong>s2, s3, <code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> refuse the files and results of an earlier s1 run (<a href="https://github.com/papadopoulos-lab/swereg/issues/52" class="external-link">#52</a>).</strong> s1 drops the stored s3 results, and s3 stops until s2 rewrites each analysis file after the current s1.</li>
+<li>
+<strong><code>$excel_spec_summary()</code> writes the Target trial protocol sheet, and the Sparse conditions sheet once s1 has decided the rule.</strong> Both come from the writers of <code>$export_tables()</code> and read no s2 or s3 result, so the workbook is a preregistration export from s0 on. The new argument <code>protocol_ett_id</code> names the ETT of the protocol sheet.</li>
+<li>
+<strong><code>$print_spec_summary()</code> states the rare-condition rule: <code>min_n</code>, the driving enrollments, the candidates, and the decision.</strong> Before s1 the decision reads <code>not decided yet (s1 has not run)</code>, in the Study Specification sheet and TARGET item 7 too.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-27-2-1">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-2-1"></a></h3>
+<ul><li>
+<strong>swereg refuses a <code>TTEPlan</code> or a <code>TTEEnrollment</code> saved before 27.2.1.</strong> The plan schema is 6 and the enrollment schema is 7. Rebuild the plan with s0 and re-run s1, then s2 and s3.</li>
+<li>
+<strong><code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code>, <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> and s0 refuse an exclusion criterion with the window <code>lifetime_before_and_after_baseline</code> on an outcome variable.</strong> That window reads the weeks after time zero, so the criterion selects on the follow-up outcome. <code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code> reports it as kind <code>outcome_selecting_exclusion</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-27-2-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-2-1"></a></h3>
+<ul><li>
+<strong>The forest axis labels ticks below 0.1 when a plotted bound needs them (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> The ticks are 1 and 3 times each power of 10, down to the first tick at or below the smallest bound. Before, a ratio of 0.004 had no labelled tick below 0.1.</li>
+<li>
+<strong>A forest label format drops a <code>({field}...)</code> group when that field is empty (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> Before, it dropped only a group that held the placeholder alone, such as <code>({follow_up})</code>, so <code>({follow_up}w)</code> printed <code>(w)</code>.</li>
+<li>
+<strong><code><a href="../reference/add_annual.html">add_annual()</a></code> does not add or change any column of the caller’s <code>data</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> Before, it wrote <code>isoyear</code> into <code>data</code>.</li>
+<li>
+<strong><code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code> pads every value of a column to one width (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> Before, <code>0.0040</code> stood beside <code>1.23</code>.</li>
+<li>
+<strong>The MDE columns accept two ratios that round to 1 (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> With very large event counts, one or both ratios can round to exactly 1. The orientation check allows a 1e-12 tolerance, so such counts no longer stop the export.</li>
+<li>
+<strong>s2 drops the stored s3 results, and <code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> refuse a result from before the last s2 run.</strong> s2 stamps each ETT with a new run id in <code>ett$s2_run_id</code>, s3 copies it into each result, and <code><a href="../reference/tteplan_load.html">tteplan_load()</a></code> keeps both. A result computed under other IPCW options of the same s1 run is refused.</li>
+<li>
+<strong><code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop when the <code>sparse_rule</code> in <code>plan$spec</code> changed after s1.</strong> <code>$excel_spec_summary()</code> and <code>$print_spec_summary()</code> show a stored decision only when it belongs to the current rule and to a completed s1. Otherwise the rule reads <code>not decided yet (s1 has not completed for this rule)</code>.</li>
+<li>
+<strong><code>$recompute_baselines()</code> refuses an ETT whose analysis files do not come from the current s1 run, as <code>$s3_analyze()</code> does.</strong> A recomputed panel takes the s1 and s2 run stamps of the file it reads.</li>
+<li><strong>The supplementary baseline sheets, Table S2 onward, drop the conditions the rare-condition rule excluded and carry the Table 1 footnote.</strong></li>
+<li>
+<strong>Study Specification, the protocol table’s Analysis plan cell and TARGET items 6g and 7 say which models the adjustment set enters.</strong> The treatment model and the time-zero censoring model hold the adjustment set alone, with no time or calendar term. The loss and deviation censoring models add the time since time zero and the calendar period. The outcome model holds no confounder. Each confounder line of the protocol table reads <code>Treatment and censoring models adjust for</code>. It comes before the outcome model line, which names its own terms.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-2-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-2-1"></a></h3>
+<ul><li><strong>A new article, <code><a href="../articles/tte-preregistration.html">vignette("tte-preregistration")</a></code>, “TTE preregistration: the OSF form”, maps each section of the OSF Preregistration form to the specification YAML and the Excel specification.</strong></li>
+<li>
+<strong>The vignettes describe current behaviour only.</strong> The release history is in <code>NEWS.md</code>.</li>
+<li>
+<strong>The <code><a href="../reference/add_onetime.html">add_onetime()</a></code> help page states that an existing skeleton column is overwritten for each person found in <code>data</code>.</strong> It said that the incoming column got an <code>i.</code> prefix.</li>
+<li>
+<strong>Two vignette claims are corrected.</strong> A <code>^</code> in a code pattern is literal, so the pattern matches nothing. The stored-object schema thresholds are 7 for an enrollment and 6 for a plan.</li>
+<li><strong>The <code>study</code> argument of <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> documents the list that MAY stand in for a <code>RegistryStudy</code>, and the fields that list needs.</strong></li>
+<li><strong><code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> calls <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> with its real arguments, and <code><a href="../articles/tte-preregistration.html">vignette("tte-preregistration")</a></code> lists the sheets of the Excel specification.</strong></li>
+<li>
+<strong>The <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> and <code><a href="../reference/add_cods.html">add_cods()</a></code> help pages state that a bracket group such as <code>I2[0-5]</code> expands to its literal prefixes.</strong> They said that a bracket is taken literally.</li>
+<li>
+<strong>The help pages describe current behaviour in the present tense, and name a schema number instead of a release.</strong> The <code><a href="../reference/default_n_workers.html">default_n_workers()</a></code> page states that s2 takes <code>n_workers</code> above 1.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-27-2-1">Internal<a class="anchor" aria-label="anchor" href="#internal-27-2-1"></a></h3>
+<ul><li>
+<strong>The s1 sub-steps s1b, s1c and s1d are renamed s1c, s1d and s1e (<a href="https://github.com/papadopoulos-lab/swereg/issues/52" class="external-link">#52</a>).</strong> The name s1b is free for the step that <a href="https://github.com/papadopoulos-lab/swereg/issues/52" class="external-link">#52</a> adds before the comparator draw. The log labels, the batchit item ids and the work-directory file names use the new names. s1 clears a leftover work directory with the old names at its start.</li>
+<li>
+<strong>The s3 stamp on each stored result is renamed <code>swereg_version_s3</code> (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> Under the old name <code>swereg_version</code>, <code>$swereg_version</code> read <code>swereg_version_s2</code> when the s3 stamp was absent. swereg refuses plans saved before 27.2.1, so no reader falls back to the old name.</li>
+<li>
+<strong>The IPCW fit label names the error that starts the refit (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> It reads “bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error”.</li>
+<li>
+<strong>The internal writers <code>.write_combined_rates()</code>, <code>.write_combined_rates_irr()</code>, <code>.write_combined_irr()</code> and <code>.write_itt_vs_pp_forest()</code> are removed (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> No export called them. Six helpers that only they called go with them: <code>.prepare_combine_data()</code>, <code>.build_itt_vs_pp_df()</code>, <code>.render_itt_vs_pp_overlay()</code>, <code>.rename_treatment_columns()</code>, <code>.ett_descriptions()</code> and <code>.ff_ci_only()</code>.</li>
+<li>
+<strong><code>ignore_unused_imports()</code> is removed (<a href="https://github.com/papadopoulos-lab/swereg/issues/56" class="external-link">#56</a>).</strong> <code>tools:::.check_packages_used()</code> finds <code>mgcv</code> and <code>survey</code> through the top-level functions that call them.</li>
+<li>
+<strong>The validation evidence hash covers the parsed code of the estimator files, not their bytes.</strong> An edit to comments, roxygen, whitespace or blank lines no longer makes the evidence stale.</li>
+<li>
+<strong>The unused internal helpers <code>.t1_wtd_props()</code>, <code>.t1_wtd_missing()</code> and <code>validate_date_column()</code> are removed.</strong> None was exported, and no code called them.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.0" id="swereg-2720">swereg 27.2.0<a class="anchor" aria-label="anchor" href="#swereg-2720"></a></h2>
 <div class="section level3">
@@ -2656,6 +2735,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <h3 id="new-features-26-4-20">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-20"></a></h3>
 <ul><li>
 <p><strong><code>RegistryStudy$register_derived_codes(codes, from, as)</code></strong>: registers a “derived” code entry that doesn’t read rawbatch data, but instead ORs together already-existing skeleton columns from earlier primary entries. For each <code>nm</code> in <code>codes</code>, writes <code>&lt;as&gt;_&lt;nm&gt; := &lt;from[1]&gt;_&lt;nm&gt; | &lt;from[2]&gt;_&lt;nm&gt; | ...</code>. Use case: building combined outcome columns like <code>osd_* = os_* | dorsu_* | dorsm_*</code> where the hospital half comes from <code>add_diagnoses</code> on OV+SV and the death half comes from <code>add_cods</code> on DORS – two functions that can’t share a single <code>combine_as</code> argument because they search different raw-data columns (<code>hdia</code>/<code>dia*</code> vs <code>ulorsak</code>/<code>morsak*</code>).</p>
+<p>Before this release, a registration with <code>groups = list(ov, sv, dors)</code> and <code>combine_as = "osd"</code> ran <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> on DORS data. DORS has none of the code columns that <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> searches, so every <code>dors_*</code> column was <code>FALSE</code> and deaths never contributed to <code>osd_*</code>.</p>
 <p>Derived entries are full first-class citizens of the code registry: they get their own fingerprint, participate in the per-entry incremental sync via <code>Skeleton$sync_with_registry()</code>, and fold upstream primary fingerprints into their own so that editing an upstream primary’s <code>fn_args</code> / <code>groups</code> / <code>codes</code> (e.g. flipping <code>cod_type</code> from <code>"underlying"</code> to <code>"multiple"</code>) automatically cascades into a derived replay. Derived entries must be registered AFTER their upstream primaries (apply runs in registration order).</p>
 </li>
 </ul></div>

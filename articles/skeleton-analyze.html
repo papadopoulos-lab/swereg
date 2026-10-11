@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -107,9 +108,9 @@
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>This vignette demonstrates how to work with a finished skeleton –
-collapsing weekly data to yearly summaries, creating analysis datasets,
-and running common epidemiological queries.</p>
+<p>This vignette shows how to work with a finished skeleton: collapse
+weekly data to yearly summaries, create analysis datasets, and run
+common epidemiological queries.</p>
 <p><strong>Prerequisites</strong>: Complete
 <code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code> first, or use the
 <code>RegistryStudy</code> pipeline from
@@ -118,9 +119,8 @@ and running common epidemiological queries.</p>
 <div class="section level2">
 <h2 id="build-a-skeleton-for-this-vignette">Build a skeleton for this vignette<a class="anchor" aria-label="anchor" href="#build-a-skeleton-for-this-vignette"></a>
 </h2>
-<p>We create a small skeleton with the same steps as
-<code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code>, condensed here for
-convenience:</p>
+<p>This chunk builds a small skeleton with the same steps as
+<code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code>, in short form:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_person_ids</a></span>, <span class="fl">2015</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span></span>
@@ -136,36 +136,33 @@ convenience:</p>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
-<span>  diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"gender_dysphoria"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F64"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Prescriptions</span></span>
 <span><span class="va">fake_prescriptions</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_prescriptions</a></span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"edatum"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_rx.html">add_rx</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_prescriptions</span>, id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
-<span>  rxs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N06A"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"lipid_lowering"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C10AA"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"hormones"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G03"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'rxs' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Cause of death</span></span>
 <span><span class="va">fake_cod</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_cod</a></span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"dodsdat"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_cods.html">add_cods</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_cod</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
-<span>  cods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"external_death"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"X60"</span>, <span class="st">"X70"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"cardiovascular_death"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I21"</span>, <span class="st">"I22"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'cods' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Derived variables</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">birth_year</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">fodelseman</span>, <span class="fl">1</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
@@ -205,10 +202,11 @@ to one granularity.</p>
 <div class="section level2">
 <h2 id="collapsing-weekly-data-to-person-years">Collapsing weekly data to person-years<a class="anchor" aria-label="anchor" href="#collapsing-weekly-data-to-person-years"></a>
 </h2>
-<p>The most common aggregation: collapse weekly boolean indicators into
-yearly summaries answering “did anything happen this year?”</p>
+<p>The most common aggregation collapses weekly boolean indicators into
+yearly summaries. Each summary answers “did anything happen this
+year?”</p>
 <p>Use <code><a href="../reference/max_with_infinite_as_na.html">swereg::max_with_infinite_as_na()</a></code> for
-boolean/logical columns – it returns <code>TRUE</code> if any week was
+boolean/logical columns. It returns <code>TRUE</code> if any week was
 <code>TRUE</code>, <code>FALSE</code> if all were <code>FALSE</code>,
 and <code>NA</code> if all were <code>NA</code>:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
@@ -329,7 +327,7 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <div class="section level2">
 <h2 id="working-directly-with-weekly-data">Working directly with weekly data<a class="anchor" aria-label="anchor" href="#working-directly-with-weekly-data"></a>
 </h2>
-<p>Some analyses need weekly resolution – for example, time-to-event
+<p>Some analyses need weekly resolution, for example time-to-event
 models or exposure-lag analyses. Use the weekly rows directly:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">weekly</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">FALSE</span><span class="op">]</span></span>

@@ -20,7 +20,8 @@ add_annual(skeleton, data, id_name, isoyear)
 
 - data:
 
-  A data.table containing the annual data to be merged
+  A data.table containing the annual data to be merged. The function
+  does not add or change any column of `data`.
 
 - id_name:
 

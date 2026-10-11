@@ -17,7 +17,7 @@ would halt on. ... is forwarded to qs2::qs_save()."><meta property="og:image" co
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,6 +43,7 @@ would halt on. ... is forwarded to qs2::qs_save()."><meta property="og:image" co
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -125,7 +126,7 @@ collision-proof: PIDs are unique only among <em>live processes on one host</em>,
 this package's data lives on a share that two hosts mount at once – so the
 same PID on two machines could pick the same temp path for the same target.
 Same directory is required: <code><a href="https://rdrr.io/r/base/files.html" class="external-link">file.rename()</a></code> is not atomic across filesystems.</p>
-<p>The implementation now lives in <code><a href="https://papadopoulos-lab.github.io/batchit/reference/write_qs2_atomically.html" class="external-link">batchit::write_qs2_atomically()</a></code>; this is a
+<p>The implementation lives in <code><a href="https://papadopoulos-lab.github.io/batchit/reference/write_qs2_atomically.html" class="external-link">batchit::write_qs2_atomically()</a></code>; this is a
 thin delegation, and the contract above is what swereg promises its own
 users. One visible consequence: the rename-failure error is raised by
 batchit, so its prefix reads <code>write_qs2_atomically()</code> rather than

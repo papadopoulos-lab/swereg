@@ -29,7 +29,7 @@ run.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swer
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,6 +55,7 @@ run.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swer
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -132,13 +133,13 @@ consulted and the function returns <code>1L</code>.</p></dd>
 "vs none" panels, so keep at 1 unless you have the RAM headroom</p></dd>
 
 
-</dl><p>Note: <code>s2_generate_analysis_files_and_ipcw_pp()</code> deliberately does NOT use
-this — it stays single-worker (<code>n_workers = 1L</code>) for per-ETT memory
-isolation.</p>
-<p>The former box-wide <code>SWEREG_N_WORKERS</code> (and <code>getOption("swereg.n_workers")</code>)
-are retired: a single global knob could silently leak a high worker count
-into a heavy stage (3 x ~20 GB s3 workers -&gt; OOM). If the deprecated
-<code>SWEREG_N_WORKERS</code> is still set, a one-time warning is emitted.</p>
+</dl><p>Note: <code>s2_generate_analysis_files_and_ipcw_pp()</code> does not call this
+function. Its <code>n_workers</code> argument defaults to <code>1L</code>. It accepts a larger
+whole number, and s2 then runs that many concurrent subprocesses.</p>
+<p>swereg reads no box-wide worker count. A single global knob could silently
+leak a high worker count into a heavy stage (3 x ~20 GB s3 workers -&gt; OOM).
+When the deprecated <code>SWEREG_N_WORKERS</code> is set, the function warns once per
+R session and ignores it. It reads no <code>getOption("swereg.n_workers")</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

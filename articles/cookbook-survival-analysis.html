@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -120,8 +121,8 @@
 </h2>
 <p><strong>How does annual income affect the risk of heart attack,
 accounting for income changes over time?</strong></p>
-<p>This cookbook demonstrates a complete workflow for survival analysis
-with time-varying covariates using swereg. We’ll use:</p>
+<p>This cookbook shows a workflow for survival analysis with
+time-varying covariates in swereg. It uses:</p>
 <ul>
 <li>
 <strong>Outcome</strong>: Heart attack (ICD-10 codes I21, I22)</li>
@@ -151,8 +152,8 @@ status is unknown</li>
 <strong>Reduced power</strong>: Ignoring within-person
 variation</li>
 </ul>
-<p>The skeleton approach handles this naturally by tracking exposures
-and outcomes week-by-week.</p>
+<p>The skeleton tracks exposures and outcomes week by week, so it
+captures these changes.</p>
 </div>
 <div class="section level2">
 <h2 id="step-1-load-and-prepare-data">Step 1: Load and prepare data<a class="anchor" aria-label="anchor" href="#step-1-load-and-prepare-data"></a>
@@ -193,8 +194,8 @@ and outcomes week-by-week.</p>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">birth_year</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">fodelseman</span>, <span class="fl">1</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">age</span> <span class="op">:=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/year.html" class="external-link">year</a></span><span class="op">(</span><span class="va">isoyearweeksun</span><span class="op">)</span> <span class="op">-</span> <span class="va">birth_year</span><span class="op">]</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Demographics added for"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">fake_demographics</span><span class="op">)</span>, <span class="st">"individuals\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Demographics added for 1000 individuals</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Study persons with demographics:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">fodelseman</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">study_ids</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Study persons with demographics: 500 of 500</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-4-add-annual-income-data-time-varying-covariate">Step 4: Add annual income data (time-varying covariate)<a class="anchor" aria-label="anchor" href="#step-4-add-annual-income-data-time-varying-covariate"></a>
@@ -223,39 +224,31 @@ and outcomes week-by-week.</p>
 <h2 id="step-5-add-heart-attack-outcomes">Step 5: Add heart attack outcomes<a class="anchor" aria-label="anchor" href="#step-5-add-heart-attack-outcomes"></a>
 </h2>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Combine inpatient and outpatient diagnoses</span></span>
+<code class="sourceCode R"><span><span class="co"># fake_diagnoses holds inpatient, outpatient and cancer registry rows</span></span>
 <span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span></span>
-<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="va">fake_diagnoses</span>,</span>
-<span>  <span class="va">fake_diagnoses</span></span>
-<span><span class="op">)</span>, use.names <span class="op">=</span> <span class="cn">TRUE</span>, fill <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add heart attack diagnoses</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span></span>
 <span>  <span class="va">skeleton</span>,</span>
-<span>  <span class="va">diagnoses_combined</span>,</span>
+<span>  <span class="va">fake_diagnoses</span>,</span>
 <span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
 <span>  diag_type <span class="op">=</span> <span class="st">"both"</span>,</span>
-<span>  diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"heart_attack"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I21"</span>, <span class="st">"I22"</span><span class="op">)</span>,  <span class="co"># Acute myocardial infarction</span></span>
 <span>    <span class="st">"stroke"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I63"</span>, <span class="st">"I64"</span><span class="op">)</span>,       <span class="co"># Cerebrovascular disease (competing risk)</span></span>
 <span>    <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span>      <span class="co"># Diabetes (confounder)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Diagnosis data added\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Diagnosis data added</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Heart attacks detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"events\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Heart attacks detected: 69 events</span></span></code></pre></div>
+<span><span class="co"># Weekly rows cover 1995-2005. Yearly rows before 1995 hold diagnosis history.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Weeks with a heart attack diagnosis, 1995-2005:"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">$</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Weeks with a heart attack diagnosis, 1995-2005: 20</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-6-data-cleaning-and-validation">Step 6: Data cleaning and validation<a class="anchor" aria-label="anchor" href="#step-6-data-cleaning-and-validation"></a>
@@ -273,30 +266,33 @@ and outcomes week-by-week.</p>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">baseline_age</span> <span class="op">:=</span> <span class="va">age</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.min</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">baseline_income</span> <span class="op">:=</span> <span class="va">income</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.min</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span></span>
+<span><span class="co"># Keep a copy before the filters, for Challenge 1 below</span></span>
+<span><span class="va">skeleton_before_filter</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Filter to valid ages and non-missing income</span></span>
 <span><span class="co"># IMPORTANT: Filter at person level - remove people who were under 18 during study</span></span>
-<span><span class="co"># Calculate minimum age for each person during study period</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">min_age</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">max_age</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span><span class="co"># Use the weekly rows only: the yearly rows before 1995 give ages below 18 for everyone</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">min_age</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">age</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">FALSE</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">max_age</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">age</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">FALSE</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span><span class="va">valid_ids</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">min_age</span> <span class="op">&gt;=</span> <span class="fl">18</span> <span class="op">&amp;</span> <span class="va">max_age</span> <span class="op">&lt;=</span> <span class="fl">90</span><span class="op">]</span><span class="op">$</span><span class="va">id</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">id</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">valid_ids</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">income</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"After filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"person-time periods\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; After filtering: 0 person-time periods</span></span>
+<span><span class="co">#&gt; After filtering: 138908 person-time periods</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Unique individuals:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Unique individuals: 0</span></span>
+<span><span class="co">#&gt; Unique individuals: 242</span></span>
 <span></span>
 <span><span class="co"># Create Table 1: Descriptive statistics</span></span>
 <span><span class="co"># Quick descriptive summary</span></span>
 <span><span class="va">baseline_data</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span>, <span class="va">.SD</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.min</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Sample:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"individuals, 1995-2005 follow-up\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Sample: 0 individuals, 1995-2005 follow-up</span></span>
+<span><span class="co">#&gt; Sample: 242 individuals, 1995-2005 follow-up</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Baseline age: mean"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">baseline_data</span><span class="op">$</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"years\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Baseline age: mean NaN years</span></span>
+<span><span class="co">#&gt; Baseline age: mean 31.7 years</span></span>
 <span><span class="va">health_summary</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>heart_attack <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Heart attacks during follow-up:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">health_summary</span><span class="op">$</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"events\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Heart attacks during follow-up: 0 events</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Individuals with a heart attack during follow-up:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">health_summary</span><span class="op">$</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Individuals with a heart attack during follow-up: 12</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\n=== END TABLE 1 ===\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -332,13 +328,12 @@ and outcomes week-by-week.</p>
 <span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">time_start</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">isoyearweeksun</span> <span class="op">-</span> <span class="va">baseline_date</span><span class="op">)</span> <span class="op">/</span> <span class="fl">365.25</span><span class="op">]</span></span>
 <span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">time_end</span> <span class="op">:=</span> <span class="va">time_start</span> <span class="op">+</span> <span class="va">personyears</span><span class="op">]</span></span>
 <span></span>
-<span><span class="co"># Identify first event</span></span>
-<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">first_heart_attack</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">isoyearweeksun</span><span class="op">[</span><span class="va">heart_attack</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="co">#&gt; Warning in min.default(structure(numeric(0), class = "Date"), na.rm = TRUE): no</span></span>
-<span><span class="co">#&gt; non-missing arguments to min; returning Inf</span></span>
-<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">first_stroke</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">isoyearweeksun</span><span class="op">[</span><span class="va">stroke</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="co">#&gt; Warning in min.default(structure(numeric(0), class = "Date"), na.rm = TRUE): no</span></span>
-<span><span class="co">#&gt; non-missing arguments to min; returning Inf</span></span>
+<span><span class="co"># Identify first event (NA for a person with no event)</span></span>
+<span><span class="va">first_date</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">date</span>, <span class="va">flag</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="va">flag</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">date</span><span class="op">[</span><span class="va">flag</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="cn">TRUE</span><span class="op">]</span><span class="op">)</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/yearmon.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">first_heart_attack</span> <span class="op">:=</span> <span class="fu">first_date</span><span class="op">(</span><span class="va">isoyearweeksun</span>, <span class="va">heart_attack</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">first_stroke</span> <span class="op">:=</span> <span class="fu">first_date</span><span class="op">(</span><span class="va">isoyearweeksun</span>, <span class="va">stroke</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span></span>
 <span><span class="co"># Create event indicator and event time</span></span>
 <span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">event</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
@@ -351,9 +346,9 @@ and outcomes week-by-week.</p>
 <span><span class="va">survival_data</span> <span class="op">&lt;-</span> <span class="va">survival_data</span><span class="op">[</span><span class="va">isoyearweeksun</span> <span class="op">&lt;=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">first_heart_attack</span>, <span class="va">first_stroke</span>, <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/yearmon.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2005-12-31"</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Survival dataset created:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">survival_data</span><span class="op">)</span>, <span class="st">"person-weeks\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Survival dataset created: 0 person-weeks</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Heart attack events:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">survival_data</span><span class="op">$</span><span class="va">event</span> <span class="op">==</span> <span class="fl">1</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Heart attack events: 0</span></span>
+<span><span class="co">#&gt; Survival dataset created: 135698 person-weeks</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Heart attack events (first event per person):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">survival_data</span><span class="op">$</span><span class="va">event</span> <span class="op">==</span> <span class="fl">1</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Heart attack events (first event per person): 12</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Stroke events:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">survival_data</span><span class="op">$</span><span class="va">event</span> <span class="op">==</span> <span class="fl">2</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Stroke events: 0</span></span></code></pre></div>
 </div>
@@ -372,7 +367,9 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Baseline characteristics by income category:"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Baseline characteristics by income category:"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">baseline_table</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Empty data.table (0 rows and 5 cols): income_category,n,mean_age,mean_income,diabetes_prev</span></span>
+<span><span class="co">#&gt;    income_category     n mean_age mean_income diabetes_prev</span></span>
+<span><span class="co">#&gt;             &lt;char&gt; &lt;int&gt;    &lt;num&gt;       &lt;num&gt;         &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:             Low   242 31.65289    34745.27  7.946599e-05</span></span>
 <span></span>
 <span><span class="co"># Event rates by income category</span></span>
 <span><span class="va">event_rates</span> <span class="op">&lt;-</span> <span class="va">survival_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span></span>
@@ -384,7 +381,11 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Heart attack rates by income category:"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Heart attack rates by income category:"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">event_rates</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Empty data.table (0 rows and 4 cols): income_category,person_years,heart_attacks,rate_per_1000</span></span></code></pre></div>
+<span><span class="co">#&gt;    income_category person_years heart_attacks rate_per_1000</span></span>
+<span><span class="co">#&gt;             &lt;char&gt;        &lt;num&gt;         &lt;int&gt;         &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:             Low   1982.16268             7      3.531496</span></span>
+<span><span class="co">#&gt; 2:          Medium    525.66507             5      9.511760</span></span>
+<span><span class="co">#&gt; 3:            High     89.26316             0      0.000000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-9-cox-proportional-hazards-model">Step 9: Cox proportional hazards model<a class="anchor" aria-label="anchor" href="#step-9-cox-proportional-hazards-model"></a>
@@ -409,11 +410,11 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Cox data summary:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Cox data summary:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Rows:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; - Rows: 0</span></span>
+<span><span class="co">#&gt; - Rows: 135698</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Events:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">event</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; - Events: 0</span></span>
+<span><span class="co">#&gt; - Events: 12</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Unique individuals:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; - Unique individuals: 0</span></span>
+<span><span class="co">#&gt; - Unique individuals: 242</span></span>
 <span></span>
 <span><span class="co"># Check if we have enough data for Cox model</span></span>
 <span><span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">event</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
@@ -463,18 +464,38 @@ and outcomes week-by-week.</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Example results (for demonstration only):"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">hr_results</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; ERROR: Insufficient data for Cox model</span></span>
-<span><span class="co">#&gt; This indicates a problem with the data preparation or filtering</span></span>
-<span><span class="co">#&gt; In real analysis, you would need to:</span></span>
-<span><span class="co">#&gt; 1. Use a larger sample size</span></span>
-<span><span class="co">#&gt; 2. Use a longer follow-up period</span></span>
-<span><span class="co">#&gt; 3. Check data quality and completeness</span></span>
-<span><span class="co">#&gt; [1] "Example results (for demonstration only):"</span></span>
-<span><span class="co">#&gt;      variable    hr ci_lower ci_upper p_value</span></span>
-<span><span class="co">#&gt;        &lt;char&gt; &lt;num&gt;    &lt;num&gt;    &lt;num&gt;   &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: income_log  0.85     0.60     1.20    0.35</span></span>
-<span><span class="co">#&gt; 2:        age  1.02     0.98     1.06    0.31</span></span>
-<span><span class="co">#&gt; 3:   diabetes  1.15     0.80     1.65    0.45</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "Cox Proportional Hazards Model Results:"</span></span>
+<span><span class="co">#&gt; Call:</span></span>
+<span><span class="co">#&gt; coxph(formula = Surv(time_start, time_end, event) ~ income_log + </span></span>
+<span><span class="co">#&gt;     age + diabetes, data = cox_data, cluster = id)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;   n= 135698, number of events= 12 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;                  coef exp(coef) se(coef) robust se      z Pr(&gt;|z|)  </span></span>
+<span><span class="co">#&gt; income_log   -0.08587   0.91771  0.76000   0.77553 -0.111   0.9118  </span></span>
+<span><span class="co">#&gt; age           0.07087   1.07344  0.03887   0.04001  1.771   0.0765 .</span></span>
+<span><span class="co">#&gt; diabetesTRUE       NA        NA  0.00000   0.00000     NA       NA  </span></span>
+<span><span class="co">#&gt; ---</span></span>
+<span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;              exp(coef) exp(-coef) lower .95 upper .95</span></span>
+<span><span class="co">#&gt; income_log      0.9177     1.0897    0.2007     4.196</span></span>
+<span><span class="co">#&gt; age             1.0734     0.9316    0.9925     1.161</span></span>
+<span><span class="co">#&gt; diabetesTRUE        NA         NA        NA        NA</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Concordance= 0.654  (se = 0.078 )</span></span>
+<span><span class="co">#&gt; Likelihood ratio test= 3.68  on 2 df,   p=0.2</span></span>
+<span><span class="co">#&gt; Wald test            = 3.22  on 2 df,   p=0.2</span></span>
+<span><span class="co">#&gt; Score (logrank) test = 3.57  on 2 df,   p=0.2,   Robust = 3.04  p=0.2</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;   (Note: the likelihood ratio and score tests assume independence of</span></span>
+<span><span class="co">#&gt;      observations within a cluster, the Wald and robust score tests do not).</span></span>
+<span><span class="co">#&gt; [1] "Hazard Ratios:"</span></span>
+<span><span class="co">#&gt;        variable       hr  ci_lower ci_upper    p_value</span></span>
+<span><span class="co">#&gt;          &lt;char&gt;    &lt;num&gt;     &lt;num&gt;    &lt;num&gt;      &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:   income_log 0.917714 0.2007110 4.196078 0.91183604</span></span>
+<span><span class="co">#&gt; 2:          age 1.073443 0.9924878 1.161001 0.07648071</span></span>
+<span><span class="co">#&gt; 3: diabetesTRUE       NA        NA       NA         NA</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-10-model-interpretation">Step 10: Model interpretation<a class="anchor" aria-label="anchor" href="#step-10-model-interpretation"></a>
@@ -500,7 +521,15 @@ and outcomes week-by-week.</p>
 <span>  <span class="op">}</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Note: Proportional hazards test could not be performed\n"</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; Income Effect:</span></span>
+<span><span class="co">#&gt; - 10% increase in income associated with HR = 0.991 </span></span>
+<span><span class="co">#&gt; - 95% CI: ( 0.852 ,  1.154 )</span></span>
+<span><span class="co">#&gt; [1] "Proportional Hazards Test:"</span></span>
+<span><span class="co">#&gt;            chisq df    p</span></span>
+<span><span class="co">#&gt; income_log 1.586  1 0.21</span></span>
+<span><span class="co">#&gt; age        0.106  1 0.74</span></span>
+<span><span class="co">#&gt; GLOBAL     1.698  2 0.43</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-11-visualization">Step 11: Visualization<a class="anchor" aria-label="anchor" href="#step-11-visualization"></a>
@@ -544,12 +573,8 @@ and outcomes week-by-week.</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Kaplan-Meier survival curves by income category\n"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Differences in heart attack-free survival over time\n"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Confidence intervals around the curves\n"</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span><span class="co">#&gt; Survival plot not generated due to insufficient data</span></span>
-<span><span class="co">#&gt; In a real analysis with adequate events, you would see:</span></span>
-<span><span class="co">#&gt; - Kaplan-Meier survival curves by income category</span></span>
-<span><span class="co">#&gt; - Differences in heart attack-free survival over time</span></span>
-<span><span class="co">#&gt; - Confidence intervals around the curves</span></span></code></pre></div>
+<span><span class="op">}</span></span></code></pre></div>
+<p><img src="cookbook-survival-analysis_files/figure-html/unnamed-chunk-12-1.png" class="r-plt" alt="" width="700"></p>
 </div>
 <div class="section level2">
 <h2 id="common-challenges-and-solutions">Common challenges and solutions<a class="anchor" aria-label="anchor" href="#common-challenges-and-solutions"></a>
@@ -558,21 +583,47 @@ and outcomes week-by-week.</p>
 <h3 id="challenge-1-missing-income-data">Challenge 1: Missing income data<a class="anchor" aria-label="anchor" href="#challenge-1-missing-income-data"></a>
 </h3>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Check for missing income by year</span></span>
-<span><span class="va">missing_income</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="fu">.</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="co"># Step 6 dropped every row with missing income, so use the copy from before it.</span></span>
+<span><span class="co"># The fake tax records cover every person in every year. Remove the income of</span></span>
+<span><span class="co"># 10% of person-years to mimic missing records.</span></span>
+<span><span class="va">income_data</span> <span class="op">&lt;-</span> <span class="va">skeleton_before_filter</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">FALSE</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">isoyear</span>, <span class="va">isoyearweek</span>, <span class="va">income</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span></span>
+<span><span class="va">person_years</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">income_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">isoyear</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">missing_records</span> <span class="op">&lt;-</span> <span class="va">person_years</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">.N</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">0.1</span> <span class="op">*</span> <span class="va">.N</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">income_data</span><span class="op">[</span><span class="va">missing_records</span>, <span class="va">income</span> <span class="op">:=</span> <span class="cn">NA</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">isoyear</span><span class="op">)</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># Check for missing income by year</span></span>
+<span><span class="va">missing_income</span> <span class="op">&lt;-</span> <span class="va">income_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span></span>
 <span>  n_total <span class="op">=</span> <span class="va">.N</span>,</span>
 <span>  n_missing <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">income</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  pct_missing <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">income</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">.N</span> <span class="op">*</span> <span class="fl">100</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span>, by <span class="op">=</span> <span class="va">isoyear</span><span class="op">]</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Missing income data by year:"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Missing income data by year:"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Missing income data by year (person-weeks):"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Missing income data by year (person-weeks):"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">missing_income</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Empty data.table (0 rows and 4 cols): isoyear,n_total,n_missing,pct_missing</span></span>
+<span><span class="co">#&gt;     isoyear n_total n_missing pct_missing</span></span>
+<span><span class="co">#&gt;       &lt;int&gt;   &lt;int&gt;     &lt;int&gt;       &lt;num&gt;</span></span>
+<span><span class="co">#&gt;  1:    1995   26000      2132         8.2</span></span>
+<span><span class="co">#&gt;  2:    1996   26000      2496         9.6</span></span>
+<span><span class="co">#&gt;  3:    1997   26000      2756        10.6</span></span>
+<span><span class="co">#&gt;  4:    1998   26500      2968        11.2</span></span>
+<span><span class="co">#&gt;  5:    1999   26000      2964        11.4</span></span>
+<span><span class="co">#&gt;  6:    2000   26000      2652        10.2</span></span>
+<span><span class="co">#&gt;  7:    2001   26000      2340         9.0</span></span>
+<span><span class="co">#&gt;  8:    2002   26000      2600        10.0</span></span>
+<span><span class="co">#&gt;  9:    2003   26000      1976         7.6</span></span>
+<span><span class="co">#&gt; 10:    2004   26500      3021        11.4</span></span>
+<span><span class="co">#&gt; 11:    2005   26000      2808        10.8</span></span>
 <span></span>
-<span><span class="co"># Solution: Carry forward/backward or interpolate</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">income_filled</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/na.locf.html" class="external-link">na.locf</a></span><span class="op">(</span><span class="va">income</span>, na.rm <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">income_filled</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/na.locf.html" class="external-link">na.locf</a></span><span class="op">(</span><span class="va">income_filled</span>, fromLast <span class="op">=</span> <span class="cn">TRUE</span>, na.rm <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span></code></pre></div>
+<span><span class="co"># Solution: carry the last value forward, then the next value backward, within each person</span></span>
+<span><span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">income_data</span>, <span class="va">id</span>, <span class="va">isoyearweek</span><span class="op">)</span></span>
+<span><span class="va">income_data</span><span class="op">[</span>, <span class="va">income_filled</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/na.locf.html" class="external-link">na.locf</a></span><span class="op">(</span><span class="va">income</span>, na.rm <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span><span class="va">income_data</span><span class="op">[</span>, <span class="va">income_filled</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/na.locf.html" class="external-link">na.locf</a></span><span class="op">(</span><span class="va">income_filled</span>, fromLast <span class="op">=</span> <span class="cn">TRUE</span>, na.rm <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Person-weeks with missing income before filling:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">income_data</span><span class="op">$</span><span class="va">income</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Person-weeks with missing income before filling: 28713</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Person-weeks with missing income after filling:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">income_data</span><span class="op">$</span><span class="va">income_filled</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Person-weeks with missing income after filling: 0</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="challenge-2-multiple-events">Challenge 2: Multiple events<a class="anchor" aria-label="anchor" href="#challenge-2-multiple-events"></a>
@@ -592,7 +643,11 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="st">"Multiple heart attacks:"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Multiple heart attacks:"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">multi_events_summary</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Empty data.table (0 rows and 3 cols): event_category,n_individuals,n_with_multiple</span></span>
+<span><span class="co">#&gt;     event_category n_individuals n_with_multiple</span></span>
+<span><span class="co">#&gt;             &lt;char&gt;         &lt;int&gt;           &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:       No events           230               0</span></span>
+<span><span class="co">#&gt; 2:       One event            11               0</span></span>
+<span><span class="co">#&gt; 3: Multiple events             1               1</span></span>
 <span></span>
 <span><span class="co"># Solution: Use only first event or recurrent event models</span></span></code></pre></div>
 </div>
@@ -601,7 +656,7 @@ and outcomes week-by-week.</p>
 </h3>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Handle individuals who may have had events before study start</span></span>
-<span><span class="co"># Check for prevalent cases (diagnosis before 2015)</span></span>
+<span><span class="co"># Check for prevalent cases (diagnosis before 1995)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Note: This analysis assumes no prevalent cases at baseline\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Note: This analysis assumes no prevalent cases at baseline</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"In real analysis, you would:\n"</span><span class="op">)</span></span>
@@ -611,12 +666,6 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"2. Or use left-truncated survival analysis\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; 2. Or use left-truncated survival analysis</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="performance-tips-for-large-datasets">Performance tips for large datasets<a class="anchor" aria-label="anchor" href="#performance-tips-for-large-datasets"></a>
-</h2>
-<p>This cookbook demonstrates survival analysis with time-varying
-covariates using the swereg skeleton framework.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

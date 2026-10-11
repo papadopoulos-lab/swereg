@@ -96,7 +96,14 @@ Other tte_classes:
 
 - `ett`:
 
-  NULL or a data.table with per-ETT columns.
+  NULL or a data.table with per-ETT columns. The column `s1_run_id`
+  holds the id of the s1 run whose files s2 last wrote the analysis
+  files from. It is absent before the first s2, and `NA` while s2 writes
+  or after an s2 that failed. A later s1 run does not change it. s3
+  refuses an ETT whose value differs from the current `s1_run_id` of the
+  plan. The column `s2_run_id` holds the id of the s2 run that wrote the
+  analysis files. It follows the same rules as `s1_run_id`, and it
+  changes on every s2 run. s3 copies it into each result it stores.
 
 - `skeleton_files`:
 
@@ -184,6 +191,66 @@ Other tte_classes:
 
   Character vector of structural spec differences that `$reload_spec()`
   chose not to apply, or NULL.
+
+- `sparse_decision`:
+
+  The frozen decision of the spec's `sparse_rule`, or NULL when the spec
+  has none or s1 has not run. s1b writes it. Read it through
+  `$get_sparse_decision()`. It is a data.table with one row per
+  candidate, in the order of `sparse_rule$candidates`:
+
+  variable, label
+
+  :   The computed confounder and its name.
+
+  `n_<enrollment>_intervention`, `n_<enrollment>_comparator`
+
+  :   The count of persons who hold the condition at baseline, per
+      driving enrollment and arm. A person holds it when one of her
+      eligible person-trials in that arm holds it at the recruiting
+      week. The same person can count in both arms.
+
+  smallest, smallest_enrollment, smallest_arm
+
+  :   The smallest of those counts, and the enrollment and arm that hold
+      it.
+
+  threshold, decided_by
+
+  :   `min_n`, and the driving enrollments.
+
+  decision
+
+  :   `"excluded"` when `smallest` is below `threshold`, and
+      `"adjusted"` otherwise.
+
+  decided_at
+
+  :   When s1b ran.
+
+  The decision is made from baseline counts in the eligible population,
+  before the comparator draw and without follow-up outcomes.
+
+- `sparse_rule_hash`:
+
+  The hash of the `sparse_rule` that made `sparse_decision`, or NULL.
+  s1c, s2 and s3 stop when the hash of the rule in `spec` differs from
+  it. `$export()`, `$export_tables()` and `$print_target_checklist()`
+  stop on that difference too, when the plan holds a decision or a
+  stored result. `$excel_spec_summary()` and `$print_spec_summary()`
+  then show the rule as not decided yet.
+
+- `s1_run_id`:
+
+  The id of the last s1 run when that run completed, and NULL otherwise.
+  The id is a digest of `sparse_decision` and `sparse_rule_hash`, then a
+  token unique to the run. s1 sets it to NULL after its input checks,
+  and drops `results_enrollment` and `results_ett` at the same point. s1
+  sets the id after s1e writes every output. s2 and s3 stop unless the
+  id matches the current decision. s2 copies the id into the `s1_run_id`
+  column of `ett`, and s3 into each result it stores. `$export()`,
+  `$export_tables()` and `$print_target_checklist()` stop when a stored
+  result carries another id.
 
 - `spec_version`:
 
@@ -324,6 +391,8 @@ Other tte_classes:
 
 - [`TTEPlan$check_version()`](#method-TTEPlan-check_version)
 
+- [`TTEPlan$get_sparse_decision()`](#method-TTEPlan-get_sparse_decision)
+
 - [`TTEPlan$save()`](#method-TTEPlan-save)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
@@ -413,9 +482,8 @@ manuscript.
   confidence level. It ignores the weights and the repeated
   contributions of one person. So it can differ from the detectable
   effect of the weighted estimator with person-clustered standard
-  errors. It is not observed power (Hoenig and Heisey 2001). A plan
-  analysed before 27.2.0 stored no unweighted counts, and its three MDE
-  cells are blank.
+  errors. It is not observed power (Hoenig and Heisey 2001). A stored
+  result without unweighted counts gives three blank MDE cells.
 
 ------------------------------------------------------------------------
 
@@ -586,6 +654,13 @@ each ETT, loads the imputed enrollment file, calls
 `$s4_prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
 truncation), and saves the analysis-ready file.
 
+s2 rewrites the analysis files of every ETT, so it drops the stored s3
+results before it writes. It stamps each ETT with a new s2 run id in the
+`s2_run_id` column of `$ett`. s3 copies that id into each result it
+stores. `$export()`, `$export_tables()` and `$print_target_checklist()`
+refuse a stored result whose s2 run id is not the current one of its
+ETT.
+
 #### Usage
 
     TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
@@ -739,7 +814,13 @@ Print the TTEPlan object.
 Print a target trial specification summary. Console-friendly summary
 derived from the study specification stored on this plan. When
 `$code_registry` is available, variable names are shown in red and
-matched code details in blue (ANSI colors).
+matched code details in blue (ANSI colors). A spec with a `sparse_rule`
+also prints the rare-condition rule: `min_n`, the driving enrollments,
+the candidates and the decision. Before s1 the decision reads
+`not decided yet (s1 has not run)`. A stored decision prints only when
+the rule in `$spec` still hashes to `$sparse_rule_hash` and s1 completed
+for it. Otherwise the decision reads
+`not decided yet (s1 has not completed for this rule)`.
 
 #### Usage
 
@@ -1079,6 +1160,11 @@ recompute has no analysis file on disk. That enrollment counts as
 neither. A skipped enrollment never reaches that check, so a current
 enrollment raises no warning about a missing file.
 
+The method stops when an ETT of a named enrollment does not carry the s2
+stamp of the current s1 run, as `$s3_analyze()` does. Its analysis files
+then do not come from the current s1 run. A recomputed panel takes the
+s1 and s2 run stamps of the analysis file it reads.
+
 `$export_tables()` calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
@@ -1390,13 +1476,21 @@ A list with:
 
 Export the study specification to a standalone Excel file.
 
-Writes a formatted summary of the spec (design, criteria, confounders,
-outcomes, enrollments) with ICD-10/ATC code annotations from the code
-registry. No analysis results required.
+Writes the preregistration sheets of the plan. The Study Specification
+sheet summarises the spec (design, criteria, confounders, outcomes,
+enrollments) with ICD-10/ATC code annotations from the code registry.
+The Target trial protocol sheet documents one ETT. The Sparse conditions
+sheet is written only when the plan holds a current sparse decision: the
+rule in `$spec` still hashes to `$sparse_rule_hash`, and s1 completed
+for it. Without one, the Study Specification sheet reads the rule as not
+decided yet. Each sheet holds the same cells as the sheet of that name
+that `$export_tables()` writes for the same plan state and the same
+`protocol_ett_id`. No sheet reads an s2 or s3 result, so the method runs
+straight after s0.
 
 #### Usage
 
-    TTEPlan$excel_spec_summary(path = NULL)
+    TTEPlan$excel_spec_summary(path = NULL, protocol_ett_id = NULL)
 
 #### Arguments
 
@@ -1405,6 +1499,12 @@ registry. No analysis results required.
   Optional output path override. If `NULL` (default), writes to
   `self$spec_xlsx` (that is, `spec_<version>.xlsx` inside
   `self$dir_results`, where `<version>` is `self$spec_version`).
+
+- `protocol_ett_id`:
+
+  Optional ETT id that the Target trial protocol sheet documents. `NULL`
+  (default) takes the first ETT of the grid. An id the plan does not
+  hold warns and falls back to the first ETT.
 
 #### Returns
 
@@ -1486,6 +1586,21 @@ Errors if the object was saved with an older schema.
 
 `invisible(TRUE)` if versions match. Errors otherwise with an actionable
 migration message.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$get_sparse_decision()`
+
+Read the frozen decision of the spec's `sparse_rule`.
+
+#### Usage
+
+    TTEPlan$get_sparse_decision()
+
+#### Returns
+
+A copy of the `sparse_decision` field, or NULL when the spec has no
+`sparse_rule` or s1 has not run.
 
 ------------------------------------------------------------------------
 

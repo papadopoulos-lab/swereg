@@ -11,9 +11,9 @@ library(data.table)
 
 ## Introduction
 
-This vignette demonstrates how to work with a finished skeleton –
-collapsing weekly data to yearly summaries, creating analysis datasets,
-and running common epidemiological queries.
+This vignette shows how to work with a finished skeleton: collapse
+weekly data to yearly summaries, create analysis datasets, and run
+common epidemiological queries.
 
 **Prerequisites**: Complete
 [`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md)
@@ -22,9 +22,9 @@ first, or use the `RegistryStudy` pipeline from
 
 ## Build a skeleton for this vignette
 
-We create a small skeleton with the same steps as
+This chunk builds a small skeleton with the same steps as
 [`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md),
-condensed here for convenience:
+in short form:
 
 ``` r
 skeleton <- swereg::create_skeleton(swereg::fake_person_ids, 2015, "2020-53")
@@ -41,36 +41,33 @@ fake_diagnoses <- swereg::fake_diagnoses |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
-  diags = list(
+  codes = list(
     "depression" = c("F32", "F33"),
     "anxiety" = c("F40", "F41"),
     "gender_dysphoria" = c("F64"),
     "diabetes" = c("E10", "E11")
   ))
-#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 # Prescriptions
 fake_prescriptions <- swereg::fake_prescriptions |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "edatum")
 swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
-  rxs = list(
+  codes = list(
     "antidepressants" = c("N06A"),
     "lipid_lowering" = c("C10AA"),
     "hormones" = c("G03")
   ))
-#> Warning: 'rxs' is deprecated, use 'codes' instead.
 
 # Cause of death
 fake_cod <- swereg::fake_cod |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "dodsdat")
 swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
-  cods = list(
+  codes = list(
     "external_death" = c("X60", "X70"),
     "cardiovascular_death" = c("I21", "I22")
   ))
-#> Warning: 'cods' is deprecated, use 'codes' instead.
 
 # Derived variables
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
@@ -112,12 +109,12 @@ to one granularity.
 
 ## Collapsing weekly data to person-years
 
-The most common aggregation: collapse weekly boolean indicators into
-yearly summaries answering “did anything happen this year?”
+The most common aggregation collapses weekly boolean indicators into
+yearly summaries. Each summary answers “did anything happen this year?”
 
 Use
 [`swereg::max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/max_with_infinite_as_na.md)
-for boolean/logical columns – it returns `TRUE` if any week was `TRUE`,
+for boolean/logical columns. It returns `TRUE` if any week was `TRUE`,
 `FALSE` if all were `FALSE`, and `NA` if all were `NA`:
 
 ``` r
@@ -236,7 +233,7 @@ print(treatment[order(isoyear)])
 
 ## Working directly with weekly data
 
-Some analyses need weekly resolution – for example, time-to-event models
+Some analyses need weekly resolution, for example time-to-event models
 or exposure-lag analyses. Use the weekly rows directly:
 
 ``` r

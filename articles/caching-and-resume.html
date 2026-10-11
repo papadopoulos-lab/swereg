@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -100,27 +101,27 @@
 <div class="section level2">
 <h2 id="caching-and-resume-what-invalidates-what">Caching and resume: what invalidates what<a class="anchor" aria-label="anchor" href="#caching-and-resume-what-invalidates-what"></a>
 </h2>
-<p>A full run of this pipeline is measured in <strong>days</strong>, so
-the skeleton side of it avoids redoing work it has already done. That is
-three caches and one commit record, each with different rules about what
-makes it stale.</p>
-<p>Getting those rules wrong is not loud. A cache that should have been
-discarded and wasn’t produces a run that completes normally and reports
-nothing unusual — it is simply built partly from data you have since
-replaced. This vignette is the map: what is cached, what invalidates it,
-and what none of it protects you from.</p>
-<p><strong>The TTE stages (s1–s3) hold no caching or resume opinion of
-their own</strong> — that was deliberately removed (Phase 5′; see
-<code>PROJECT.md</code>). <code>s1</code>’s work directory is transient
-dataflow between its four internal sub-steps, cleared at the start of
-every call and removed again on success; <code>s3_analyze()</code>
-recomputes every targeted result on every call. A killed s1 restarts
-from zero, and a mid-run s3 crash means a full recompute — accepted
-costs, not bugs. This vignette is therefore only about the skeleton
-pipeline below s1, where the caching that remains lives.</p>
-<p>Read <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> first for how
-skeletons are built, and <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> for what
-s1–s4 do.</p>
+<p>A full run of this pipeline takes <strong>days</strong>, so the
+skeleton side of it skips work that it already did. It keeps three
+caches and one commit record. Each has different rules about what makes
+it stale.</p>
+<p>A wrong rule fails silently. A stale cache that swereg does not
+discard gives a run that completes normally and reports nothing unusual.
+Part of the result then comes from data you replaced. This vignette
+lists what is cached, what invalidates it, and what none of it protects
+you from.</p>
+<p><strong>The TTE stages (s1 to s3) have no caching or resume logic of
+their own.</strong> <code>s1</code> uses its work directory only to pass
+data between its internal sub-steps s1a to s1e. <code>s1</code> clears
+that directory at the start of every call and deletes it again on
+success. <code>s3_analyze()</code> recomputes every targeted result on
+every call. A killed s1 restarts from zero, and an s3 crash during a run
+means a full recompute. These costs are accepted by design. This
+vignette therefore covers only the skeleton pipeline below s1, where all
+of the caching is.</p>
+<p>Read <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> first for how swereg
+builds skeletons, and <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> for what s1
+to s4 do.</p>
 <div class="section level3">
 <h3 id="the-layers">The layers<a class="anchor" aria-label="anchor" href="#the-layers"></a>
 </h3>
@@ -139,7 +140,7 @@ s1–s4 do.</p>
 <tr class="odd">
 <td><strong>1. Rawbatch staging</strong></td>
 <td>re-reading tens of GB of raw registry files</td>
-<td>nothing automatic — guarded on existence</td>
+<td>nothing automatic: swereg checks only that the files exist</td>
 </tr>
 <tr class="even">
 <td><strong>2. Skeleton phases</strong></td>
@@ -154,8 +155,8 @@ questions</td>
 <td>rewritten with their batch</td>
 </tr>
 <tr class="even">
-<td><strong>—. Skeleton manifest</strong></td>
-<td><em>(not a cache — a commit record)</em></td>
+<td><strong>Skeleton manifest</strong></td>
+<td><em>(a commit record, not a cache)</em></td>
 <td>cleared before every <code>$process_skeletons()</code>, recommitted
 only if the result validates</td>
 </tr>
@@ -164,40 +165,40 @@ only if the result validates</td>
 <hr>
 </div>
 <div class="section level3">
-<h3 id="layer-1-rawbatch-staging">Layer 1 — rawbatch staging<a class="anchor" aria-label="anchor" href="#layer-1-rawbatch-staging"></a>
+<h3 id="layer-1-rawbatch-staging">Layer 1: rawbatch staging<a class="anchor" aria-label="anchor" href="#layer-1-rawbatch-staging"></a>
 </h3>
 <p><code>$save_rawbatch()</code> writes the raw registries into
-per-batch <code>.qs2</code> files. This is guarded by existence, not by
-a hash: once the rawbatches and <code>registrystudy.qs2</code> exist, a
-reclean skips staging entirely and does <strong>not</strong> re-read the
+per-batch <code>.qs2</code> files. An existence check guards this step,
+not a hash. When the rawbatches and <code>registrystudy.qs2</code>
+exist, a reclean skips staging and does <strong>not</strong> re-read the
 raw delivery.</p>
-<p>That is a deliberate trade. Re-staging is expensive and the raw
-delivery is a fixed artifact, so the guard is almost always right. But
-note the consequence: <strong>if the raw files change, nothing here
-notices.</strong> You must delete the rawbatches (or the meta file) by
-hand.</p>
+<p>This is a deliberate trade. Re-staging is expensive and the raw
+delivery is a fixed artifact, so the guard is almost always right.
+<strong>If the raw files change, nothing here detects it.</strong> You
+must delete the rawbatches (or the meta file) by hand.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span>   <span class="co"># force a re-stage</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="layer-2-skeleton-phases">Layer 2 — skeleton phases<a class="anchor" aria-label="anchor" href="#layer-2-skeleton-phases"></a>
+<h3 id="layer-2-skeleton-phases">Layer 2: skeleton phases<a class="anchor" aria-label="anchor" href="#layer-2-skeleton-phases"></a>
 </h3>
-<p><code>$process_skeletons()</code> does not rebuild skeletons; it
+<p><code>$process_skeletons()</code> does not rebuild skeletons. It
 <strong>replays the phases that changed</strong>. Each batch’s skeleton
 carries its own provenance, and the decision is per phase:</p>
 <ul>
 <li>
-<strong>Phase 1 (framework).</strong> If <code>framework_fn</code>’s
-hash differs from the one stored on the skeleton — or no skeleton exists
-— the base is rebuilt from scratch, and every later phase is reset with
-it.</li>
+<strong>Phase 1 (framework).</strong> If the hash of
+<code>framework_fn</code> differs from the one stored on the skeleton,
+or no skeleton exists, swereg rebuilds the base from scratch. It resets
+every later phase with it.</li>
 <li>
 <strong>Phase 1b (trim).</strong> The stored
 <code>trim_fn_hash</code> and <code>phase_order</code> join the
-framework hash in that same gate. A trim edit, a new trim, a removed
-trim, or a swereg release that reorders the phases all rebuild the base.
-The trim then runs on that fresh base, and on nothing else.</li>
+framework hash in that same gate. Each of these rebuilds the base: a
+trim edit, a new trim, a removed trim, or a swereg version with a
+different phase order. The trim then runs on that fresh base, and on
+nothing else.</li>
 <li>
 <strong>Phase 2 (codes).</strong> <code>$sync_with_registry()</code>
 diffs the stored entry fingerprints against the current ones. It drops
@@ -215,47 +216,49 @@ is untouched.</li>
 every code registry fingerprint. So any code registry edit moves every
 randvars hash, and the whole sequence replays against the
 freshly-applied code columns.</p>
-<p><strong>The rewind is not a time machine.</strong>
-<code>$sync_randvars()</code> drops only the columns each step
-<em>recorded itself as adding</em>. It cannot restore a column an
-earlier step overwrote. Nothing checks for that, so a step that modifies
-an existing column breaks the replay silently.</p>
-<p>Rows are different, and swereg does check them. A code entry or a
-randvars step that changes the row count stops the run. The error names
-the registration to edit. Only the phase-1b trim may delete rows.</p>
-<p>A registered function’s own hash is
-<code>digest(list(body(fn), formals(fn)))</code>. Two consequences
-follow, and both matter in practice:</p>
-<p><strong>Comments are free.</strong> Documentation, changelog entries,
-and reformatting of comments do not change <code><a href="https://rdrr.io/r/base/body.html" class="external-link">body()</a></code>, so they
-do not trigger a replay. You can fix a comment in a randvars file while
-a regeneration is running.</p>
-<p><strong>Code identity is not data identity.</strong> The hash
-fingerprints the <em>registered functions</em>. It says nothing about
-called helpers, package versions, globals, or the raw inputs.
-<strong>Change the raw data with unchanged code and every hash is
-identical</strong> — layer 2 will conclude it has nothing to replay, and
-it will be wrong.</p>
-<p>The skeleton manifest below is downstream of this layer: it records
-exactly which generation layer 2 actually produced, so a rebuild cannot
-go unnoticed by anyone reading the manifest. It does
-<strong>not</strong> rescue the case above — if layer 2 never rewrites
-the batch, there is no new generation to notice. For changed raw data
-you must invalidate layer 1 by hand.</p>
+<p><strong>The rewind removes columns. It does not restore
+them.</strong> <code>$sync_randvars()</code> drops only the columns each
+step <em>recorded itself as adding</em>. It cannot restore a column that
+an earlier step overwrote. Nothing checks for that, so a step that
+changes an existing column breaks the replay silently.</p>
+<p>swereg does check rows. A code entry or a randvars step that changes
+the row count stops the run. The error names the registration to edit.
+Only the phase-1b trim may delete rows.</p>
+<p>The hash of a registered function is
+<code>digest(list(body(fn), formals(fn)))</code>. This has two
+consequences.</p>
+<p><strong>A comment change does not trigger a replay.</strong>
+Documentation, changelog entries and comment reformatting do not change
+<code><a href="https://rdrr.io/r/base/body.html" class="external-link">body()</a></code>. You can fix a comment in a randvars file while a
+regeneration runs.</p>
+<p><strong>The hash covers code, not data.</strong> It fingerprints the
+<em>registered functions</em>. It says nothing about called helpers,
+package versions, globals, or the raw inputs. <strong>If you change the
+raw data and keep the code, every hash stays the same.</strong> Layer 2
+then concludes that it has nothing to replay, and that conclusion is
+wrong.</p>
+<p>The skeleton manifest below depends on this layer. It records which
+generation layer 2 produced, so a reader of the manifest sees every
+rebuild. It does <strong>not</strong> help in the case above. If layer 2
+never rewrites the batch, there is no new generation to see. For changed
+raw data, you must invalidate layer 1 by hand.</p>
 </div>
 <div class="section level3">
 <h3 id="the-skeleton-manifest-not-a-cache">The skeleton manifest (not a cache)<a class="anchor" aria-label="anchor" href="#the-skeleton-manifest-not-a-cache"></a>
 </h3>
-<p>A manifest is <code>$process_skeletons()</code>’s <strong>commit
-record</strong>. It attests that, at commit time, every batch’s
-provenance sidecar was readable, the set was complete and internally
-uniform, and it matched the study’s pipeline fingerprint. It does
-<strong>not</strong> prove the skeleton bytes match their sidecars, that
-the raw inputs were current, or that any content is correct.</p>
+<p>A manifest is the <strong>commit record</strong> of
+<code>$process_skeletons()</code>. It attests that, at commit time:</p>
+<ul>
+<li>every batch’s provenance sidecar was readable</li>
+<li>the set was complete and internally uniform</li>
+<li>the set matched the study’s pipeline fingerprint</li>
+</ul>
+<p>It does <strong>not</strong> prove that the skeleton bytes match
+their sidecars, that the raw inputs were current, or that any content is
+correct.</p>
 <p>It lives in the <code>skeleton_manifest</code> field of
-<code>RegistryStudy</code> and is written into the ordinary
-<code>registrystudy.qs2</code> by the ordinary
-<code>$save_meta()</code>. No extra file.</p>
+<code>RegistryStudy</code>. <code>$save_meta()</code> writes it into
+<code>registrystudy.qs2</code>, so it needs no extra file.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/registrystudy_load.html">registrystudy_load</a></span><span class="op">(</span><span class="st">"/path/to/meta/dir"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">skeleton_manifest</span><span class="op">)</span></span>
@@ -269,79 +272,75 @@ the raw inputs were current, or that any content is correct.</p>
 <span><span class="co">#&gt;  $ identity        : chr "73180d2cd7417e91"</span></span></code></pre></div>
 <p><code>pipeline_hash</code> <strong>fingerprints the registered
 pipeline code</strong>. <code>identity</code> is a <strong>generation
-token</strong> derived from per-batch provenance metadata — it digests
+token</strong> derived from per-batch provenance metadata. It digests
 the ordered per-batch <code>(batch, pipeline_hash, built_at)</code>
 triples. Neither is a content hash of the skeleton data.</p>
-<p><code>built_at</code> is what makes <code>identity</code> a
-<em>generation</em> token rather than a code one: when a batch and its
-provenance are rewritten, its <code>built_at</code> changes, so
-<code>identity</code> moves even though the code did not. Conversely an
-incremental run that skips every already-current batch rewrites nothing,
-so <code>identity</code> is unchanged.</p>
+<p><code>built_at</code> makes <code>identity</code> a
+<em>generation</em> token and not a code token. When swereg rewrites a
+batch and its provenance, the <code>built_at</code> of that batch
+changes. <code>identity</code> then moves, although the code did not. An
+incremental run that skips every current batch rewrites nothing, so
+<code>identity</code> stays the same.</p>
 <div class="section level4">
 <h4 id="the-commit-protocol">The commit protocol<a class="anchor" aria-label="anchor" href="#the-commit-protocol"></a>
 </h4>
-<p>The manifest is <strong>cleared before a single batch is
-touched</strong>, and only recommitted at the end if the finished
-dataset earns it:</p>
+<p>swereg <strong>clears the manifest before it touches a single
+batch</strong>. It recommits the manifest at the end only if the
+finished dataset passes these checks:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Provenance readable</strong> for every batch.</li>
 <li>
-<strong>Exactly one distinct <code>pipeline_hash</code></strong> —
-more means an interrupted replay left a mix of old and new
+<strong>Exactly one distinct <code>pipeline_hash</code>.</strong>
+More than one means that an interrupted replay left a mix of old and new
 skeletons.</li>
 <li>
 <strong>That hash equals the study’s current
-<code>$pipeline_hash()</code>.</strong> Internal agreement is not
-currency: a dataset can be perfectly self-consistent and simply out of
-date.</li>
+<code>$pipeline_hash()</code>.</strong> A dataset can be fully
+self-consistent and still out of date.</li>
 <li>
 <strong>Batch IDs are exactly
-<code>seq_len(expected)</code>.</strong> A count cannot distinguish 1..N
-from 2..N+1 — and a <em>first</em> build interrupted at batch 272 leaves
-272 mutually-consistent skeletons that a hash-only check waves straight
-through, after which s1 analyses 12% of the cohort and looks fine doing
-it.</li>
+<code>seq_len(expected)</code>.</strong> A count cannot tell 1..N from
+2..N+1. A <em>first</em> build interrupted at batch 272 leaves 272
+mutually consistent skeletons, and a hash-only check accepts them. s1
+then analyses 12% of the cohort and shows no sign of a problem.</li>
 </ol>
-<p>Clearing first is what makes a kill safe: a manifest that survived an
-interrupted run would vouch for skeletons it no longer describes, which
-is worse than none.</p>
-<p><code>batches</code> controls only what a run
-<strong>processes</strong>, never what is validated — validation always
-covers the whole directory, because that is what s1 reads. A subset run
+<p>The clear-first order makes a kill safe. A manifest that survived an
+interrupted run would vouch for skeletons it no longer describes. That
+is worse than no manifest.</p>
+<p><code>batches</code> controls only which batches a run
+<strong>processes</strong>. Validation always covers the whole
+directory, because s1 reads the whole directory. A subset run
 (<code>batches = 1:10</code>) therefore still commits if the resulting
-whole dataset validates. What a full run (<code>batches = NULL</code>)
-changes is the <strong>failure</strong> behaviour: it raises, rather
-than letting a caller’s file-count gate report success over a dataset
+whole dataset validates. A full run (<code>batches = NULL</code>)
+changes only the <strong>failure</strong> behaviour. It raises an error,
+so a caller’s file-count gate cannot report success over a dataset that
 nothing will accept.</p>
 </div>
 </div>
 <div class="section level3">
 <h3 id="what-none-of-this-protects-you-from">What none of this protects you from<a class="anchor" aria-label="anchor" href="#what-none-of-this-protects-you-from"></a>
 </h3>
-<p>Stated plainly, because a green run is seductive.</p>
 <ul>
 <li>
 <strong>Concurrency.</strong> Exactly one
 <code>$process_skeletons()</code> may run against a skeleton directory
-at a time. <strong>Nothing enforces this.</strong> Two writers
-interleave as clear(A), clear(B), commit(A),
-B-replaces-skeletons-and-dies — leaving A’s manifest vouching for B’s
-skeletons. Atomic writes cannot fix a logical race. <strong>Serialise
-your regenerations.</strong>
+at a time. <strong>Nothing enforces this.</strong> Two writers can
+interleave as clear(A), clear(B), commit(A), then B replaces skeletons
+and dies. A’s manifest then vouches for B’s skeletons. Atomic writes
+cannot fix a logical race. <strong>Run one regeneration at a
+time.</strong>
 </li>
 <li>
 <strong>Identity is not content.</strong> Nothing here digests
-skeleton bytes. Editing, replacing, restoring from backup, or corrupting
-a skeleton without correspondingly regenerated provenance may go
-undetected. The stale-sidecar case below is one instance of this general
-limit.</li>
+skeleton bytes. If you edit, replace, restore from backup or corrupt a
+skeleton without regenerating its provenance, swereg may not detect it.
+The stale-sidecar case below is one instance of this general limit.</li>
 <li>
 <strong>A skeleton replaced under its own sidecar.</strong>
-Validation reads sidecars, not skeletons — opening all of them would
-mean reading gigabytes every run. Both writes are atomic, but they are
-separate writes, so a crash between them can leave a new skeleton with a
+Validation reads sidecars, not skeletons, because opening all skeletons
+means reading gigabytes every run. Both writes are atomic, but they are
+separate writes. A crash between them can leave a new skeleton with a
 stale sidecar.</li>
 <li>
 <strong>Untracked dependencies.</strong> A function-body fingerprint
@@ -354,8 +353,8 @@ unchanged code over changed raw inputs invalidates nothing. Delete the
 rawbatches by hand.</li>
 <li>
 <strong>Closure-captured state, anywhere.</strong> Functions are
-hashed by body and formals, so two closures differing only in captured
-values key identically. This applies to <code>framework_fn</code>,
+hashed by body and formals, so two closures that differ only in captured
+values get the same key. This applies to <code>framework_fn</code>,
 <code>trim_fn</code> and the randvars steps.</li>
 <li>
 <strong>Phase-2 code registry entries</strong> are fingerprinted by
@@ -366,12 +365,12 @@ applies them, but not by anything that function calls.</li>
 identifiers, not cryptographic authenticity guarantees.</li>
 <li>
 <strong>Scientific correctness.</strong> All of this checks identity
-and completeness. It has nothing to say about whether the contents are
+and completeness. It says nothing about whether the contents are
 right.</li>
 </ul>
 </div>
 <div class="section level3">
-<h3 id="recovery-what-to-actually-do">Recovery: what to actually do<a class="anchor" aria-label="anchor" href="#recovery-what-to-actually-do"></a>
+<h3 id="recovery-what-to-do">Recovery: what to do<a class="anchor" aria-label="anchor" href="#recovery-what-to-do"></a>
 </h3>
 <table class="table">
 <colgroup>
@@ -386,28 +385,26 @@ right.</li>
 <tr class="odd">
 <td>Regeneration was killed</td>
 <td>Run a <strong>full</strong> <code>$process_skeletons()</code>
-(<code>batches = NULL</code>) to completion. The cleared manifest is the
-protocol working, not damage.</td>
+(<code>batches = NULL</code>) to completion. A cleared manifest after a
+kill is the protocol at work.</td>
 </tr>
 <tr class="even">
 <td>Raw delivery changed, code did not</td>
-<td>Nothing will notice on its own. <code>$delete_rawbatches()</code>,
-<code>$delete_skeletons()</code>, <code>$delete_meta_file()</code>, then
-re-run the full generator.</td>
+<td>Nothing detects this automatically. Run
+<code>$delete_rawbatches()</code>, <code>$delete_skeletons()</code>,
+<code>$delete_meta_file()</code>, then re-run the full generator.</td>
 </tr>
 <tr class="odd">
 <td>“Is my skeleton dir mixed?”</td>
-<td>
-<code>study$skeleton_pipeline_hashes()</code> — one distinct
-<code>pipeline_hash</code> and no <code>NA</code>s is what you want.
-Compare it to <code>study$pipeline_hash()</code> to see whether it is
+<td>Run <code>study$skeleton_pipeline_hashes()</code>. You want one
+distinct <code>pipeline_hash</code> and no <code>NA</code>s. Compare it
+to <code>study$pipeline_hash()</code> to see whether it is
 <em>current</em> as well as uniform.</td>
 </tr>
 <tr class="even">
 <td>s1’s work directory survived a killed run</td>
-<td>Nothing to do by hand — the next
-<code>$s1_generate_enrollments_and_ipw()</code> call clears it
-automatically at start.</td>
+<td>Nothing. The next <code>$s1_generate_enrollments_and_ipw()</code>
+call clears it at start.</td>
 </tr>
 </tbody>
 </table>
@@ -415,34 +412,31 @@ automatically at start.</td>
 <div class="section level3">
 <h3 id="a-worked-example">A worked example<a class="anchor" aria-label="anchor" href="#a-worked-example"></a>
 </h3>
-<p>From a real production run (2026-07-17), showing layers 1–3 and the
-manifest commit.</p>
-<p>A regeneration had been killed the previous afternoon, leaving the
-skeleton directory <strong>mixed</strong>: 272 batches rebuilt with new
-code, 1,922 still on the old.</p>
+<p>This example comes from a production run on 2026-07-17. It shows
+layers 1 to 3 and the manifest commit.</p>
+<p>A regeneration was killed the afternoon before. It left the skeleton
+directory <strong>mixed</strong>: 272 batches rebuilt with new code,
+1,922 still on the old code.</p>
 <pre><code>                    before                      after
 skeleton state      272  @ 9e079c08 (new)       2194 @ 9e079c08
                     1922 @ b4b325e5 (old)       1 distinct hash, 0 unreadable
 manifest            NULL                        identity 73180d2cd7417e91</code></pre>
 <p>The rerun:</p>
 <ul>
-<li><p><strong>Layer 1</strong> skipped raw staging entirely (rawbatches
-+ meta existed).</p></li>
-<li><p><strong>Layer 2</strong> reached 272/2194 in <strong>56
-seconds</strong> — the meta-sidecar fast path found those batches’
-pipeline already current and skipped them without ever loading the
-skeleton. The killed run’s work was salvaged. It then rebuilt the
-remaining 1,922 in 7h 35m.</p></li>
+<li><p><strong>Layer 1</strong> skipped raw staging (the rawbatches and
+the meta file existed).</p></li>
+<li><p><strong>Layers 2 and 3</strong> reached 272/2194 in <strong>56
+seconds</strong>. The layer 3 meta sidecars showed the pipeline of those
+batches already current. Layer 2 skipped them without loading the
+skeleton, so the rerun kept the work of the killed run. Layer 2 then
+rebuilt the remaining 1,922 in 7h 35m.</p></li>
 <li>
-<p><strong>Layer 3</strong> validated and committed:</p>
+<p><strong>The skeleton manifest</strong> validated and
+committed:</p>
 <pre><code>Skeleton manifest committed: 2194 batches, pipeline 9e079c0876398c90,
                              identity 73180d2cd7417e91</code></pre>
 </li>
 </ul>
-<p>Had the same spec been run against a different skeleton generation
-before Phase 5′, s1’s (now-removed) cache key would have moved and a
-fresh work directory been used. Today s1 rebuilds its transient work
-directory from scratch on every call regardless.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

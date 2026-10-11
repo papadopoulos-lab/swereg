@@ -13,15 +13,14 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing ratio to the constructor.
-.TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
-what a stored field means, or adds a field its readers need. swereg
-26.10.19 raised it to 4L. Schema 4 stores the fill summary in
-fill_summary and the propensity-model diagnostics in ps_fit, and
-this release reads both. swereg 26.15.0 raised it to 5L, which gives
-the panel column enrollment_period_id its current name. This release
-raised it to 6L, which names the calendar period of each row
-period_id. qs2_read() refuses every enrollment below schema 6
-before this check runs. The check refuses the same objects.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
+.TTE_ENROLLMENT_SCHEMA_VERSION is 7L. It rises when a
+stored field changes meaning, or when a reader needs a new field.
+Schema 4 stores the fill summary in fill_summary and the
+propensity-model diagnostics in ps_fit. Schema 5 names the panel
+column enrollment_period_id. Schema 6 names the calendar period of
+each row period_id. Schema 7 carries the sparse_rule. qs2_read()
+refuses every enrollment below schema 7 before this check runs. The
+check refuses the same objects.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return invisible(self) for $-chaining.
 R6 reference semantics mean trial$data[, := ...] modifies the data.table
 in-place without copy-on-write overhead.
@@ -35,15 +34,14 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing ratio to the constructor.
-.TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
-what a stored field means, or adds a field its readers need. swereg
-26.10.19 raised it to 4L. Schema 4 stores the fill summary in
-fill_summary and the propensity-model diagnostics in ps_fit, and
-this release reads both. swereg 26.15.0 raised it to 5L, which gives
-the panel column enrollment_period_id its current name. This release
-raised it to 6L, which names the calendar period of each row
-period_id. qs2_read() refuses every enrollment below schema 6
-before this check runs. The check refuses the same objects.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
+.TTE_ENROLLMENT_SCHEMA_VERSION is 7L. It rises when a
+stored field changes meaning, or when a reader needs a new field.
+Schema 4 stores the fill summary in fill_summary and the
+propensity-model diagnostics in ps_fit. Schema 5 names the panel
+column enrollment_period_id. Schema 6 names the calendar period of
+each row period_id. Schema 7 carries the sparse_rule. qs2_read()
+refuses every enrollment below schema 7 before this check runs. The
+check refuses the same objects.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,7 +49,7 @@ before this check runs. The check refuses the same objects.'><meta property="og:
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,6 +75,7 @@ before this check runs. The check refuses the same objects.'><meta property="og:
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -117,15 +116,14 @@ person-trial interval. Methods
 <code>$s2_ipw()</code>, <code>$s4_prepare_for_analysis()</code>, and <code>$s3_truncate_weights()</code> require this level.</p></li>
 </ul><p>Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing <code>ratio</code> to the constructor.</p>
-<p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> rises when a release changes
-what a stored field means, or adds a field its readers need. swereg
-26.10.19 raised it to <code>4L</code>. Schema 4 stores the fill summary in
-<code>fill_summary</code> and the propensity-model diagnostics in <code>ps_fit</code>, and
-this release reads both. swereg 26.15.0 raised it to <code>5L</code>, which gives
-the panel column <code>enrollment_period_id</code> its current name. This release
-raised it to <code>6L</code>, which names the calendar period of each row
-<code>period_id</code>. <code><a href="qs2_read.html">qs2_read()</a></code> refuses every enrollment below schema 6
-before this check runs. The check refuses the same objects.</p>
+<p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> is <code>7L</code>. It rises when a
+stored field changes meaning, or when a reader needs a new field.
+Schema 4 stores the fill summary in <code>fill_summary</code> and the
+propensity-model diagnostics in <code>ps_fit</code>. Schema 5 names the panel
+column <code>enrollment_period_id</code>. Schema 6 names the calendar period of
+each row <code>period_id</code>. Schema 7 carries the <code>sparse_rule</code>. <code><a href="qs2_read.html">qs2_read()</a></code>
+refuses every enrollment below schema 7 before this check runs. The
+check refuses the same objects.</p>
     </div>
 
 
@@ -942,8 +940,7 @@ before its boundary. <code>s5_prepare_outcome()</code> clips that row at the exa
 censoring week, and sets <code>person_weeks</code> to the clipped width. The
 deviated regime therefore contributes no person-time and no outcome, so
 the row cannot attribute a post-deviation outcome to the baseline
-treatment. Releases before 26.9.0 deleted the row instead, which threw
-away every valid week it held.</p>
+treatment. The row keeps every valid week it holds.</p>
 <p>Per-protocol follow-up stops at the start of the first discordant week
 beyond tolerance, as it stops at the first absent week. That week is
 not adherent follow-up, so an outcome in it or later does not count.

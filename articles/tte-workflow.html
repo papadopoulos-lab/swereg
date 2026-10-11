@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -100,11 +101,10 @@
 <div class="section level2">
 <h2 id="target-trial-emulation-with-swereg">Target trial emulation with swereg<a class="anchor" aria-label="anchor" href="#target-trial-emulation-with-swereg"></a>
 </h2>
-<p>This vignette walks through the full target trial emulation (TTE)
-workflow in swereg: from skeleton files on disk to ETT-level
-per-protocol effect estimates. It keeps the epidemiological rationale
-and the technical R6/subprocess mechanics on the same page. Read it from
-the top down.</p>
+<p>This vignette describes the target trial emulation (TTE) workflow in
+swereg, from skeleton files on disk to ETT-level per-protocol effect
+estimates. It covers the epidemiological rationale and the R6 and
+subprocess mechanics together. Read it from the top down.</p>
 <p>For the methodological mapping to reference papers (Hernán 2008/2016,
 Danaei 2013, Caniglia 2023, Cashin 2025) see
 <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code>. For a one-page glossary of the
@@ -115,10 +115,10 @@ are built in the first place see
 <div class="section level3">
 <h3 id="the-tte-concept-in-one-page">The TTE concept in one page<a class="anchor" aria-label="anchor" href="#the-tte-concept-in-one-page"></a>
 </h3>
-<p>A randomized trial of an intervention gives you the causal effect
-<em>for free</em> when the randomization is valid. Treatment assignment
-is then independent of potential outcomes, so a comparison of observed
-outcomes across arms is an unbiased estimator of the effect.</p>
+<p>A randomized trial of an intervention identifies the causal effect
+directly when the randomization is valid. Treatment assignment is then
+independent of potential outcomes, so a comparison of observed outcomes
+across arms is an unbiased estimator of the effect.</p>
 <p>Most clinically important questions cannot be randomized. Common
 reasons:</p>
 <ul>
@@ -127,24 +127,24 @@ used.</li>
 <li>Randomization would be unethical.</li>
 <li>The outcome is too rare to power a feasible trial.</li>
 </ul>
-<p>Target trial emulation is a discipline for doing observational
-analyses as if they were trials. <strong>Write down the protocol of the
-target trial</strong> first: eligibility, treatment arms, assignment,
-outcome, follow-up and analysis plan. Then use observational data to
-build a dataset that mimics that protocol as closely as possible. The
-mimic is imperfect in specific, nameable ways, and each imperfection has
-a specific statistical correction.</p>
+<p>Target trial emulation analyses observational data as if they came
+from a trial. First write down the protocol of the target trial:
+eligibility, treatment arms, assignment, outcome, follow-up and analysis
+plan. Then use observational data to build a dataset that follows that
+protocol as closely as possible. The emulation differs from the trial in
+specific, named ways, and each difference has a specific statistical
+correction.</p>
 <div class="section level4">
 <h4 id="the-emulation-failures">The emulation failures<a class="anchor" aria-label="anchor" href="#the-emulation-failures"></a>
 </h4>
 <p>Hernán and Robins (2016) name four specific failure modes that
 observational analyses suffer which randomized trials do not:</p>
 <ol style="list-style-type: decimal">
-<li><p><strong>Treatment assignment is not random</strong> – people who
-choose the intervention differ systematically from people who don’t.
-Corrected with baseline confounder adjustment, typically via inverse
+<li><p><strong>Treatment assignment is not random.</strong> People who
+choose the intervention differ systematically from people who do not.
+The correction is baseline confounder adjustment, typically by inverse
 probability of treatment weighting (IPW).</p></li>
-<li><p><strong>Time zero is not well-defined</strong> – in a trial, time
+<li><p><strong>Time zero is not well-defined.</strong> In a trial, time
 zero is the moment of randomization. In observational data there is no
 such moment, so you have to define one. swereg uses <em>enrollment
 periods</em>: each enrollment period of <code>period_width</code> weeks
@@ -152,16 +152,16 @@ opens one trial, and it classifies the arm. Time zero is a landmark: the
 first week after the enrollment period closes. A person enters the trial
 only if they reach that week under observation and free of every
 enrollment outcome. See <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
-<li><p><strong>Follow-up is informatively truncated</strong> – people
+<li><p><strong>Follow-up is informatively truncated.</strong> People
 drop out of observation (emigration, death, end of data) in ways that
-depend on their baseline or time-varying characteristics. Corrected with
-inverse probability of censoring weighting (IPCW).</p></li>
-<li><p><strong>Treatment is not adherent</strong> – in a trial,
-adherence is enforced (or non-adherence is measured and modeled). In
-observational data, people switch treatments over time. swereg reads the
-weekly treatment assessments and censors per-protocol follow-up at the
-start of the first discordant week beyond the arm’s tolerance. IPCW-PP
-then corrects for the selection that censoring creates.</p></li>
+depend on their baseline or time-varying characteristics. The correction
+is inverse probability of censoring weighting (IPCW).</p></li>
+<li><p><strong>Treatment is not adherent.</strong> In a trial, adherence
+is enforced (or non-adherence is measured and modeled). In observational
+data, people switch treatments over time. swereg reads the weekly
+treatment assessments and censors per-protocol follow-up at the start of
+the first discordant week beyond the arm’s tolerance. IPCW-PP then
+corrects for the selection that censoring creates.</p></li>
 </ol>
 </div>
 <div class="section level4">
@@ -174,9 +174,9 @@ period, a new-user design identifies people initiating the treatment
 arm”). Each person can appear in multiple sequential trials as long as
 they remain eligible and non-initiated.</p>
 <p>This produces a <em>long panel</em>: one row per person per trial per
-follow-up week. It is huge, and the structure is uniform. The
-statistical operations are straightforward once you have it: the
-comparator draw, IPW, and pooled logistic or Poisson regression.</p>
+follow-up week. The panel is large, and its structure is uniform. On
+that panel the statistical operations are standard: the comparator draw,
+IPW, and pooled logistic or Poisson regression.</p>
 </div>
 </div>
 <div class="section level3">
@@ -188,9 +188,9 @@ two parallelized loops.</p>
 <h4 id="ttedesign-column-name-schema">TTEDesign: column name schema<a class="anchor" aria-label="anchor" href="#ttedesign-column-name-schema"></a>
 </h4>
 <p><code>TTEDesign</code> holds the names of the columns that define the
-trial schema: person ID, treatment, outcome, confounders, time. It’s
-constructed once and reused across every enrollment. Think of it as the
-“schema” of a trial, not the trial itself.</p>
+trial schema: person ID, treatment, outcome, confounders, time. swereg
+constructs it once and reuses it across every enrollment. It holds the
+schema of a trial and no trial data.</p>
 </div>
 <div class="section level4">
 <h4 id="tteenrollment-one-sequence-of-trials">TTEEnrollment: one sequence of trials<a class="anchor" aria-label="anchor" href="#tteenrollment-one-sequence-of-trials"></a>
@@ -229,9 +229,9 @@ first, so an <code>NA</code> week does not stop a comparator
 classification. A candidate person-trial with no such week is ineligible
 for that trial, and enters neither arm. See
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, section 1.3 (Assignment
-procedures), for the full statement of that rule. The draw is a
-computational shortcut compared to full cloning – see
-<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
+procedures), for the full statement of that rule. The draw needs less
+computation than full cloning. <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code>
+describes the trade-offs.</p>
 </div>
 <div class="section level4">
 <h4 id="tteplan-the-ett-grid-builder">TTEPlan: the ETT grid builder<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-builder"></a>
@@ -239,20 +239,24 @@ computational shortcut compared to full cloning – see
 <p><code>TTEPlan</code> holds the <strong>ETT grid</strong>: the
 Cartesian product of <em>enrollments × outcomes × follow-up
 durations</em>. One ETT is one final analysis-ready dataset. The plan
-knows how to run the two loops that produce those datasets.</p>
+runs the two loops that produce those datasets.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># spec is a YAML file; study is a RegistryStudy with built skeletons</span></span>
+<code class="sourceCode R"><span><span class="co"># study is a RegistryStudy with built skeletons. The spec is</span></span>
+<span><span class="co"># /path/to/spec/spec_v001.yaml.</span></span>
 <span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy</a></span><span class="op">(</span></span>
-<span>  spec  <span class="op">=</span> <span class="st">"my_study/spec.yaml"</span>,</span>
-<span>  study <span class="op">=</span> <span class="va">study</span></span>
+<span>  study <span class="op">=</span> <span class="va">study</span>,</span>
+<span>  candidate_dir_spec <span class="op">=</span> <span class="st">"/path/to/spec"</span>,</span>
+<span>  candidate_dir_tteplan <span class="op">=</span> <span class="st">"/path/to/plans/my_study"</span>,</span>
+<span>  candidate_dir_results <span class="op">=</span> <span class="st">"/path/to/results"</span>,</span>
+<span>  spec_version <span class="op">=</span> <span class="st">"v001"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span></span>
-<span><span class="co">#&gt;     ett_id enrollment_id  outcome_var  follow_up_weeks  file_raw  file_imp  file_analysis</span></span>
-<span><span class="co">#&gt;  1:  ETT01            01  osd_i21_to_i24             52  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  2:  ETT02            01  osd_i21_to_i24            156  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  3:  ETT03            01  osd_i21_to_i24            260  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  4:  ETT04            01  osd_i60_i61_i63            52  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  5:  ETT05            01  osd_i60_i61_i63           156  ...       ...       ...</span></span>
+<span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">ett_id</span>, <span class="va">enrollment_id</span>, <span class="va">outcome_var</span>, <span class="va">follow_up</span>, <span class="va">file_analysis</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;      ett_id enrollment_id     outcome_var follow_up                  file_analysis</span></span>
+<span><span class="co">#&gt; 1: ETT00001            01  osd_i21_to_i24        52 my_study_analysis_ETT00001.qs2</span></span>
+<span><span class="co">#&gt; 2: ETT00002            01  osd_i21_to_i24       156 my_study_analysis_ETT00002.qs2</span></span>
+<span><span class="co">#&gt; 3: ETT00003            01  osd_i21_to_i24       260 my_study_analysis_ETT00003.qs2</span></span>
+<span><span class="co">#&gt; 4: ETT00004            01 osd_i60_i61_i63        52 my_study_analysis_ETT00004.qs2</span></span>
+<span><span class="co">#&gt; 5: ETT00005            01 osd_i60_i61_i63       156 my_study_analysis_ETT00005.qs2</span></span>
 <span><span class="co">#&gt; ...</span></span></code></pre></div>
 <p>Every row in <code>plan$ett</code> points at three files.
 <code>file_raw</code> is post-enrollment and pre-imputation.
@@ -265,15 +269,14 @@ two, and Loop 2 produces the third.</p>
 <div class="section level3">
 <h3 id="the-spec-yaml">The spec YAML<a class="anchor" aria-label="anchor" href="#the-spec-yaml"></a>
 </h3>
-<p>All of the clinical + methodological decisions live in a YAML file
-that gets parsed into a nested R list by
-<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>. The top-level sections are:</p>
-<p>The example below uses a classic TTE setup. It is a new-user
-comparison of statin initiation against no statin initiation, for
-primary prevention of myocardial infarction and stroke. The population
-is adults aged 40 to 75 with no prior cardiovascular disease. This is
-the canonical example from Hernan et al. (2008) and Danaei et
-al. (2013).</p>
+<p>The clinical and methodological decisions are in a YAML file.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> parses it into a nested R list. The
+example below shows the top-level sections.</p>
+<p>The example uses a classic TTE setup. It is a new-user comparison of
+statin initiation against no statin initiation, for primary prevention
+of myocardial infarction and stroke. The population is adults aged 40 to
+75 with no prior cardiovascular disease. This is the canonical example
+from Hernan et al. (2008) and Danaei et al. (2013).</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">study</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="at">  </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statins for primary prevention of cardiovascular events"</span></span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="at">  </span><span class="fu">principal_investigator</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span></span>
@@ -399,8 +402,8 @@ example. It deletes every person-week up to and including first
 immigration, every person-week on or after emigration, and every
 person-week after death. It keeps the death week itself. A real
 <code>observed</code> column there would hold <code>TRUE</code> on every
-retained row. It could not represent an absent week. Row presence as a
-silent proxy stays forbidden. The sentinel is what makes the assumption
+retained row. It could not represent an absent week. swereg does not
+accept row presence as a silent proxy. The sentinel makes the assumption
 explicit and testable.</p>
 <p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> checks a named column against
 the skeleton: the column MUST exist and it MUST be logical.
@@ -443,7 +446,11 @@ past or future).</li>
 “lifetime_before_and_after” matters for prevalent and incident outcomes.
 A prior myocardial infarction excludes a person backward only, because
 forward is the outcome. A condition that confounds treatment choice
-whatever its timing excludes a person in both directions.</p>
+whatever its timing excludes a person in both directions.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> and <code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code>
+refuse <code>"lifetime_before_and_after_baseline"</code> on an outcome
+variable, because the criterion would then select on the follow-up
+outcome.</p>
 </div>
 <div class="section level4">
 <h4 id="computed-confounders">Computed confounders<a class="anchor" aria-label="anchor" href="#computed-confounders"></a>
@@ -457,8 +464,8 @@ within the last 52 weeks at the candidate time-zero”. Non-computed
 confounders read a column directly (e.g. <code>rd_age_continuous</code>
 is already on the skeleton).</p>
 <p>The <code>computed</code> flag is the same mechanism swereg uses for
-computed exclusion criteria – rolling windows over existing skeleton
-columns, nothing fancier.</p>
+computed exclusion criteria: a rolling window over existing skeleton
+columns.</p>
 </div>
 <div class="section level4">
 <h4 id="enrollments-and-the-comparator-draw">Enrollments and the comparator draw<a class="anchor" aria-label="anchor" href="#enrollments-and-the-comparator-draw"></a>
@@ -479,9 +486,9 @@ comparator sampling ratio.</p>
 <h3 id="loop-1-enrollment-ipw">Loop 1: enrollment + IPW<a class="anchor" aria-label="anchor" href="#loop-1-enrollment-ipw"></a>
 </h3>
 <p><code>plan$s1_generate_enrollments_and_ipw()</code> runs one
-iteration per <code>enrollment_id</code> (NOT per ETT – several ETTs
-with different outcomes can share the same enrollment). Each iteration
-spawns a worker subprocess that:</p>
+iteration per <code>enrollment_id</code>, not per ETT, because several
+ETTs with different outcomes can share the same enrollment. Each
+iteration starts a worker subprocess that:</p>
 <ol style="list-style-type: decimal">
 <li>Loads the skeleton files for the batches assigned to this
 enrollment.</li>
@@ -506,15 +513,25 @@ treatment on confounders) via <code>$s2_ipw()</code>.</li>
 <li>Saves the result as <code>file_imp</code>
 (<code>{prefix}_imp_{enrollment_id}.qs2</code>).</li>
 </ol>
-<p>Step 2 is where swereg enforces that every skeleton consumed by the
-plan is pipeline-consistent. Near the top of
-<code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> we call
-<code>study$assert_skeletons_consistent()</code>, so if any batch’s
-<code>pipeline_hash</code> differs from the study’s current pipeline
-hash, the plan construction errors loudly. That gate stops one failure
-mode. Without it you edit a code in <code>ICD10_CODES</code>, rebuild
-skeletons for only some batches, and then silently run an analysis on a
-half-upgraded pipeline.</p>
+<p>swereg checks that every skeleton the plan reads is
+pipeline-consistent. <code>study$assert_skeletons_consistent()</code>
+runs twice:</p>
+<ol style="list-style-type: decimal">
+<li>
+<code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> calls it when it
+builds the plan.</li>
+<li>
+<code>plan$s1_generate_enrollments_and_ipw()</code> calls it again
+on the files it is about to read, before step 1 of Loop 1.</li>
+</ol>
+<p>The call stops with an error in two cases. The
+<code>identity_hash</code> differs between batches, or the stored
+identity differs from the current pipeline identity of the study.
+<code>check_skeletons = FALSE</code> skips the call at either point. The
+check prevents one failure. Without it, you can edit a code in
+<code>ICD10_CODES</code> and rebuild skeletons for only some batches.
+The analysis then runs on a mix of old and new skeletons with no
+error.</p>
 <p>Steps 5 to 9 are all <code>TTEEnrollment</code> calls:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/TTEEnrollment.html">TTEEnrollment</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
@@ -528,7 +545,7 @@ half-upgraded pipeline.</p>
 <span><span class="co"># from that point on, before any numbered step has run.</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="va">enrollment_stage</span>   <span class="co"># "enrolled"</span></span>
 <span></span>
-<span><span class="co"># s1d hands the imputation the `.tte_entry__` snapshot names, not</span></span>
+<span><span class="co"># s1e hands the imputation the `.tte_entry__` snapshot names, not</span></span>
 <span><span class="co"># the plain confounder names.</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span>confounder_vars <span class="op">=</span> <span class="va">entry_confounder_cols</span><span class="op">)</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1b_fill_followup_confounders</span><span class="op">(</span><span class="op">)</span></span>
@@ -571,9 +588,8 @@ data.</li>
 (<code>{prefix}_analysis_{ett_id}.qs2</code>).</li>
 </ol>
 <p>Loop 2 runs sequentially in the main process, and it is not
-parallelized. I/O usually dominates each ETT’s cost, and the outcome and
-IPCW-PP models are fast. If that ever stops holding, the parallelization
-is a straightforward extension.</p>
+parallelized. I/O usually dominates the cost of each ETT, and the
+outcome and IPCW-PP models are fast.</p>
 </div>
 <div class="section level3">
 <h3 id="the-analysis-file-rates-irrs-survival-curves">The analysis file: rates, IRRs, survival curves<a class="anchor" aria-label="anchor" href="#the-analysis-file-rates-irrs-survival-curves"></a>
@@ -601,7 +617,7 @@ first argument.</p>
 <span></span>
 <span><span class="co"># Weighted discrete-time survival curve, one row per arm and time</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span></code></pre></div>
-<p>The IRR approximation to the hazard ratio is used because the
+<p>swereg uses the IRR approximation to the hazard ratio because the
 alternative, <code><a href="https://rdrr.io/pkg/survey/man/svycoxph.html" class="external-link">survey::svycoxph()</a></code>, is computationally
 prohibitive at registry scale. For rare outcomes, which dominate TTE
 studies, the quasi-Poisson IRR is a close approximation to a
@@ -619,9 +635,9 @@ defines flex().</p>
 <span><span class="co">#   splines::ns(enrollment_period_id) interaction terms</span></span>
 <span><span class="co"># res$n_trials: the number of trials</span></span>
 <span><span class="co"># res$interaction_coefs: one row per interaction term</span></span></code></pre></div>
-<p>Tests whether the treatment effect varies across the sequential
-trials. A significant result suggests calendar-time effect modification
-or changing selection on treatment initiation.</p>
+<p>The test checks whether the treatment effect varies across the
+sequential trials. A significant result suggests calendar-time effect
+modification or changing selection on treatment initiation.</p>
 </div>
 <div class="section level4">
 <h4 id="effect-modification-by-a-baseline-subgroup">Effect modification by a baseline subgroup<a class="anchor" aria-label="anchor" href="#effect-modification-by-a-baseline-subgroup"></a>
@@ -641,17 +657,16 @@ gives the formal interaction test:</p>
 <span><span class="co">#&gt;   1      2.0      1.3       3.1</span></span>
 <span><span class="co">#&gt;   attr "em_pvalue"     = 0.018</span></span>
 <span><span class="co">#&gt;   attr "ratio_of_irrs" = 0.50   (IRR level 1 / IRR level 0)</span></span></code></pre></div>
-<p>The <strong>interaction term</strong> of the single combined model
-decides whether the stratum IRRs differ. That term is the
-<code>em_pvalue</code>. Do not decide it by comparing the per-stratum
-confidence intervals. Overlapping CIs do not imply equal stratum IRRs,
-and non-overlapping CIs are not the test either. The subgroup variable
-MUST be a confounder, so the marginal weights stay valid within each
-stratum.</p>
+<p>The interaction term of the single combined model decides whether the
+stratum IRRs differ. That term is the <code>em_pvalue</code>. Do not
+decide it by comparing the per-stratum confidence intervals. Overlapping
+CIs do not imply equal stratum IRRs, and non-overlapping CIs are not the
+test either. The subgroup variable MUST be a confounder, so the marginal
+weights stay valid within each stratum.</p>
 <p>In the spec-driven pipeline, add a top-level <code>subgroups:</code>
-block. The analysis then runs automatically per ETT for
-<strong>both</strong> estimands. It appears in the “Effect modification”
-sheet of the exported workbook:</p>
+block. The analysis then runs automatically per ETT for both estimands.
+It appears in the “Effect modification” sheet of the exported
+workbook:</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">subgroups</span><span class="kw">:</span></span>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sex"</span></span>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
@@ -664,12 +679,15 @@ sheet of the exported workbook:</p>
 <p>The typical project script has the shape:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Load the study built by the skeleton pipeline</span></span>
-<span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/registrystudy_load.html">registrystudy_load</a></span><span class="op">(</span><span class="va">data_rawbatch_candidates</span><span class="op">)</span></span>
+<span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/registrystudy_load.html">registrystudy_load</a></span><span class="op">(</span><span class="va">candidate_dir_meta</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 2. Build the plan from the spec + study</span></span>
+<span><span class="co"># 2. Build the plan from the spec + study (s0)</span></span>
 <span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy</a></span><span class="op">(</span></span>
-<span>  spec  <span class="op">=</span> <span class="st">"my_study/spec.yaml"</span>,</span>
-<span>  study <span class="op">=</span> <span class="va">study</span></span>
+<span>  study <span class="op">=</span> <span class="va">study</span>,</span>
+<span>  candidate_dir_spec <span class="op">=</span> <span class="st">"/path/to/spec"</span>,</span>
+<span>  candidate_dir_tteplan <span class="op">=</span> <span class="st">"/path/to/plans/my_study"</span>,</span>
+<span>  candidate_dir_results <span class="op">=</span> <span class="st">"/path/to/results"</span>,</span>
+<span>  spec_version <span class="op">=</span> <span class="st">"v001"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Loop 1: enrollment + IPW (parallel across enrollment_ids)</span></span>
@@ -681,7 +699,7 @@ sheet of the exported workbook:</p>
 <span><span class="co"># 5. Per-ETT analysis</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">x_ett_id</span>         <span class="op">&lt;-</span> <span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">$</span><span class="va">ett_id</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
-<span>  <span class="va">x_file_analysis</span>  <span class="op">&lt;-</span> <span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">$</span><span class="va">file_analysis</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
+<span>  <span class="va">x_file_analysis</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">plan</span><span class="op">$</span><span class="va">dir_tteplan</span>, <span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">$</span><span class="va">file_analysis</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span></span>
 <span>  <span class="va">x_outcome</span>        <span class="op">&lt;-</span> <span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">$</span><span class="va">outcome_var</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
 <span></span>
 <span>  <span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/qs2_read.html">qs2_read</a></span><span class="op">(</span><span class="va">x_file_analysis</span><span class="op">)</span></span>
@@ -738,9 +756,9 @@ configuration that implements it, read from the spec YAML. It marks the
 items that need manual narrative reporting.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>This is meant to be read, edited into a manuscript supplement, and
-submitted alongside the paper. It doesn’t guarantee your analysis is
-correct, just that the reporting is complete.</p>
+<p>Read the output, edit it into a manuscript supplement, and submit it
+with the paper. It does not show that the analysis is correct. It shows
+that the reporting is complete.</p>
 </div>
 <div class="section level3">
 <h3 id="reproducibility-via-provenance">Reproducibility via provenance<a class="anchor" aria-label="anchor" href="#reproducibility-via-provenance"></a>
@@ -760,10 +778,10 @@ base and before the code registry. It has no position in the order to
 record. The hash pins it through a field of its own,
 <code>Skeleton$trim_fn_hash</code>, which sits alongside the phase order
 inside the same digest.</p>
-<p>Before running Loop 1, the plan asserts the skeletons are consistent
-(<code>study$assert_skeletons_consistent()</code>). If that passes,
-every batch was built with the same framework, randvars and codes
-configuration. Commit the <code>spec_vNNN.yaml</code> file. Then
+<p>Before Loop 1 runs, the plan asserts that the skeletons are
+consistent (<code>study$assert_skeletons_consistent()</code>). If that
+passes, every batch was built with the same framework, randvars and
+codes configuration. Commit the <code>spec_vNNN.yaml</code> file. Then
 <code>git log</code> answers “what was different between run A and run
 B”.</p>
 </div>
@@ -777,7 +795,7 @@ B”.</p>
 <code>TTEPlan</code> (the ETT grid builder).</li>
 <li>
 <strong>Two loops</strong>: Loop 1 does enrollment + baseline IPW
-per enrollment_id in parallel worker subprocesses; Loop 2 does
+per enrollment_id in parallel worker subprocesses. Loop 2 does
 per-protocol censoring + IPCW-PP per ETT sequentially.</li>
 <li>
 <strong>Spec YAML</strong> captures every clinical and
@@ -805,17 +823,17 @@ clustered standard errors via <code>survey</code>.</li>
 <p>For further reading:</p>
 <ul>
 <li>
-<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> – how the skeleton files
-consumed by a <code>TTEPlan</code> are built and incrementally
-rebuilt.</li>
+<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>: how swereg builds and
+incrementally rebuilds the skeleton files that a <code>TTEPlan</code>
+consumes.</li>
 <li>
-<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to reference
+<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code>: mapping to reference
 papers.</li>
 <li>
-<code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> – one-page glossary.</li>
+<code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>: one-page glossary.</li>
 <li>
 <code><a href="../reference/TTEPlan.html">?TTEPlan</a></code>, <code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code>,
-<code><a href="../reference/TTEDesign.html">?TTEDesign</a></code> – full method reference.</li>
+<code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>: full method reference.</li>
 </ul>
 </div>
 </div>

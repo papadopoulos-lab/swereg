@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -101,9 +102,9 @@
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
 <p>This vignette defines the terms used throughout the swereg target
-trial emulation (TTE) system. It serves as a quick reference for anyone
-reading or writing code that uses <code>TTEDesign</code>,
-<code>TTEEnrollment</code>, or <code>TTEPlan</code>.</p>
+trial emulation (TTE) system. Use it as a reference when you read or
+write code that uses <code>TTEDesign</code>, <code>TTEEnrollment</code>
+or <code>TTEPlan</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="data-levels">Data levels<a class="anchor" aria-label="anchor" href="#data-levels"></a>
@@ -176,17 +177,18 @@ The IPCW denominator reads it.</td>
 <td align="left"><strong><code>enrollment_period_id</code></strong></td>
 <td align="left">The trial: the enrollment period of the person-trial,
 which ends at time zero. It is constant within a person-trial. The
-comparator draw, the attrition and matching tables, and the outcome
-models read it. Earlier releases used <code>trial_id</code> for the
-calendar period of a row, and also for the trial in the comparator draw
-and the attrition tables.</td>
+comparator draw and the outcome models read it. The attrition table and
+the comparator-draw counts that <code>$get_matching()</code> returns
+carry it as a key column.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>time since time zero</strong></td>
 <td align="left">The weeks from time zero to the start of the follow-up
 interval, held in <code>tstart</code> (<code>design$tstart_var</code>).
 Every outcome and censoring model reads it at the interval start, and
-not at the clipped <code>tstop</code>.</td>
+not at <code>tstop</code>. On the last row of a person-trial,
+<code>tstop</code> is the week where follow-up stops, which can fall
+inside the interval.</td>
 </tr>
 </tbody>
 </table>
@@ -289,9 +291,9 @@ the two-pass Loop 1 workers.</td>
 <p>Produces two files per enrollment_id:</p>
 <ul>
 <li>
-<strong>file_raw</strong> — post-enrollment, pre-imputation</li>
+<strong>file_raw</strong>: post-enrollment, pre-imputation</li>
 <li>
-<strong>file_imp</strong> — post-imputation + IPW (input to Loop
+<strong>file_imp</strong>: post-imputation + IPW (input to Loop
 2)</li>
 </ul>
 </div>
@@ -491,7 +493,7 @@ strategies:</p>
 <td align="left">Compare initiators vs non-initiators regardless of
 subsequent adherence. No censoring at treatment switching.</td>
 <td align="left">
-<strong>Yes</strong> —
+<strong>Yes</strong>.
 <code>$s4_prepare_for_analysis(estimand = "itt")</code> keeps follow-up
 through switching (no IPCW); analyse with
 <code>$irr(weight_col = "ipw_trunc")</code>.</td>
@@ -501,7 +503,7 @@ through switching (no IPCW); analyse with
 <td align="left">Censor at protocol deviation (treatment switching),
 adjust for informative censoring with IPCW.</td>
 <td align="left">
-<strong>Yes</strong> —
+<strong>Yes</strong>.
 <code>$s4_prepare_for_analysis(estimand = "pp")</code> (default) applies
 per-protocol censoring, then estimates IPCW-PP weights. The final
 combined weight <code>analysis_weight_pp = ipw × ipcw_pp</code> is used
@@ -539,8 +541,8 @@ one trial per week.</p>
 closes. A person enters the trial only if they reach that week under
 observation and free of every enrollment outcome. The enrollment period
 therefore carries no follow-up and no immortal time.
-<code>period_width</code> therefore trades the number of trials against
-how long a newly eligible person waits:</p>
+<code>period_width</code> trades the number of trials against how long a
+newly eligible person waits:</p>
 <ul>
 <li>
 <strong>Narrower enrollment periods</strong> (e.g.,

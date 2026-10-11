@@ -25,8 +25,8 @@ library(zoo)  # For na.locf function
 **How does annual income affect the risk of heart attack, accounting for
 income changes over time?**
 
-This cookbook demonstrates a complete workflow for survival analysis
-with time-varying covariates using swereg. We’ll use:
+This cookbook shows a workflow for survival analysis with time-varying
+covariates in swereg. It uses:
 
 - **Outcome**: Heart attack (ICD-10 codes I21, I22)
 - **Time-varying covariate**: Annual income from tax records
@@ -43,8 +43,8 @@ only can lead to:
 - **Immortal time bias**: Time periods where exposure status is unknown
 - **Reduced power**: Ignoring within-person variation
 
-The skeleton approach handles this naturally by tracking exposures and
-outcomes week-by-week.
+The skeleton tracks exposures and outcomes week by week, so it captures
+these changes.
 
 ## Step 1: Load and prepare data
 
@@ -84,8 +84,8 @@ swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
 skeleton[, age := lubridate::year(isoyearweeksun) - birth_year]
 
-cat("Demographics added for", nrow(fake_demographics), "individuals\n")
-#> Demographics added for 1000 individuals
+cat("Study persons with demographics:", uniqueN(skeleton[!is.na(fodelseman)]$id), "of", length(study_ids), "\n")
+#> Study persons with demographics: 500 of 500
 ```
 
 ## Step 4: Add annual income data (time-varying covariate)
@@ -114,39 +114,31 @@ cat("Annual income data added for years 1995-2005\n")
 ## Step 5: Add heart attack outcomes
 
 ``` r
-# Combine inpatient and outpatient diagnoses
+# fake_diagnoses holds inpatient, outpatient and cancer registry rows
 fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-fake_diagnoses <- swereg::fake_diagnoses |>
-  data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "indatum")
-#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-
-diagnoses_combined <- data.table::rbindlist(list(
-  fake_diagnoses,
-  fake_diagnoses
-), use.names = TRUE, fill = TRUE)
 
 # Add heart attack diagnoses
 swereg::add_diagnoses(
   skeleton,
-  diagnoses_combined,
+  fake_diagnoses,
   id_name = "lopnr",
   diag_type = "both",
-  diags = list(
+  codes = list(
     "heart_attack" = c("I21", "I22"),  # Acute myocardial infarction
     "stroke" = c("I63", "I64"),       # Cerebrovascular disease (competing risk)
     "diabetes" = c("E10", "E11")      # Diabetes (confounder)
   )
 )
-#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 cat("Diagnosis data added\n")
 #> Diagnosis data added
-cat("Heart attacks detected:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
-#> Heart attacks detected: 69 events
+# Weekly rows cover 1995-2005. Yearly rows before 1995 hold diagnosis history.
+cat("Weeks with a heart attack diagnosis, 1995-2005:",
+    sum(skeleton[is_isoyear == FALSE]$heart_attack, na.rm = TRUE), "\n")
+#> Weeks with a heart attack diagnosis, 1995-2005: 20
 ```
 
 ## Step 6: Data cleaning and validation
@@ -164,30 +156,33 @@ skeleton[, income_category := fcase(
 skeleton[, baseline_age := age[which.min(isoyear)], by = id]
 skeleton[, baseline_income := income[which.min(isoyear)], by = id]
 
+# Keep a copy before the filters, for Challenge 1 below
+skeleton_before_filter <- data.table::copy(skeleton)
+
 # Filter to valid ages and non-missing income
 # IMPORTANT: Filter at person level - remove people who were under 18 during study
-# Calculate minimum age for each person during study period
-skeleton[, min_age := min(age, na.rm = TRUE), by = id]
-skeleton[, max_age := max(age, na.rm = TRUE), by = id]
+# Use the weekly rows only: the yearly rows before 1995 give ages below 18 for everyone
+skeleton[, min_age := min(age[is_isoyear == FALSE], na.rm = TRUE), by = id]
+skeleton[, max_age := max(age[is_isoyear == FALSE], na.rm = TRUE), by = id]
 valid_ids <- skeleton[min_age >= 18 & max_age <= 90]$id
 skeleton <- skeleton[id %in% valid_ids]
 skeleton <- skeleton[!is.na(income)]
 
 cat("After filtering:", nrow(skeleton), "person-time periods\n")
-#> After filtering: 0 person-time periods
+#> After filtering: 138908 person-time periods
 cat("Unique individuals:", uniqueN(skeleton$id), "\n")
-#> Unique individuals: 0
+#> Unique individuals: 242
 
 # Create Table 1: Descriptive statistics
 # Quick descriptive summary
 baseline_data <- skeleton[, .SD[which.min(isoyear)], by = id]
 cat("Sample:", uniqueN(skeleton$id), "individuals, 1995-2005 follow-up\n")
-#> Sample: 0 individuals, 1995-2005 follow-up
+#> Sample: 242 individuals, 1995-2005 follow-up
 cat("Baseline age: mean", round(mean(baseline_data$age, na.rm = TRUE), 1), "years\n")
-#> Baseline age: mean NaN years
+#> Baseline age: mean 31.7 years
 health_summary <- skeleton[, .(heart_attack = any(heart_attack, na.rm = TRUE)), by = id]
-cat("Heart attacks during follow-up:", sum(health_summary$heart_attack, na.rm = TRUE), "events\n")
-#> Heart attacks during follow-up: 0 events
+cat("Individuals with a heart attack during follow-up:", sum(health_summary$heart_attack, na.rm = TRUE), "\n")
+#> Individuals with a heart attack during follow-up: 12
 
 cat("\n=== END TABLE 1 ===\n")
 #> 
@@ -223,13 +218,12 @@ baseline_date <- as.Date("1995-01-01")
 survival_data[, time_start := as.numeric(isoyearweeksun - baseline_date) / 365.25]
 survival_data[, time_end := time_start + personyears]
 
-# Identify first event
-survival_data[, first_heart_attack := min(isoyearweeksun[heart_attack == TRUE], na.rm = TRUE), by = id]
-#> Warning in min.default(structure(numeric(0), class = "Date"), na.rm = TRUE): no
-#> non-missing arguments to min; returning Inf
-survival_data[, first_stroke := min(isoyearweeksun[stroke == TRUE], na.rm = TRUE), by = id]
-#> Warning in min.default(structure(numeric(0), class = "Date"), na.rm = TRUE): no
-#> non-missing arguments to min; returning Inf
+# Identify first event (NA for a person with no event)
+first_date <- function(date, flag) {
+  if (any(flag, na.rm = TRUE)) min(date[flag %in% TRUE]) else as.Date(NA)
+}
+survival_data[, first_heart_attack := first_date(isoyearweeksun, heart_attack), by = id]
+survival_data[, first_stroke := first_date(isoyearweeksun, stroke), by = id]
 
 # Create event indicator and event time
 survival_data[, event := fcase(
@@ -242,9 +236,9 @@ survival_data[, event := fcase(
 survival_data <- survival_data[isoyearweeksun <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
 
 cat("Survival dataset created:", nrow(survival_data), "person-weeks\n")
-#> Survival dataset created: 0 person-weeks
-cat("Heart attack events:", sum(survival_data$event == 1, na.rm = TRUE), "\n")
-#> Heart attack events: 0
+#> Survival dataset created: 135698 person-weeks
+cat("Heart attack events (first event per person):", sum(survival_data$event == 1, na.rm = TRUE), "\n")
+#> Heart attack events (first event per person): 12
 cat("Stroke events:", sum(survival_data$event == 2, na.rm = TRUE), "\n")
 #> Stroke events: 0
 ```
@@ -263,7 +257,9 @@ baseline_table <- survival_data[year == 1995, .(
 print("Baseline characteristics by income category:")
 #> [1] "Baseline characteristics by income category:"
 print(baseline_table)
-#> Empty data.table (0 rows and 5 cols): income_category,n,mean_age,mean_income,diabetes_prev
+#>    income_category     n mean_age mean_income diabetes_prev
+#>             <char> <int>    <num>       <num>         <num>
+#> 1:             Low   242 31.65289    34745.27  7.946599e-05
 
 # Event rates by income category
 event_rates <- survival_data[, .(
@@ -275,7 +271,11 @@ event_rates <- survival_data[, .(
 print("Heart attack rates by income category:")
 #> [1] "Heart attack rates by income category:"
 print(event_rates)
-#> Empty data.table (0 rows and 4 cols): income_category,person_years,heart_attacks,rate_per_1000
+#>    income_category person_years heart_attacks rate_per_1000
+#>             <char>        <num>         <int>         <num>
+#> 1:             Low   1982.16268             7      3.531496
+#> 2:          Medium    525.66507             5      9.511760
+#> 3:            High     89.26316             0      0.000000
 ```
 
 ## Step 9: Cox proportional hazards model
@@ -300,11 +300,11 @@ cox_data <- cox_data[complete.cases(cox_data)]
 cat("Cox data summary:\n")
 #> Cox data summary:
 cat("- Rows:", nrow(cox_data), "\n")
-#> - Rows: 0
+#> - Rows: 135698
 cat("- Events:", sum(cox_data$event), "\n")
-#> - Events: 0
+#> - Events: 12
 cat("- Unique individuals:", uniqueN(cox_data$id), "\n")
-#> - Unique individuals: 0
+#> - Unique individuals: 242
 
 # Check if we have enough data for Cox model
 if(nrow(cox_data) > 0 && sum(cox_data$event) > 0) {
@@ -354,18 +354,38 @@ if(nrow(cox_data) > 0 && sum(cox_data$event) > 0) {
   print("Example results (for demonstration only):")
   print(hr_results)
 }
-#> ERROR: Insufficient data for Cox model
-#> This indicates a problem with the data preparation or filtering
-#> In real analysis, you would need to:
-#> 1. Use a larger sample size
-#> 2. Use a longer follow-up period
-#> 3. Check data quality and completeness
-#> [1] "Example results (for demonstration only):"
-#>      variable    hr ci_lower ci_upper p_value
-#>        <char> <num>    <num>    <num>   <num>
-#> 1: income_log  0.85     0.60     1.20    0.35
-#> 2:        age  1.02     0.98     1.06    0.31
-#> 3:   diabetes  1.15     0.80     1.65    0.45
+#> [1] "Cox Proportional Hazards Model Results:"
+#> Call:
+#> coxph(formula = Surv(time_start, time_end, event) ~ income_log + 
+#>     age + diabetes, data = cox_data, cluster = id)
+#> 
+#>   n= 135698, number of events= 12 
+#> 
+#>                  coef exp(coef) se(coef) robust se      z Pr(>|z|)  
+#> income_log   -0.08587   0.91771  0.76000   0.77553 -0.111   0.9118  
+#> age           0.07087   1.07344  0.03887   0.04001  1.771   0.0765 .
+#> diabetesTRUE       NA        NA  0.00000   0.00000     NA       NA  
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>              exp(coef) exp(-coef) lower .95 upper .95
+#> income_log      0.9177     1.0897    0.2007     4.196
+#> age             1.0734     0.9316    0.9925     1.161
+#> diabetesTRUE        NA         NA        NA        NA
+#> 
+#> Concordance= 0.654  (se = 0.078 )
+#> Likelihood ratio test= 3.68  on 2 df,   p=0.2
+#> Wald test            = 3.22  on 2 df,   p=0.2
+#> Score (logrank) test = 3.57  on 2 df,   p=0.2,   Robust = 3.04  p=0.2
+#> 
+#>   (Note: the likelihood ratio and score tests assume independence of
+#>      observations within a cluster, the Wald and robust score tests do not).
+#> [1] "Hazard Ratios:"
+#>        variable       hr  ci_lower ci_upper    p_value
+#>          <char>    <num>     <num>    <num>      <num>
+#> 1:   income_log 0.917714 0.2007110 4.196078 0.91183604
+#> 2:          age 1.073443 0.9924878 1.161001 0.07648071
+#> 3: diabetesTRUE       NA        NA       NA         NA
 ```
 
 ## Step 10: Model interpretation
@@ -392,6 +412,14 @@ if(!is.null(cox_model)) {
     cat("Note: Proportional hazards test could not be performed\n")
   })
 }
+#> Income Effect:
+#> - 10% increase in income associated with HR = 0.991 
+#> - 95% CI: ( 0.852 ,  1.154 )
+#> [1] "Proportional Hazards Test:"
+#>            chisq df    p
+#> income_log 1.586  1 0.21
+#> age        0.106  1 0.74
+#> GLOBAL     1.698  2 0.43
 ```
 
 ## Step 11: Visualization
@@ -436,33 +464,56 @@ if(nrow(cox_data) > 0 && sum(cox_data$event) > 0) {
   cat("- Differences in heart attack-free survival over time\n")
   cat("- Confidence intervals around the curves\n")
 }
-#> Survival plot not generated due to insufficient data
-#> In a real analysis with adequate events, you would see:
-#> - Kaplan-Meier survival curves by income category
-#> - Differences in heart attack-free survival over time
-#> - Confidence intervals around the curves
 ```
+
+![](cookbook-survival-analysis_files/figure-html/unnamed-chunk-12-1.png)
 
 ## Common challenges and solutions
 
 ### Challenge 1: Missing income data
 
 ``` r
+# Step 6 dropped every row with missing income, so use the copy from before it.
+# The fake tax records cover every person in every year. Remove the income of
+# 10% of person-years to mimic missing records.
+income_data <- skeleton_before_filter[is_isoyear == FALSE, .(id, isoyear, isoyearweek, income)]
+set.seed(4)
+person_years <- unique(income_data[, .(id, isoyear)])
+missing_records <- person_years[sample(.N, round(0.1 * .N))]
+income_data[missing_records, income := NA, on = .(id, isoyear)]
+
 # Check for missing income by year
-missing_income <- skeleton[is_isoyear == TRUE, .(
+missing_income <- income_data[, .(
   n_total = .N,
   n_missing = sum(is.na(income)),
   pct_missing = round(sum(is.na(income)) / .N * 100, 1)
 ), by = isoyear]
 
-print("Missing income data by year:")
-#> [1] "Missing income data by year:"
+print("Missing income data by year (person-weeks):")
+#> [1] "Missing income data by year (person-weeks):"
 print(missing_income)
-#> Empty data.table (0 rows and 4 cols): isoyear,n_total,n_missing,pct_missing
+#>     isoyear n_total n_missing pct_missing
+#>       <int>   <int>     <int>       <num>
+#>  1:    1995   26000      2132         8.2
+#>  2:    1996   26000      2496         9.6
+#>  3:    1997   26000      2756        10.6
+#>  4:    1998   26500      2968        11.2
+#>  5:    1999   26000      2964        11.4
+#>  6:    2000   26000      2652        10.2
+#>  7:    2001   26000      2340         9.0
+#>  8:    2002   26000      2600        10.0
+#>  9:    2003   26000      1976         7.6
+#> 10:    2004   26500      3021        11.4
+#> 11:    2005   26000      2808        10.8
 
-# Solution: Carry forward/backward or interpolate
-skeleton[, income_filled := na.locf(income, na.rm = FALSE), by = id]
-skeleton[, income_filled := na.locf(income_filled, fromLast = TRUE, na.rm = FALSE), by = id]
+# Solution: carry the last value forward, then the next value backward, within each person
+data.table::setorder(income_data, id, isoyearweek)
+income_data[, income_filled := na.locf(income, na.rm = FALSE), by = id]
+income_data[, income_filled := na.locf(income_filled, fromLast = TRUE, na.rm = FALSE), by = id]
+cat("Person-weeks with missing income before filling:", sum(is.na(income_data$income)), "\n")
+#> Person-weeks with missing income before filling: 28713
+cat("Person-weeks with missing income after filling:", sum(is.na(income_data$income_filled)), "\n")
+#> Person-weeks with missing income after filling: 0
 ```
 
 ### Challenge 2: Multiple events
@@ -482,7 +533,11 @@ multi_events_summary <- multi_events[, .(
 print("Multiple heart attacks:")
 #> [1] "Multiple heart attacks:"
 print(multi_events_summary)
-#> Empty data.table (0 rows and 3 cols): event_category,n_individuals,n_with_multiple
+#>     event_category n_individuals n_with_multiple
+#>             <char>         <int>           <int>
+#> 1:       No events           230               0
+#> 2:       One event            11               0
+#> 3: Multiple events             1               1
 
 # Solution: Use only first event or recurrent event models
 ```
@@ -491,7 +546,7 @@ print(multi_events_summary)
 
 ``` r
 # Handle individuals who may have had events before study start
-# Check for prevalent cases (diagnosis before 2015)
+# Check for prevalent cases (diagnosis before 1995)
 cat("Note: This analysis assumes no prevalent cases at baseline\n")
 #> Note: This analysis assumes no prevalent cases at baseline
 cat("In real analysis, you would:\n")
@@ -501,8 +556,3 @@ cat("1. Exclude individuals with heart attack before 1995\n")
 cat("2. Or use left-truncated survival analysis\n")
 #> 2. Or use left-truncated survival analysis
 ```
-
-## Performance tips for large datasets
-
-This cookbook demonstrates survival analysis with time-varying
-covariates using the swereg skeleton framework.

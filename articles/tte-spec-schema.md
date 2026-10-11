@@ -3,20 +3,19 @@
 ## Why the schema exists
 
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-refuses every key the schema does not name. Before that, a key swereg
-did not read was ignored in silence.
+refuses every key the schema does not name. Without the gate, swereg
+would ignore a key it does not read, and say nothing.
 
-A collaborator wrote a cohort restriction under
-`inclusion_criteria$additional_inclusion`. swereg read
-`inclusion_criteria` for `isoyears` and nothing else. The restriction
-never reached the eligibility filter. The study population stayed
-unrestricted, and no message said so. The specification looked exactly
-like one that worked.
+For example, a cohort restriction under
+`inclusion_criteria$additional_inclusion` would never reach the
+eligibility filter, because swereg does not read that key path. The
+study population would stay unrestricted, and no message would say so.
+The specification would look exactly like one that works.
 
 One table names every legal key path. It is `.TTE_SPEC_SCHEMA`, in
 `R/tteplan_spec_schema.R`, and nothing else in swereg holds that list.
-Every table below is generated from that object, so no second copy of
-the list can drift away from it.
+Every table below is generated from that object, so the tables and the
+gate use the same list.
 
 ## How a key path is written
 
@@ -74,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       119 |
+| consumed |       123 |
 | legacy   |        15 |
 | metadata |        10 |
 
@@ -87,8 +86,8 @@ knitr::kable(
 ### Why two classes are not enough
 
 A two-class table holds “swereg reads it” and “swereg refuses it”. Under
-that table, every key swereg does not read is refused. These key paths
-are then refused, and every one of them is correct today.
+that table, every key swereg does not read is refused. That table would
+refuse the valid key paths below.
 
 ``` r
 meta <- rows[rows$class == "metadata", ]
@@ -115,12 +114,12 @@ Each one records a decision for a human reader.
 `$/open_questions[]/resolution` records how the study team settled an
 open question. `$/standing_methods/admin_censoring` records the
 administrative censoring rule. `R/` names both only in the schema, and
-reads neither value. The `metadata` class is what lets the gate refuse
-an unknown key without refusing these.
+reads neither value. The `metadata` class lets the gate refuse an
+unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 144 key paths across 41 mapping contexts.
+The schema declares 148 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -142,6 +141,7 @@ knitr::kable(
 | `$`                                                           | `inclusion_criteria`                       | consumed |
 | `$`                                                           | `open_questions`                           | consumed |
 | `$`                                                           | `outcomes`                                 | consumed |
+| `$`                                                           | `sparse_rule`                              | consumed |
 | `$`                                                           | `standing_methods`                         | consumed |
 | `$`                                                           | `study`                                    | consumed |
 | `$`                                                           | `subgroups`                                | consumed |
@@ -240,6 +240,9 @@ knitr::kable(
 | `$/outcomes[]`                                                | `name`                                     | consumed |
 | `$/outcomes[]`                                                | `role`                                     | consumed |
 | `$/outcomes[]/implementation`                                 | `variable`                                 | consumed |
+| `$/sparse_rule`                                               | `candidates`                               | consumed |
+| `$/sparse_rule`                                               | `decided_by`                               | consumed |
+| `$/sparse_rule`                                               | `min_n`                                    | consumed |
 | `$/standing_methods`                                          | `admin_censoring`                          | metadata |
 | `$/standing_methods`                                          | `calendar_time`                            | consumed |
 | `$/standing_methods`                                          | `comparator_to_intervention_ratio_default` | metadata |
@@ -334,7 +337,7 @@ refuses the pair. That holds when both entries are global, and when one
 is global and one is per-enrollment.
 
 `inclusion_criteria$additional_inclusion` is refused. That name belongs
-to an enrollment. Copied to the container, it named a path swereg never
+to an enrollment. In the container, it names a path that swereg does not
 read.
 
 An `isoyear_range` entry limits one enrollment to trials registered in a
@@ -374,8 +377,8 @@ refuses the second entry.
 ## What you see when a key is refused
 
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-reports every refused key in one message, and reads no data first. A
-legacy key carries its migration message.
+reports every refused key in one message, and reads no data first. The
+message for a `legacy` key names its replacement.
 
 ``` r
 spec_path <- file.path(tempdir(), "spec_v001.yaml")

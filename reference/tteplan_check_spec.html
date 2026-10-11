@@ -11,7 +11,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -93,7 +94,7 @@ character columns:</p><dl><dt><code>path</code></dt>
 the path <code>$</code>.</p></dd>
 
 <dt><code>kind</code></dt>
-<dd><p>The problem kind. The Details section lists the six
+<dd><p>The problem kind. The Details section lists the seven
 kinds.</p></dd>
 
 <dt><code>message</code></dt>
@@ -104,7 +105,7 @@ kinds.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The checker reports six kinds of problem:</p><dl><dt><code>unreadable</code></dt>
+    <p>The checker reports seven kinds of problem:</p><dl><dt><code>unreadable</code></dt>
 <dd><p>The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
 parsed specification to check.</p></dd>
@@ -125,6 +126,14 @@ the replacement.</p></dd>
 <dd><p>The file name has the form <code>spec_vNNN.yaml</code>,
 and <code>study$implementation$version</code> is missing or is not <code>vNNN</code>. The
 checker skips this check for every other file name.</p></dd>
+
+<dt><code>outcome_selecting_exclusion</code></dt>
+<dd><p>An exclusion criterion has the
+window <code>lifetime_before_and_after_baseline</code> on a variable of an
+outcome. That window reads the weeks after time zero, so the criterion
+selects on the follow-up outcome. The checker writes one row for each
+criterion and outcome. The checker reads the global
+<code>exclusion_criteria</code> and each enrollment's <code>additional_exclusion</code>.</p></dd>
 
 <dt><code>read_error</code></dt>
 <dd><p><code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> stops after its key gate. The

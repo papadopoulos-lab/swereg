@@ -55,9 +55,6 @@ A wide `data.table` with one row per ETT.
 The returned data.table still uses the generic
 `_Intervention`/`_Comparator` column suffixes from
 [`tteenrollment_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rates_combine.md).
-The workbook writer in `.write_combined_rates_irr()` applies
-`.rename_treatment_columns()` afterwards when the featured ETTs share a
-single enrollment.
 
 ## See also
 

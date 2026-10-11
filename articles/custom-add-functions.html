@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -109,20 +110,19 @@ one-time and annual). They do not cover everything. You will need a
 custom <code>add_*</code> if you work with:</p>
 <ul>
 <li>
-<strong>Non-Swedish registries</strong> — Norwegian NPR, Danish LPR,
+<strong>Non-Swedish registries</strong>: Norwegian NPR, Danish LPR,
 FinDep, etc. They follow similar longitudinal patterns but use different
 column names and coding systems.</li>
 <li>
-<strong>Swedish registries swereg doesn’t ship hard-coded support
-for</strong> — SWEDEHEART, RIKSHIP, regional cohorts, research
+<strong>Swedish registries that swereg has no built-in support
+for</strong>: SWEDEHEART, RIKSHIP, regional cohorts, research
 registries.</li>
 <li>
-<strong>In-house data</strong> — payer claims, EHR extracts,
+<strong>In-house data</strong>: payer claims, EHR extracts,
 institutional biobanks with time-stamped events.</li>
 </ul>
-<p>The mechanism is open-ended by design. You cannot write code for
-every registry anyone might want to ingest; the right answer is a clean
-contract that user-written functions can plug into.</p>
+<p>swereg cannot ship code for every registry, so it defines a contract
+that your own functions follow.</p>
 </div>
 <div class="section level2">
 <h2 id="two-ways-to-use-a-custom-add_">Two ways to use a custom <code>add_*</code><a class="anchor" aria-label="anchor" href="#two-ways-to-use-a-custom-add_"></a>
@@ -131,22 +131,22 @@ contract that user-written functions can plug into.</p>
 <li>
 <strong>Register it via
 <code>RegistryStudy$register_codes()</code>.</strong> The pipeline
-auto-validates the contract on every call, fingerprints your function,
-and replays it on change for incremental rebuilds. This is the
-recommended path for any production-style use.</li>
+validates the contract on every call, fingerprints your function, and
+replays it when it changes, for incremental rebuilds. Use this path for
+production work.</li>
 <li>
 <strong>Call it directly as a free function</strong> in the manual
-workflow. No automatic validation — you catch mistakes through your own
-tests. Fine for one-off exploration, risky at scale.</li>
+workflow. Nothing validates it, so only your own tests catch mistakes.
+This is acceptable for one-off exploration and risky at scale.</li>
 </ol>
-<p>The rest of this vignette focuses on path (1), because swereg
-enforces the contract for you there. The function body is the same
-either way.</p>
+<p>The rest of this vignette is about path (1), because swereg enforces
+the contract for you there. The function body is the same either
+way.</p>
 </div>
 <div class="section level2">
 <h2 id="the-add_-contract">The <code>add_*</code> contract<a class="anchor" aria-label="anchor" href="#the-add_-contract"></a>
 </h2>
-<p>A well-behaved <code>add_*</code> function:</p>
+<p>An <code>add_*</code> function that meets the contract:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Takes <code>skeleton</code> as its first argument</strong>
@@ -170,12 +170,12 @@ list</strong>, named exactly as the list is named. If the caller passes
 gains columns <code>flu_vax</code> and <code>covid_vax</code>.</li>
 <li>
 <strong>Takes <code>id_name</code> as an explicit argument.</strong>
-Different registries use different ID column names; don’t
-hard-code.</li>
+Different registries use different ID column names, so do not hard-code
+one.</li>
 <li>
-<strong>Accepts <code>codes</code> as a named list</strong> and
+<strong>Accepts <code>codes</code> as a named list.</strong> It
 receives any extra configuration through positional / named arguments
-the caller passes via <code>fn_args</code> (see below).</li>
+that the caller passes via <code>fn_args</code> (see below).</li>
 </ol>
 </div>
 <div class="section level2">
@@ -204,10 +204,9 @@ rather than from <code><a href="../reference/qs2_read.html">swereg::qs2_read()</
 grown table back to its caller where it can, and returns it either way.
 <code>.ensure_dt_alloc()</code> in <code>R/dt_alloc.R</code> does that.
 A function you write yourself carries the hazard.</p>
-<p><strong>The rest of this section is about a function you call
-yourself.</strong> A function registered with
-<code>RegistryStudy$register_codes()</code> runs on slots the pipeline
-has already reserved.</p>
+<p>The rest of this section is about a function you call yourself. A
+function registered with <code>RegistryStudy$register_codes()</code>
+runs on slots the pipeline has already reserved.</p>
 <div class="section level3">
 <h3 id="reproducing-it">Reproducing it<a class="anchor" aria-label="anchor" href="#reproducing-it"></a>
 </h3>
@@ -283,13 +282,13 @@ leaves the caller’s table alone.</p>
 <p>Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
 and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
 free slots therefore cost 16 KB per table.</p>
-<p><strong>The return value is the other remedy, and since 26.10.14 it
-covers every shipped function.</strong> All eight exported
-<code>add_*</code> return the skeleton, invisibly. So do
+<p><strong>The return value is the other remedy, and it covers every
+shipped function.</strong> All eight exported <code>add_*</code> return
+the skeleton, invisibly. So do
 <code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> and the six
-<code>skeleton_eligible_*()</code> functions. Write
-<code>sk &lt;- add_diagnoses(sk, ...)</code> and the reservation stops
-mattering to you. swereg exports no helper for the reservation itself,
+<code>skeleton_eligible_*()</code> functions. If you write
+<code>sk &lt;- add_diagnoses(sk, ...)</code>, you do not need the
+reservation. swereg exports no helper for the reservation itself,
 because <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> already is one.</p>
 <p>Pass a variable, never an expression. The guard writes the grown
 table back to a name, or to a <code>$</code>, <code>[[</code> or
@@ -393,28 +392,28 @@ runs.</p>
 </h2>
 <p>When you pass a function to
 <code>RegistryStudy$register_codes(..., fn = my_add)</code>, the
-pipeline reserves the column slots your codes need and then wraps the
-call with a pre/post check. If your function writes into the table it
-was given, leaves the structural columns alone, and adds every expected
-new column, you see nothing. If it misbehaves,
-<code>$process_skeletons()</code> (or
-<code>$apply_codes_to_skeleton()</code> directly) errors with a pointer
-back to the registration:</p>
+pipeline reserves the column slots your codes need. It then wraps the
+call with a check before and after. Suppose your function writes into
+the table it was given, leaves the structural columns alone, and adds
+every expected new column. Then you see nothing. If it breaks the
+contract, <code>$process_skeletons()</code> (or
+<code>$apply_codes_to_skeleton()</code> directly) stops with an error
+that names the registration:</p>
 <pre><code>$register_codes(my_add): did not add the expected columns: covid_vax.
 Check that your loop over `names(codes)` actually writes to the
 skeleton (e.g. `skeleton[..., (nm) := TRUE]`).</code></pre>
-<p>You don’t call any validation helpers yourself. Just write the
-function and register it.</p>
+<p>You do not call any validation helpers yourself. Write the function
+and register it.</p>
 </div>
 <div class="section level2">
 <h2 id="common-case-reusing-a-built-in-via-registration">Common case: reusing a built-in via registration<a class="anchor" aria-label="anchor" href="#common-case-reusing-a-built-in-via-registration"></a>
 </h2>
-<p>Most “custom” work isn’t actually custom code — it’s using a built-in
-through the registration path so the pipeline’s hash tracking and
-incremental rebuild apply. If the registry you’re ingesting looks like
-Swedish NPR data (columns for <code>hdia</code>, <code>dia*</code>,
-<code>ekod*</code>, etc. after <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>), you
-don’t need your own function at all:</p>
+<p>Most “custom” work uses a built-in through the registration path, so
+that the pipeline’s hash tracking and incremental rebuild apply. Your
+registry can look like Swedish NPR data, with columns for
+<code>hdia</code>, <code>dia*</code>, <code>ekod*</code>, etc. after
+<code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>. Then you do not need your own
+function:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  codes  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>, <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -422,9 +421,9 @@ don’t need your own function at all:</p>
 <span>  groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"npr"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inpatient"</span>, <span class="st">"outpatient"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  label  <span class="op">=</span> <span class="st">"add_diagnoses_mood"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>If the built-in takes extra knobs —
-e.g. <code>diag_type = "main"</code> to search only the primary
-diagnosis — pass them through <code>fn_args</code>:</p>
+<p>If the built-in takes extra arguments, pass them through
+<code>fn_args</code>. For example, <code>diag_type = "main"</code>
+searches only the primary diagnosis:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  codes   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"primary_mi"</span> <span class="op">=</span> <span class="st">"I21"</span><span class="op">)</span>,</span>
@@ -433,36 +432,36 @@ diagnosis — pass them through <code>fn_args</code>:</p>
 <span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>diag_type <span class="op">=</span> <span class="st">"main"</span><span class="op">)</span>,</span>
 <span>  label   <span class="op">=</span> <span class="st">"add_diagnoses_mi_primary"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>fn_args</code> is the bucket for anything the fn accepts beyond
-the four mandatory arguments (<code>skeleton</code>, <code>data</code>,
-<code>id_name</code>, <code>codes</code>). It participates in the
-entry’s fingerprint, so changing <code>diag_type = "main"</code> to
-<code>diag_type = "both"</code> triggers replay.</p>
-<p>Reach for a custom <code>add_*</code> only when the built-ins
-genuinely can’t express what you need (different column names, different
-matching semantics, a non-ICD coding system, etc.).</p>
+<p><code>fn_args</code> holds every argument that <code>fn</code>
+accepts beyond the four mandatory arguments (<code>skeleton</code>,
+<code>data</code>, <code>id_name</code>, <code>codes</code>). It is part
+of the entry’s fingerprint, so a change from
+<code>diag_type = "main"</code> to <code>diag_type = "both"</code>
+triggers replay.</p>
+<p>Write a custom <code>add_*</code> only when the built-ins cannot
+express what you need (different column names, different matching
+semantics, a non-ICD coding system, etc.).</p>
 </div>
 <div class="section level2">
 <h2 id="a-complete-worked-example-add_vaccinations">A complete worked example: <code>add_vaccinations()</code><a class="anchor" aria-label="anchor" href="#a-complete-worked-example-add_vaccinations"></a>
 </h2>
-<p>Suppose you have a regional vaccination registry (Swedish, Norwegian,
-or other — doesn’t matter). Each row is one dose, with columns
-<code>personnummer</code> (person ID), <code>vac_date</code> (Date), and
-<code>atc_vac</code> (vaccine ATC code). You want one boolean column per
-user-supplied ATC prefix, <code>TRUE</code> on every week a person
-received a matching dose.</p>
+<p>Suppose you have a regional vaccination registry from any country.
+Each row is one dose, with columns <code>personnummer</code> (person
+ID), <code>vac_date</code> (Date), and <code>atc_vac</code> (vaccine ATC
+code). You want one boolean column per user-supplied ATC prefix,
+<code>TRUE</code> on every week a person received a matching dose.</p>
 <div class="section level3">
 <h3 id="design-decisions">Design decisions<a class="anchor" aria-label="anchor" href="#design-decisions"></a>
 </h3>
 <ul>
 <li>
 <strong>Point events, not intervals</strong>: a vaccine dose is a
-single date. Snap <code>vac_date</code> to an <code>isoyearweek</code>
-and write <code>TRUE</code> on that week.</li>
+single date. Convert <code>vac_date</code> to an
+<code>isoyearweek</code> and write <code>TRUE</code> on that week.</li>
 <li>
-<strong>Collision policy</strong>: overwrite. Match
-<code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> — init columns to <code>FALSE</code>, then
-set <code>TRUE</code> on matching weeks.</li>
+<strong>Collision policy</strong>: overwrite. Do what
+<code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> does: set the columns to
+<code>FALSE</code>, then set <code>TRUE</code> on matching weeks.</li>
 <li>
 <strong>Pattern semantics</strong>: ATC prefixes (same as
 <code>add_rx(source = "atc")</code>). Use <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> for
@@ -511,8 +510,8 @@ speed.</li>
 <div class="section level3">
 <h3 id="registering-it-with-a-registrystudy">Registering it with a <code>RegistryStudy</code><a class="anchor" aria-label="anchor" href="#registering-it-with-a-registrystudy"></a>
 </h3>
-<p>A minimal <code>RegistryStudy</code> scoped to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>
-so the vignette is self-contained:</p>
+<p>A minimal <code>RegistryStudy</code> in <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>, so
+the vignette needs no other files:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"raw"</span><span class="op">)</span>,</span>
@@ -558,16 +557,15 @@ so the vignette is self-contained:</p>
 <span><span class="co">#&gt; 3:     2     2020-17    TRUE     FALSE</span></span>
 <span><span class="co">#&gt; 4:     2     2020-45    TRUE     FALSE</span></span>
 <span><span class="co">#&gt; 5:     3     2020-51   FALSE      TRUE</span></span></code></pre></div>
-<p>Note there is no explicit snapshot/validate call in user code. The
-wrapper runs automatically inside
-<code>$apply_codes_to_skeleton()</code> — any contract violation would
-have errored here.</p>
+<p>The user code has no snapshot or validate call. The wrapper runs
+inside <code>$apply_codes_to_skeleton()</code>, and a contract violation
+stops this call with an error.</p>
 </div>
 <div class="section level3">
-<h3 id="seeing-the-wrapper-fire-on-a-broken-function">Seeing the wrapper fire on a broken function<a class="anchor" aria-label="anchor" href="#seeing-the-wrapper-fire-on-a-broken-function"></a>
+<h3 id="the-wrapper-on-a-broken-function">The wrapper on a broken function<a class="anchor" aria-label="anchor" href="#the-wrapper-on-a-broken-function"></a>
 </h3>
-<p>Let’s deliberately write a broken <code>add_*</code> that forgets to
-create the requested columns and see what happens:</p>
+<p>This broken <code>add_*</code> does not create the requested
+columns:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">broken_add_vax</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">dataset</span>, <span class="va">id_name</span>, <span class="va">codes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># BUG: loops but writes to a typo'd column name</span></span>
@@ -596,9 +594,9 @@ create the requested columns and see what happens:</p>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; ERROR caught:</span></span>
 <span><span class="co">#&gt;  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`). A function that runs out of free column slots and returns a NEW table loses its columns: write into the skeleton it was given.</span></span></code></pre></div>
-<p>The wrapper named the registration (<code>broken_add_vax</code>) and
-the missing column (<code>flu_vax</code>) and told us what to look for.
-Four more errors fire the same way:</p>
+<p>The error names the registration (<code>broken_add_vax</code>) and
+the missing column (<code>flu_vax</code>), and says what to look for.
+The wrapper gives an error in the same way for each of these:</p>
 <ul>
 <li>a changed row count</li>
 <li>a changed row order</li>
@@ -627,15 +625,14 @@ above, applied through the registry:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>flu <span class="op">=</span> <span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span>, covid <span class="op">=</span> <span class="st">"covid_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   flu covid </span></span>
 <span><span class="co">#&gt;  TRUE  TRUE</span></span></code></pre></div>
-<p>Both columns are there, from a table that started with no free slot
-at all. This is why registration is the recommended path.</p>
+<p>Both columns are there, from a table that started with no free
+slot.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="failure-modes-the-wrapper-catches">Failure modes the wrapper catches<a class="anchor" aria-label="anchor" href="#failure-modes-the-wrapper-catches"></a>
 </h2>
-<p>All of these come from real bugs people hit writing their first
-custom <code>add_*</code>:</p>
+<p>Each of these is a real bug in a first custom <code>add_*</code>:</p>
 <ul>
 <li>
 <strong>Building a new table instead of writing into the one you
@@ -672,12 +669,12 @@ it.</li>
 <code>NULL</code>.</strong> The grown table is then the only one with
 your columns, and you threw it away. Return the skeleton.</li>
 </ul>
-<p>One failure mode the wrapper does <strong>not</strong> catch:
-initialising to <code>NA</code> instead of <code>FALSE</code>. The
-column exists, so the wrapper is happy, but downstream code that does
-<code>sum(col)</code> or <code>col &amp; other_col</code> will propagate
-<code>NA</code>. Always initialise to <code>FALSE</code> (or whatever
-non-<code>NA</code> sentinel makes sense for your type).</p>
+<p>The wrapper does <strong>not</strong> catch one failure mode: columns
+set to <code>NA</code> instead of <code>FALSE</code>. The column exists,
+so the wrapper accepts it, but downstream code such as
+<code>sum(col)</code> or <code>col &amp; other_col</code> propagates
+<code>NA</code>. Always set new columns to <code>FALSE</code> (or
+another non-<code>NA</code> sentinel that suits your type).</p>
 </div>
 <div class="section level2">
 <h2 id="what-the-wrapper-guarantees-and-what-it-cannot">What the wrapper guarantees, and what it cannot<a class="anchor" aria-label="anchor" href="#what-the-wrapper-guarantees-and-what-it-cannot"></a>
@@ -696,9 +693,8 @@ a new vector.</li>
 vector.</strong> Your function receives the skeleton by reference, so
 <code>set(skeleton, i, "an_old_column", value)</code> changes that
 column and moves nothing the wrapper measures. A new table header that
-shares the original vectors passes the same way. Neither of those is new
-in 26.10.14: a registered function could always do it. Write only the
-columns your <code>codes</code> list names.</p>
+shares the original vectors passes the same way. Write only the columns
+your <code>codes</code> list names.</p>
 <p>An error from the wrapper stops the run and records nothing.
 <code>$process_skeletons()</code> never writes that batch to disk. Treat
 the in-memory skeleton as unusable afterwards. It MAY carry your writes
@@ -712,8 +708,8 @@ table you built does not.</p>
 <div class="section level2">
 <h2 id="design-cheat-sheet">Design cheat sheet<a class="anchor" aria-label="anchor" href="#design-cheat-sheet"></a>
 </h2>
-<p>Patterns the built-in <code>add_*</code> functions have converged on
-(sometimes after making the mistake first). Copy them when in doubt.</p>
+<p>The built-in <code>add_*</code> functions follow these patterns. Copy
+them when in doubt.</p>
 <div class="section level3">
 <h3 id="do">Do<a class="anchor" aria-label="anchor" href="#do"></a>
 </h3>
@@ -721,7 +717,7 @@ table you built does not.</p>
 <li>
 <strong>Use update-by-reference joins.</strong>
 <code>skeleton[data, on = c("id==&lt;id_name&gt;", "isoyearweek"), (cols) := ...]</code>
-is the canonical pattern. Never <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code>, never
+is the standard pattern. Never <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code>, never
 <code>left_join()</code>.</li>
 <li>
 <strong>Initialise new columns to <code>FALSE</code></strong> (or
@@ -732,13 +728,13 @@ both weekly and annual rows. Decide explicitly whether each new column
 belongs on weekly rows, annual rows, or both.</li>
 <li>
 <strong>Use <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> over regex for prefix
-matching.</strong> ~5x faster.</li>
+matching.</strong> It is about 5x faster.</li>
 <li>
-<strong>Take <code>id_name</code> as a parameter.</strong> Don’t
+<strong>Take <code>id_name</code> as a parameter.</strong> Do not
 hard-code <code>"lopnr"</code>.</li>
 <li>
 <strong>Warn on partial ID matches.</strong> If most skeleton IDs
-aren’t in the registry data, the user probably made a mistake.</li>
+are not in the registry data, the user probably made a mistake.</li>
 <li>
 <strong>Count every column your function holds at once</strong>,
 temporaries included. See the section “Column-slot headroom”.</li>
@@ -749,15 +745,15 @@ temporaries included. See the section “Column-slot headroom”.</li>
 </h3>
 <ul>
 <li>
-<strong>Don’t reassign <code>skeleton</code>.</strong> Any line that
-looks like <code>skeleton &lt;- something</code> inside an
+<strong>Do not reassign <code>skeleton</code>.</strong> Any line
+that looks like <code>skeleton &lt;- something</code> inside an
 <code>add_*</code> is a bug.</li>
 <li>
-<strong>Don’t assume the user ran
-<code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>.</strong> Check. Fail with an
-actionable error if required columns are missing.</li>
+<strong>Do not assume the user ran
+<code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>.</strong> Check. Stop with an error
+that says which required columns are missing.</li>
 <li>
-<strong>Don’t silently drop rows with <code>NA</code> in critical
+<strong>Do not silently drop rows with <code>NA</code> in critical
 columns.</strong> Warn with a count. (See <code><a href="../reference/add_rx.html">add_rx()</a></code> for the
 right pattern.)</li>
 </ul>
@@ -765,14 +761,14 @@ right pattern.)</li>
 <div class="section level3">
 <h3 id="judgment-call-input-data-mutation">Judgment call: input-data mutation<a class="anchor" aria-label="anchor" href="#judgment-call-input-data-mutation"></a>
 </h3>
-<p>Mutating the input <code>data.table</code> (adding scratch columns,
-coercing date formats) is <strong>fine</strong> in the
-<code>RegistryStudy</code> batched pipeline — the input is discarded
-after each call. It’s <strong>messy</strong> in manual or interactive
-workflows where the caller reuses the dataset variable. Several
-built-ins mutate; several don’t. If copy-cost is tolerable, prefer the
-cleaner approach. If the input is huge and you’re writing for the
-pipeline, don’t bother.</p>
+<p>Changes to the input <code>data.table</code> (scratch columns, date
+format coercion) are <strong>acceptable</strong> in the
+<code>RegistryStudy</code> batched pipeline, because the pipeline
+discards the input after each call. They cause <strong>problems</strong>
+in manual or interactive workflows where the caller reuses the dataset
+variable. Some built-ins change their input and some do not. If the cost
+of a copy is acceptable, copy the input. If the input is huge and you
+write for the pipeline, do not copy it.</p>
 </div>
 </div>
 <div class="section level2">
@@ -783,14 +779,14 @@ pipeline, don’t bother.</p>
 <em>that</em> in
 <code>register_codes(codes = ..., fn = swereg::add_diagnoses,    ...)</code>
 instead of writing a custom function.</li>
-<li>If you genuinely need custom code, write it following the 6-point
-contract above.</li>
+<li>If you need custom code, write it to the 6-point contract in the
+section “The <code>add_*</code> contract”.</li>
 <li>Register it via
 <code>RegistryStudy$register_codes(codes = ..., fn = my_add, groups = ...)</code>.
 The pipeline validates the contract on every call and replays your
 function when the registration changes.</li>
-<li>Read the source of any built-in <code>add_*</code> for a
-battle-tested reference implementation.</li>
+<li>Read the source of any built-in <code>add_*</code> for a reference
+implementation.</li>
 </ol>
 <p>See <code><a href="../articles/builtin-add-functions.html">vignette("builtin-add-functions")</a></code> for every shipped
 <code>add_*</code>, and <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> for

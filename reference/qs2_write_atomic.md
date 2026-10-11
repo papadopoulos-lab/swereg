@@ -66,7 +66,7 @@ same temp path for the same target. Same directory is required:
 [`file.rename()`](https://rdrr.io/r/base/files.html) is not atomic
 across filesystems.
 
-The implementation now lives in
+The implementation lives in
 [`batchit::write_qs2_atomically()`](https://papadopoulos-lab.github.io/batchit/reference/write_qs2_atomically.html);
 this is a thin delegation, and the contract above is what swereg
 promises its own users. One visible consequence: the rename-failure

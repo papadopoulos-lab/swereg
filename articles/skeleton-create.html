@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -107,20 +108,19 @@
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>This vignette demonstrates how to build a skeleton by hand – creating
-the time-structured framework, integrating raw registry data, and
-deriving analysis-ready variables.</p>
-<p><strong>Prerequisites</strong>: If you’re new to swereg, start with
-the “Skeleton concept” vignette to learn the conceptual foundation.</p>
+<p>This vignette shows how to build a skeleton by hand: create the
+time-structured framework, add raw registry data, and derive
+analysis-ready variables.</p>
+<p><strong>Prerequisites</strong>: If you are new to swereg, read the
+“Skeleton concept” vignette first.</p>
 <p>For production pipelines that process hundreds of thousands of
-individuals with incremental rebuild support, see
+individuals and rebuild incrementally, see
 <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="step-1-create-the-time-grid">Step 1: create the time grid<a class="anchor" aria-label="anchor" href="#step-1-create-the-time-grid"></a>
 </h2>
-<p>Start by creating a skeleton with your study population and time
-period:</p>
+<p>Create a skeleton for your study population and time period:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load example data</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
@@ -164,7 +164,7 @@ of the ISO week/year</li>
 <div class="section level2">
 <h2 id="step-2-add-demographic-data-one-time">Step 2: add demographic data (one-time)<a class="anchor" aria-label="anchor" href="#step-2-add-demographic-data-one-time"></a>
 </h2>
-<p>Demographics don’t change over time, so we add them once per
+<p>Demographics do not change over time, so you add them once per
 person:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load and prepare demographic data</span></span>
@@ -183,7 +183,7 @@ person:</p>
 <div class="section level2">
 <h2 id="step-3-add-annual-data">Step 3: add annual data<a class="anchor" aria-label="anchor" href="#step-3-add-annual-data"></a>
 </h2>
-<p>Some data varies by year (e.g., family status, income):</p>
+<p>Some data change from year to year (e.g., family status, income):</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load annual family data</span></span>
 <span><span class="va">fake_annual_family</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_annual_family</a></span> <span class="op">|&gt;</span></span>
@@ -199,7 +199,7 @@ person:</p>
 <div class="section level2">
 <h2 id="step-4-add-diagnosis-data">Step 4: add diagnosis data<a class="anchor" aria-label="anchor" href="#step-4-add-diagnosis-data"></a>
 </h2>
-<p>Hospital diagnoses drive most epidemiological studies:</p>
+<p>Most epidemiological studies use hospital diagnoses:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load and prepare diagnosis data</span></span>
 <span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
@@ -207,7 +207,7 @@ person:</p>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span></span>
-<span><span class="co"># Define diagnosis patterns to search for (^ prefix automatically added)</span></span>
+<span><span class="co"># Define diagnosis code prefixes (plain prefixes, not regular expressions)</span></span>
 <span><span class="va">diagnosis_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>,</span>
@@ -221,9 +221,8 @@ person:</p>
 <span>  <span class="va">skeleton</span>,</span>
 <span>  <span class="va">fake_diagnoses</span>,</span>
 <span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
-<span>  diags <span class="op">=</span> <span class="va">diagnosis_patterns</span></span>
+<span>  codes <span class="op">=</span> <span class="va">diagnosis_patterns</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Check results</span></span>
 <span><span class="va">diag_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">diagnosis_patterns</span><span class="op">)</span></span>
@@ -247,7 +246,7 @@ person:</p>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"edatum"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define drug patterns (ATC codes, ^ prefix automatically added)</span></span>
+<span><span class="co"># Define ATC code prefixes (plain prefixes, not regular expressions)</span></span>
 <span><span class="va">drug_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N06A"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"lipid_lowering"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C10AA"</span><span class="op">)</span>,</span>
@@ -260,9 +259,8 @@ person:</p>
 <span>  <span class="va">skeleton</span>,</span>
 <span>  <span class="va">fake_prescriptions</span>,</span>
 <span>  id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
-<span>  rxs <span class="op">=</span> <span class="va">drug_patterns</span></span>
+<span>  codes <span class="op">=</span> <span class="va">drug_patterns</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'rxs' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Check prescription usage</span></span>
 <span><span class="va">rx_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">drug_patterns</span><span class="op">)</span></span>
@@ -305,7 +303,7 @@ person:</p>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"dodsdat"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define cause of death patterns (^ prefix automatically added)</span></span>
+<span><span class="co"># Define cause of death code prefixes (plain prefixes, not regular expressions)</span></span>
 <span><span class="va">cod_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"cardiovascular_death"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I21"</span>, <span class="st">"I22"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"external_causes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"X60"</span>, <span class="st">"X70"</span><span class="op">)</span></span>
@@ -316,9 +314,8 @@ person:</p>
 <span>  <span class="va">skeleton</span>,</span>
 <span>  <span class="va">fake_cod</span>,</span>
 <span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
-<span>  cods <span class="op">=</span> <span class="va">cod_patterns</span></span>
+<span>  codes <span class="op">=</span> <span class="va">cod_patterns</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: 'cods' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Check mortality</span></span>
 <span><span class="va">cod_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cod_patterns</span><span class="op">)</span></span>
@@ -332,8 +329,8 @@ person:</p>
 <div class="section level2">
 <h2 id="step-8-derive-variables">Step 8: derive variables<a class="anchor" aria-label="anchor" href="#step-8-derive-variables"></a>
 </h2>
-<p>With all registry data integrated, create analysis-ready variables
-using only data already in the skeleton.</p>
+<p>With all registry data in the skeleton, create analysis-ready
+variables. Use only data already in the skeleton.</p>
 <div class="section level3">
 <h3 id="age">Age<a class="anchor" aria-label="anchor" href="#age"></a>
 </h3>
@@ -405,7 +402,7 @@ using only data already in the skeleton.</p>
 <div class="section level2">
 <h2 id="step-9-quality-filters">Step 9: quality filters<a class="anchor" aria-label="anchor" href="#step-9-quality-filters"></a>
 </h2>
-<p>Apply study criteria:</p>
+<p>Apply the study criteria:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Before filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Before filtering: 429000 rows</span></span>
@@ -426,8 +423,8 @@ using only data already in the skeleton.</p>
 <div class="section level2">
 <h2 id="the-finished-skeleton">The finished skeleton<a class="anchor" aria-label="anchor" href="#the-finished-skeleton"></a>
 </h2>
-<p>The skeleton now contains all registry data integrated and all
-derived variables ready for analysis:</p>
+<p>The skeleton now holds all registry data and all derived
+variables:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Variables:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, diabetes, cardiovascular, antidepressants, lipid_lowering, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, cardiometabolic, depression_treated, cardiovascular_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression</span></span></code></pre></div>
@@ -448,23 +445,16 @@ derived variables ready for analysis:</p>
 <h2 id="key-principles">Key principles<a class="anchor" aria-label="anchor" href="#key-principles"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li>
-<strong>Always use <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code></strong>
-after reading registry data</li>
-<li>
-<strong>Sequential integration</strong>: Add data types in logical
-order</li>
-<li>
-<strong>Pattern matching</strong>: Use regex patterns for medical
-codes (^ prefix automatically added)</li>
-<li>
-<strong>Derive from within</strong>: Variable derivation uses only
-data already in the skeleton</li>
-<li>
-<strong>rd_ / ri_ convention</strong>: Time-varying variables get
-<code>rd_</code> prefix, time-invariant get <code>ri_</code> – see
-<code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code>
-</li>
+<li>Always use <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code> after you read
+registry data.</li>
+<li>Add the data types in a logical order.</li>
+<li>Give medical codes as plain prefixes. <code>"F32"</code> matches
+every code that starts with F32, and <code>"^F32"</code> matches
+nothing.</li>
+<li>Derive variables only from data already in the skeleton.</li>
+<li>Give time-varying variables the <code>rd_</code> prefix and
+time-invariant variables the <code>ri_</code> prefix. See
+<code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code>.</li>
 </ol>
 </div>
 <div class="section level2">

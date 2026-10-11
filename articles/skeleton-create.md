@@ -11,20 +11,20 @@ library(data.table)
 
 ## Introduction
 
-This vignette demonstrates how to build a skeleton by hand – creating
-the time-structured framework, integrating raw registry data, and
-deriving analysis-ready variables.
+This vignette shows how to build a skeleton by hand: create the
+time-structured framework, add raw registry data, and derive
+analysis-ready variables.
 
-**Prerequisites**: If you’re new to swereg, start with the “Skeleton
-concept” vignette to learn the conceptual foundation.
+**Prerequisites**: If you are new to swereg, read the “Skeleton concept”
+vignette first.
 
 For production pipelines that process hundreds of thousands of
-individuals with incremental rebuild support, see
+individuals and rebuild incrementally, see
 [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md).
 
 ## Step 1: create the time grid
 
-Start by creating a skeleton with your study population and time period:
+Create a skeleton for your study population and time period:
 
 ``` r
 # Load example data
@@ -63,7 +63,7 @@ The skeleton contains:
 
 ## Step 2: add demographic data (one-time)
 
-Demographics don’t change over time, so we add them once per person:
+Demographics do not change over time, so you add them once per person:
 
 ``` r
 # Load and prepare demographic data
@@ -82,7 +82,7 @@ cat("Added demographic variables:", paste(new_vars, collapse = ", "), "\n")
 
 ## Step 3: add annual data
 
-Some data varies by year (e.g., family status, income):
+Some data change from year to year (e.g., family status, income):
 
 ``` r
 # Load annual family data
@@ -99,7 +99,7 @@ cat("Annual data added for 2015\n")
 
 ## Step 4: add diagnosis data
 
-Hospital diagnoses drive most epidemiological studies:
+Most epidemiological studies use hospital diagnoses:
 
 ``` r
 # Load and prepare diagnosis data
@@ -108,7 +108,7 @@ fake_diagnoses <- swereg::fake_diagnoses |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
-# Define diagnosis patterns to search for (^ prefix automatically added)
+# Define diagnosis code prefixes (plain prefixes, not regular expressions)
 diagnosis_patterns <- list(
   "depression" = c("F32", "F33"),
   "anxiety" = c("F40", "F41"),
@@ -122,9 +122,8 @@ swereg::add_diagnoses(
   skeleton,
   fake_diagnoses,
   id_name = "lopnr",
-  diags = diagnosis_patterns
+  codes = diagnosis_patterns
 )
-#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 # Check results
 diag_vars <- names(diagnosis_patterns)
@@ -149,7 +148,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "edatum")
 
-# Define drug patterns (ATC codes, ^ prefix automatically added)
+# Define ATC code prefixes (plain prefixes, not regular expressions)
 drug_patterns <- list(
   "antidepressants" = c("N06A"),
   "lipid_lowering" = c("C10AA"),
@@ -162,9 +161,8 @@ swereg::add_rx(
   skeleton,
   fake_prescriptions,
   id_name = "p444_lopnr_personnr",
-  rxs = drug_patterns
+  codes = drug_patterns
 )
-#> Warning: 'rxs' is deprecated, use 'codes' instead.
 
 # Check prescription usage
 rx_vars <- names(drug_patterns)
@@ -209,7 +207,7 @@ fake_cod <- swereg::fake_cod |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "dodsdat")
 
-# Define cause of death patterns (^ prefix automatically added)
+# Define cause of death code prefixes (plain prefixes, not regular expressions)
 cod_patterns <- list(
   "cardiovascular_death" = c("I21", "I22"),
   "external_causes" = c("X60", "X70")
@@ -220,9 +218,8 @@ swereg::add_cods(
   skeleton,
   fake_cod,
   id_name = "lopnr",
-  cods = cod_patterns
+  codes = cod_patterns
 )
-#> Warning: 'cods' is deprecated, use 'codes' instead.
 
 # Check mortality
 cod_vars <- names(cod_patterns)
@@ -236,8 +233,8 @@ for(var in cod_vars) {
 
 ## Step 8: derive variables
 
-With all registry data integrated, create analysis-ready variables using
-only data already in the skeleton.
+With all registry data in the skeleton, create analysis-ready variables.
+Use only data already in the skeleton.
 
 ### Age
 
@@ -308,7 +305,7 @@ swereg::make_rowind_first_occurrence(
 
 ## Step 9: quality filters
 
-Apply study criteria:
+Apply the study criteria:
 
 ``` r
 cat("Before filtering:", nrow(skeleton), "rows\n")
@@ -330,8 +327,7 @@ cat("Final skeleton:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
 
 ## The finished skeleton
 
-The skeleton now contains all registry data integrated and all derived
-variables ready for analysis:
+The skeleton now holds all registry data and all derived variables:
 
 ``` r
 cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
@@ -354,17 +350,16 @@ print(depression_summary[n_person_years > 0])
 
 ## Key principles
 
-1.  **Always use
-    [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)**
-    after reading registry data
-2.  **Sequential integration**: Add data types in logical order
-3.  **Pattern matching**: Use regex patterns for medical codes (^ prefix
-    automatically added)
-4.  **Derive from within**: Variable derivation uses only data already
-    in the skeleton
-5.  **rd\_ / ri\_ convention**: Time-varying variables get `rd_` prefix,
-    time-invariant get `ri_` – see
-    [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md)
+1.  Always use
+    [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
+    after you read registry data.
+2.  Add the data types in a logical order.
+3.  Give medical codes as plain prefixes. `"F32"` matches every code
+    that starts with F32, and `"^F32"` matches nothing.
+4.  Derive variables only from data already in the skeleton.
+5.  Give time-varying variables the `rd_` prefix and time-invariant
+    variables the `ri_` prefix. See
+    [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md).
 
 ## Next steps
 

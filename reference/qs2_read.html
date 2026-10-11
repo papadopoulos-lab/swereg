@@ -11,7 +11,7 @@ qs2::qs_read."><meta property="og:image" content="https://papadopoulos-lab.githu
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@ qs2::qs_read."><meta property="og:image" content="https://papadopoulos-lab.githu
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -94,18 +95,16 @@ qs2::qs_read."><meta property="og:image" content="https://papadopoulos-lab.githu
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Files in the qdata format (<code><a href="https://rdrr.io/pkg/qs2/man/qd_save.html" class="external-link">qs2::qd_save</a></code>) are no longer readable through
-this function. An earlier version tried <code><a href="https://rdrr.io/pkg/qs2/man/qd_read.html" class="external-link">qs2::qd_read</a></code> first and fell back to
-the standard reader; that attempt is gone, so a qdata file now raises the
-underlying qs2 error <code>qdata format detected, use qs2::qd_read</code>. swereg has
-never written qdata files itself.</p>
+    <p>The function does not read the qdata format (<code><a href="https://rdrr.io/pkg/qs2/man/qd_save.html" class="external-link">qs2::qd_save</a></code>). A qdata file
+raises the qs2 error <code>qdata format detected, use qs2::qd_read</code>. swereg
+writes no qdata file.</p>
     </div>
     <div class="section level2">
     <h2 id="stored-objects-from-an-older-schema">Stored objects from an older schema<a class="anchor" aria-label="anchor" href="#stored-objects-from-an-older-schema"></a></h2>
 
 
-<p>The reader refuses a <a href="TTEEnrollment.html">TTEEnrollment</a> below schema 6 and a <a href="TTEPlan.html">TTEPlan</a> below
-schema 5. The error names the file. It says to rebuild the plan with s0 and
+<p>The reader refuses a <a href="TTEEnrollment.html">TTEEnrollment</a> below schema 7 and a <a href="TTEPlan.html">TTEPlan</a> below
+schema 6. The error names the file. It says to rebuild the plan with s0 and
 re-run s1, then s2 and s3. The reader does not migrate such an object.</p>
 <p>The refusal runs here, before the reader calls <code>check_version()</code>. A
 deserialised R6 object keeps the method bodies it was saved with, so its

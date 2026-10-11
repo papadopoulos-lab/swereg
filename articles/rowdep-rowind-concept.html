@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -99,7 +100,7 @@
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/papadopoulos-lab/swereg" class="external-link">swereg</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; swereg 27.2.0</span></span>
+<span><span class="co">#&gt; swereg 27.2.1</span></span>
 <span><span class="co">#&gt; https://papadopoulos-lab.github.io/swereg/</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -111,22 +112,22 @@
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
 <p>In longitudinal registry data analysis with swereg, every derived
-variable is either <strong>row-dependent</strong> (can change value
+variable is either <strong>row-dependent</strong> (its value can change
 across rows for the same person) or <strong>row-independent</strong>
-(fixed per person). The distinction is so important that swereg uses
-short name prefixes to make it visible at the call site:</p>
+(fixed per person). swereg uses short name prefixes to make the
+distinction visible at the call site:</p>
 <ul>
 <li>
-<strong><code>rd_</code></strong> – row-dependent (also called
+<strong><code>rd_</code></strong>: row-dependent (also called
 “rowdep”). Variables that can change over time for a person.</li>
 <li>
-<strong><code>ri_</code></strong> – row-independent (also called
+<strong><code>ri_</code></strong>: row-independent (also called
 “rowind”). Variables that are fixed per person.</li>
 </ul>
-<p>Understanding this distinction is crucial when preparing
-analysis-ready datasets: many transformations convert <code>rd_</code>
-variables into <code>ri_</code> variables by capturing a value at a
-specific moment (“age at first diagnosis”, “year of death”).</p>
+<p>Many transformations for analysis-ready datasets convert
+<code>rd_</code> variables into <code>ri_</code> variables. Each one
+takes the value at a specific moment (“age at first diagnosis”, “year of
+death”).</p>
 </div>
 <div class="section level2">
 <h2 id="the-concept">The concept<a class="anchor" aria-label="anchor" href="#the-concept"></a>
@@ -168,7 +169,7 @@ person:</p>
 (<code>ri_age_first_dx</code>): fixed once it happens</li>
 <li>
 <strong>Year of first diagnosis</strong>
-(<code>ri_isoyear_first_dx</code>): fixed historical fact</li>
+(<code>ri_isoyear_first_dx</code>): fixed once it happens</li>
 <li>
 <strong>Birth country</strong> (<code>ri_birthcountry</code>): never
 changes</li>
@@ -199,11 +200,11 @@ diagnosis, first prescription).</li>
 <strong>Create person-level summaries</strong> that don’t vary by
 time period.</li>
 </ol>
-<p>Converting <code>rd_</code> -&gt; <code>ri_</code> lets you create
-stable, person-level characteristics for downstream analysis – for
-example, to use as baseline covariates in a target trial emulation,
-where the enrollment time zero fixes which row’s <code>rd_</code> values
-you care about.</p>
+<p>A conversion from <code>rd_</code> to <code>ri_</code> gives a
+person-level characteristic that has the same value on every row. Later
+analyses use it, for example as a baseline covariate in a target trial
+emulation. There, the enrollment time zero sets which row’s
+<code>rd_</code> values apply.</p>
 </div>
 <div class="section level2">
 <h2 id="common-transformation-patterns">Common transformation patterns<a class="anchor" aria-label="anchor" href="#common-transformation-patterns"></a>
@@ -212,8 +213,8 @@ you care about.</p>
 <h3 id="pattern-1-first-occurrence-transformations">Pattern 1: First-occurrence transformations<a class="anchor" aria-label="anchor" href="#pattern-1-first-occurrence-transformations"></a>
 </h3>
 <p>The most common transformation finds the first time a condition is
-TRUE and extracts a value from that time point. This works for any
-condition – time-based, value-based, or complex combinations.</p>
+TRUE and takes a value from that time point. The condition can be
+time-based, value-based, or any combination of the two.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Age at first F64 diagnosis restricted to AFAB individuals</span></span>
 <span><span class="fu"><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>,</span>
@@ -235,8 +236,8 @@ manual equivalent is:</p>
 <code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span><span class="va">f64_diag</span> <span class="op">==</span> <span class="cn">TRUE</span> <span class="op">&amp;</span> <span class="va">ri_is_amab</span> <span class="op">==</span> <span class="cn">FALSE</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="va">rd_age_continuous</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">ri_age_first_f64_afab</span> <span class="op">:=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/first_non_na.html">first_non_na</a></span><span class="op">(</span><span class="va">temp</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span></code></pre></div>
-<p>The helper function just automates the three-line pattern and
-guarantees the temporary column is cleaned up.</p>
+<p>The helper function runs this three-line pattern and always removes
+the temporary column.</p>
 </div>
 </div>
 <div class="section level3">
@@ -250,10 +251,8 @@ naming:</p>
 <span></span>
 <span><span class="co"># If birth country was added via add_onetime() and is person-level</span></span>
 <span><span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/setattr.html" class="external-link">setnames</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="st">"birth_country"</span>, <span class="st">"ri_birthcountry"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Important</strong>: only use this when the variable is
-genuinely the same across all rows for each person. If values differ,
-you have a data-integration problem to fix first, not a renaming
-one.</p>
+<p>Use this only when the variable has the same value on all rows for
+each person. If values differ, fix the data integration first.</p>
 </div>
 </div>
 <div class="section level2">
@@ -271,14 +270,14 @@ one.</p>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: fodelseman. Consider adding them for automatic date parsing.</span></span>
 <span><span class="fu"><a href="../reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_demographics</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Add diagnosis data (creates rd_ variables — the diag column</span></span>
+<span><span class="co"># Add diagnosis data (creates rd_ variables: the diag column</span></span>
 <span><span class="co"># varies week-by-week)</span></span>
 <span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span>,</span>
-<span>              codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f64_diag <span class="op">=</span> <span class="st">"^F64"</span><span class="op">)</span><span class="op">)</span></span>
+<span>              codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f64_diag <span class="op">=</span> <span class="st">"F64"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">id</span> <span class="op">==</span> <span class="va">ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fl">8</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman</span></span>
@@ -321,28 +320,27 @@ one.</p>
 <span>                              <span class="va">ri_isoyearweek_first_f64</span><span class="op">)</span><span class="op">]</span>, <span class="fl">8</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       id isoyear isoyearweek f64_diag ri_isoyear_first_f64</span></span>
 <span><span class="co">#&gt;    &lt;int&gt;   &lt;int&gt;      &lt;char&gt;   &lt;lgcl&gt;                &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:     1    1900     1900-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 2:     1    1901     1901-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 3:     1    1902     1902-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 4:     1    1903     1903-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 5:     1    1904     1904-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 6:     1    1905     1905-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 7:     1    1906     1906-**    FALSE                   NA</span></span>
-<span><span class="co">#&gt; 8:     1    1907     1907-**    FALSE                   NA</span></span>
+<span><span class="co">#&gt; 1:     1    1900     1900-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 2:     1    1901     1901-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 3:     1    1902     1902-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 4:     1    1903     1903-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 5:     1    1904     1904-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 6:     1    1905     1905-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 7:     1    1906     1906-**    FALSE                 2000</span></span>
+<span><span class="co">#&gt; 8:     1    1907     1907-**    FALSE                 2000</span></span>
 <span><span class="co">#&gt;    ri_isoyearweek_first_f64</span></span>
 <span><span class="co">#&gt;                      &lt;char&gt;</span></span>
-<span><span class="co">#&gt; 1:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 2:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 3:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 4:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 5:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 6:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 7:                     &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 8:                     &lt;NA&gt;</span></span></code></pre></div>
-<p>Notice how <code>f64_diag</code> varies by week (<code>rd_</code>
-character even though the actual column name here is just
-<code>f64_diag</code> because it came from a code-registry entry) while
-<code>ri_isoyear_first_f64</code> and
+<span><span class="co">#&gt; 1:                  2000-**</span></span>
+<span><span class="co">#&gt; 2:                  2000-**</span></span>
+<span><span class="co">#&gt; 3:                  2000-**</span></span>
+<span><span class="co">#&gt; 4:                  2000-**</span></span>
+<span><span class="co">#&gt; 5:                  2000-**</span></span>
+<span><span class="co">#&gt; 6:                  2000-**</span></span>
+<span><span class="co">#&gt; 7:                  2000-**</span></span>
+<span><span class="co">#&gt; 8:                  2000-**</span></span></code></pre></div>
+<p><code>f64_diag</code> varies by week, so it is row-dependent. Its
+name has no <code>rd_</code> prefix because it comes from a
+code-registry entry. <code>ri_isoyear_first_f64</code> and
 <code>ri_isoyearweek_first_f64</code> are constant for each person.</p>
 </div>
 <div class="section level2">
@@ -359,14 +357,14 @@ character even though the actual column name here is just
 </ul>
 <p>Code-registry columns (<code>ov_*</code>, <code>sv_*</code>,
 <code>os_*</code>, <code>osd_*</code>, <code>rx_*</code>,
-<code>op_*</code>, etc.) are de-facto row-dependent but keep their
-source prefix for clarity; you don’t need to prefix them a second time
-with <code>rd_</code>.</p>
+<code>op_*</code>, etc.) are row-dependent, but they keep their source
+prefix. You do not need to add an <code>rd_</code> prefix to them.</p>
 </div>
 <div class="section level3">
 <h3 id="always-clean-up-temporary-variables">2. Always clean up temporary variables<a class="anchor" aria-label="anchor" href="#always-clean-up-temporary-variables"></a>
 </h3>
-<p>When using manual transformations, always remove temp variables:</p>
+<p>When you transform by hand, always remove the temporary
+variables:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span><span class="va">condition</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="va">value</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">new_ri_var</span> <span class="op">:=</span> <span class="fu"><a href="../reference/first_non_na.html">first_non_na</a></span><span class="op">(</span><span class="va">temp</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
@@ -375,14 +373,13 @@ with <code>rd_</code>.</p>
 <div class="section level3">
 <h3 id="use-helper-functions-when-possible">3. Use helper functions when possible<a class="anchor" aria-label="anchor" href="#use-helper-functions-when-possible"></a>
 </h3>
-<p><code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> handles temp variable
-management automatically and reduces errors.</p>
+<p><code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> manages the temporary
+variable for you, which reduces errors.</p>
 </div>
 <div class="section level3">
 <h3 id="validate-your-transformations">4. Validate your transformations<a class="anchor" aria-label="anchor" href="#validate-your-transformations"></a>
 </h3>
-<p>Always check that your <code>ri_</code> variables are actually
-row-independent:</p>
+<p>Check that your <code>ri_</code> variables are row-independent:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Should return 1 for every person -- all rows have the same value</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">ri_isoyear_first_f64</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
@@ -405,7 +402,7 @@ including <code>rd_age_continuous</code> (derived from
 skeleton rows.</li>
 <li>
 <strong>Phase 2 – codes</strong> produces the code-derived columns
-like <code>os_e11</code>, <code>osd_i21_to_i24</code>,
+such as <code>os_e11</code>, <code>osd_i21_to_i24</code>,
 <code>rx_c10aa</code>.</li>
 <li>
 <strong>Phase 3 – randvars</strong> produces both:
@@ -418,20 +415,18 @@ transformations.</li>
 </ul>
 </li>
 </ol>
-<p>The <code>ri_*</code> columns are then the baseline covariates
-consumed by target trial emulation in
-<code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>.</p>
+<p>The <code>ri_*</code> columns are the baseline covariates that target
+trial emulation uses in <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="conclusion">Conclusion<a class="anchor" aria-label="anchor" href="#conclusion"></a>
 </h2>
-<p>The <code>rd_</code> / <code>ri_</code> distinction is the
-scaffolding that makes person-week skeletons usable as TTE inputs: the
-<code>ri_</code> columns become your stable per-person baseline
-characteristics, and the <code>rd_</code> columns are the time-varying
-surface the enrollment procedure slices at candidate time-zeros.
-<code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> is the workhorse that
-bridges the two.</p>
+<p>The <code>rd_</code> / <code>ri_</code> distinction makes person-week
+skeletons usable as TTE inputs. The <code>ri_</code> columns hold the
+per-person baseline characteristics. The enrollment procedure reads the
+time-varying <code>rd_</code> columns at each candidate time zero.
+<code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> creates <code>ri_</code>
+columns from <code>rd_</code> columns.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

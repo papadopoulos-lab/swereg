@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 27.2.0
+#> swereg 27.2.1
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
@@ -15,20 +15,19 @@ library(data.table)
 ## Introduction
 
 In longitudinal registry data analysis with swereg, every derived
-variable is either **row-dependent** (can change value across rows for
-the same person) or **row-independent** (fixed per person). The
-distinction is so important that swereg uses short name prefixes to make
-it visible at the call site:
+variable is either **row-dependent** (its value can change across rows
+for the same person) or **row-independent** (fixed per person). swereg
+uses short name prefixes to make the distinction visible at the call
+site:
 
-- **`rd_`** – row-dependent (also called “rowdep”). Variables that can
+- **`rd_`**: row-dependent (also called “rowdep”). Variables that can
   change over time for a person.
-- **`ri_`** – row-independent (also called “rowind”). Variables that are
+- **`ri_`**: row-independent (also called “rowind”). Variables that are
   fixed per person.
 
-Understanding this distinction is crucial when preparing analysis-ready
-datasets: many transformations convert `rd_` variables into `ri_`
-variables by capturing a value at a specific moment (“age at first
-diagnosis”, “year of death”).
+Many transformations for analysis-ready datasets convert `rd_` variables
+into `ri_` variables. Each one takes the value at a specific moment
+(“age at first diagnosis”, “year of death”).
 
 ## The concept
 
@@ -52,8 +51,8 @@ These variables have the same value across all time periods for a
 person:
 
 - **Age at first diagnosis** (`ri_age_first_dx`): fixed once it happens
-- **Year of first diagnosis** (`ri_isoyear_first_dx`): fixed historical
-  fact
+- **Year of first diagnosis** (`ri_isoyear_first_dx`): fixed once it
+  happens
 - **Birth country** (`ri_birthcountry`): never changes
 - **Cohort classification** (`ri_register_tag`): person’s role in the
   study (case, control, sibling, etc.)
@@ -70,18 +69,18 @@ In longitudinal data, you often need to:
     when first diagnosed).
 3.  **Create person-level summaries** that don’t vary by time period.
 
-Converting `rd_` -\> `ri_` lets you create stable, person-level
-characteristics for downstream analysis – for example, to use as
-baseline covariates in a target trial emulation, where the enrollment
-time zero fixes which row’s `rd_` values you care about.
+A conversion from `rd_` to `ri_` gives a person-level characteristic
+that has the same value on every row. Later analyses use it, for example
+as a baseline covariate in a target trial emulation. There, the
+enrollment time zero sets which row’s `rd_` values apply.
 
 ## Common transformation patterns
 
 ### Pattern 1: First-occurrence transformations
 
 The most common transformation finds the first time a condition is TRUE
-and extracts a value from that time point. This works for any condition
-– time-based, value-based, or complex combinations.
+and takes a value from that time point. The condition can be time-based,
+value-based, or any combination of the two.
 
 ``` r
 # Age at first F64 diagnosis restricted to AFAB individuals
@@ -108,8 +107,8 @@ skeleton[, ri_age_first_f64_afab := swereg::first_non_na(temp), by = .(id)]
 skeleton[, temp := NULL]
 ```
 
-The helper function just automates the three-line pattern and guarantees
-the temporary column is cleaned up.
+The helper function runs this three-line pattern and always removes the
+temporary column.
 
 ### Pattern 2: Simple renaming (already row-independent)
 
@@ -123,9 +122,8 @@ data.table::setnames(skeleton, "dob", "ri_dob")
 data.table::setnames(skeleton, "birth_country", "ri_birthcountry")
 ```
 
-**Important**: only use this when the variable is genuinely the same
-across all rows for each person. If values differ, you have a
-data-integration problem to fix first, not a renaming one.
+Use this only when the variable has the same value on all rows for each
+person. If values differ, fix the data integration first.
 
 ## Practical example with fake data
 
@@ -141,14 +139,14 @@ fake_demographics <- swereg::fake_demographics |>
 #> Found additional date columns not in date_columns: fodelseman. Consider adding them for automatic date parsing.
 add_onetime(skeleton, fake_demographics, "lopnr")
 
-# Add diagnosis data (creates rd_ variables — the diag column
+# Add diagnosis data (creates rd_ variables: the diag column
 # varies week-by-week)
 fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 add_diagnoses(skeleton, fake_diagnoses, "lopnr",
-              codes = list(f64_diag = "^F64"))
+              codes = list(f64_diag = "F64"))
 
 head(skeleton[id == ids[1]], 8)
 #>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman
@@ -193,30 +191,30 @@ head(skeleton[id == ids[1], .(id, isoyear, isoyearweek, f64_diag,
                               ri_isoyearweek_first_f64)], 8)
 #>       id isoyear isoyearweek f64_diag ri_isoyear_first_f64
 #>    <int>   <int>      <char>   <lgcl>                <int>
-#> 1:     1    1900     1900-**    FALSE                   NA
-#> 2:     1    1901     1901-**    FALSE                   NA
-#> 3:     1    1902     1902-**    FALSE                   NA
-#> 4:     1    1903     1903-**    FALSE                   NA
-#> 5:     1    1904     1904-**    FALSE                   NA
-#> 6:     1    1905     1905-**    FALSE                   NA
-#> 7:     1    1906     1906-**    FALSE                   NA
-#> 8:     1    1907     1907-**    FALSE                   NA
+#> 1:     1    1900     1900-**    FALSE                 2000
+#> 2:     1    1901     1901-**    FALSE                 2000
+#> 3:     1    1902     1902-**    FALSE                 2000
+#> 4:     1    1903     1903-**    FALSE                 2000
+#> 5:     1    1904     1904-**    FALSE                 2000
+#> 6:     1    1905     1905-**    FALSE                 2000
+#> 7:     1    1906     1906-**    FALSE                 2000
+#> 8:     1    1907     1907-**    FALSE                 2000
 #>    ri_isoyearweek_first_f64
 #>                      <char>
-#> 1:                     <NA>
-#> 2:                     <NA>
-#> 3:                     <NA>
-#> 4:                     <NA>
-#> 5:                     <NA>
-#> 6:                     <NA>
-#> 7:                     <NA>
-#> 8:                     <NA>
+#> 1:                  2000-**
+#> 2:                  2000-**
+#> 3:                  2000-**
+#> 4:                  2000-**
+#> 5:                  2000-**
+#> 6:                  2000-**
+#> 7:                  2000-**
+#> 8:                  2000-**
 ```
 
-Notice how `f64_diag` varies by week (`rd_` character even though the
-actual column name here is just `f64_diag` because it came from a
-code-registry entry) while `ri_isoyear_first_f64` and
-`ri_isoyearweek_first_f64` are constant for each person.
+`f64_diag` varies by week, so it is row-dependent. Its name has no `rd_`
+prefix because it comes from a code-registry entry.
+`ri_isoyear_first_f64` and `ri_isoyearweek_first_f64` are constant for
+each person.
 
 ## Best practices
 
@@ -226,12 +224,12 @@ code-registry entry) while `ri_isoyear_first_f64` and
 - `ri_` for time-invariant variables
 
 Code-registry columns (`ov_*`, `sv_*`, `os_*`, `osd_*`, `rx_*`, `op_*`,
-etc.) are de-facto row-dependent but keep their source prefix for
-clarity; you don’t need to prefix them a second time with `rd_`.
+etc.) are row-dependent, but they keep their source prefix. You do not
+need to add an `rd_` prefix to them.
 
 ### 2. Always clean up temporary variables
 
-When using manual transformations, always remove temp variables:
+When you transform by hand, always remove the temporary variables:
 
 ``` r
 skeleton[condition == TRUE, temp := value]
@@ -242,11 +240,11 @@ skeleton[, temp := NULL]  # critical
 ### 3. Use helper functions when possible
 
 [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-handles temp variable management automatically and reduces errors.
+manages the temporary variable for you, which reduces errors.
 
 ### 4. Validate your transformations
 
-Always check that your `ri_` variables are actually row-independent:
+Check that your `ri_` variables are row-independent:
 
 ``` r
 # Should return 1 for every person -- all rows have the same value
@@ -263,22 +261,21 @@ A typical pattern:
 1.  **Phase 1 – framework** produces the base time grid, including
     `rd_age_continuous` (derived from `isoyearweeksun - dob`).
 2.  **Phase 1b – trim** is the one phase that MAY delete skeleton rows.
-3.  **Phase 2 – codes** produces the code-derived columns like `os_e11`,
-    `osd_i21_to_i24`, `rx_c10aa`.
+3.  **Phase 2 – codes** produces the code-derived columns such as
+    `os_e11`, `osd_i21_to_i24`, `rx_c10aa`.
 4.  **Phase 3 – randvars** produces both:
     - `rd_*` columns from LISA (annual demographics).
     - `ri_*` columns from first-occurrence transformations.
 
-The `ri_*` columns are then the baseline covariates consumed by target
-trial emulation in
+The `ri_*` columns are the baseline covariates that target trial
+emulation uses in
 [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md).
 
 ## Conclusion
 
-The `rd_` / `ri_` distinction is the scaffolding that makes person-week
-skeletons usable as TTE inputs: the `ri_` columns become your stable
-per-person baseline characteristics, and the `rd_` columns are the
-time-varying surface the enrollment procedure slices at candidate
-time-zeros.
+The `rd_` / `ri_` distinction makes person-week skeletons usable as TTE
+inputs. The `ri_` columns hold the per-person baseline characteristics.
+The enrollment procedure reads the time-varying `rd_` columns at each
+candidate time zero.
 [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-is the workhorse that bridges the two.
+creates `ri_` columns from `rd_` columns.

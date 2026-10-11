@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the six kinds.
+  The problem kind. The Details section lists the seven kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports six kinds of problem:
+The checker reports seven kinds of problem:
 
 - `unreadable`:
 
@@ -67,6 +67,15 @@ The checker reports six kinds of problem:
   The file name has the form `spec_vNNN.yaml`, and
   `study$implementation$version` is missing or is not `vNNN`. The
   checker skips this check for every other file name.
+
+- `outcome_selecting_exclusion`:
+
+  An exclusion criterion has the window
+  `lifetime_before_and_after_baseline` on a variable of an outcome. That
+  window reads the weeks after time zero, so the criterion selects on
+  the follow-up outcome. The checker writes one row for each criterion
+  and outcome. The checker reads the global `exclusion_criteria` and
+  each enrollment's `additional_exclusion`.
 
 - `read_error`:
 

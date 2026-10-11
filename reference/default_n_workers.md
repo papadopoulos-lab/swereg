@@ -61,12 +61,12 @@ Stage tags currently used by the pipeline:
   `s3_analyze()` — peaks ~20 GB/worker on large "vs none" panels, so
   keep at 1 unless you have the RAM headroom
 
-Note: `s2_generate_analysis_files_and_ipcw_pp()` deliberately does NOT
-use this — it stays single-worker (`n_workers = 1L`) for per-ETT memory
-isolation.
+Note: `s2_generate_analysis_files_and_ipcw_pp()` does not call this
+function. Its `n_workers` argument defaults to `1L`. It accepts a larger
+whole number, and s2 then runs that many concurrent subprocesses.
 
-The former box-wide `SWEREG_N_WORKERS` (and
-`getOption("swereg.n_workers")`) are retired: a single global knob could
+swereg reads no box-wide worker count. A single global knob could
 silently leak a high worker count into a heavy stage (3 x ~20 GB s3
-workers -\> OOM). If the deprecated `SWEREG_N_WORKERS` is still set, a
-one-time warning is emitted.
+workers -\> OOM). When the deprecated `SWEREG_N_WORKERS` is set, the
+function warns once per R session and ignores it. It reads no
+`getOption("swereg.n_workers")`.

@@ -9,7 +9,7 @@ aggregates of the raw panel. The paper reports the result."><meta property="og:i
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,7 @@ aggregates of the raw panel. The paper reports the result."><meta property="og:i
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -121,10 +122,10 @@ when the two confounder sets differ. It matches the rows of <code>imp</code> to 
 rows of <code>raw</code> by confounder name. The two tables MAY therefore list the
 same confounders in a different order.</p>
 <p>An <code>impute_fn</code> passed to <code>$s1_generate_enrollments_and_ipw()</code> MUST NOT
-change the row set. s1d takes the raw aggregates before it calls the
+change the row set. s1e takes the raw aggregates before it calls the
 callback, and this function after. A callback that adds a row or drops a
 row moves the <code>key_digest</code>. A change to an <code>id_var</code>, <code>tstart_var</code> or
-<code>tstop_var</code> value moves it too, and s1d stops here. A reorder is safe,
+<code>tstop_var</code> value moves it too, and s1e stops here. A reorder is safe,
 because the digest sorts the three key columns first.</p>
     </div>
     <div class="section level2">

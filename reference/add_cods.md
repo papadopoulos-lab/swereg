@@ -55,8 +55,9 @@ add_cods(
   Matching is **prefix-only** via
   [`startsWith()`](https://rdrr.io/r/base/startsWith.html). A pattern
   like `"I21"` matches `"I21"`, `"I210"`, `"I219"`, etc. This is not
-  regex – characters such as `^`, `$`, `*`, `[A-Z]` are taken literally
-  and will not match anything.
+  regex – characters such as `^`, `$` and `*` are taken literally and
+  will not match anything. A bracket group such as `"I2[0-5]"` expands
+  to its literal prefixes before the match.
 
   Prefixing a pattern with `"!"` turns it into a *row-level veto*: any
   source row whose code matches the (un-prefixed) pattern is masked out

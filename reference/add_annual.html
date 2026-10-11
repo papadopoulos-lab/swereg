@@ -11,7 +11,7 @@ such as yearly income, employment status, or annual health assessments."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@ such as yearly income, employment status, or annual health assessments."><meta p
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -85,7 +86,8 @@ such as yearly income, employment status, or annual health assessments.</p>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>A data.table containing the annual data to be merged</p></dd>
+<dd><p>A data.table containing the annual data to be merged. The
+function does not add or change any column of <code>data</code>.</p></dd>
 
 
 <dt id="arg-id-name">id_name<a class="anchor" aria-label="anchor" href="#arg-id-name"></a></dt>

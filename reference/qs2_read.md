@@ -27,22 +27,18 @@ The deserialized R object.
 
 ## Details
 
-Files in the qdata format
-([`qs2::qd_save`](https://rdrr.io/pkg/qs2/man/qd_save.html)) are no
-longer readable through this function. An earlier version tried
-[`qs2::qd_read`](https://rdrr.io/pkg/qs2/man/qd_read.html) first and
-fell back to the standard reader; that attempt is gone, so a qdata file
-now raises the underlying qs2 error
-`qdata format detected, use qs2::qd_read`. swereg has never written
-qdata files itself.
+The function does not read the qdata format
+([`qs2::qd_save`](https://rdrr.io/pkg/qs2/man/qd_save.html)). A qdata
+file raises the qs2 error `qdata format detected, use qs2::qd_read`.
+swereg writes no qdata file.
 
 ## Stored objects from an older schema
 
 The reader refuses a
 [TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
-below schema 6 and a
+below schema 7 and a
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
-below schema 5. The error names the file. It says to rebuild the plan
+below schema 6. The error names the file. It says to rebuild the plan
 with s0 and re-run s1, then s2 and s3. The reader does not migrate such
 an object.
 

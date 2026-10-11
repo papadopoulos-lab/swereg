@@ -3,9 +3,8 @@
 ## Overview
 
 This vignette defines the terms used throughout the swereg target trial
-emulation (TTE) system. It serves as a quick reference for anyone
-reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
-`TTEPlan`.
+emulation (TTE) system. Use it as a reference when you read or write
+code that uses `TTEDesign`, `TTEEnrollment` or `TTEPlan`.
 
 ## Data levels
 
@@ -22,11 +21,11 @@ Each trial-level row carries three time axes. One is a function of the
 other two: `period_id` = `enrollment_period_id` + interval number, where
 the interval number is `tstart / period_width + 1`.
 
-| Term                       | Meaning                                                                                                                                                                                                                                                                                                                                                 |
-|:---------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **`period_id`**            | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it.                                                                                                                                                   |
-| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw, the attrition and matching tables, and the outcome models read it. Earlier releases used `trial_id` for the calendar period of a row, and also for the trial in the comparator draw and the attrition tables. |
-| **time since time zero**   | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at the clipped `tstop`.                                                                                                                                              |
+| Term                       | Meaning                                                                                                                                                                                                                                                                                                          |
+|:---------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **`period_id`**            | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it.                                                                                                            |
+| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw and the outcome models read it. The attrition table and the comparator-draw counts that `$get_matching()` returns carry it as a key column.                             |
+| **time since time zero**   | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at `tstop`. On the last row of a person-trial, `tstop` is the week where follow-up stops, which can fall inside the interval. |
 
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.9 states which axes each model holds, and why.
@@ -65,8 +64,8 @@ One iteration per `enrollment_id`. Run by
 
 Produces two files per enrollment_id:
 
-- **file_raw** — post-enrollment, pre-imputation
-- **file_imp** — post-imputation + IPW (input to Loop 2)
+- **file_raw**: post-enrollment, pre-imputation
+- **file_imp**: post-imputation + IPW (input to Loop 2)
 
 ### Loop 2: per-ETT outcome weighting
 
@@ -117,11 +116,11 @@ All output files live in the project-specific data directory.
 The target trial emulation literature describes three analysis
 strategies:
 
-| Analysis                     | Description                                                                                                   | swereg support                                                                                                                                                                                                      |
-|:-----------------------------|:--------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Intention-to-treat (ITT)** | Compare initiators vs non-initiators regardless of subsequent adherence. No censoring at treatment switching. | **Yes** — `$s4_prepare_for_analysis(estimand = "itt")` keeps follow-up through switching (no IPCW); analyse with `$irr(weight_col = "ipw_trunc")`.                                                                  |
-| **Per-protocol**             | Censor at protocol deviation (treatment switching), adjust for informative censoring with IPCW.               | **Yes** — `$s4_prepare_for_analysis(estimand = "pp")` (default) applies per-protocol censoring, then estimates IPCW-PP weights. The final combined weight `analysis_weight_pp = ipw × ipcw_pp` is used in `$irr()`. |
-| **As-treated**               | Model time-varying treatment status with time-varying IPW.                                                    | **Not implemented.** Requires time-varying treatment weights P(A_t                                                                                                                                                  |
+| Analysis                     | Description                                                                                                   | swereg support                                                                                                                                                                                                     |
+|:-----------------------------|:--------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Intention-to-treat (ITT)** | Compare initiators vs non-initiators regardless of subsequent adherence. No censoring at treatment switching. | **Yes**. `$s4_prepare_for_analysis(estimand = "itt")` keeps follow-up through switching (no IPCW); analyse with `$irr(weight_col = "ipw_trunc")`.                                                                  |
+| **Per-protocol**             | Censor at protocol deviation (treatment switching), adjust for informative censoring with IPCW.               | **Yes**. `$s4_prepare_for_analysis(estimand = "pp")` (default) applies per-protocol censoring, then estimates IPCW-PP weights. The final combined weight `analysis_weight_pp = ipw × ipcw_pp` is used in `$irr()`. |
+| **As-treated**               | Model time-varying treatment status with time-varying IPW.                                                    | **Not implemented.** Requires time-varying treatment weights P(A_t                                                                                                                                                 |
 
 The production pipeline produces **both** estimands per ETT:
 per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
@@ -142,8 +141,8 @@ Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
 observation and free of every enrollment outcome. The enrollment period
 therefore carries no follow-up and no immortal time. `period_width`
-therefore trades the number of trials against how long a newly eligible
-person waits:
+trades the number of trials against how long a newly eligible person
+waits:
 
 - **Narrower enrollment periods** (e.g., `period_width = 1`): a person
   waits at most one week for a trial. The cost is more trials and a

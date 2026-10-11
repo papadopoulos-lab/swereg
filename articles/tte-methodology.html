@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -101,30 +102,30 @@
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
 <p>This vignette maps the swereg target trial emulation (TTE)
-implementation to five reference papers that define the methodological
-foundation. It documents which methods are implemented, which are not,
-and the rationale for design choices.</p>
+implementation to five reference papers. It states which methods swereg
+implements, which it does not, and the reason for each design
+choice.</p>
 </div>
 <div class="section level2">
 <h2 id="reference-papers">Reference papers<a class="anchor" aria-label="anchor" href="#reference-papers"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p><strong>Hernán &amp; Robins (2016)</strong> — “Using big data to
+<li><p><strong>Hernán &amp; Robins (2016)</strong>: “Using big data to
 emulate a target trial when a randomized trial is not available.” <em>Am
-J Epidemiol.</em> Theoretical framework defining the four emulation
-failures and their solutions.</p></li>
-<li><p><strong>Hernán et al. (2008)</strong> — “Observational analyses
-of the effect of combined estrogen-progestin therapy on coronary heart
+J Epidemiol.</em> The theoretical framework. It defines the four
+emulation failures and their solutions.</p></li>
+<li><p><strong>Hernán et al. (2008)</strong>: “Observational analyses of
+the effect of combined estrogen-progestin therapy on coronary heart
 disease.” <em>Epidemiology.</em> The original “sequence of nested
 trials” paper. NHS/WHI hormone therapy example.</p></li>
-<li><p><strong>Danaei et al. (2013)</strong> — “Statins and coronary
-heart disease events.” <em>Epidemiology.</em> Most detailed methods
-paper covering ITT, per-protocol, and as-treated analyses with SAS
+<li><p><strong>Danaei et al. (2013)</strong>: “Statins and coronary
+heart disease events.” <em>Epidemiology.</em> The most detailed methods
+paper. It covers ITT, per-protocol and as-treated analyses, with SAS
 code.</p></li>
-<li><p><strong>Caniglia et al. (2023)</strong> — “Emulating target
-trials in pregnancy.” <em>Am J Epidemiol.</em> Discusses enrollment
-period granularity and residual immortal time bias.</p></li>
-<li><p><strong>Cashin et al. (2025)</strong> — “TARGET Statement.”
+<li><p><strong>Caniglia et al. (2023)</strong>: “Emulating target trials
+in pregnancy.” <em>Am J Epidemiol.</em> Discusses enrollment period
+granularity and residual immortal time bias.</p></li>
+<li><p><strong>Cashin et al. (2025)</strong>: “TARGET Statement.”
 <em>JAMA.</em> 21-item checklist for transparent reporting of target
 trial emulations.</p></li>
 </ol>
@@ -269,8 +270,14 @@ weights on the baseline IPW alone (<code>ipw_trunc</code>). The
 production pipeline builds both analysis files per ETT and reports both
 IRRs and both risk differences side by side. As-treated analysis
 (time-varying IPW) is not implemented.</p>
-<p>Follow-up can end for five reasons; only treatment switching is
-handled differently between the two estimands:</p>
+<p>Follow-up can end for the seven reasons in the table below. The two
+estimands handle four of them differently:</p>
+<ul>
+<li>an outcome event and a switch in the same follow-up interval</li>
+<li>a treatment switch</li>
+<li>a deviation at time zero</li>
+<li>a loss of observation</li>
+</ul>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -292,7 +299,7 @@ handled differently between the two estimands:</p>
 <td align="left">Outcome event AND switch in the same follow-up
 interval</td>
 <td align="left">counts as event only when it falls before the first
-discordant week beyond tolerance (since 27.1.1)</td>
+discordant week beyond tolerance</td>
 <td align="left">counts as event</td>
 </tr>
 <tr class="odd">
@@ -379,9 +386,11 @@ terms”)</td>
 <code>$irr()</code>: a term in <code>tstart</code>, the
 time since time zero at the interval start. It is
 <code>splines::ns(tstart, df = 3)</code> with ≥4 distinct values,
-<code>factor(tstart)</code> with 2-3, and absent with 1.
-<code>tstart</code> is read rather than the clipped <code>tstop</code>,
-which would move the event rows on the time axis.</td>
+<code>factor(tstart)</code> with 2-3, and absent with 1. The term reads
+<code>tstart</code> and not <code>tstop</code>. On the last row of a
+person-trial, <code>tstop</code> is the week where follow-up stops,
+which can fall inside the interval. A <code>tstop</code> term would
+therefore move the event rows on the time axis.</td>
 </tr>
 <tr class="even">
 <td align="left">Trial as covariate</td>
@@ -453,10 +462,9 @@ prohibitive.</p>
 <h2 id="target-checklist">TARGET checklist<a class="anchor" aria-label="anchor" href="#target-checklist"></a>
 </h2>
 <p>The TARGET Statement (Cashin et al., JAMA 2025) provides a 21-item
-reporting checklist. Use <code>plan$print_target_checklist()</code> to
-generate a pre-populated checklist that maps the 21 TARGET items to
-swereg configuration, showing what’s auto-populated from the spec and
-what needs manual reporting.</p>
+reporting checklist. <code>plan$print_target_checklist()</code> maps the
+21 TARGET items to the swereg configuration. It shows which items the
+spec fills in and which need manual reporting.</p>
 </div>
 <div class="section level2">
 <h2 id="what-is-not-implemented">What is not implemented<a class="anchor" aria-label="anchor" href="#what-is-not-implemented"></a>
@@ -473,8 +481,8 @@ what needs manual reporting.</p>
 <tbody>
 <tr class="odd">
 <td align="left">As-treated analysis (time-varying IPW)</td>
-<td align="left">Requires different modeling framework for time-varying
-treatment weights. May be added in future versions.</td>
+<td align="left">Requires a different modeling framework for
+time-varying treatment weights.</td>
 </tr>
 <tr class="even">
 <td align="left">Log-binomial models (risk ratios)</td>

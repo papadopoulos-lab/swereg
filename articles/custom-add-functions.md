@@ -12,34 +12,33 @@ swereg’s built-in `add_*` functions cover the common Swedish registries
 annual). They do not cover everything. You will need a custom `add_*` if
 you work with:
 
-- **Non-Swedish registries** — Norwegian NPR, Danish LPR, FinDep, etc.
+- **Non-Swedish registries**: Norwegian NPR, Danish LPR, FinDep, etc.
   They follow similar longitudinal patterns but use different column
   names and coding systems.
-- **Swedish registries swereg doesn’t ship hard-coded support for** —
+- **Swedish registries that swereg has no built-in support for**:
   SWEDEHEART, RIKSHIP, regional cohorts, research registries.
-- **In-house data** — payer claims, EHR extracts, institutional biobanks
+- **In-house data**: payer claims, EHR extracts, institutional biobanks
   with time-stamped events.
 
-The mechanism is open-ended by design. You cannot write code for every
-registry anyone might want to ingest; the right answer is a clean
-contract that user-written functions can plug into.
+swereg cannot ship code for every registry, so it defines a contract
+that your own functions follow.
 
 ## Two ways to use a custom `add_*`
 
 1.  **Register it via `RegistryStudy$register_codes()`.** The pipeline
-    auto-validates the contract on every call, fingerprints your
-    function, and replays it on change for incremental rebuilds. This is
-    the recommended path for any production-style use.
-2.  **Call it directly as a free function** in the manual workflow. No
-    automatic validation — you catch mistakes through your own tests.
-    Fine for one-off exploration, risky at scale.
+    validates the contract on every call, fingerprints your function,
+    and replays it when it changes, for incremental rebuilds. Use this
+    path for production work.
+2.  **Call it directly as a free function** in the manual workflow.
+    Nothing validates it, so only your own tests catch mistakes. This is
+    acceptable for one-off exploration and risky at scale.
 
-The rest of this vignette focuses on path (1), because swereg enforces
-the contract for you there. The function body is the same either way.
+The rest of this vignette is about path (1), because swereg enforces the
+contract for you there. The function body is the same either way.
 
 ## The `add_*` contract
 
-A well-behaved `add_*` function:
+An `add_*` function that meets the contract:
 
 1.  **Takes `skeleton` as its first argument** and mutates it in place
     using `skeleton[data, on = ..., := ...]`. No
@@ -56,10 +55,10 @@ A well-behaved `add_*` function:
     `codes = list(flu_vax = ..., covid_vax = ...)`, the skeleton gains
     columns `flu_vax` and `covid_vax`.
 5.  **Takes `id_name` as an explicit argument.** Different registries
-    use different ID column names; don’t hard-code.
-6.  **Accepts `codes` as a named list** and receives any extra
-    configuration through positional / named arguments the caller passes
-    via `fn_args` (see below).
+    use different ID column names, so do not hard-code one.
+6.  **Accepts `codes` as a named list.** It receives any extra
+    configuration through positional / named arguments that the caller
+    passes via `fn_args` (see below).
 
 ## Column-slot headroom
 
@@ -92,7 +91,7 @@ to its caller where it can, and returns it either way.
 `.ensure_dt_alloc()` in `R/dt_alloc.R` does that. A function you write
 yourself carries the hazard.
 
-**The rest of this section is about a function you call yourself.** A
+The rest of this section is about a function you call yourself. A
 function registered with `RegistryStudy$register_codes()` runs on slots
 the pipeline has already reserved.
 
@@ -187,13 +186,13 @@ Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
 and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
 free slots therefore cost 16 KB per table.
 
-**The return value is the other remedy, and since 26.10.14 it covers
-every shipped function.** All eight exported `add_*` return the
-skeleton, invisibly. So do
+**The return value is the other remedy, and it covers every shipped
+function.** All eight exported `add_*` return the skeleton, invisibly.
+So do
 [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-and the six `skeleton_eligible_*()` functions. Write
-`sk <- add_diagnoses(sk, ...)` and the reservation stops mattering to
-you. swereg exports no helper for the reservation itself, because
+and the six `skeleton_eligible_*()` functions. If you write
+`sk <- add_diagnoses(sk, ...)`, you do not need the reservation. swereg
+exports no helper for the reservation itself, because
 [`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
 already is one.
 
@@ -302,28 +301,28 @@ caller MAY reserve them instead, before the helper runs.
 
 When you pass a function to
 `RegistryStudy$register_codes(..., fn = my_add)`, the pipeline reserves
-the column slots your codes need and then wraps the call with a pre/post
-check. If your function writes into the table it was given, leaves the
-structural columns alone, and adds every expected new column, you see
-nothing. If it misbehaves, `$process_skeletons()` (or
-`$apply_codes_to_skeleton()` directly) errors with a pointer back to the
-registration:
+the column slots your codes need. It then wraps the call with a check
+before and after. Suppose your function writes into the table it was
+given, leaves the structural columns alone, and adds every expected new
+column. Then you see nothing. If it breaks the contract,
+`$process_skeletons()` (or `$apply_codes_to_skeleton()` directly) stops
+with an error that names the registration:
 
     $register_codes(my_add): did not add the expected columns: covid_vax.
     Check that your loop over `names(codes)` actually writes to the
     skeleton (e.g. `skeleton[..., (nm) := TRUE]`).
 
-You don’t call any validation helpers yourself. Just write the function
-and register it.
+You do not call any validation helpers yourself. Write the function and
+register it.
 
 ## Common case: reusing a built-in via registration
 
-Most “custom” work isn’t actually custom code — it’s using a built-in
-through the registration path so the pipeline’s hash tracking and
-incremental rebuild apply. If the registry you’re ingesting looks like
-Swedish NPR data (columns for `hdia`, `dia*`, `ekod*`, etc. after
-[`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)),
-you don’t need your own function at all:
+Most “custom” work uses a built-in through the registration path, so
+that the pipeline’s hash tracking and incremental rebuild apply. Your
+registry can look like Swedish NPR data, with columns for `hdia`,
+`dia*`, `ekod*`, etc. after
+[`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md).
+Then you do not need your own function:
 
 ``` r
 study$register_codes(
@@ -334,8 +333,8 @@ study$register_codes(
 )
 ```
 
-If the built-in takes extra knobs — e.g. `diag_type = "main"` to search
-only the primary diagnosis — pass them through `fn_args`:
+If the built-in takes extra arguments, pass them through `fn_args`. For
+example, `diag_type = "main"` searches only the primary diagnosis:
 
 ``` r
 study$register_codes(
@@ -347,30 +346,30 @@ study$register_codes(
 )
 ```
 
-`fn_args` is the bucket for anything the fn accepts beyond the four
-mandatory arguments (`skeleton`, `data`, `id_name`, `codes`). It
-participates in the entry’s fingerprint, so changing
-`diag_type = "main"` to `diag_type = "both"` triggers replay.
+`fn_args` holds every argument that `fn` accepts beyond the four
+mandatory arguments (`skeleton`, `data`, `id_name`, `codes`). It is part
+of the entry’s fingerprint, so a change from `diag_type = "main"` to
+`diag_type = "both"` triggers replay.
 
-Reach for a custom `add_*` only when the built-ins genuinely can’t
-express what you need (different column names, different matching
-semantics, a non-ICD coding system, etc.).
+Write a custom `add_*` only when the built-ins cannot express what you
+need (different column names, different matching semantics, a non-ICD
+coding system, etc.).
 
 ## A complete worked example: `add_vaccinations()`
 
-Suppose you have a regional vaccination registry (Swedish, Norwegian, or
-other — doesn’t matter). Each row is one dose, with columns
-`personnummer` (person ID), `vac_date` (Date), and `atc_vac` (vaccine
-ATC code). You want one boolean column per user-supplied ATC prefix,
-`TRUE` on every week a person received a matching dose.
+Suppose you have a regional vaccination registry from any country. Each
+row is one dose, with columns `personnummer` (person ID), `vac_date`
+(Date), and `atc_vac` (vaccine ATC code). You want one boolean column
+per user-supplied ATC prefix, `TRUE` on every week a person received a
+matching dose.
 
 ### Design decisions
 
-- **Point events, not intervals**: a vaccine dose is a single date. Snap
-  `vac_date` to an `isoyearweek` and write `TRUE` on that week.
-- **Collision policy**: overwrite. Match
+- **Point events, not intervals**: a vaccine dose is a single date.
+  Convert `vac_date` to an `isoyearweek` and write `TRUE` on that week.
+- **Collision policy**: overwrite. Do what
   [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
-  — init columns to `FALSE`, then set `TRUE` on matching weeks.
+  does: set the columns to `FALSE`, then set `TRUE` on matching weeks.
 - **Pattern semantics**: ATC prefixes (same as
   `add_rx(source = "atc")`). Use
   [`startsWith()`](https://rdrr.io/r/base/startsWith.html) for speed.
@@ -416,9 +415,9 @@ add_vaccinations <- function(
 
 ### Registering it with a `RegistryStudy`
 
-A minimal `RegistryStudy` scoped to
-[`tempdir()`](https://rdrr.io/r/base/tempfile.html) so the vignette is
-self-contained:
+A minimal `RegistryStudy` in
+[`tempdir()`](https://rdrr.io/r/base/tempfile.html), so the vignette
+needs no other files:
 
 ``` r
 study <- RegistryStudy$new(
@@ -467,14 +466,13 @@ skeleton[flu_vax | covid_vax, .(id, isoyearweek, flu_vax, covid_vax)] |> head()
 #> 5:     3     2020-51   FALSE      TRUE
 ```
 
-Note there is no explicit snapshot/validate call in user code. The
-wrapper runs automatically inside `$apply_codes_to_skeleton()` — any
-contract violation would have errored here.
+The user code has no snapshot or validate call. The wrapper runs inside
+`$apply_codes_to_skeleton()`, and a contract violation stops this call
+with an error.
 
-### Seeing the wrapper fire on a broken function
+### The wrapper on a broken function
 
-Let’s deliberately write a broken `add_*` that forgets to create the
-requested columns and see what happens:
+This broken `add_*` does not create the requested columns:
 
 ``` r
 broken_add_vax <- function(skeleton, dataset, id_name, codes = list()) {
@@ -506,9 +504,9 @@ tryCatch(
 #>  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`). A function that runs out of free column slots and returns a NEW table loses its columns: write into the skeleton it was given.
 ```
 
-The wrapper named the registration (`broken_add_vax`) and the missing
-column (`flu_vax`) and told us what to look for. Four more errors fire
-the same way:
+The error names the registration (`broken_add_vax`) and the missing
+column (`flu_vax`), and says what to look for. The wrapper gives an
+error in the same way for each of these:
 
 - a changed row count
 - a changed row order
@@ -539,13 +537,11 @@ c(flu = "flu_vax" %in% names(sk_reg), covid = "covid_vax" %in% names(sk_reg))
 #>  TRUE  TRUE
 ```
 
-Both columns are there, from a table that started with no free slot at
-all. This is why registration is the recommended path.
+Both columns are there, from a table that started with no free slot.
 
 ## Failure modes the wrapper catches
 
-All of these come from real bugs people hit writing their first custom
-`add_*`:
+Each of these is a real bug in a first custom `add_*`:
 
 - **Building a new table instead of writing into the one you were
   given.** Each of
@@ -576,11 +572,11 @@ All of these come from real bugs people hit writing their first custom
   is then the only one with your columns, and you threw it away. Return
   the skeleton.
 
-One failure mode the wrapper does **not** catch: initialising to `NA`
-instead of `FALSE`. The column exists, so the wrapper is happy, but
-downstream code that does `sum(col)` or `col & other_col` will propagate
-`NA`. Always initialise to `FALSE` (or whatever non-`NA` sentinel makes
-sense for your type).
+The wrapper does **not** catch one failure mode: columns set to `NA`
+instead of `FALSE`. The column exists, so the wrapper accepts it, but
+downstream code such as `sum(col)` or `col & other_col` propagates `NA`.
+Always set new columns to `FALSE` (or another non-`NA` sentinel that
+suits your type).
 
 ## What the wrapper guarantees, and what it cannot
 
@@ -597,9 +593,8 @@ It guarantees three things after your function runs:
 receives the skeleton by reference, so
 `set(skeleton, i, "an_old_column", value)` changes that column and moves
 nothing the wrapper measures. A new table header that shares the
-original vectors passes the same way. Neither of those is new in
-26.10.14: a registered function could always do it. Write only the
-columns your `codes` list names.
+original vectors passes the same way. Write only the columns your
+`codes` list names.
 
 An error from the wrapper stops the run and records nothing.
 `$process_skeletons()` never writes that batch to disk. Treat the
@@ -613,14 +608,14 @@ table you built does not.
 
 ## Design cheat sheet
 
-Patterns the built-in `add_*` functions have converged on (sometimes
-after making the mistake first). Copy them when in doubt.
+The built-in `add_*` functions follow these patterns. Copy them when in
+doubt.
 
 ### Do
 
 - **Use update-by-reference joins.**
   `skeleton[data, on = c("id==<id_name>", "isoyearweek"), (cols) := ...]`
-  is the canonical pattern. Never
+  is the standard pattern. Never
   [`merge()`](https://rdrr.io/r/base/merge.html), never `left_join()`.
 - **Initialise new columns to `FALSE`** (or another non-`NA` sentinel)
   before the join.
@@ -628,48 +623,49 @@ after making the mistake first). Copy them when in doubt.
   rows. Decide explicitly whether each new column belongs on weekly
   rows, annual rows, or both.
 - **Use [`startsWith()`](https://rdrr.io/r/base/startsWith.html) over
-  regex for prefix matching.** ~5x faster.
-- **Take `id_name` as a parameter.** Don’t hard-code `"lopnr"`.
-- **Warn on partial ID matches.** If most skeleton IDs aren’t in the
+  regex for prefix matching.** It is about 5x faster.
+- **Take `id_name` as a parameter.** Do not hard-code `"lopnr"`.
+- **Warn on partial ID matches.** If most skeleton IDs are not in the
   registry data, the user probably made a mistake.
 - **Count every column your function holds at once**, temporaries
   included. See the section “Column-slot headroom”.
 
 ### Don’t
 
-- **Don’t reassign `skeleton`.** Any line that looks like
+- **Do not reassign `skeleton`.** Any line that looks like
   `skeleton <- something` inside an `add_*` is a bug.
-- **Don’t assume the user ran
+- **Do not assume the user ran
   [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md).**
-  Check. Fail with an actionable error if required columns are missing.
-- **Don’t silently drop rows with `NA` in critical columns.** Warn with
+  Check. Stop with an error that says which required columns are
+  missing.
+- **Do not silently drop rows with `NA` in critical columns.** Warn with
   a count. (See
   [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
   for the right pattern.)
 
 ### Judgment call: input-data mutation
 
-Mutating the input `data.table` (adding scratch columns, coercing date
-formats) is **fine** in the `RegistryStudy` batched pipeline — the input
-is discarded after each call. It’s **messy** in manual or interactive
-workflows where the caller reuses the dataset variable. Several
-built-ins mutate; several don’t. If copy-cost is tolerable, prefer the
-cleaner approach. If the input is huge and you’re writing for the
-pipeline, don’t bother.
+Changes to the input `data.table` (scratch columns, date format
+coercion) are **acceptable** in the `RegistryStudy` batched pipeline,
+because the pipeline discards the input after each call. They cause
+**problems** in manual or interactive workflows where the caller reuses
+the dataset variable. Some built-ins change their input and some do not.
+If the cost of a copy is acceptable, copy the input. If the input is
+huge and you write for the pipeline, do not copy it.
 
 ## Summary
 
 1.  Check whether a built-in already does what you need, and wrap *that*
     in `register_codes(codes = ..., fn = swereg::add_diagnoses, ...)`
     instead of writing a custom function.
-2.  If you genuinely need custom code, write it following the 6-point
-    contract above.
+2.  If you need custom code, write it to the 6-point contract in the
+    section “The `add_*` contract”.
 3.  Register it via
     `RegistryStudy$register_codes(codes = ..., fn = my_add, groups = ...)`.
     The pipeline validates the contract on every call and replays your
     function when the registration changes.
-4.  Read the source of any built-in `add_*` for a battle-tested
-    reference implementation.
+4.  Read the source of any built-in `add_*` for a reference
+    implementation.
 
 See
 [`vignette("builtin-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/builtin-add-functions.md)

@@ -30,6 +30,8 @@
   papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
 - [TTE methods: manuscript and statistical analysis plan
   text](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md):
+- [TTE preregistration: the OSF
+  form](https://papadopoulos-lab.github.io/swereg/articles/tte-preregistration.md):
 
 ### Manual workflow
 

@@ -7,10 +7,10 @@ library(swereg)
 
 ## What `add_*` functions do
 
-`add_*` functions are the workhorse of swereg: they take raw registry
-data and fold it into a skeleton created by
+`add_*` functions take raw registry data and add it to a skeleton
+created by
 [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md).
-Every `add_*` function shares the same shape:
+Every `add_*` function has the same shape:
 
 - **First argument** is the skeleton.
 - **Second argument** is a registry `data.table`.
@@ -27,9 +27,9 @@ section “Column-slot headroom” in
 [`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md)
 before you write one.
 
-This vignette walks through every `add_*` function swereg ships with,
-using the synthetic datasets included in the package. For writing your
-*own* `add_*` for a registry swereg doesn’t support, see
+This vignette shows every `add_*` function that swereg ships, with the
+synthetic datasets included in the package. To write your *own* `add_*`
+for a registry that swereg does not support, see
 [`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md).
 
 ## Setup: a skeleton we can reuse
@@ -55,7 +55,7 @@ The skeleton has one row per (person, week) plus one “annual” row per
 (person, year) marked by `is_isoyear == TRUE`. All `add_*` functions
 respect this layout.
 
-## `add_onetime()` — baseline / demographic data
+## `add_onetime()`: baseline / demographic data
 
 Use
 [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
@@ -81,13 +81,13 @@ skeleton[, .(id, isoyearweek, fodelseman, doddatum)] |> head(3)
 Every row for a given `id` now carries the same `fodelseman` and
 `doddatum` values.
 
-**Column-name collision policy**: if the skeleton already has a column
-with the same name as something in `data`,
+**Column-name collision policy.** If the skeleton already has a column
+with the same name as a column in `data`,
 [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
-keeps the existing skeleton column and prefixes the incoming one with
-`i.` (data.table’s standard collision marker).
+overwrites it. Each person found in `data` gets the incoming value. Each
+person absent from `data` keeps the existing skeleton value.
 
-## `add_annual()` — yearly data for a specific year
+## `add_annual()`: yearly data for a specific year
 
 Registries that report once per calendar year (SCB LISA income, family
 composition, etc.) go through
@@ -105,14 +105,13 @@ skeleton[isoyear == 2020 & is_isoyear == TRUE, .(id, isoyear, famtyp)] |> head(3
 #> Empty data.table (0 rows and 3 cols): id,isoyear,famtyp
 ```
 
-**Gotcha**: the value only lands on `is_isoyear == TRUE` rows for the
-matching year. The weekly rows (`is_isoyear == FALSE`) keep `NA`. If you
-want the value forward-filled onto the weeks, do that explicitly with a
-`nafill`-style step after all
+The value goes only on the `is_isoyear == TRUE` rows for the matching
+year. The weekly rows (`is_isoyear == FALSE`) keep `NA`. To carry the
+value forward onto the weeks, add a `nafill`-style step after all
 [`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md)
 calls finish.
 
-## `add_diagnoses()` — ICD codes from the NPR
+## `add_diagnoses()`: ICD codes from the NPR
 
 The National Patient Register holds main (`hdia`) and secondary (`dia1`,
 `dia2`, …) diagnoses per hospital contact.
@@ -144,22 +143,25 @@ skeleton[dep == TRUE, .(id, isoyearweek, dep)] |> head(3)
 #> 3:    14     1985-**   TRUE
 ```
 
-**Pattern syntax** (shared with
+**Pattern syntax.**
 [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
-[`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
-[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)):
+[`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
+and
+[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)
+use the same syntax:
 
-- `"F32"` — prefix match (all codes starting with F32).
-- `"^F320"` — the leading `^` is implicit; written out for emphasis.
-- `"!F321"` — **negation**: drops matches starting with F321 from the
-  positive set. Use this to carve out a specific sub-code.
+- `"F32"`: prefix match (all codes starting with F32).
+- Patterns are plain prefixes, not regular expressions. `^`, `$`, `*`
+  and other regex characters are literal, so `"^F320"` matches nothing.
+- `"!F321"`: **negation**. It drops matches starting with F321 from the
+  positive set. Use this to exclude a specific sub-code.
 - Multiple entries in one vector are OR’d together.
 
-**`diag_type`**: `"both"` searches `hdia`, `dia*`, `ekod*`, `icd7*`, and
-`icd9*`. `"main"` searches `hdia` only — useful when you want the
-primary reason for admission, not every code listed.
+**`diag_type`.** `"both"` searches `hdia`, `dia*`, `ekod*`, `icd7*`, and
+`icd9*`. `"main"` searches `hdia` only. Use it when you want the primary
+reason for admission, not every code listed.
 
-**Splitting by source** (inpatient vs outpatient): the dataset includes
+**Splitting by source** (inpatient vs outpatient). The dataset includes
 a `source` column. Filter first, then call
 [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
 twice:
@@ -169,7 +171,7 @@ in_only <- fake_diagnoses[source == "inpatient"]
 add_diagnoses(skeleton, in_only, "lopnr", codes = list("dep_inp" = c("F32", "F33")))
 ```
 
-## `add_operations()` — surgical procedure codes
+## `add_operations()`: surgical procedure codes
 
 Same pattern as
 [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
@@ -184,11 +186,11 @@ add_operations(
 )
 ```
 
-## `add_rx()` — prescription drugs (LMED)
+## `add_rx()`: prescription drugs (LMED)
 
-Prescriptions aren’t instantaneous: a dispense covers a treatment period
-from the prescription date (`edatum`) to `edatum + fddd` days (`fddd` =
-defined daily doses dispensed).
+A prescription is not a point event. A dispense covers a treatment
+period from the prescription date (`edatum`) to `edatum + fddd` days
+(`fddd` = defined daily doses dispensed).
 [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
 converts these intervals to ISO week ranges and flags every week the
 patient was covered.
@@ -219,13 +221,14 @@ skeleton[antidep == TRUE, .(id, isoyearweek, antidep)] |> head(3)
 **`source = "atc"`** (default) uses prefix matching via
 [`startsWith()`](https://rdrr.io/r/base/startsWith.html) on the `atc`
 column. **`source = "produkt"`** uses exact matching via `%chin%` on the
-`produkt` (product name) column — useful when ATC granularity isn’t
-enough (e.g. distinguishing formulations).
+`produkt` (product name) column. Use it when ATC granularity is not
+enough (e.g. to distinguish formulations).
 
-**Gotcha**: prescriptions with `NA` `fddd` or negative durations are
-dropped with a warning. They can’t be placed on the week grid.
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+drops prescriptions with `NA` `fddd` or negative durations, with a
+warning. They cannot be placed on the week grid.
 
-## `add_cods()` — cause of death
+## `add_cods()`: cause of death
 
 Cause-of-death records have one “underlying” cause (`ulorsak`) and
 multiple contributing causes (`morsak1`, `morsak2`, …).
@@ -248,9 +251,9 @@ add_cods(
 )
 ```
 
-## `add_quality_registry()` — arbitrary event registries
+## `add_quality_registry()`: arbitrary event registries
 
-Quality registries (Riksstroke, NKBC, …) don’t follow the ICD-prefix
+Quality registries (Riksstroke, NKBC, …) do not follow the ICD-prefix
 model.
 [`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md)
 takes **quoted R expressions** evaluated against the dataset columns;
@@ -282,9 +285,10 @@ where the expression holds. Aggregation within a week is
 [`any()`](https://rdrr.io/r/base/any.html), and `NA` is coerced to
 `FALSE` (“no evidence” is not the same as “true”).
 
-## Typical end-to-end workflow
+## Typical workflow
 
-The built-ins layer on top of each other. A realistic ordering:
+You call the built-ins one after another on the same skeleton. A typical
+order:
 
 ``` r
 skeleton <- create_skeleton(ids, 2005, "2023-52")
@@ -300,15 +304,14 @@ add_cods(skeleton, cod,          "lopnr", codes = ...)
 ```
 
 After this you typically derive row-independent (`ri_*`) variables with
-[`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-— see the “rowdep vs rowind” vignette.
+[`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md).
+See the “rowdep vs rowind” vignette.
 
-## If swereg doesn’t ship an `add_*` for your registry
+## If swereg does not ship an `add_*` for your registry
 
-Write your own. The contract is small and the pipeline enforces it
-automatically when you register your function via
-`RegistryStudy$register_codes()`. See
-[`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md)
-— same mechanism works for Norwegian registries, regional Swedish
-cohorts, payer claims, and anything else with a longitudinal
+Write your own. The contract is small, and the pipeline enforces it when
+you register your function with `RegistryStudy$register_codes()`. See
+[`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md).
+The same mechanism works for Norwegian registries, regional Swedish
+cohorts, payer claims, and any other data with a longitudinal
 event-per-row shape.

@@ -15,7 +15,7 @@ plan[[i]]$treatment_impl."><meta property="og:image" content="https://papadopoul
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +41,7 @@ plan[[i]]$treatment_impl."><meta property="og:image" content="https://papadopoul
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-preregistration.html">TTE preregistration: the OSF form</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -99,7 +100,14 @@ details in the ETT data.table so they are available via
 
 <dl><dt id="arg-study">study<a class="anchor" aria-label="anchor" href="#arg-study"></a></dt>
 <dd><p>A <a href="RegistryStudy.html">RegistryStudy</a> R6 object, typically loaded via
-<code><a href="registrystudy_load.html">registrystudy_load()</a></code>. Owns the rawbatch and skeleton path candidates.</p></dd>
+<code><a href="registrystudy_load.html">registrystudy_load()</a></code>. Owns the rawbatch and skeleton path candidates.
+A list MAY stand in for it, as the package tests do. The list MUST carry
+<code>skeleton_files</code>. Without a <code>work_root</code>, s1 reads <code>data_meta_dir</code> from
+it for its work directory. A list has no <code>$assert_skeletons_consistent()</code>, so pass
+<code>check_skeletons = FALSE</code> here and to
+<code>$s1_generate_enrollments_and_ipw()</code>. With
+<code>global_max_isoyearweek = NULL</code> and a first file named
+<code>skeleton_&lt;n&gt;.qs2</code>, the list also needs <code>$load_skeleton()</code>.</p></dd>
 
 
 <dt id="arg-candidate-dir-spec">candidate_dir_spec<a class="anchor" aria-label="anchor" href="#arg-candidate-dir-spec"></a></dt>
