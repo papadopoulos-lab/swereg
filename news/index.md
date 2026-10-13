@@ -1,5 +1,14 @@
 # Changelog
 
+## swereg 27.2.2
+
+### Bug fixes
+
+- **`tte_stage("s2")` saves the plan.** In 27.2.1 it did not, so the s2
+  stamp on each ETT was lost when the s2 job ended. s3 then refused
+  every ETT with “s2 did not write the analysis files”, although s2
+  wrote them all.
+
 ## swereg 27.2.1
 
 ### New features
