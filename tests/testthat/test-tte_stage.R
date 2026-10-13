@@ -235,7 +235,7 @@ test_that("tte_stage('s1') forwards by name, then saves and prints the checklist
 })
 
 
-test_that("tte_stage('s2') forwards by name and runs no step after the method", {
+test_that("tte_stage('s2') forwards by name, then saves", {
   fx <- .ts_fixture()
   .ts_mock(fx)
 
@@ -257,7 +257,10 @@ test_that("tte_stage('s2') forwards by name and runs no step after the method", 
       swereg_dev_path = "DEV"
     )
   )
-  expect_identical(fx$rec$calls, "s2_generate_analysis_files_and_ipcw_pp")
+  expect_identical(
+    fx$rec$calls,
+    c("s2_generate_analysis_files_and_ipcw_pp", "save")
+  )
 })
 
 
@@ -361,7 +364,7 @@ test_that("tte_stage() reads the method without dispatching [[.TTEPlan", {
   fx <- .ts_fixture_tteplan()
   .ts_mock(fx)
 
-  # s2 runs no step after the method, so rec$calls holds exactly one entry.
+  # s2 runs one step after the method, so rec$calls holds exactly two entries.
   # expect_no_error() is what turns a regression here into an expectation
   # failure. A lookup that dispatches stops inside tte_stage(). An unwrapped
   # call would report that as an error, and an error pins nothing.
@@ -369,7 +372,10 @@ test_that("tte_stage() reads the method without dispatching [[.TTEPlan", {
     swereg::tte_stage("s2", "/no/such/plan/dir", n_workers = 2L)
   )
 
-  expect_identical(fx$rec$calls, "s2_generate_analysis_files_and_ipcw_pp")
+  expect_identical(
+    fx$rec$calls,
+    c("s2_generate_analysis_files_and_ipcw_pp", "save")
+  )
   expect_null(fx$rec$enrollment_spec_index)
 
   # Prove the fixture is the trap it stands in for. `[[` on it MUST dispatch

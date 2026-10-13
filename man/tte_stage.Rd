@@ -27,10 +27,14 @@ that follow it. This is the body of the per-project \code{s1.R}, \code{s2.R} and
 The stage id selects the method and the steps after it:\tabular{lll}{
    \code{stage} \tab method \tab steps after the method \cr
    \code{"s1"} \tab \verb{$s1_generate_enrollments_and_ipw()} \tab \verb{$save()}, then \verb{$print_target_checklist()} \cr
-   \code{"s2"} \tab \verb{$s2_generate_analysis_files_and_ipcw_pp()} \tab n/a \cr
+   \code{"s2"} \tab \verb{$s2_generate_analysis_files_and_ipcw_pp()} \tab \verb{$save()} \cr
    \code{"s3"} \tab \verb{$s3_analyze()} \tab \verb{$results_summary()}, \verb{$save()}, then \verb{$print_target_checklist()} \cr
 }
 
+
+Each call loads the plan from disk, and a Slurm job runs one stage per
+process. So every stage MUST save the plan. s2 stamps each ETT with its s2
+run, and s3 refuses an ETT without that stamp.
 
 Every element of \code{...} MUST carry a name. \code{tte_stage()} matches each name
 against the formals of the stage method, and forwards by name.

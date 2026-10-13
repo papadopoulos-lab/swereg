@@ -25,8 +25,12 @@
 #' | `stage` | method | steps after the method |
 #' |---|---|---|
 #' | `"s1"` | `$s1_generate_enrollments_and_ipw()` | `$save()`, then `$print_target_checklist()` |
-#' | `"s2"` | `$s2_generate_analysis_files_and_ipcw_pp()` | n/a |
+#' | `"s2"` | `$s2_generate_analysis_files_and_ipcw_pp()` | `$save()` |
 #' | `"s3"` | `$s3_analyze()` | `$results_summary()`, `$save()`, then `$print_target_checklist()` |
+#'
+#' Each call loads the plan from disk, and a Slurm job runs one stage per
+#' process. So every stage MUST save the plan. s2 stamps each ETT with its s2
+#' run, and s3 refuses an ETT without that stamp.
 #'
 #' Every element of `...` MUST carry a name. `tte_stage()` matches each name
 #' against the formals of the stage method, and forwards by name.
@@ -102,7 +106,9 @@ tte_stage <- function(stage, dir_tteplan, ...) {
       plan$save()
       plan$print_target_checklist()
     },
-    s2 = NULL,
+    # s2 sets the s2 stamp of each ETT and drops the stored results. s3 runs
+    # in a new process and loads the plan from disk, so s2 MUST save it.
+    s2 = plan$save(),
     s3 = {
       plan$results_summary()
       plan$save()

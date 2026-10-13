@@ -44,8 +44,8 @@
       "swereg"
     ))
   }
-  # Item 6h of the TARGET checklist states these two settings. The plan is
-  # not saved after s2, so the analysis file is the only place that keeps
+  # Item 6h of the TARGET checklist states these two settings. s2 records
+  # them on no plan field, so the analysis file is the only place that keeps
   # them. ITT fits no censoring model, so it records none. The guard is the
   # one above, for the same reason.
   if (

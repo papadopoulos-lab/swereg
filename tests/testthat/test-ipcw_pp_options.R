@@ -2,7 +2,7 @@
 #
 # s2 records `estimate_ipcw_pp_with_gam` and
 # `estimate_ipcw_pp_separately_by_treatment` on each per-protocol analysis
-# enrollment, because `tte_stage()` does not save the plan after s2. s3 reads
+# enrollment, and sets no plan field for them. s3 reads
 # them off the analysis file into `results_ett[[ett_id]]$ipcw_pp_options`, and
 # item 6h is generated from those stored values. A result without them came
 # from s2 before 27.2.0, and item 6h says so instead of naming the default.
