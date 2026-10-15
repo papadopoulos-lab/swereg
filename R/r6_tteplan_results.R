@@ -64,10 +64,15 @@ TTEPlan$set("public", "results_summary", function() {
 #' is not an interval. A consumer MUST NOT invert `rd_lo` and `rd_hi`
 #' itself, and MUST NOT print `nnt` alone where the bounds are missing.
 #'
-#' @return A data.table with 41 columns. The identifiers come first, then
-#'   the weighted counts, then the incidence rate ratio, then the risk
-#'   difference and the number needed to treat. `n_boot`, `seed` and
-#'   `conf_level` record what produced the risk-difference interval.
+#' `n_trials_int` and `n_trials_cmp` count the person-trials of each arm in
+#' the analysis file of that estimand. On an intention-to-treat row they are
+#' the intention-to-treat analysis set, which the CONSORT flow reads.
+#'
+#' @return A data.table with 47 columns. The identifiers come first, then
+#'   the weighted counts and the person-trials of each arm. The incidence rate
+#'   ratio follows, then the risk difference and the number needed to treat.
+#'   `n_boot`, `seed` and `conf_level` record what produced the
+#'   risk-difference interval.
 TTEPlan$set("public", "get_estimates", function() {
   return(.acc_estimates(self))
 })
@@ -113,6 +118,15 @@ TTEPlan$set("public", "get_curves", function() {
 #' `variable` repeats on every row of its block. The stored panel prints
 #' the name once and indents its levels under it, so `variable` is blank
 #' there. A renderer that wants that indent MUST blank the repeat itself.
+#'
+#' `n_baseline` counts the person-trials of the per-protocol analysis set.
+#' A person-trial that deviates from its assigned strategy at time zero has
+#' no per-protocol follow-up, so `n_baseline` does not count it. The
+#' intention-to-treat analysis keeps it, and the time-zero censoring factor
+#' `ipcw_pp_time_zero` is fitted on it. The CONSORT diagram shows these
+#' person-trials in a censoring box above the per-protocol analysis set. It
+#' counts them as the intention-to-treat set of `$get_estimates()` minus
+#' `n_baseline`.
 #'
 #' @return A data.table. `n_baseline`, `n_baseline_intervention` and
 #'   `n_baseline_comparator` repeat that enrollment's counts on every row.
@@ -171,7 +185,12 @@ TTEPlan$set("public", "get_attrition", function() {
 #' `$s1_generate_enrollments_and_ipw()` stores it that way.
 #' `n_intervention_total` and `n_comparator_total` count every person-trial
 #' that was eligible for an arm. `n_intervention_enrolled` and
-#' `n_comparator_enrolled` count the person-trials the draw took.
+#' `n_comparator_enrolled` count the person-trials the draw took. The
+#' per-protocol `n_baseline` of `$get_baselines()` is smaller by two groups.
+#' The person-trials that deviate from the assigned strategy at time zero stay
+#' in the intention-to-treat analysis. A trial that enters at or after the
+#' administrative end of follow-up is in neither analysis. The CONSORT diagram
+#' shows each group as its own step.
 #'
 #' This is a SIXTH method rather than four more columns on
 #' `$get_attrition()`. The comparator-draw table has one row per enrollment and

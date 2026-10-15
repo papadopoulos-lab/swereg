@@ -3,6 +3,17 @@
 ## Bug fixes
 
 * **`$get_estimates()`, `$get_curves()` and `$get_subgroups()` label each intention-to-treat row `weights = "truncated"`.** The intention-to-treat estimates use the truncated baseline weight `ipw_trunc`, but the accessors labelled them `"untruncated"`. A filter on intention-to-treat and `weights == "untruncated"` now returns no rows. Filter on `estimand == "itt"` alone.
+* **The step before the per-protocol analysis set reads "Deviated from assigned strategy at time zero", with a count for each arm.** The CONSORT diagram shows it as a censoring box, and the flow data and the attrition sheet get `change_intervention` and `change_comparator`. The step read "censored (administrative end of follow-up)", but these person-trials deviate at time zero and stay in the intention-to-treat analysis.
+* **The deviation count is the intention-to-treat analysis set minus the per-protocol set, in each arm.** A trial that enters at or after the administrative end gets its own step, "Entered at or after the administrative end of follow-up". The step shows only when its count is not zero. When the intention-to-treat count is missing, the one step names both groups.
+* **TARGET item 8 prints both steps with their arm counts.** It reads the flow that the CONSORT diagram reads.
+
+## New features
+
+* **`$get_estimates()` returns `n_trials_int` and `n_trials_cmp`, the person-trials of each arm in the analysis file of each row.** It has 47 columns.
+
+## Documentation
+
+* **The `$get_baselines()`, `$get_matching()` and `$get_estimates()` help pages, `vignette("tte-methods")` and `vignette("tte-timing")` state that the per-protocol analysis set omits the person-trials that deviate at time zero.** The intention-to-treat analysis keeps them, and the time-zero censoring factor is fitted on them.
 
 # swereg 27.2.3
 

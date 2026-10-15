@@ -227,9 +227,9 @@ test_that("the s3 worker passes conf_level to every ratio method", {
   expect_equal(emt$ratio_upper, ref$ratio_upper, tolerance = 1e-10)
 })
 
-# --- 5. the CONSORT analysis step is administrative censoring -----------------
+# --- 5. the CONSORT analysis step is deviation at time zero ------------------
 
-test_that("the CONSORT analysis step reads administrative end of follow-up", {
+test_that("the CONSORT analysis step reads deviation at time zero", {
   ec <- list(
     attrition = data.table::data.table(
       enrollment_period_id = NA_integer_,
@@ -240,10 +240,20 @@ test_that("the CONSORT analysis step reads administrative end of follow-up", {
       n_comparator = c(400, 320)
     )
   )
-  flow <- swereg:::.build_cohort_flow(ec, analysis_n = 390)
+  # The intention-to-treat count equals the eligible cohort, so the whole
+  # reduction is the time-zero deviation.
+  flow <- swereg:::.build_cohort_flow(
+    ec,
+    analysis_n = 390,
+    itt_n_intervention = 80,
+    itt_n_comparator = 320
+  )
   expect_identical(
     flow$change_kind[flow$kind == "analysis"],
-    "censored (administrative end of follow-up)"
+    paste0(
+      "Deviated from assigned strategy at time zero: ",
+      "no per-protocol follow-up; included in intention-to-treat"
+    )
   )
 })
 

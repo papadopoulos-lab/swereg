@@ -25,6 +25,74 @@
 # warning therefore left the caller naming a PNG that was never written.
 # =============================================================================
 
+#' The labels of the steps between "Enrolled" and the per-protocol analysis set.
+#'
+#' A person-trial that deviates from its assigned strategy at time zero has no
+#' per-protocol follow-up. The intention-to-treat analysis keeps it, and the
+#' time-zero censoring factor `ipcw_pp_time_zero` is fitted on it.
+#'
+#' A trial that enters at or after `admin_censor_isoyearweek` has no follow-up
+#' under either estimand. `s5_prepare_outcome()` drops it from both analysis
+#' files.
+#'
+#' The third label applies when the intention-to-treat count is missing. The
+#' step then holds both groups, and the label names both.
+#'
+#' The flow data, the attrition sheet, the enrollment summary, TARGET item 8
+#' and the CONSORT boxes all read these strings through `.build_cohort_flow()`.
+#' @noRd
+.CONSORT_TIME_ZERO_DEVIATION <- paste0(
+  "Deviated from assigned strategy at time zero: ",
+  "no per-protocol follow-up; included in intention-to-treat"
+)
+.CONSORT_ADMIN_END_ENTRY <- paste0(
+  "Entered at or after the administrative end of follow-up: ",
+  "no follow-up in either analysis"
+)
+.CONSORT_PP_GAP_UNSPLIT <- paste0(
+  "Deviated from assigned strategy at time zero, or entered at or after ",
+  "the administrative end of follow-up: no per-protocol follow-up"
+)
+
+#' The intention-to-treat analysis set of one enrollment, per arm.
+#'
+#' The source is `n_trials` of the stored intention-to-treat rates, which
+#' `$get_estimates()` reports as `n_trials_int` and `n_trials_cmp` on each
+#' `estimand == "itt"` row. `$s3_analyze()` computes them on the
+#' intention-to-treat analysis file of each emulated trial. Every emulated
+#' trial of one enrollment holds the same person-trials. The drop at
+#' `censor_week == 0` depends on neither the outcome nor the horizon.
+#'
+#' @param plan A TTEPlan, or a list that answers `$get_estimates()`.
+#' @param eid Character(1), the enrollment identifier.
+#' @return A list with `n_intervention` and `n_comparator`, from the first
+#'   `estimand == "itt"` row of `eid` that holds both. `NULL` when no row of
+#'   `eid` holds them.
+#' @noRd
+.itt_analysis_counts <- function(plan, eid) {
+  # A plan stand-in without the accessor has no count, the same as a missing
+  # one. `.render_consort_sidecars()` reads `$get_baselines()` the same way.
+  if (!is.function(plan$get_estimates)) {
+    return(NULL)
+  }
+  est <- plan$get_estimates()
+  itt <- est[
+    which(
+      est$enrollment_id == eid &
+        est$estimand == "itt" &
+        !is.na(est$n_trials_int) &
+        !is.na(est$n_trials_cmp)
+    )
+  ]
+  if (nrow(itt) == 0L) {
+    return(NULL)
+  }
+  return(list(
+    n_intervention = as.numeric(itt$n_trials_int[1L]),
+    n_comparator = as.numeric(itt$n_trials_cmp[1L])
+  ))
+}
+
 #' Collapse a long-format attrition table (one row per enrollment_period_id +
 #' criterion, plus one global row per criterion with
 #' `enrollment_period_id = NA`) to one row per criterion, preserving original
@@ -105,16 +173,31 @@
 #'                   cleanly removed). The draw is incidence density sampling
 #'                   inside one enrollment period, and it reads no other
 #'                   variable.
-#'   - `analysis`  : the per-protocol analysis dataset (the enrolled
-#'                   person-trials minus those censored in the first period
-#'                   for protocol deviation or loss to follow-up). This is
-#'                   analytic censoring handled by IPCW, NOT an eligibility
-#'                   exclusion.
+#'   - `itt_analysis`: the intention-to-treat analysis set. The row is
+#'                   present only when its count differs from the row above.
+#'                   The reduction is the trials that enter at or after the
+#'                   administrative end, which have no follow-up in either
+#'                   analysis.
+#'   - `analysis`  : the per-protocol analysis dataset. With the
+#'                   intention-to-treat count, the reduction is the
+#'                   intention-to-treat set minus the per-protocol set: the
+#'                   person-trials that deviate from the assigned strategy at
+#'                   time zero. `s5_prepare_outcome()` gives such a
+#'                   person-trial `censor_week == 0`, so it keeps no
+#'                   per-protocol row. It is censoring, NOT an eligibility
+#'                   exclusion. Without the intention-to-treat count, the
+#'                   reduction holds both groups and `change_kind` says so.
 #'
 #' Counts are remaining-after-step. `n_persons` is meaningful only for the
-#' eligibility cascade. The comparator draw and the analysis step are
-#' person-trial operations, so their `n_persons` (and the analysis per-arm
-#' counts) are NA.
+#' eligibility cascade. The comparator draw and the two analysis steps are
+#' person-trial operations, so their `n_persons` is NA. The analysis per-arm
+#' counts are NA when the worker did not record them.
+#'
+#' `change_intervention` and `change_comparator` are the per-arm reductions.
+#'
+#' @param itt_n_intervention,itt_n_comparator Optional per-arm
+#'   intention-to-treat analysis-set counts, from `.itt_analysis_counts()`.
+#'   Both MUST be known for the flow to separate the two groups.
 #'
 #' @param ec Enrollment counts list with `$attrition` (required) and
 #'   optional `$matching`. `$matching` holds the comparator-draw counts under
@@ -128,18 +211,21 @@
 #' @return An ordered data.table (one row per step) with columns `step`,
 #'   `kind`, `n_persons`, `n_person_trials`, `n_intervention`,
 #'   `n_comparator`, `change_persons`, `change_person_trials`,
-#'   `change_kind`. NULL when no attrition data is available, and NULL when a
+#'   `change_kind`, `change_intervention`, `change_comparator`. NULL when no
+#'   attrition data is available, and NULL when a
 #'   criterion carries no global row (see `.attrition_overall()`).
 #' @noRd
 .build_cohort_flow <- function(
   ec,
   analysis_n = NULL,
   analysis_n_intervention = NULL,
-  analysis_n_comparator = NULL
+  analysis_n_comparator = NULL,
+  itt_n_intervention = NULL,
+  itt_n_comparator = NULL
 ) {
   n_persons <- n_person_trials <- n_intervention <- n_comparator <-
     criterion <- change_persons <- change_person_trials <- change_kind <-
-      kind <- NULL # nolint
+      change_intervention <- change_comparator <- kind <- NULL # nolint
   if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
     return(NULL)
   }
@@ -177,7 +263,37 @@
     }
   }
 
-  # Per-protocol analysis dataset (analytic censoring, handled by IPCW).
+  # The intention-to-treat analysis set, as its own row only when it is
+  # smaller than the row above. The difference is the trials that enter at or
+  # after the administrative end.
+  # A missing count, such as an emulated trial whose intention-to-treat
+  # result is absent, leaves the two groups together in the analysis step.
+  above <- flow[nrow(flow)]
+  itt_known <- length(itt_n_intervention) == 1L &&
+    length(itt_n_comparator) == 1L &&
+    !is.na(itt_n_intervention) &&
+    !is.na(itt_n_comparator)
+  if (itt_known) {
+    if (
+      !isTRUE(above$n_intervention == itt_n_intervention) ||
+        !isTRUE(above$n_comparator == itt_n_comparator)
+    ) {
+      flow <- rbind(
+        flow,
+        data.table::data.table(
+          step = "analysis_dataset_itt",
+          kind = "itt_analysis",
+          n_persons = NA_real_,
+          n_person_trials = as.numeric(itt_n_intervention + itt_n_comparator),
+          n_intervention = as.numeric(itt_n_intervention),
+          n_comparator = as.numeric(itt_n_comparator)
+        )
+      )
+    }
+  }
+
+  # Per-protocol analysis dataset. With the intention-to-treat count, the step
+  # before it removes only the person-trials that deviate at time zero.
   if (!is.null(analysis_n) && is.numeric(analysis_n) && analysis_n > 0L) {
     flow <- rbind(
       flow,
@@ -209,11 +325,141 @@
     change_kind := data.table::fcase(
       kind == "exclusion" , "excluded"                    ,
       kind == "selection" , "not drawn (comparator draw)" ,
-      kind == "analysis"  , "censored (administrative end of follow-up)",
+      kind == "itt_analysis" , .CONSORT_ADMIN_END_ENTRY ,
+      kind == "analysis" & itt_known , .CONSORT_TIME_ZERO_DEVIATION ,
+      kind == "analysis" , .CONSORT_PP_GAP_UNSPLIT ,
       default = NA_character_
     )
   ]
+  n_i <- flow$n_intervention
+  n_c <- flow$n_comparator
+  flow[, change_intervention := c(NA_real_, n_i[-length(n_i)] - n_i[-1L])]
+  flow[, change_comparator := c(NA_real_, n_c[-length(n_c)] - n_c[-1L])]
   return(flow[])
+}
+
+
+#' Split a flow label into its heading and its remark.
+#'
+#' Each label after the comparator draw reads "heading: remark". A renderer
+#' that prints a count after the heading needs the two parts apart.
+#'
+#' @param label Character(1), a `change_kind` of `.build_cohort_flow()`.
+#' @return A named character(2), `head` and `tail`. `tail` starts with a
+#'   capital letter. It is empty when the label holds no ": ".
+#' @noRd
+.flow_label_parts <- function(label) {
+  at <- regexpr(": ", label, fixed = TRUE)
+  if (at < 0L) {
+    return(c(head = label, tail = ""))
+  }
+  tail <- substr(label, at + 2L, nchar(label))
+  tail <- paste0(toupper(substr(tail, 1L, 1L)), substr(tail, 2L, nchar(tail)))
+  return(c(head = substr(label, 1L, at - 1L), tail = tail))
+}
+
+
+#' The flow rows between the comparator draw and the per-protocol set.
+#'
+#' These are the `itt_analysis` and `analysis` rows with a known reduction.
+#' They follow the draw only when the plan stores the draw, so a flow without
+#' it yields no row.
+#'
+#' @param flow A flow from `.build_cohort_flow()`, or `NULL`.
+#' @param has_draw Logical(1). `TRUE` when the plan stores the draw table.
+#' @return The selected rows. Zero rows when none applies.
+#' @noRd
+.flow_post_draw_steps <- function(flow, has_draw) {
+  if (is.null(flow)) {
+    return(NULL)
+  }
+  keep <- has_draw &
+    flow$kind %in% c("itt_analysis", "analysis") &
+    !is.na(flow$change_person_trials)
+  return(flow[keep])
+}
+
+
+#' The TARGET item 8 lines of the steps between the draw and the per-protocol
+#' set.
+#'
+#' Each step prints its heading, then one line with its total, its arm counts
+#' when both are known, and its remark.
+#'
+#' @param steps Rows from `.flow_post_draw_steps()`, or `NULL`.
+#' @param num A function of a count and a width that returns the printed count.
+#' @param head A function that styles the heading.
+#' @param widths Integer(3), the total, intervention and comparator widths.
+#' @return A character vector, empty when no step applies.
+#' @noRd
+.flow_item8_lines <- function(steps, num, head, widths) {
+  out <- character()
+  for (k in seq_len(NROW(steps))) {
+    r <- steps[k]
+    lab <- .flow_label_parts(r$change_kind)
+    arms <- if (!is.na(r$change_intervention) && !is.na(r$change_comparator)) {
+      sprintf(
+        " (%s intervention person-trials, %s comparator person-trials)",
+        num(r$change_intervention, widths[2L]),
+        num(r$change_comparator, widths[3L])
+      )
+    } else {
+      ""
+    }
+    out <- c(
+      out,
+      sprintf("  %s:", head(lab[["head"]])),
+      sprintf(
+        "    ↳ %s person-trials%s. %s.",
+        num(r$change_person_trials, widths[1L]),
+        arms,
+        lab[["tail"]]
+      )
+    )
+  }
+  return(out)
+}
+
+
+#' The cohort flow of one enrollment of a plan, with every count it can read.
+#'
+#' Every renderer of the participant flow calls this, so the CONSORT diagram,
+#' the attrition sheet, the enrollment summary and TARGET item 8 read one flow.
+#' The per-protocol counts come from `$get_baselines()`, and the
+#' intention-to-treat counts from `.itt_analysis_counts()`.
+#'
+#' @param plan A TTEPlan.
+#' @param eid Character(1), the enrollment identifier.
+#' @param ec The enrollment counts, from `.plan_cohort_counts()`.
+#' @param baselines A `$get_baselines()` table, or `NULL`.
+#' @return The flow of `.build_cohort_flow()`, or `NULL`.
+#' @noRd
+.plan_cohort_flow <- function(
+  plan,
+  eid,
+  ec = .plan_cohort_counts(plan, eid),
+  baselines = plan$get_baselines()
+) {
+  analysis_n <- .baseline_count(baselines, eid, "n_baseline")
+  itt <- .itt_analysis_counts(plan, eid)
+  return(.build_cohort_flow(
+    ec,
+    # `.build_cohort_flow()` treats an absent size as `NULL`, and
+    # `.baseline_count()` reports it as `NA`.
+    analysis_n = if (is.na(analysis_n)) NULL else analysis_n,
+    analysis_n_intervention = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_intervention"
+    ),
+    analysis_n_comparator = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_comparator"
+    ),
+    itt_n_intervention = itt$n_intervention,
+    itt_n_comparator = itt$n_comparator
+  ))
 }
 
 
@@ -318,6 +564,11 @@
 #'   - Optional terminal box (blue) for the comparator draw, when
 #'     `ec$matching` is present. Its second line names the sampling scheme
 #'     and the stratum, from `period_width`.
+#'   - Optional censoring side box (amber, dashed) between the box above and
+#'     the per-protocol analysis box. It counts the person-trials that deviate
+#'     from the assigned strategy at time zero, with the per-arm split when
+#'     both arm counts are known.
+#'   - Optional terminal box (green) for the per-protocol analysis dataset.
 #'
 #' The dual-count display (persons vs. person-trials) matters for
 #' sequential target-trial emulation: one person enters many weekly
@@ -486,12 +737,55 @@
     prev_node <- "drawn"
   }
 
-  # Per-protocol analysis dataset: distinct (non-red) terminal box. First-
-  # period censoring (protocol deviation or loss to follow-up) is analytic
-  # censoring handled by IPCW, never part of the red "Excluded" box.
+  # A censoring side box on the vertical edge below `prev_node`. An invisible
+  # point on that edge holds the box, so the box sits between the box above
+  # and the box below. Neither side box is part of the red "Excluded" box.
+  side_box <- function(row, node, split) {
+    counts <- if (
+      !is.na(row$change_intervention) && !is.na(row$change_comparator)
+    ) {
+      sprintf(
+        "\\n(%s: %s person-trials, %s: %s person-trials)",
+        int_lbl,
+        fmt(row$change_intervention),
+        cmp_lbl,
+        fmt(row$change_comparator)
+      )
+    } else {
+      ""
+    }
+    add(
+      "  %s [label = '%s\\n%s person-trials%s', style = 'filled,dashed', fillcolor = '#FFF4E0', width = %.1f];",
+      node,
+      sub(": ", ":\\n", esc(row$change_kind), fixed = TRUE),
+      fmt(row$change_person_trials),
+      counts,
+      box_width * 1.4
+    )
+    add("  %s [shape = point, width = 0.01, label = ''];", split)
+    add("  %s -> %s [arrowhead = none];", prev_node, split)
+    add("  %s -> %s [constraint = false];", split, node)
+    add("  {rank = same; %s; %s}", split, node)
+    prev_node <<- split
+    return(invisible(NULL))
+  }
+
+  # The trials that enter at or after the administrative end. The row exists
+  # only when the count is not zero.
+  itt <- flow[kind == "itt_analysis"]
+  if (nrow(itt) > 0L && !is.na(itt$change_person_trials[1L])) {
+    side_box(itt[1L], "admin_end", "admin_split")
+  }
+
+  # Per-protocol analysis dataset: distinct (non-red) terminal box. The
+  # person-trials that deviate at time zero get their own side box on the edge
+  # into it: the intention-to-treat analysis keeps them.
   ana <- flow[kind == "analysis"]
   if (nrow(ana) > 0L) {
     a <- ana[1L]
+    if (!is.na(a$change_person_trials)) {
+      side_box(a, "deviated", "tz_split")
+    }
     # Show the per-arm split when the worker recorded it; otherwise total.
     ana_label <- if (!is.na(a$n_intervention) && !is.na(a$n_comparator)) {
       sprintf(
@@ -734,6 +1028,7 @@
     landmark_event_free = "Event before time zero",
     landmark_candidates = "Candidate person-trials, before the time-zero checks",
     enrolled_after_comparator_draw = "Enrolled after the comparator draw",
+    analysis_dataset_itt = "Analysis dataset (intention-to-treat)",
     analysis_dataset = "Analysis dataset (per-protocol)"
   )
   # The step-2 rows of the rare-condition rule, from the frozen decision. Each
@@ -940,27 +1235,10 @@
     }
   }
 
-  # Per-protocol analysis-set size after the comparator draw (n_baseline),
-  # read through
-  # `$get_baselines()`. `NA` when the stage has not run.
-  baselines <- tryCatch(plan$get_baselines(), error = function(e) NULL)
-  analysis_n <- .baseline_count(baselines, eid, "n_baseline")
   # Single source of truth: the diagram and the attrition sheet both render
-  # from this one flow.
-  flow <- .build_cohort_flow(
-    ec,
-    analysis_n = if (is.na(analysis_n)) NULL else analysis_n,
-    analysis_n_intervention = .baseline_count(
-      baselines,
-      eid,
-      "n_baseline_intervention"
-    ),
-    analysis_n_comparator = .baseline_count(
-      baselines,
-      eid,
-      "n_baseline_comparator"
-    )
-  )
+  # from this one flow. `NULL` baselines when the stage has not run.
+  baselines <- tryCatch(plan$get_baselines(), error = function(e) NULL)
+  flow <- .plan_cohort_flow(plan, eid, ec = ec, baselines = baselines)
 
   dot <- tryCatch(
     .build_consort_dot(

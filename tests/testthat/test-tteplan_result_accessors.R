@@ -411,6 +411,7 @@ skip_if_not_installed("data.table")
     "events_int", "py_int", "rate_int", "events_cmp", "py_cmp",
     "rate_cmp", "events_unweighted_int", "py_unweighted_int",
     "events_unweighted_cmp", "py_unweighted_cmp",
+    "n_trials_int", "n_trials_cmp",
     "persons_event_int", "persons_event_cmp", "irr", "irr_lo",
     "irr_hi", "irr_pvalue", "irr_estimable", "irr_stored",
     "irr_interval_stored", "rd_stored", "rd", "rd_lo", "rd_hi",
@@ -553,6 +554,9 @@ test_that("get_estimates returns one row per ETT, estimand and weighting", {
   # Values are READ from the stored slots, not recomputed.
   expect_identical(first$events_int, 10.4)
   expect_identical(first$py_cmp, 98765)
+  # `n_trials` of each arm, which the CONSORT flow reads on the ITT rows.
+  expect_identical(first$n_trials_int, 3000)
+  expect_identical(first$n_trials_cmp, 7000)
   expect_identical(first$irr, 0.54)
   expect_true(first$irr_estimable)
   expect_identical(first$rd, -0.010)

@@ -15,6 +15,9 @@
 #     step is a difference of two re-derived levels and can be negative;
 #   - arm counts appear at a LEVEL: the eligible cohort, the comparator draw
 #     and the analysis dataset;
+#   - the two steps after the draw print their arm counts too. Each count is a
+#     difference of two stored sets, the intention-to-treat set and the set
+#     on either side of it;
 #   - the analysis line is absent until `$s3_analyze()` stores a baseline
 #     panel, and it drops to the total alone when the panel stored no arm;
 #   - it prints its placeholder when one criterion carries no global row;
@@ -359,4 +362,69 @@ test_that("one incomplete enrollment suppresses the flow of a complete one", {
   expect_false(grepl("Before exclusions:", full, fixed = TRUE))
   expect_false(grepl("1,000 person-trials", full, fixed = TRUE))
   expect_false(grepl("760 person-trials", full, fixed = TRUE))
+})
+
+
+test_that("Item 8 prints the time-zero deviation and the administrative-end entry per arm", {
+  # The eligible cohort holds 210 intervention and 400 comparator
+  # person-trials, and the draw takes all of them. The stored
+  # intention-to-treat rates count 205 and 398, so 5 and 2 entered at or after
+  # the administrative end. The per-protocol set holds 180 and 320, so 25 and
+  # 78 deviated at time zero.
+  plan <- .item8_plan()
+  plan$enrollment_counts <- list(
+    "01" = list(
+      attrition = .item8_attrition(),
+      matching = data.table::data.table(
+        enrollment_period_id = c(0L, 1L),
+        n_intervention_total = c(110, 100),
+        n_comparator_total = c(200, 200),
+        n_intervention_enrolled = c(110, 100),
+        n_comparator_enrolled = c(200, 200)
+      )
+    )
+  )
+  plan$results_enrollment <- list(
+    "01" = list(
+      n_baseline = 500,
+      n_baseline_intervention = 180,
+      n_baseline_comparator = 320
+    )
+  )
+  rates_itt <- data.table::data.table(
+    rd_exp = c(FALSE, TRUE),
+    n_persons = c(300, 150),
+    n_trials = c(398, 205),
+    events_weighted = c(10, 8),
+    py_weighted = c(400, 200),
+    rate_per_100000py = c(2500, 4000)
+  )
+  data.table::setattr(rates_itt, "swereg_type", "rates")
+  data.table::setattr(rates_itt, "treatment_var", "rd_exp")
+  plan$results_ett <- list()
+  plan$results_ett[[plan$ett$ett_id[1L]]] <- list(rates_itt = rates_itt)
+  tte_stamp_stages(plan)
+  lines <- .item8_flow_lines(plan)
+
+  dev <- .item8_under(lines, "Deviated from assigned strategy at time zero:")
+  expect_identical(.item8_line_nums(dev), c(103, 25, 78))
+  expect_match(
+    dev,
+    "No per-protocol follow-up; included in intention-to-treat.",
+    fixed = TRUE
+  )
+  admin <- .item8_under(
+    lines,
+    "Entered at or after the administrative end of follow-up:"
+  )
+  expect_identical(.item8_line_nums(admin), c(7, 5, 2))
+  expect_match(admin, "No follow-up in either analysis.", fixed = TRUE)
+  # Both lines sit between the draw and the per-protocol analysis set.
+  at <- function(h) which(lines == h)
+  expect_true(at("After the comparator draw:") < at(
+    "Entered at or after the administrative end of follow-up:"
+  ))
+  expect_true(at("Deviated from assigned strategy at time zero:") < at(
+    "Analysis dataset (per-protocol):"
+  ))
 })

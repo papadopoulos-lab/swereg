@@ -3,8 +3,9 @@
 
 #' Render a one-line enrollment summary sentence for the top of a results
 #' sheet. Pulls unique-person and person-trial counts from `$get_attrition()`
-#' (final criterion row) and the post-draw baseline count from
-#' `$get_baselines()`. Returns NULL when the required fields are absent.
+#' (final criterion row), the per-protocol analysis-set count from
+#' `$get_baselines()`, and the per-arm counts of the steps after the draw from
+#' `.plan_cohort_flow()`. Returns NULL when the required fields are absent.
 #' @noRd
 .format_enrollment_summary <- function(plan, eid) {
   ec <- .plan_cohort_counts(plan, eid)
@@ -16,7 +17,8 @@
     return(NULL)
   }
   last <- overall[nrow(overall)]
-  n_baseline <- .baseline_count(plan$get_baselines(), eid, "n_baseline")
+  baselines <- plan$get_baselines()
+  n_baseline <- .baseline_count(baselines, eid, "n_baseline")
   fmt <- function(x) format(x, big.mark = ",")
   parts <- c(
     sprintf(
@@ -46,18 +48,49 @@
     }
   }
   # n_baseline is the per-protocol analysis dataset. It holds the enrolled
-  # person-trials minus those censored in the first period for protocol
-  # deviation or loss to follow-up. It is NOT the post-draw count.
-  # `.baseline_count()` reports an absent count as `NA`, so the guard tests for
-  # a true comparison rather than for a non-NULL value.
+  # person-trials minus those that deviate from the assigned strategy at time
+  # zero. It is NOT the post-draw count. `.baseline_count()` reports an absent
+  # count as `NA`, so the guard tests for a true comparison rather than for a
+  # non-NULL value.
   if (isTRUE(n_baseline > 0)) {
     parts <- c(
       parts,
       sprintf(
-        "Analysis dataset (per-protocol): %s person-trials, after first-period censoring (protocol deviation or loss to follow-up; accounted for by IPCW).",
+        "Analysis dataset (per-protocol): %s person-trials.",
         fmt(n_baseline)
       )
     )
+    # The two steps after the draw come from the same flow as the CONSORT
+    # boxes, so the sentence and the boxes cannot disagree.
+    steps <- .flow_post_draw_steps(
+      .plan_cohort_flow(plan, eid, ec = ec, baselines = baselines),
+      has_draw = !is.null(ec$matching)
+    )
+    for (k in seq_len(NROW(steps))) {
+      r <- steps[k]
+      lab <- .flow_label_parts(r$change_kind)
+      arms <- if (
+        !is.na(r$change_intervention) && !is.na(r$change_comparator)
+      ) {
+        sprintf(
+          " (intervention: %s / comparator: %s)",
+          fmt(r$change_intervention),
+          fmt(r$change_comparator)
+        )
+      } else {
+        ""
+      }
+      parts <- c(
+        parts,
+        sprintf(
+          "%s: %s person-trials%s. %s.",
+          lab[["head"]],
+          fmt(r$change_person_trials),
+          arms,
+          lab[["tail"]]
+        )
+      )
+    }
   }
   return(paste(parts, collapse = " "))
 }
@@ -82,26 +115,9 @@
   }
   # Same single source of truth as the CONSORT diagram, so the sheet and the
   # picture cannot disagree. Includes the comparator draw (selection) and per-
-  # protocol analysis (censoring) steps, each tagged by `kind`/`change_kind`
-  # so the draw and analysis reductions are NOT mislabelled as exclusions.
-  baselines <- plan$get_baselines()
-  analysis_n <- .baseline_count(baselines, eid, "n_baseline")
-  flow <- .build_cohort_flow(
-    ec,
-    # `.build_cohort_flow()` treats an absent size as `NULL`, and
-    # `.baseline_count()` reports it as `NA`.
-    analysis_n = if (is.na(analysis_n)) NULL else analysis_n,
-    analysis_n_intervention = .baseline_count(
-      baselines,
-      eid,
-      "n_baseline_intervention"
-    ),
-    analysis_n_comparator = .baseline_count(
-      baselines,
-      eid,
-      "n_baseline_comparator"
-    )
-  )
+  # protocol analysis steps, each tagged by `kind`/`change_kind` so the draw
+  # and the time-zero deviation are NOT mislabelled as exclusions.
+  flow <- .plan_cohort_flow(plan, eid, ec = ec)
   if (is.null(flow) || nrow(flow) == 0L) {
     return(invisible(FALSE))
   }
@@ -130,8 +146,9 @@
   # reader parsing this sheet matches on it. `step_label` carries the same
   # sentence the CONSORT box and the manuscript renderers use, from the one
   # lookup all of them share, so a human does not meet `landmark_observed`
-  # raw. It is the LAST column, so every existing column keeps its position
-  # and a reader addressing this sheet by cell reference is unaffected.
+  # raw. It stays column 10. The two per-arm change columns follow it, so a
+  # reader that addresses this sheet by cell reference finds every earlier
+  # column where it was.
   step_labels <- .build_criterion_label_lookup(plan, eid, out$step)
   data.table::set(
     out,
@@ -154,7 +171,10 @@
       "change_person_trials",
       "change_kind",
       "n_intervention",
-      "n_comparator"
+      "n_comparator",
+      "step_label",
+      "change_intervention",
+      "change_comparator"
     )
   )
 
@@ -171,20 +191,20 @@
     headerStyle = header_style
   )
   # Counts are already real numbers (writeData on a numeric data.table); add a
-  # thousands-separator display format so they read cleanly. Columns 1/2/7 are
-  # text (step / kind / change_kind).
+  # thousands-separator display format so they read cleanly. Columns 1/2/7/10
+  # are text (step / kind / change_kind / step_label).
   if (nrow(out) > 0L) {
     openxlsx::addStyle(
       wb,
       sheet_name,
       style = openxlsx::createStyle(numFmt = "#,##0"),
       rows = 4L:(3L + nrow(out)),
-      cols = c(3L, 4L, 5L, 6L, 8L, 9L),
+      cols = c(3L, 4L, 5L, 6L, 8L, 9L, 11L, 12L),
       gridExpand = TRUE,
       stack = TRUE
     )
   }
   openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
-  openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
+  openxlsx::setColWidths(wb, sheet_name, cols = c(2L:9L, 11L, 12L), widths = 18)
   return(invisible(TRUE))
 }

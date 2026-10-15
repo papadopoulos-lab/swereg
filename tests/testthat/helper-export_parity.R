@@ -14,11 +14,14 @@
 # export path is INTENDED, and never to make a red test green.
 # =============================================================================
 
+# `n_trials` is the person-trials of each arm in the analysis file. The CONSORT
+# flow reads it on the intention-to-treat rows, so it MUST fit enrollment 01:
+# 300 and 700 enrolled, and 300 and 700 in the per-protocol set.
 .xp_rates <- function(ei, pi, ri, ec, pc, rc) {
   dt <- data.table::data.table(
     rd_tx = c(TRUE, FALSE),
     n_persons = c(300, 700),
-    n_trials = c(3000, 7000),
+    n_trials = c(300, 700),
     events_weighted = c(ei, ec),
     py_weighted = c(pi, pc),
     rate_per_100000py = c(ri, rc)

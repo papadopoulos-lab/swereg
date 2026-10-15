@@ -636,6 +636,11 @@ record counts her as the one intervention person-trial that deviates at time
 zero. `vignette("tte-methods")` section 1.8.2 states the three models and the
 rows each one fits on.
 
+ZERO is in the enrolled set and in the intention-to-treat analysis, but not in
+the per-protocol analysis set. The CONSORT diagram and the attrition sheet
+count such person-trials for each arm, in the step "Deviated from assigned
+strategy at time zero".
+
 # Limitations
 
 * **The censoring approximation is compressed.** The panel is one row per

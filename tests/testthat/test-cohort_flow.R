@@ -15,9 +15,12 @@ test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis
     )
   )
 
+  # The intention-to-treat set equals the enrolled set, so the reduction to
+  # the per-protocol set is the time-zero deviation alone.
   flow <- swereg:::.build_cohort_flow(
     ec, analysis_n = 2050,
-    analysis_n_intervention = 690, analysis_n_comparator = 1360
+    analysis_n_intervention = 690, analysis_n_comparator = 1360,
+    itt_n_intervention = 700, itt_n_comparator = 1400
   )
 
   expect_equal(flow$step, c(
@@ -42,8 +45,16 @@ test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis
   expect_equal(flow$change_person_trials, c(NA, 1000, 500, 1400, 50))
   expect_equal(flow$change_kind, c(
     NA, "excluded", "excluded",
-    "not drawn (comparator draw)", "censored (administrative end of follow-up)"
+    "not drawn (comparator draw)",
+    paste0(
+      "Deviated from assigned strategy at time zero: ",
+      "no per-protocol follow-up; included in intention-to-treat"
+    )
   ))
+  # The per-arm reductions. On the analysis row they count the person-trials
+  # of each arm that deviate at time zero.
+  expect_equal(flow$change_intervention, c(NA, 200, 100, 0, 10))
+  expect_equal(flow$change_comparator, c(NA, 800, 400, 1400, 40))
 })
 
 test_that(".build_consort_dot renders comparator-draw and analysis boxes from the flow", {
@@ -86,11 +97,51 @@ test_that(".build_consort_dot renders comparator-draw and analysis boxes from th
   expect_true(grepl("2,100 person-trials", dot))
   expect_true(grepl("Analysis dataset \\(per-protocol\\)", dot))
   expect_true(grepl("2,050 person-trials", dot))
-  # The analysis box must hang off the drawn box, not the excluded box.
-  expect_true(grepl("drawn -> analysis", dot))
+  # The analysis box must hang off the drawn box, not the excluded box. The
+  # edge between them carries the time-zero deviation box.
+  expect_true(grepl("drawn -> tz_split", dot, fixed = TRUE))
+  expect_true(grepl("tz_split -> analysis", dot, fixed = TRUE))
+  expect_true(grepl("Drug X: 10 person-trials, none: 40 person-trials", dot))
   # Per-arm split is rendered in the analysis box.
   expect_true(grepl("Drug X: 690 person-trials", dot))
   expect_true(grepl("none: 1,360 person-trials", dot))
+})
+
+test_that(".build_cohort_flow names both groups when the intention-to-treat count is missing", {
+  ec <- list(
+    attrition = data.table::data.table(
+      enrollment_period_id = NA_integer_,
+      criterion = c("before_exclusions", "eligible_age"),
+      n_persons = c(1000, 800),
+      n_person_trials = c(5000, 4000),
+      n_intervention = c(1000, 800),
+      n_comparator = c(4000, 3200)
+    ),
+    matching = data.table::data.table(
+      enrollment_period_id = 1L,
+      n_intervention_enrolled = 700,
+      n_comparator_enrolled = 1400
+    )
+  )
+  flow <- swereg:::.build_cohort_flow(
+    ec, analysis_n = 2050,
+    analysis_n_intervention = 690, analysis_n_comparator = 1360
+  )
+  unsplit <- paste0(
+    "Deviated from assigned strategy at time zero, or entered at or after ",
+    "the administrative end of follow-up: no per-protocol follow-up"
+  )
+  expect_false("itt_analysis" %in% flow$kind)
+  expect_identical(flow$change_kind[flow$kind == "analysis"], unsplit)
+
+  # A missing count, as NA, is the same case.
+  na_flow <- swereg:::.build_cohort_flow(
+    ec, analysis_n = 2050,
+    analysis_n_intervention = 690, analysis_n_comparator = 1360,
+    itt_n_intervention = NA_real_, itt_n_comparator = NA_real_
+  )
+  expect_false("itt_analysis" %in% na_flow$kind)
+  expect_identical(na_flow$change_kind[na_flow$kind == "analysis"], unsplit)
 })
 
 test_that(".build_cohort_flow omits analysis arm split when unavailable", {

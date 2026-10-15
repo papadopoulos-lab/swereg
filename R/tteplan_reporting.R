@@ -876,6 +876,20 @@
           enr_id,
           "n_baseline_comparator"
         )
+        # The steps between the draw and the per-protocol analysis set, from
+        # the flow the CONSORT boxes and the attrition sheet read.
+        item8_parts <- c(
+          item8_parts,
+          .flow_item8_lines(
+            .flow_post_draw_steps(
+              .plan_cohort_flow(plan, enr_id, ec = ec, baselines = baselines),
+              has_draw = !is.null(ec$matching)
+            ),
+            num = function(x, w) red(fmt_num(x, w)),
+            head = bold,
+            widths = c(w_total, w_intervention, w_comparator)
+          )
+        )
         # The arm split when the stored panel carries both numbers, and the
         # total alone otherwise. The CONSORT analysis box uses the same rule.
         item8_parts <- c(

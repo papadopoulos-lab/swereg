@@ -756,16 +756,21 @@ stored. Both bounds are \code{NA} where \code{interval_status} reads
 \code{"spans null"}, because the reciprocal of an interval that contains zero
 is not an interval. A consumer MUST NOT invert \code{rd_lo} and \code{rd_hi}
 itself, and MUST NOT print \code{nnt} alone where the bounds are missing.
+
+\code{n_trials_int} and \code{n_trials_cmp} count the person-trials of each arm in
+the analysis file of that estimand. On an intention-to-treat row they are
+the intention-to-treat analysis set, which the CONSORT flow reads.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_estimates()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 41 columns. The identifiers come first, then
-the weighted counts, then the incidence rate ratio, then the risk
-difference and the number needed to treat. \code{n_boot}, \code{seed} and
-\code{conf_level} record what produced the risk-difference interval.
+    A data.table with 47 columns. The identifiers come first, then
+the weighted counts and the person-trials of each arm. The incidence rate
+ratio follows, then the risk difference and the number needed to treat.
+\code{n_boot}, \code{seed} and \code{conf_level} record what produced the
+risk-difference interval.
   }
 }
 
@@ -822,6 +827,15 @@ present another panel under that name.
 \code{variable} repeats on every row of its block. The stored panel prints
 the name once and indents its levels under it, so \code{variable} is blank
 there. A renderer that wants that indent MUST blank the repeat itself.
+
+\code{n_baseline} counts the person-trials of the per-protocol analysis set.
+A person-trial that deviates from its assigned strategy at time zero has
+no per-protocol follow-up, so \code{n_baseline} does not count it. The
+intention-to-treat analysis keeps it, and the time-zero censoring factor
+\code{ipcw_pp_time_zero} is fitted on it. The CONSORT diagram shows these
+person-trials in a censoring box above the per-protocol analysis set. It
+counts them as the intention-to-treat set of \verb{$get_estimates()} minus
+\code{n_baseline}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_baselines()}
@@ -896,7 +910,12 @@ One row per enrollment and trial.
 \verb{$s1_generate_enrollments_and_ipw()} stores it that way.
 \code{n_intervention_total} and \code{n_comparator_total} count every person-trial
 that was eligible for an arm. \code{n_intervention_enrolled} and
-\code{n_comparator_enrolled} count the person-trials the draw took.
+\code{n_comparator_enrolled} count the person-trials the draw took. The
+per-protocol \code{n_baseline} of \verb{$get_baselines()} is smaller by two groups.
+The person-trials that deviate from the assigned strategy at time zero stay
+in the intention-to-treat analysis. A trial that enters at or after the
+administrative end of follow-up is in neither analysis. The CONSORT diagram
+shows each group as its own step.
 
 This is a SIXTH method rather than four more columns on
 \verb{$get_attrition()}. The comparator-draw table has one row per enrollment and
