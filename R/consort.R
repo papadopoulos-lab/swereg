@@ -410,7 +410,7 @@
       out,
       sprintf("  %s:", head(lab[["head"]])),
       sprintf(
-        "    ↳ %s person-trials%s. %s.",
+        "    \u21b3 %s person-trials%s. %s.",
         num(r$change_person_trials, widths[1L]),
         arms,
         lab[["tail"]]
