@@ -17,6 +17,10 @@
 #     YAML prose, and there is deliberately no `emulation:` key under
 #     `target_trial:` for it to read. A hand-written emulation column can drift
 #     away from the pipeline it claims to describe; a rendered one cannot.
+#     The rules come from those blocks, and the words come from the spec's
+#     `name` fields and arm labels. A journal table then prints no column
+#     name that the spec names. A variable without a `name` keeps its column
+#     name.
 #
 # A spec materialises many ETTs (enrollments x outcomes x follow-up horizons),
 # and one protocol table cannot stand for all of them. The sheet therefore
@@ -85,6 +89,159 @@
     return(NA_character_)
   }
   return(paste(as.character(v), collapse = "__"))
+}
+
+
+#' The spec's display name of each confounder and outcome variable
+#'
+#' The emulation column names a variable by the `name` of its spec entry. A
+#' reader of the table then meets no column name that the spec names.
+#' Confounders come first, and the first entry that names a variable wins.
+#'
+#' @param spec Parsed spec list.
+#' @return A named character vector. The names are the column names that
+#'   `.protocol_impl_variable()` renders, and the values are the spec names.
+#' @noRd
+.protocol_variable_names <- function(spec) {
+  out <- character()
+  for (entry in c(spec[["confounders"]], spec[["outcomes"]])) {
+    v <- .protocol_impl_variable(entry[["implementation"]])
+    nm <- .protocol_entry_name(entry)
+    if (!is.na(v) && !is.null(nm) && !(v %in% names(out))) {
+      out[[v]] <- nm
+    }
+  }
+  return(out)
+}
+
+
+#' The `name` of one spec entry, or `NULL` when it has none
+#'
+#' @param entry A spec list entry.
+#' @return A length-1 character string, or `NULL`.
+#' @noRd
+.protocol_entry_name <- function(entry) {
+  nm <- entry[["name"]]
+  if (!is.character(nm) || length(nm) != 1L || is.na(nm) || !nzchar(nm)) {
+    return(NULL)
+  }
+  return(nm)
+}
+
+
+#' Display text for one variable: its spec name, or its column name
+#'
+#' @param code A column name, from `.protocol_impl_variable()`.
+#' @param var_names A lookup, from `.protocol_variable_names()`.
+#' @return A length-1 character string. A variable that the spec does not
+#'   name keeps its column name.
+#' @noRd
+.protocol_variable_label <- function(code, var_names) {
+  if (length(code) == 1L && !is.na(code) && code %in% names(var_names)) {
+    return(unname(var_names[[code]]))
+  }
+  return(code)
+}
+
+
+#' Display text for one value of a variable
+#'
+#' A value of the treatment variable that equals the intervention or the
+#' comparator value is an exposure level, and the spec labels it under
+#' `treatment$arms`. Every other value keeps its spec text.
+#'
+#' @param tx The enrollment's `treatment` list, or `NULL`.
+#' @param variable The column name the value belongs to.
+#' @param value The value, as the spec writes it.
+#' @return A length-1 character string.
+#' @noRd
+.protocol_level_label <- function(tx, variable, value) {
+  impl <- tx[["implementation"]]
+  if (
+    length(value) == 1L &&
+      identical(variable, .protocol_impl_variable(impl))
+  ) {
+    for (arm in c("intervention", "comparator")) {
+      level <- impl[[paste0(arm, "_value")]]
+      label <- .protocol_entry_name(list(name = tx[["arms"]][[arm]]))
+      if (
+        !is.null(level) &&
+          !is.null(label) &&
+          identical(as.character(level), as.character(value))
+      ) {
+        return(label)
+      }
+    }
+  }
+  return(.protocol_value(value))
+}
+
+
+#' Display text for one arm's exposure level
+#'
+#' @param tx The enrollment's `treatment` list, or `NULL`.
+#' @param arm `"intervention"` or `"comparator"`.
+#' @return The arm label under `treatment$arms`, or the arm's value when the
+#'   spec gives no label.
+#' @noRd
+.protocol_arm_label <- function(tx, arm) {
+  impl <- tx[["implementation"]]
+  return(.protocol_level_label(
+    tx,
+    .protocol_impl_variable(impl),
+    impl[[paste0(arm, "_value")]]
+  ))
+}
+
+
+#' The rule of one washout entry, in display names
+#'
+#' The wording is that of `.tte_washout_prose()`, with the variable and the
+#' value in display names. A named entry leads with its name.
+#'
+#' @param entry An inclusion or exclusion entry of a washout type.
+#' @param var_names A lookup, from `.protocol_variable_names()`.
+#' @param tx The enrollment's `treatment` list, or `NULL`.
+#' @return A length-1 character string, or `NULL` when the entry is not a
+#'   washout.
+#' @noRd
+.protocol_washout_rule <- function(entry, var_names, tx) {
+  impl <- entry[["implementation"]]
+  if (!isTRUE(impl[["type"]] %in% .TTE_WASHOUT_TYPES)) {
+    return(NULL)
+  }
+  sv <- impl[["source_variable_combined"]] %||%
+    paste(as.character(unlist(impl[["source_variable"]])), collapse = "__")
+  relation <- if (identical(impl[["type"]], "only_prior_value")) {
+    " other than "
+  } else {
+    " equal to "
+  }
+  nm <- .protocol_entry_name(entry)
+  return(paste0(
+    if (is.null(nm)) "No prior " else paste0(nm, ": no prior "),
+    .protocol_variable_label(sv, var_names),
+    relation,
+    .protocol_level_label(tx, sv, impl[["value"]])
+  ))
+}
+
+
+#' Display text for the criterion of one inclusion or exclusion entry
+#'
+#' @param entry An inclusion or exclusion entry.
+#' @param var_names A lookup, from `.protocol_variable_names()`.
+#' @return The entry's `name`. An entry with no name gives its variable, in
+#'   display text.
+#' @noRd
+.protocol_criterion_label <- function(entry, var_names) {
+  return(
+    .protocol_entry_name(entry) %||%
+      .protocol_variable_label(
+        .protocol_impl_variable(entry[["implementation"]]),
+        var_names
+      )
+  )
 }
 
 
@@ -367,11 +524,110 @@
 }
 
 
+#' Render the eligibility criteria lines of the "Target trial emulation" cell
+#'
+#' @param spec Parsed spec list.
+#' @param ctx Context list, from `.protocol_context()`.
+#' @param var_names A lookup, from `.protocol_variable_names()`.
+#' @return A character vector, one element per line.
+#' @noRd
+.protocol_emulation_eligibility <- function(spec, ctx, var_names) {
+  enrollment <- ctx$enrollment
+  tx <- enrollment[["treatment"]]
+  out <- character()
+  iso <- spec[["inclusion_criteria"]][["isoyears"]]
+  if (!is.null(iso)) {
+    out <- c(
+      out,
+      paste0("Require isoyear in ", paste(iso, collapse = " to "))
+    )
+  }
+  # Symmetric partner to the exclusion loop below. It reads the
+  # `criteria` list of the `inclusion_criteria` container, and each entry
+  # there generates one eligibility column on every enrollment.
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    out <- c(
+      out,
+      paste0(
+        "Require ",
+        .protocol_criterion_label(ic, var_names),
+        " (",
+        .tte_inclusion_window_human(ic[["implementation"]]),
+        ")"
+      )
+    )
+  }
+  # A washout of type `no_prior_value` or `only_prior_value` states its
+  # own rule. Every other exclusion drops rows where its column is TRUE: a
+  # global exclusion and an enrollment exclusion alike, as
+  # `tteplan_apply_exclusions()` treats the two.
+  exclude <- function(ec) {
+    return(paste0(
+      .protocol_washout_rule(ec, var_names, tx) %||%
+        paste0(
+          "Drop rows where ",
+          .protocol_criterion_label(ec, var_names),
+          " is TRUE"
+        ),
+      " (",
+      .format_window_human(ec[["implementation"]]),
+      ")"
+    ))
+  }
+  for (ec in spec[["exclusion_criteria"]]) {
+    out <- c(out, exclude(ec))
+  }
+  for (ai in enrollment[["additional_inclusion"]]) {
+    impl <- ai[["implementation"]]
+    if (identical(ai[["type"]], "age_range")) {
+      # The entry's own name is the band, so the line names the variable.
+      out <- c(
+        out,
+        paste0(
+          "Require ",
+          .protocol_variable_label(.protocol_impl_variable(impl), var_names),
+          " between ",
+          .protocol_value(ai[["min"]]),
+          " and ",
+          .protocol_value(ai[["max"]])
+        )
+      )
+    } else if (identical(ai[["type"]], "isoyear_range")) {
+      # The entry names no variable. It reads `isoyear`, as the global
+      # range does.
+      out <- c(
+        out,
+        paste0(
+          "Require isoyear in ",
+          .protocol_value(ai[["min"]]),
+          " to ",
+          .protocol_value(ai[["max"]])
+        )
+      )
+    } else {
+      out <- c(out, paste0(
+        .protocol_washout_rule(ai, var_names, tx) %||%
+          paste0("Require ", .protocol_criterion_label(ai, var_names)),
+        " (",
+        .format_window_human(impl),
+        ")"
+      ))
+    }
+  }
+  for (ae in enrollment[["additional_exclusion"]]) {
+    out <- c(out, exclude(ae))
+  }
+  return(c(out, ctx$sparse_emulation))
+}
+
+
 #' Render the "Target trial emulation" cell for one component
 #'
-#' Every fragment here comes from a nested `implementation:` block, or from
-#' the ETT grid that those blocks generated. Nothing is read from
-#' `target_trial:`.
+#' The rules come from the nested `implementation:` blocks, or from the ETT
+#' grid that those blocks generated. Nothing is read from `target_trial:`.
+#' Each variable, criterion and exposure level shows as the spec's `name` or
+#' arm label. A variable that the spec does not name shows as its column
+#' name.
 #'
 #' @param spec Parsed spec list.
 #' @param key Component key, from `.tte_protocol_components()`.
@@ -380,107 +636,26 @@
 #' @noRd
 .protocol_emulation <- function(spec, key, ctx) {
   enrollment <- ctx$enrollment
-  outcome <- ctx$outcome
-  tx_impl <- enrollment[["treatment"]][["implementation"]]
+  var_names <- .protocol_variable_names(spec)
+  tx <- enrollment[["treatment"]]
+  tx_impl <- tx[["implementation"]]
+  tx_label <- .protocol_variable_label(
+    .protocol_impl_variable(tx_impl),
+    var_names
+  )
+  intervention <- .protocol_arm_label(tx, "intervention")
+  comparator <- .protocol_arm_label(tx, "comparator")
   fragments <- switch(
     key,
-    eligibility_criteria = {
-      out <- character()
-      iso <- spec[["inclusion_criteria"]][["isoyears"]]
-      if (!is.null(iso)) {
-        out <- c(
-          out,
-          paste0("Require isoyear in ", paste(iso, collapse = " to "))
-        )
-      }
-      # Symmetric partner to the exclusion loop below. It reads the
-      # `criteria` list of the `inclusion_criteria` container, and each entry
-      # there generates one eligibility column on every enrollment.
-      for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
-        impl <- ic[["implementation"]]
-        out <- c(
-          out,
-          paste0(
-            "Require ",
-            .protocol_impl_variable(impl),
-            " (",
-            .tte_inclusion_window_human(impl),
-            ")"
-          )
-        )
-      }
-      for (ec in spec[["exclusion_criteria"]]) {
-        impl <- ec[["implementation"]]
-        out <- c(out, paste0(
-          .tte_washout_prose(impl) %||%
-            paste0("Drop rows where ", .protocol_impl_variable(impl), " is TRUE"),
-          " (",
-          .format_window_human(impl),
-          ")"
-        ))
-      }
-      for (ai in enrollment[["additional_inclusion"]]) {
-        impl <- ai[["implementation"]]
-        if (identical(ai[["type"]], "age_range")) {
-          out <- c(
-            out,
-            paste0(
-              "Require ",
-              .protocol_impl_variable(impl),
-              " between ",
-              .protocol_value(ai[["min"]]),
-              " and ",
-              .protocol_value(ai[["max"]])
-            )
-          )
-        } else if (identical(ai[["type"]], "isoyear_range")) {
-          # The entry names no variable. It reads `isoyear`, as the global
-          # range does.
-          out <- c(
-            out,
-            paste0(
-              "Require isoyear in ",
-              .protocol_value(ai[["min"]]),
-              " to ",
-              .protocol_value(ai[["max"]])
-            )
-          )
-        } else {
-          out <- c(out, paste0(
-            .tte_washout_prose(impl) %||%
-              paste0("Require ", .protocol_impl_variable(impl)),
-            " (",
-            .format_window_human(impl),
-            ")"
-          ))
-        }
-      }
-      # A washout of type `no_prior_value` or `only_prior_value` states its
-      # own rule. Every other exclusion drops rows where its column is TRUE,
-      # as a global exclusion does: `tteplan_apply_exclusions()` treats the
-      # two alike.
-      for (ae in enrollment[["additional_exclusion"]]) {
-        impl <- ae[["implementation"]]
-        out <- c(out, paste0(
-          .tte_washout_prose(impl) %||%
-            paste0("Drop rows where ", .protocol_impl_variable(impl), " is TRUE"),
-          " (",
-          .format_window_human(impl),
-          ")"
-        ))
-      }
-      c(out, ctx$sparse_emulation)
-    },
+    eligibility_criteria = .protocol_emulation_eligibility(
+      spec,
+      ctx,
+      var_names
+    ),
     treatment_strategies = c(
-      paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
-      paste0(
-        "Intervention value: ",
-        .protocol_value(tx_impl[["intervention_value"]])
-      ),
-      paste0(
-        "Comparator value: ",
-        .protocol_value(tx_impl[["comparator_value"]])
-      )
+      paste0("Treatment variable: ", tx_label),
+      paste0("Intervention value: ", intervention),
+      paste0("Comparator value: ", comparator)
     ),
     assignment_procedure = c(
       "Comparator draw: incidence density sampling within each sequential trial",
@@ -501,20 +676,15 @@
       .protocol_draw_stratum(ctx[["period_width"]]),
       "Comparator pairing: none, so no matched set exists and no later step conditions on one",
       "Confounding adjustment: inverse probability weighting on the covariates taken at the recruiting week",
-      paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
-      paste0(
-        "Arm values: ",
-        .protocol_value(tx_impl[["intervention_value"]]),
-        " versus ",
-        .protocol_value(tx_impl[["comparator_value"]])
-      )
+      paste0("Treatment variable: ", tx_label),
+      paste0("Arm values: ", intervention, " versus ", comparator)
     ),
-    outcome = c(
-      paste0(
-        "Outcome variable: ",
-        .protocol_impl_variable(outcome[["implementation"]])
-      ),
-      paste0("Outcome column in the analysis file: ", ctx$outcome_var)
+    # `outcome_var` is the ETT's outcome column, and `.protocol_context()`
+    # matched the outcome entry on it. One line names both, and it keeps the
+    # column when no spec entry matched.
+    outcome = paste0(
+      "Outcome variable: ",
+      .protocol_variable_label(ctx$outcome_var, var_names)
     ),
     follow_up_period = {
       weeks <- vapply(
@@ -542,16 +712,13 @@
       # an estimand the pipeline does not estimate.
       paste0("Estimands: ", paste(.TTE_ESTIMANDS, collapse = ", ")),
       paste0("ETT: ", ctx$ett_id),
-      paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
+      paste0("Treatment variable: ", tx_label),
+      paste0("Intervention value: ", intervention),
+      paste0("Comparator value: ", comparator),
       paste0(
-        "Intervention value: ",
-        .protocol_value(tx_impl[["intervention_value"]])
+        "Outcome variable: ",
+        .protocol_variable_label(ctx$outcome_var, var_names)
       ),
-      paste0(
-        "Comparator value: ",
-        .protocol_value(tx_impl[["comparator_value"]])
-      ),
-      paste0("Outcome variable: ", ctx$outcome_var),
       paste0("Horizon: ", ctx$follow_up_weeks, " weeks")
     ),
     analysis_plan = {
@@ -571,7 +738,7 @@
           adjust,
           paste0(
             "Treatment and censoring models adjust for ",
-            v,
+            .protocol_variable_label(v, var_names),
             if (isTRUE(impl[["computed"]])) {
               paste0(" (", .format_window_human(impl), ")")
             }

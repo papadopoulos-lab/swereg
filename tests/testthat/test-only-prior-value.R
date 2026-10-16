@@ -318,8 +318,13 @@ test_that("the protocol table emulation cell names the rule", {
     list(enrollment = spec$enrollments[[1]], enrollment_id = "01")
   )
   lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  # The cell names the entry, and the comparator value by its arm label.
   expect_true(
-    paste0(.opv_rule_text, " (lifetime before baseline)") %in% lines
+    paste0(
+      "MHT-naive at baseline: no prior rd_approach1_single other than ",
+      "Local or none (lifetime before baseline)"
+    ) %in%
+      lines
   )
 })
 

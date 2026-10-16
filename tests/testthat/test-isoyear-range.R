@@ -844,7 +844,10 @@ test_that("the protocol emulation cell drops an enrollment exclusion when TRUE",
   )
   lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
   expect_true(
-    "Drop rows where op_hysterectomy is TRUE (lifetime before baseline)" %in%
+    paste0(
+      "Drop rows where History of hysterectomy is TRUE ",
+      "(lifetime before baseline)"
+    ) %in%
       lines
   )
   expect_false(any(grepl("not specified", lines, fixed = TRUE)))

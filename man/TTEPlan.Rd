@@ -282,6 +282,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-get_attrition}{\code{TTEPlan$get_attrition()}}
     \item \href{#method-TTEPlan-get_matching}{\code{TTEPlan$get_matching()}}
     \item \href{#method-TTEPlan-get_subgroups}{\code{TTEPlan$get_subgroups()}}
+    \item \href{#method-TTEPlan-get_protocol_table}{\code{TTEPlan$get_protocol_table()}}
     \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
     \item \href{#method-TTEPlan-slurm_job}{\code{TTEPlan$slurm_job()}}
     \item \href{#method-TTEPlan-add_one_ett}{\code{TTEPlan$add_one_ett()}}
@@ -999,6 +1000,48 @@ subgroups, so treat the schema as production.
     A data.table with 13 columns: \code{ett_id}, \code{estimand}, \code{weights},
 \code{subgroup_var}, \code{subgroup_level}, \code{irr}, \code{irr_lo}, \code{irr_hi},
 \code{irr_pvalue}, \code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo} and \code{ratio_hi}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-get_protocol_table"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-get_protocol_table}{}}}
+\subsection{\code{TTEPlan$get_protocol_table()}}{
+  The target trial protocol table of one emulated trial.
+
+The table has seven rows, one per protocol component in the order of
+Dickerman et al., Table S1. Its three columns are
+\verb{Protocol component}, \verb{Target trial specification} and
+\verb{Target trial emulation}.
+
+It is the table that the "Target trial protocol" sheet of
+\verb{$export_tables()} and \verb{$excel_spec_summary()} holds, built by the same
+two calls. The sheet adds a title row and a note row above it.
+
+The specification column holds the clinical fields of the spec and the
+prose under \code{target_trial}. The emulation column states the rules of the
+\code{implementation} blocks. In it, each variable, criterion and exposure
+level shows as its \code{name} or arm label in the spec. A variable that the
+spec does not name shows as its column name.
+
+The method reads \code{plan$spec} and \code{plan$ett}, and the rare-condition
+decision when the plan holds one. It reads no s2 or s3 result, so it
+works from s0 on.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$get_protocol_table(ett_id = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ett_id}}{Character(1), the emulated trial the table documents.
+\code{NULL} takes the first ETT in the grid.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with 7 rows and 3 character columns.
   }
 }
 

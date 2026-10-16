@@ -265,6 +265,34 @@ TTEPlan$set("public", "get_subgroups", function() {
   return(.acc_subgroups(self))
 })
 
+#' @description The target trial protocol table of one emulated trial.
+#'
+#' The table has seven rows, one per protocol component in the order of
+#' Dickerman et al., Table S1. Its three columns are
+#' `Protocol component`, `Target trial specification` and
+#' `Target trial emulation`.
+#'
+#' It is the table that the "Target trial protocol" sheet of
+#' `$export_tables()` and `$excel_spec_summary()` holds, built by the same
+#' two calls. The sheet adds a title row and a note row above it.
+#'
+#' The specification column holds the clinical fields of the spec and the
+#' prose under `target_trial`. The emulation column states the rules of the
+#' `implementation` blocks. In it, each variable, criterion and exposure
+#' level shows as its `name` or arm label in the spec. A variable that the
+#' spec does not name shows as its column name.
+#'
+#' The method reads `plan$spec` and `plan$ett`, and the rare-condition
+#' decision when the plan holds one. It reads no s2 or s3 result, so it
+#' works from s0 on.
+#'
+#' @param ett_id Character(1), the emulated trial the table documents.
+#'   `NULL` takes the first ETT in the grid.
+#' @return A data.table with 7 rows and 3 character columns.
+TTEPlan$set("public", "get_protocol_table", function(ett_id = NULL) {
+  return(.build_protocol_table(self$spec, .protocol_context(self, ett_id)))
+})
+
 #' @description Recompute baseline characteristic tables in-process.
 #'
 #' Reads each enrollment's smallest analysis file (and the raw file when

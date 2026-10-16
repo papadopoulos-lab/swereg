@@ -223,7 +223,7 @@ test_that("the protocol table specification cell names the global criterion", {
   expect_false("Include: " %in% lines)
 })
 
-test_that("the protocol table emulation cell names the global criterion's variable", {
+test_that("the protocol table emulation cell names the global criterion and its window", {
   spec <- gir_spec(list(gir_criterion()))
   cell <- swereg:::.protocol_emulation(
     spec,
@@ -232,8 +232,9 @@ test_that("the protocol table emulation cell names the global criterion's variab
   )
   lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
   expect_true(
-    "Require osd_f20_to_f29 (2 years before baseline)" %in% lines
+    paste0("Require ", gir_name, " (2 years before baseline)") %in% lines
   )
+  expect_false(any(grepl("osd_f20_to_f29", lines, fixed = TRUE)))
 })
 
 

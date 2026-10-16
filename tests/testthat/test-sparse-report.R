@@ -570,7 +570,10 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
     FAST_ADJUSTMENT_SET
   )
   expect_true(
-    "Treatment and censoring models adjust for rd_no_osd_common_everbefore (lifetime before baseline)" %in%
+    paste0(
+      "Treatment and censoring models adjust for ",
+      "Prior common condition (lifetime before baseline)"
+    ) %in%
       plan_emul
   )
   expect_false(any(grepl("rare_[ab]", plan_emul)))

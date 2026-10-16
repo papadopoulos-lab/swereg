@@ -10,6 +10,8 @@
 ## New features
 
 * **`$get_estimates()` returns `n_trials_int` and `n_trials_cmp`, the person-trials of each arm in the analysis file of each row.** It has 47 columns.
+* **`$get_protocol_table(ett_id)` returns the target trial protocol table of one ETT, with 7 rows and 3 columns.** It is the table of the "Target trial protocol" sheet, so a manuscript can build its protocol table from the spec.
+* **The emulation column of the protocol table names each variable, outcome, exposure level and criterion by its `name` or arm label in the spec.** A variable without a `name`, such as the treatment variable, keeps its column name. The Outcome cell is one line, and it no longer repeats the outcome column.
 
 ## Documentation
 

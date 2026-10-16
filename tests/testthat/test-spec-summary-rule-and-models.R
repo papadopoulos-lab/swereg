@@ -166,10 +166,10 @@ test_that("the protocol Analysis plan cell says which models adjust for each con
   expect_identical(
     cell[3:5],
     c(
-      "Treatment and censoring models adjust for rd_age_continuous",
+      "Treatment and censoring models adjust for Age",
       paste0(
         "Treatment and censoring models adjust for ",
-        "rd_no_osd_common_everbefore (lifetime before baseline)"
+        "Prior common condition (lifetime before baseline)"
       ),
       paste0(
         "Final adjustment set of the treatment and censoring models, after ",

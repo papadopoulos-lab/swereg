@@ -7,12 +7,13 @@
 #     team's own prose under the spec's `target_trial:` key.
 #   Target trial emulation     -- RENDERED from the nested `implementation:`
 #     blocks. Never read from YAML prose, and there is no `emulation:` key
-#     under `target_trial:` for it to read.
+#     under `target_trial:` for it to read. It names each variable by the
+#     `name` of its spec entry, and a variable without one by its column.
 #
 # That difference is what these tests exist to pin. `rd_age_continuous` is the
 # discriminator: the fixture puts it inside `implementation:` blocks only
-# (never under `target_trial:`), so it can reach the emulation column only by
-# being rendered.
+# (never under `target_trial:`), so its name "Age (continuous)" can reach the
+# emulation column only through the variable those blocks name.
 #
 # The fixture MIRRORS THE REAL SPEC'S NESTING. `implementation:` never appears
 # at top level in a real spec -- it appears inside `study`, inside every
@@ -252,17 +253,17 @@ test_that("emulation column is rendered from implementation blocks", {
 
   # ROW-SPECIFIC, not a column-wide any(). `rd_age_continuous` sits in two
   # implementation blocks in the fixture -- the enrollment's age_range and the
-  # first confounder -- so it legitimately renders in exactly two rows. A
-  # column-wide any() would pass if only ONE of them rendered, which is a
+  # first confounder -- so its name legitimately renders in exactly two rows.
+  # A column-wide any() would pass if only ONE of them rendered, which is a
   # different claim from the one this test makes. Both rows are asserted, and
   # so are the five that must NOT carry it.
   expect_true(grepl(
-    "rd_age_continuous",
+    "Require Age (continuous) between 50 and 54",
     .tt_emulation(d, "Eligibility criteria"),
     fixed = TRUE
   ))
   expect_true(grepl(
-    "rd_age_continuous",
+    "adjust for Age (continuous)",
     .tt_emulation(d, "Analysis plan"),
     fixed = TRUE
   ))
@@ -274,10 +275,16 @@ test_that("emulation column is rendered from implementation blocks", {
     "Causal contrast"
   )) {
     expect_false(
-      grepl("rd_age_continuous", .tt_emulation(d, component), fixed = TRUE),
-      info = paste0(component, ": must not carry rd_age_continuous")
+      grepl("Age (continuous)", .tt_emulation(d, component), fixed = TRUE),
+      info = paste0(component, ": must not carry Age (continuous)")
     )
   }
+  # The spec names the variable, so its column name is in no row.
+  expect_false(any(grepl(
+    "rd_age_continuous",
+    d$Target.trial.emulation,
+    fixed = TRUE
+  )))
 
   # The specification column never carries it, in any row.
   expect_false(any(grepl(
@@ -287,7 +294,9 @@ test_that("emulation column is rendered from implementation blocks", {
   )))
 
   # Other implementation-only names, also pinned to the rows they belong in,
-  # so a single accidental match cannot carry the test.
+  # so a single accidental match cannot carry the test. The spec names no
+  # treatment variable, so `rd_tx` keeps its column name. It names the
+  # outcome and the exclusion, so `osd_a` and `osd_x` show by those names.
   expect_true(grepl(
     "rd_tx",
     .tt_emulation(d, "Treatment strategies"),
@@ -298,12 +307,19 @@ test_that("emulation column is rendered from implementation blocks", {
     .tt_emulation(d, "Assignment procedure"),
     fixed = TRUE
   ))
-  expect_true(grepl("osd_a", .tt_emulation(d, "Outcome"), fixed = TRUE))
   expect_true(grepl(
-    "osd_x",
+    "Outcome variable: Outcome A",
+    .tt_emulation(d, "Outcome"),
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "Drop rows where Prior outcome event is TRUE",
     .tt_emulation(d, "Eligibility criteria"),
     fixed = TRUE
   ))
+  for (code in c("osd_a", "osd_x")) {
+    expect_false(any(grepl(code, d$Target.trial.emulation, fixed = TRUE)))
+  }
   expect_false(any(grepl("rd_tx", d$Target.trial.specification, fixed = TRUE)))
   expect_false(any(grepl("osd_a", d$Target.trial.specification, fixed = TRUE)))
 })
@@ -343,23 +359,26 @@ test_that("a global inclusion criterion's implementation reaches the eligibility
 
   d <- .tt_read(.tt_render(plan))
   cell <- .tt_emulation(d, "Eligibility criteria")
-  expect_true(grepl("ri_in_lmed", cell, fixed = TRUE))
-  expect_true(grepl("lifetime before baseline", cell, fixed = TRUE))
+  # The criterion shows by its name, with the window of its implementation.
+  expect_true(grepl(
+    paste0(
+      "Require Registered in the prescribed drug register ",
+      "(lifetime before baseline)"
+    ),
+    cell,
+    fixed = TRUE
+  ))
+  expect_false(grepl("ri_in_lmed", cell, fixed = TRUE))
 
   # The `isoyears` scalar shares the same list and must NOT fall into the
   # criterion loop and render as a variable-less row.
   expect_true(grepl("Require isoyear in 2010 to 2020", cell, fixed = TRUE))
   expect_false(grepl("Require NA", cell, fixed = TRUE))
 
-  # The clinical name still belongs to the specification column only.
+  # The specification column names the criterion too.
   expect_true(grepl(
     "Registered in the prescribed drug register",
     .tt_specification(d, "Eligibility criteria"),
-    fixed = TRUE
-  ))
-  expect_false(grepl(
-    "Registered in the prescribed drug register",
-    cell,
     fixed = TRUE
   ))
 })
@@ -388,16 +407,20 @@ test_that("the rendered sheet states an only_prior_value washout's rule", {
   d <- .tt_read(.tt_render(plan))
   cell <- .tt_emulation(d, "Eligibility criteria")
   lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  # The rule leads with the entry's name, and the value shows as its arm
+  # label. The spec names no treatment variable, so `rd_tx` stays.
   expect_true(
-    "No prior rd_tx other than arm_b (lifetime before baseline)" %in% lines
+    paste0(
+      "MHT-naive at baseline: no prior rd_tx other than Arm B ",
+      "(lifetime before baseline)"
+    ) %in%
+      lines
   )
-  # The clinical name still belongs to the specification column only.
   expect_true(grepl(
     "MHT-naive at baseline",
     .tt_specification(d, "Eligibility criteria"),
     fixed = TRUE
   ))
-  expect_false(grepl("MHT-naive at baseline", cell, fixed = TRUE))
 })
 
 
