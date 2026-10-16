@@ -50,12 +50,13 @@
 #' The three estimand and weighting combinations `$s3_analyze()` stores.
 #'
 #' `estimand` and `weights` are two axes, not one. `"pp"` and `"itt"` name the
-#' estimand. `"truncated"` and `"untruncated"` name the weighting choice inside
-#' per-protocol. Only these three combinations occur.
+#' estimand. `"truncated"` and `"untruncated"` name the weight of the estimate.
+#' Only these three combinations occur: per-protocol truncated, per-protocol
+#' untruncated, and intention-to-treat truncated. The intention-to-treat
+#' estimates use the truncated baseline inverse-probability weight, `ipw_trunc`.
 #'
 #' `rd` is `NA` for per-protocol on the untruncated weight. s3 computes the
-#' absolute scale on the truncated per-protocol weight and on the baseline
-#' inverse-probability weight only.
+#' absolute scale on the truncated per-protocol weight and on `ipw_trunc` only.
 #' @noRd
 .ACC_ESTIMATE_SLOTS <- list(
   list(
@@ -74,7 +75,7 @@
   ),
   list(
     estimand = "itt",
-    weights = "untruncated",
+    weights = "truncated",
     rates = "rates_itt",
     irr = "irr_itt",
     rd = "rd_itt"
@@ -131,7 +132,7 @@
 #' @noRd
 .ACC_CURVE_SLOTS <- list(
   list(slot = "rd_curve_pp_trunc", estimand = "pp", weights = "truncated"),
-  list(slot = "rd_curve_itt", estimand = "itt", weights = "untruncated")
+  list(slot = "rd_curve_itt", estimand = "itt", weights = "truncated")
 )
 
 
@@ -1082,7 +1083,7 @@
   return(list(
     subgroup_var = subgroup_var,
     estimand = suffix,
-    weights = if (identical(suffix, "pp")) "truncated" else "untruncated",
+    weights = "truncated",
     subgroup_slot = paste0("subgroup_", subgroup_var, "_", suffix),
     emtest_slot = paste0("emtest_", subgroup_var, "_", suffix)
   ))

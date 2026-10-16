@@ -1,3 +1,9 @@
+# swereg 27.2.4
+
+## Bug fixes
+
+* **`$get_estimates()`, `$get_curves()` and `$get_subgroups()` label each intention-to-treat row `weights = "truncated"`.** The intention-to-treat estimates use the truncated baseline weight `ipw_trunc`, but the accessors labelled them `"untruncated"`. A filter on intention-to-treat and `weights == "untruncated"` now returns no rows. Filter on `estimand == "itt"` alone.
+
 # swereg 27.2.3
 
 ## New features

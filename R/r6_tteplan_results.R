@@ -28,9 +28,10 @@ TTEPlan$set("public", "results_summary", function() {
 #'
 #' `estimand` and `weights` are two columns, not one. `estimand` reads
 #' `"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"` and
-#' names the weighting choice inside per-protocol. Three combinations
-#' occur: per-protocol truncated, per-protocol untruncated, and
-#' intention-to-treat.
+#' names the weight of the estimate. Three combinations occur:
+#' per-protocol truncated, per-protocol untruncated, and intention-to-treat
+#' truncated. The intention-to-treat estimates use the truncated baseline
+#' inverse-probability weight, `ipw_trunc`.
 #'
 #' Three rows per emulated trial is an UPPER BOUND, not a promise. A
 #' combination gets a row when the plan holds at least one of its rates,

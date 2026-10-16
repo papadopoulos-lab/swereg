@@ -538,9 +538,9 @@ test_that("get_estimates returns one row per ETT, estimand and weighting", {
     c(
       "ETT00001 pp truncated",
       "ETT00001 pp untruncated",
-      "ETT00001 itt untruncated",
+      "ETT00001 itt truncated",
       "ETT00002 pp truncated",
-      "ETT00002 itt untruncated"
+      "ETT00002 itt truncated"
     )
   )
   # Labels join from `plan$ett` and `plan$spec`, which are inputs.
@@ -569,6 +569,12 @@ test_that("get_curves returns one row per ETT, estimand, weighting, arm, follow-
   expect_identical(nrow(cv), 12L)
   expect_setequal(cv$arm, c("comparator", "intervention"))
   expect_setequal(cv$follow_up_interval, c(26, 52))
+  # Both stored curves use a truncated weight: per-protocol the truncated
+  # analysis weight, intention-to-treat the truncated baseline weight.
+  expect_setequal(
+    unique(paste(cv$ett_id, cv$estimand, cv$weights)),
+    c("ETT00001 pp truncated", "ETT00001 itt truncated", "ETT00002 itt truncated")
+  )
   expect_identical(
     cv[
       ett_id == "ETT00001" & estimand == "pp" &
@@ -678,12 +684,12 @@ test_that("get_subgroups returns one row per variable, estimand and level", {
     unique(paste(sg$subgroup_var, sg$estimand, sg$weights)),
     c(
       "rd_age_band pp truncated",
-      "rd_age_band itt untruncated",
+      "rd_age_band itt truncated",
       "rd_parity pp truncated",
       "rd_bmi pp truncated",
-      "rd_bmi itt untruncated",
+      "rd_bmi itt truncated",
       "rd_smoking pp truncated",
-      "rd_smoking itt untruncated",
+      "rd_smoking itt truncated",
       "rd_skipped pp truncated"
     )
   )
@@ -771,9 +777,9 @@ test_that("a missing slot yields absent rows", {
     c(
       "ETT00001 pp truncated",
       "ETT00001 pp untruncated",
-      "ETT00001 itt untruncated",
+      "ETT00001 itt truncated",
       "ETT00002 pp truncated",
-      "ETT00002 itt untruncated"
+      "ETT00002 itt truncated"
     )
   )
 
