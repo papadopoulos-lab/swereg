@@ -1,5 +1,16 @@
 # Changelog
 
+## swereg 27.2.3
+
+### New features
+
+- **[`tteplan_excel_spec_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_excel_spec_summary.md)
+  writes the Excel specification from the spec YAML and a code registry,
+  without a plan or a skeleton.** For the same spec, code registry and
+  arguments, each cell matches `$excel_spec_summary()` at s0. The one
+  exception is `Admin censoring:`, which reads `not built (spec only)`
+  without `global_max_isoyearweek`.
+
 ## swereg 27.2.2
 
 ### Bug fixes

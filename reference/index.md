@@ -64,6 +64,8 @@ methodology
   : Apply exclusion criteria from a study spec to a skeleton
 - [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
   : Check a YAML study specification and list every problem
+- [`tteplan_excel_spec_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_excel_spec_summary.md)
+  : Write the specification workbook from a spec, without a plan
 - [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
   : Create a TTEPlan from a study specification
 - [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)

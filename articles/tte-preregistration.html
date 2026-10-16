@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -149,6 +149,19 @@ count of prevalent-user weeks, or a category value that the data hold
 and the specification lacks. You MAY pass
 <code>global_max_isoyearweek</code> to set the administrative end
 yourself, and s0 then skips this validation.</p>
+<p><code><a href="../reference/tteplan_excel_spec_summary.html">tteplan_excel_spec_summary()</a></code> writes the Excel
+specification from the specification YAML and a code registry, without a
+plan. It reads no skeleton, so it runs before s0, and while the
+skeletons do not yet hold a new code. Pass the
+<code>RegistryStudy</code>, or its <code>$summary_table()</code>, as
+<code>code_registry</code>, and each variable that the registry
+generates shows its codes. The <code>Admin censoring:</code> row reads
+<code>not built (spec only)</code> unless you pass
+<code>global_max_isoyearweek</code>. Every other cell matches
+<code>$excel_spec_summary()</code> at s0 for the same spec, code
+registry, <code>period_width</code> and <code>protocol_ett_id</code>. Do
+not edit the workbook by hand: change the YAML and write the workbook
+again.</p>
 <p>Register after s0 and before s1.</p>
 </div>
 <div class="section level2">

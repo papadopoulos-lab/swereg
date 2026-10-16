@@ -54,6 +54,18 @@ of prevalent-user weeks, or a category value that the data hold and the
 specification lacks. You MAY pass `global_max_isoyearweek` to set the
 administrative end yourself, and s0 then skips this validation.
 
+[`tteplan_excel_spec_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_excel_spec_summary.md)
+writes the Excel specification from the specification YAML and a code
+registry, without a plan. It reads no skeleton, so it runs before s0,
+and while the skeletons do not yet hold a new code. Pass the
+`RegistryStudy`, or its `$summary_table()`, as `code_registry`, and each
+variable that the registry generates shows its codes. The
+`Admin censoring:` row reads `not built (spec only)` unless you pass
+`global_max_isoyearweek`. Every other cell matches
+`$excel_spec_summary()` at s0 for the same spec, code registry,
+`period_width` and `protocol_ett_id`. Do not edit the workbook by hand:
+change the YAML and write the workbook again.
+
 Register after s0 and before s1.
 
 ## The OSF sections, field by field
