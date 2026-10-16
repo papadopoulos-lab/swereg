@@ -79,7 +79,7 @@ tteplan_from_spec_and_registrystudy <- function(
   period_width = 4L,
   check_skeletons = TRUE
 ) {
-  isoyearweek <- treatment_impl <- comparator_to_intervention_ratio <- seed <- NULL
+  isoyearweek <- NULL
 
   if (is.null(study) || is.null(study$skeleton_files)) {
     stop(
@@ -199,24 +199,6 @@ tteplan_from_spec_and_registrystudy <- function(
     message("prevalent-user check skipped: no skeleton loaded")
   }
 
-  # Extract confounder variable names
-  confounder_vars <- vapply(
-    spec$confounders,
-    function(c) c$implementation$variable,
-    character(1)
-  )
-
-  # Extract subgroup (effect-modifier) variable names (optional)
-  subgroup_vars <- if (!is.null(spec$subgroups)) {
-    vapply(
-      spec$subgroups,
-      function(s) s$implementation$variable,
-      character(1)
-    )
-  } else {
-    NULL
-  }
-
   plan <- TTEPlan$new(
     project_prefix = project_id,
     skeleton_files = skeleton_files,
@@ -250,6 +232,45 @@ tteplan_from_spec_and_registrystudy <- function(
   # Provenance timestamps
   plan$registry_study_created_at <- study$created_at
   plan$skeleton_created_at <- skeleton_created_at
+
+  .tteplan_add_spec_etts(plan, spec)
+
+  return(plan)
+}
+
+
+#' Add the full ETT grid of a spec to a plan
+#'
+#' One ETT for each enrollment, outcome and follow-up horizon of the spec, in
+#' that nesting order. Each ETT row also carries the treatment implementation,
+#' the comparator-to-intervention ratio and the seed of its enrollment.
+#' [tteplan_from_spec_and_registrystudy()] and
+#' [tteplan_excel_spec_summary()] both build their grid here.
+#'
+#' @param plan A [TTEPlan] with no ETTs.
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @return The plan, invisibly. The plan is changed in place.
+#' @noRd
+.tteplan_add_spec_etts <- function(plan, spec) {
+  treatment_impl <- comparator_to_intervention_ratio <- seed <- NULL
+
+  # Extract confounder variable names
+  confounder_vars <- vapply(
+    spec$confounders,
+    function(c) c$implementation$variable,
+    character(1)
+  )
+
+  # Extract subgroup (effect-modifier) variable names (optional)
+  subgroup_vars <- if (!is.null(spec$subgroups)) {
+    vapply(
+      spec$subgroups,
+      function(s) s$implementation$variable,
+      character(1)
+    )
+  } else {
+    NULL
+  }
 
   for (enrollment in spec$enrollments) {
     # Extract age range from additional_inclusion
@@ -310,7 +331,7 @@ tteplan_from_spec_and_registrystudy <- function(
     plan$ett[rows, seed := impl$seed]
   }
 
-  return(plan)
+  return(invisible(plan))
 }
 
 

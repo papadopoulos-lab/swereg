@@ -97,6 +97,7 @@ re-specifying any paths.
 Other tte_spec:
 \code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},
 \code{\link[=tteplan_apply_exclusions]{tteplan_apply_exclusions()}},
+\code{\link[=tteplan_excel_spec_summary]{tteplan_excel_spec_summary()}},
 \code{\link[=tteplan_read_spec]{tteplan_read_spec()}},
 \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}}
 }
