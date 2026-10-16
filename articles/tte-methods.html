@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -395,6 +395,14 @@ interval. A time-updated confounder takes its value in the first week of
 the interval. The loss and deviation models of 1.8.2 fit on these
 shortened rows. A deviation at time zero leaves the person-trial no row,
 and the time-zero model of 1.8.2 keeps it in the weights.</p>
+<p>Only an arm with a tolerance of 0 can deviate at time zero. Such a
+person-trial has no per-protocol follow-up, so the per-protocol analysis
+set is smaller than the intention-to-treat analysis set by these
+person-trials. The intention-to-treat analysis keeps them. The CONSORT
+diagram shows them in a censoring box between the enrolled set and the
+per-protocol analysis set, with a count for each arm. The trials whose
+time zero falls at or after the administrative end get one box of their
+own above it.</p>
 </div>
 <div class="section level3">
 <h3 id="outcomes">1.5 Outcomes<a class="anchor" aria-label="anchor" href="#outcomes"></a>

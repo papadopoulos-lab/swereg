@@ -740,6 +740,11 @@ at time zero.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.2 states the three models and the rows each one fits on.
 
+ZERO is in the enrolled set and in the intention-to-treat analysis, but
+not in the per-protocol analysis set. The CONSORT diagram and the
+attrition sheet count such person-trials for each arm, in the step
+“Deviated from assigned strategy at time zero”.
+
 ## Limitations
 
 - **The censoring approximation is compressed.** The panel is one row

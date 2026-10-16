@@ -1,5 +1,57 @@
 # Changelog
 
+## swereg 27.2.4
+
+### Bug fixes
+
+- **`$get_estimates()`, `$get_curves()` and `$get_subgroups()` label
+  each intention-to-treat row `weights = "truncated"`.** The
+  intention-to-treat estimates use the truncated baseline weight
+  `ipw_trunc`, but the accessors labelled them `"untruncated"`. A filter
+  on intention-to-treat and `weights == "untruncated"` now returns no
+  rows. Filter on `estimand == "itt"` alone.
+- **The step before the per-protocol analysis set reads “Deviated from
+  assigned strategy at time zero”, with a count for each arm.** The
+  CONSORT diagram shows it as a censoring box, and the flow data and the
+  attrition sheet get `change_intervention` and `change_comparator`. The
+  step read “censored (administrative end of follow-up)”, but these
+  person-trials deviate at time zero and stay in the intention-to-treat
+  analysis.
+- **The deviation count is the intention-to-treat analysis set minus the
+  per-protocol set, in each arm.** A trial that enters at or after the
+  administrative end gets its own step, “Entered at or after the
+  administrative end of follow-up”. The step shows only when its count
+  is not zero. When the intention-to-treat count is missing, the one
+  step names both groups.
+- **TARGET item 8 prints both steps with their arm counts.** It reads
+  the flow that the CONSORT diagram reads.
+
+### New features
+
+- **`$get_estimates()` returns `n_trials_int` and `n_trials_cmp`, the
+  person-trials of each arm in the analysis file of each row.** It has
+  47 columns.
+- **`$get_protocol_table(ett_id)` returns the target trial protocol
+  table of one ETT, with 7 rows and 3 columns.** It is the table of the
+  “Target trial protocol” sheet, so a manuscript can build its protocol
+  table from the spec.
+- **The emulation column of the protocol table names each variable,
+  outcome, exposure level and criterion by its `name` or arm label in
+  the spec.** A variable without a `name`, such as the treatment
+  variable, keeps its column name. The Outcome cell is one line, and it
+  no longer repeats the outcome column.
+
+### Documentation
+
+- **The `$get_baselines()`, `$get_matching()` and `$get_estimates()`
+  help pages,
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  and
+  [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md)
+  state that the per-protocol analysis set omits the person-trials that
+  deviate at time zero.** The intention-to-treat analysis keeps them,
+  and the time-zero censoring factor is fitted on them.
+
 ## swereg 27.2.3
 
 ### New features

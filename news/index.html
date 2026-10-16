@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,34 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.4" id="swereg-2724">swereg 27.2.4<a class="anchor" aria-label="anchor" href="#swereg-2724"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-27-2-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-2-4"></a></h3>
+<ul><li>
+<strong><code>$get_estimates()</code>, <code>$get_curves()</code> and <code>$get_subgroups()</code> label each intention-to-treat row <code>weights = "truncated"</code>.</strong> The intention-to-treat estimates use the truncated baseline weight <code>ipw_trunc</code>, but the accessors labelled them <code>"untruncated"</code>. A filter on intention-to-treat and <code>weights == "untruncated"</code> now returns no rows. Filter on <code>estimand == "itt"</code> alone.</li>
+<li>
+<strong>The step before the per-protocol analysis set reads “Deviated from assigned strategy at time zero”, with a count for each arm.</strong> The CONSORT diagram shows it as a censoring box, and the flow data and the attrition sheet get <code>change_intervention</code> and <code>change_comparator</code>. The step read “censored (administrative end of follow-up)”, but these person-trials deviate at time zero and stay in the intention-to-treat analysis.</li>
+<li>
+<strong>The deviation count is the intention-to-treat analysis set minus the per-protocol set, in each arm.</strong> A trial that enters at or after the administrative end gets its own step, “Entered at or after the administrative end of follow-up”. The step shows only when its count is not zero. When the intention-to-treat count is missing, the one step names both groups.</li>
+<li>
+<strong>TARGET item 8 prints both steps with their arm counts.</strong> It reads the flow that the CONSORT diagram reads.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-2-4">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-4"></a></h3>
+<ul><li>
+<strong><code>$get_estimates()</code> returns <code>n_trials_int</code> and <code>n_trials_cmp</code>, the person-trials of each arm in the analysis file of each row.</strong> It has 47 columns.</li>
+<li>
+<strong><code>$get_protocol_table(ett_id)</code> returns the target trial protocol table of one ETT, with 7 rows and 3 columns.</strong> It is the table of the “Target trial protocol” sheet, so a manuscript can build its protocol table from the spec.</li>
+<li>
+<strong>The emulation column of the protocol table names each variable, outcome, exposure level and criterion by its <code>name</code> or arm label in the spec.</strong> A variable without a <code>name</code>, such as the treatment variable, keeps its column name. The Outcome cell is one line, and it no longer repeats the outcome column.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-2-4">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-2-4"></a></h3>
+<ul><li>
+<strong>The <code>$get_baselines()</code>, <code>$get_matching()</code> and <code>$get_estimates()</code> help pages, <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> and <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> state that the per-protocol analysis set omits the person-trials that deviate at time zero.</strong> The intention-to-treat analysis keeps them, and the time-zero censoring factor is fitted on them.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.3" id="swereg-2723">swereg 27.2.3<a class="anchor" aria-label="anchor" href="#swereg-2723"></a></h2>
 <div class="section level3">

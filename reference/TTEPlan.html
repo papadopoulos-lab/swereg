@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -429,6 +429,7 @@ inside <code>self$dir_results</code>, where <code>&lt;version&gt;</code> is <cod
 <li><p><a href="#method-TTEPlan-get_attrition"><code>TTEPlan$get_attrition()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-get_matching"><code>TTEPlan$get_matching()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-get_subgroups"><code>TTEPlan$get_subgroups()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_protocol_table"><code>TTEPlan$get_protocol_table()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-recompute_baselines"><code>TTEPlan$recompute_baselines()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-slurm_job"><code>TTEPlan$slurm_job()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-add_one_ett"><code>TTEPlan$add_one_ett()</code></a></p></li>
@@ -853,9 +854,10 @@ numbers calls <code>$get_estimates()</code>.</p><div class="section">
 <p>One row per emulated trial, estimand and weighting.</p>
 <p><code>estimand</code> and <code>weights</code> are two columns, not one. <code>estimand</code> reads
 <code>"pp"</code> or <code>"itt"</code>. <code>weights</code> reads <code>"truncated"</code> or <code>"untruncated"</code> and
-names the weighting choice inside per-protocol. Three combinations
-occur: per-protocol truncated, per-protocol untruncated, and
-intention-to-treat.</p>
+names the weight of the estimate. Three combinations occur:
+per-protocol truncated, per-protocol untruncated, and intention-to-treat
+truncated. The intention-to-treat estimates use the truncated baseline
+inverse-probability weight, <code>ipw_trunc</code>.</p>
 <p>Three rows per emulated trial is an UPPER BOUND, not a promise. A
 combination gets a row when the plan holds at least one of its rates,
 incidence rate ratio and risk-difference slots. A combination the plan
@@ -880,15 +882,19 @@ estimate, and <code>nnt_lo</code> and <code>nnt_hi</code> are the bounds <code>$
 stored. Both bounds are <code>NA</code> where <code>interval_status</code> reads
 <code>"spans null"</code>, because the reciprocal of an interval that contains zero
 is not an interval. A consumer MUST NOT invert <code>rd_lo</code> and <code>rd_hi</code>
-itself, and MUST NOT print <code>nnt</code> alone where the bounds are missing.</p><div class="section">
+itself, and MUST NOT print <code>nnt</code> alone where the bounds are missing.</p>
+<p><code>n_trials_int</code> and <code>n_trials_cmp</code> count the person-trials of each arm in
+the analysis file of that estimand. On an intention-to-treat row they are
+the intention-to-treat analysis set, which the CONSORT flow reads.</p><div class="section">
 <h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_estimates</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A data.table with 41 columns. The identifiers come first, then
-the weighted counts, then the incidence rate ratio, then the risk
-difference and the number needed to treat. <code>n_boot</code>, <code>seed</code> and
-<code>conf_level</code> record what produced the risk-difference interval.</p>
+<p>A data.table with 47 columns. The identifiers come first, then
+the weighted counts and the person-trials of each arm. The incidence rate
+ratio follows, then the risk difference and the number needed to treat.
+<code>n_boot</code>, <code>seed</code> and <code>conf_level</code> record what produced the
+risk-difference interval.</p>
 </div>
 
 </div>
@@ -933,7 +939,15 @@ present another panel under that name.</p>
 <code>smd_numeric</code> is the unrounded standardised mean difference.</p>
 <p><code>variable</code> repeats on every row of its block. The stored panel prints
 the name once and indents its levels under it, so <code>variable</code> is blank
-there. A renderer that wants that indent MUST blank the repeat itself.</p><div class="section">
+there. A renderer that wants that indent MUST blank the repeat itself.</p>
+<p><code>n_baseline</code> counts the person-trials of the per-protocol analysis set.
+A person-trial that deviates from its assigned strategy at time zero has
+no per-protocol follow-up, so <code>n_baseline</code> does not count it. The
+intention-to-treat analysis keeps it, and the time-zero censoring factor
+<code>ipcw_pp_time_zero</code> is fitted on it. The CONSORT diagram shows these
+person-trials in a censoring box above the per-protocol analysis set. It
+counts them as the intention-to-treat set of <code>$get_estimates()</code> minus
+<code>n_baseline</code>.</p><div class="section">
 <h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_baselines</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -994,7 +1008,12 @@ nothing.</p><div class="section">
 <code>$s1_generate_enrollments_and_ipw()</code> stores it that way.
 <code>n_intervention_total</code> and <code>n_comparator_total</code> count every person-trial
 that was eligible for an arm. <code>n_intervention_enrolled</code> and
-<code>n_comparator_enrolled</code> count the person-trials the draw took.</p>
+<code>n_comparator_enrolled</code> count the person-trials the draw took. The
+per-protocol <code>n_baseline</code> of <code>$get_baselines()</code> is smaller by two groups.
+The person-trials that deviate from the assigned strategy at time zero stay
+in the intention-to-treat analysis. A trial that enters at or after the
+administrative end of follow-up is in neither analysis. The CONSORT diagram
+shows each group as its own step.</p>
 <p>This is a SIXTH method rather than four more columns on
 <code>$get_attrition()</code>. The comparator-draw table has one row per enrollment and
 trial. The attrition table has one row per enrollment, trial and
@@ -1061,6 +1080,41 @@ subgroups, so treat the schema as production.</p><div class="section">
 
 </div>
 
+<p></p><hr><a id="method-TTEPlan-get_protocol_table"></a><div class="section">
+<h3 id="tteplan-get-protocol-table-"><code>TTEPlan$get_protocol_table()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-protocol-table-"></a></h3>
+<p>The target trial protocol table of one emulated trial.</p>
+<p>The table has seven rows, one per protocol component in the order of
+Dickerman et al., Table S1. Its three columns are
+<code>Protocol component</code>, <code>Target trial specification</code> and
+<code>Target trial emulation</code>.</p>
+<p>It is the table that the "Target trial protocol" sheet of
+<code>$export_tables()</code> and <code>$excel_spec_summary()</code> holds, built by the same
+two calls. The sheet adds a title row and a note row above it.</p>
+<p>The specification column holds the clinical fields of the spec and the
+prose under <code>target_trial</code>. The emulation column states the rules of the
+<code>implementation</code> blocks. In it, each variable, criterion and exposure
+level shows as its <code>name</code> or arm label in the spec. A variable that the
+spec does not name shows as its column name.</p>
+<p>The method reads <code>plan$spec</code> and <code>plan$ett</code>, and the rare-condition
+decision when the plan holds one. It reads no s2 or s3 result, so it
+works from s0 on.</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_protocol_table</span><span class="op">(</span>ett_id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>ett_id</code></dt>
+<dd><p>Character(1), the emulated trial the table documents.
+<code>NULL</code> takes the first ETT in the grid.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
+<p>A data.table with 7 rows and 3 character columns.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-TTEPlan-recompute_baselines"></a><div class="section">
 <h3 id="tteplan-recompute-baselines-"><code>TTEPlan$recompute_baselines()</code><a class="anchor" aria-label="anchor" href="#tteplan-recompute-baselines-"></a></h3>
 <p>Recompute baseline characteristic tables in-process.</p>
@@ -1095,14 +1149,14 @@ and s2 run stamps of the analysis file it reads.</p>
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span></span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
 <dd><p>Optional directory holding the <code>.qs2</code> files. Defaults
 to <code>self$output_dir</code>.</p></dd>
@@ -1119,7 +1173,7 @@ not return. Defaults to <code>FALSE</code>.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1137,7 +1191,7 @@ unique across the projects that share one queue.</p>
 <code>impute_fn</code> is absent from it. A function has no literal that a job script
 can carry. Set <code>impute_fn</code> in the project's own stage script, or call
 <code><a href="tte_stage.html">tte_stage()</a></code> directly.</p><div class="section">
-<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">slurm_job</span><span class="op">(</span></span>
 <span>  <span class="va">stage</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu">.slurm_job_workers</span><span class="op">(</span><span class="va">stage</span><span class="op">)</span>,</span>
@@ -1154,7 +1208,7 @@ can carry. Set <code>impute_fn</code> in the project's own stage script, or call
 <span>  work_root <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>stage</code></dt>
 <dd><p>One of <code>"s1"</code>, <code>"s2"</code> or <code>"s3"</code>.</p></dd>
 
@@ -1213,7 +1267,7 @@ node when the job runs.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
 <p>An object of class <code>slurm_it</code>, from <code><a href="https://papadopoulos-lab.github.io/batchit/reference/slurm_it.html" class="external-link">batchit::slurm_it()</a></code>.</p>
 </div>
 
@@ -1230,7 +1284,7 @@ countable. Write "one ETT" or "12 ETTs", never "the ETT approach".</p>
 (same comparator draw, same age group, same confounders). They differ only
 in outcome and/or follow-up duration. This avoids redundant
 re-enrollment for each outcome/follow-up combo.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">add_one_ett</span><span class="op">(</span></span>
 <span>  <span class="va">enrollment_id</span>,</span>
 <span>  <span class="va">outcome_var</span>,</span>
@@ -1246,7 +1300,7 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 <span>  argset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>enrollment_id</code></dt>
 <dd><p>Character, enrollment group identifier (e.g., "01").</p></dd>
 
@@ -1299,17 +1353,17 @@ person_id_var, outcome_description).</p></dd>
 <p></p><hr><a id="method-TTEPlan-enrollment_spec"></a><div class="section">
 <h3 id="tteplan-enrollment-spec-"><code>TTEPlan$enrollment_spec()</code><a class="anchor" aria-label="anchor" href="#tteplan-enrollment-spec-"></a></h3>
 <p>Extract enrollment spec for the i-th enrollment_id group.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">enrollment_spec</span><span class="op">(</span>i <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>i</code></dt>
 <dd><p>Integer index (1-based).</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
+<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
 <p>A list with:</p><dl><dt>design</dt>
 <dd><p>A <a href="TTEDesign.html">TTEDesign</a> object with column mappings. It carries
 the observation encoding and both arm tolerances that the spec
@@ -1359,10 +1413,10 @@ Each sheet holds the same cells as the sheet of that name that
 <code>$export_tables()</code> writes for the same plan state and the same
 <code>protocol_ett_id</code>. No sheet reads an s2 or s3 result, so the method runs
 straight after s0.</p><div class="section">
-<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
+<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span>, protocol_ett_id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
 <dd><p>Optional output path override. If <code>NULL</code> (default), writes
 to <code>self$spec_xlsx</code> (that is, <code>spec_&lt;version&gt;.xlsx</code> inside
@@ -1376,7 +1430,7 @@ the plan does not hold warns and falls back to the first ETT.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
 <p><code>invisible(self)</code></p>
 </div>
 
@@ -1391,10 +1445,10 @@ re-running the upstream pipeline.</p>
 comparator-draw parameters, etc.) are <em>not</em> applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="section">
-<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
+<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span>spec_path <span class="op">=</span> <span class="cn">NULL</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>spec_path</code></dt>
 <dd><p>Optional path to a <code>.yaml</code> study spec file. If <code>NULL</code>
 (default), uses <code>self$spec_path</code> (resolved from <code>dir_spec_cp</code> +
@@ -1406,7 +1460,7 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1415,10 +1469,10 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 <p></p><hr><a id="method-TTEPlan-initialize"></a><div class="section">
 <h3 id="tteplan-new-"><code>TTEPlan$new()</code><a class="anchor" aria-label="anchor" href="#tteplan-new-"></a></h3>
 <p>Create a new TTEPlan object.</p><div class="section">
-<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEPlan.html">TTEPlan</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">project_prefix</span>, <span class="va">skeleton_files</span>, <span class="va">global_max_isoyearweek</span>, ett <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>project_prefix</code></dt>
 <dd><p>Character, string used for file naming.</p></dd>
 
@@ -1441,10 +1495,10 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 <h3 id="tteplan-check-version-"><code>TTEPlan$check_version()</code><a class="anchor" aria-label="anchor" href="#tteplan-check-version-"></a></h3>
 <p>Check if this object's schema version matches the current
 class version. Errors if the object was saved with an older schema.</p><div class="section">
-<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p><code>invisible(TRUE)</code> if versions match. Errors otherwise with an
 actionable migration message.</p>
 </div>
@@ -1454,10 +1508,10 @@ actionable migration message.</p>
 <p></p><hr><a id="method-TTEPlan-get_sparse_decision"></a><div class="section">
 <h3 id="tteplan-get-sparse-decision-"><code>TTEPlan$get_sparse_decision()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-sparse-decision-"></a></h3>
 <p>Read the frozen decision of the spec's <code>sparse_rule</code>.</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_sparse_decision</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>A copy of the <code>sparse_decision</code> field, or NULL when the spec has
 no <code>sparse_rule</code> or s1 has not run.</p>
 </div>
@@ -1475,10 +1529,10 @@ that don't yet have a <code>dir_tteplan_cp</code>).</p>
 <a href="CandidatePath.html">CandidatePath</a> on the plan (and on its embedded <a href="RegistryStudy.html">RegistryStudy</a>) so
 the on-disk file never carries the saving host's resolved paths.
 Reload with <code><a href="tteplan_load.html">tteplan_load()</a></code>.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span>dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>dir</code></dt>
 <dd><p>Optional destination directory override. If <code>NULL</code> (default),
 writes to <code>self$tteplan</code>.</p></dd>
@@ -1486,7 +1540,7 @@ writes to <code>self$tteplan</code>.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
 <p>Invisibly returns the file path.</p>
 </div>
 
@@ -1495,10 +1549,10 @@ writes to <code>self$tteplan</code>.</p></dd>
 <p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="tteplan-clone-"><code>TTEPlan$clone()</code><a class="anchor" aria-label="anchor" href="#tteplan-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
