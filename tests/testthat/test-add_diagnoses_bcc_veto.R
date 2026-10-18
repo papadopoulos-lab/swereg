@@ -39,13 +39,13 @@ test_that("add_diagnoses: BCC veto masks BCC and keeps other cancer", {
       "2020-03-02", "2020-03-02", "2020-03-02", "2020-03-02",
       "2020-03-02", "2020-03-02", "2020-03-02", "2020-03-02", "2020-03-04"
     )),
-    hdia = c("C449B", "I109", "C509", "C443", "C443S", "C449B", "C440E", "C449E", "C509"),
+    hdia = c("C449B", "C509", "C509", "C443", "C443S", "C449B", "C440E", "C449E", "C509"),
     dia1 = c(NA, "C445E", NA, NA, NA, "C509", NA, NA, NA)
   )
   swereg::add_diagnoses(skel, dx, id_name = "lopnr", codes = .bcc_codes)
 
   expect_false(.bcc_flag(skel, 1L)) # BCC in hdia
-  expect_false(.bcc_flag(skel, 2L)) # BCC in dia1 only: every column is scanned
+  expect_false(.bcc_flag(skel, 2L)) # BCC in dia1 vetoes the C509 in hdia: dia1 is scanned
   expect_true(.bcc_flag(skel, 3L)) # breast cancer
   expect_true(.bcc_flag(skel, 4L)) # C44 with no fifth character counts
   expect_true(.bcc_flag(skel, 5L)) # C44 with a letter outside B to E counts
@@ -59,14 +59,14 @@ test_that("add_cods: BCC veto applies to underlying and multiple causes", {
   cods <- data.table::data.table(
     lopnr = 1:3,
     dodsdat = as.Date("2020-03-02"),
-    ulorsak = c("C449B", "C509", "I219"),
+    ulorsak = c("C449B", "C509", "C509"),
     morsak1 = c(NA, NA, "C443D")
   )
   swereg::add_cods(skel, cods, id_name = "lopnr", codes = .bcc_codes)
 
   expect_false(.bcc_flag(skel, 1L))
   expect_true(.bcc_flag(skel, 2L))
-  expect_false(.bcc_flag(skel, 3L))
+  expect_false(.bcc_flag(skel, 3L)) # BCC in morsak1 vetoes the C509 in ulorsak
 })
 
 test_that("add_cancer_without_morphology: a B to E veto never matches topography", {
