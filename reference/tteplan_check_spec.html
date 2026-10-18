@@ -11,7 +11,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,7 +94,7 @@ character columns:</p><dl><dt><code>path</code></dt>
 the path <code>$</code>.</p></dd>
 
 <dt><code>kind</code></dt>
-<dd><p>The problem kind. The Details section lists the seven
+<dd><p>The problem kind. The Details section lists the eight
 kinds.</p></dd>
 
 <dt><code>message</code></dt>
@@ -105,7 +105,7 @@ kinds.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The checker reports seven kinds of problem:</p><dl><dt><code>unreadable</code></dt>
+    <p>The checker reports eight kinds of problem:</p><dl><dt><code>unreadable</code></dt>
 <dd><p>The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
 parsed specification to check.</p></dd>
@@ -134,6 +134,13 @@ outcome. That window reads the weeks after time zero, so the criterion
 selects on the follow-up outcome. The checker writes one row for each
 criterion and outcome. The checker reads the global
 <code>exclusion_criteria</code> and each enrollment's <code>additional_exclusion</code>.</p></dd>
+
+<dt><code>enrollment_family</code></dt>
+<dd><p>An enrollment's <code>family</code> is not one non-empty
+character string. Or some enrollments set <code>family</code> and others do not.
+When one enrollment sets <code>family</code>, every enrollment MUST set it. The
+checker writes one row for each bad value, and one row that names the
+enrollments without a <code>family</code>.</p></dd>
 
 <dt><code>read_error</code></dt>
 <dd><p><code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> stops after its key gate. The

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,16 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.5" id="swereg-2725">swereg 27.2.5<a class="anchor" aria-label="anchor" href="#swereg-2725"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-2-5">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-5"></a></h3>
+<ul><li>
+<strong><code>$export_tables()</code> writes a “Summary” sheet after Provenance, with one row per ETT.</strong> It shows the events and the incidence rate ratio of each estimand, the per-protocol share of the intention-to-treat person-years, and the per-protocol risk difference. Each per-protocol value uses the truncated weights, and each estimate matches the “ITT results” or “PP results” sheet. The header is row 1 and carries an autofilter.</li>
+<li>
+<strong>An enrollment MAY set <code>family</code>, a display label that the Summary sheet shows in a <code>Family</code> column.</strong> It MUST be one non-empty string, and when one enrollment sets it, every enrollment MUST set it. <code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code> reports a bad <code>family</code> as the new kind <code>enrollment_family</code>, and <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops on it. <code>$reload_spec()</code> applies a new <code>family</code> as a label change.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.4" id="swereg-2724">swereg 27.2.4<a class="anchor" aria-label="anchor" href="#swereg-2724"></a></h2>
 <div class="section level3">

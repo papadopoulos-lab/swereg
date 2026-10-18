@@ -433,6 +433,22 @@ If the cached baseline tables were produced by an older version of
 refreshed in-process via `$recompute_baselines()` using the analysis
 files in `output_dir`.
 
+The second sheet, `Summary`, holds one row per ETT. It shows these
+values from the `ITT results` and `PP results` sheets:
+
+- the persons with an event in each arm, for each estimand;
+
+- the incidence rate ratio and its interval, for each estimand;
+
+- the per-protocol person-years of each arm, as a percentage of the
+  intention-to-treat person-years;
+
+- the per-protocol risk difference per 10,000 and its interval.
+
+Each per-protocol value uses the truncated weights. The header is row 1
+and carries an autofilter. A `Family` column shows when the spec sets an
+enrollment `family`.
+
 The workbook carries no forest plot. The `PP results` and `ITT results`
 sheets already report every emulated trial with counts, rates, ratios,
 risk differences, intervals and numbers needed to treat. A forest image

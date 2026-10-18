@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -467,6 +467,15 @@ and <code>[FILL IN]</code> placeholders for PI completion.</p><div class="sectio
 <code>swereg</code> (when Table 1 was a <code>tableone</code> object), they are automatically
 refreshed in-process via <code>$recompute_baselines()</code> using the analysis
 files in <code>output_dir</code>.</p>
+<p>The second sheet, <code>Summary</code>, holds one row per ETT. It shows these values
+from the <code>ITT results</code> and <code>PP results</code> sheets:</p><ul><li><p>the persons with an event in each arm, for each estimand;</p></li>
+<li><p>the incidence rate ratio and its interval, for each estimand;</p></li>
+<li><p>the per-protocol person-years of each arm, as a percentage of the
+intention-to-treat person-years;</p></li>
+<li><p>the per-protocol risk difference per 10,000 and its interval.</p></li>
+</ul><p>Each per-protocol value uses the truncated weights. The header is row 1
+and carries an autofilter. A <code>Family</code> column shows when the spec sets an
+enrollment <code>family</code>.</p>
 <p>The workbook carries no forest plot. The <code>PP results</code> and <code>ITT results</code>
 sheets already report every emulated trial with counts, rates, ratios,
 risk differences, intervals and numbers needed to treat. A forest image

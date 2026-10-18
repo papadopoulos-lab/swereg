@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the seven kinds.
+  The problem kind. The Details section lists the eight kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports seven kinds of problem:
+The checker reports eight kinds of problem:
 
 - `unreadable`:
 
@@ -76,6 +76,14 @@ The checker reports seven kinds of problem:
   the follow-up outcome. The checker writes one row for each criterion
   and outcome. The checker reads the global `exclusion_criteria` and
   each enrollment's `additional_exclusion`.
+
+- `enrollment_family`:
+
+  An enrollment's `family` is not one non-empty character string. Or
+  some enrollments set `family` and others do not. When one enrollment
+  sets `family`, every enrollment MUST set it. The checker writes one
+  row for each bad value, and one row that names the enrollments without
+  a `family`.
 
 - `read_error`:
 

@@ -73,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       123 |
+| consumed |       124 |
 | legacy   |        15 |
 | metadata |        10 |
 
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 148 key paths across 42 mapping contexts.
+The schema declares 149 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -158,6 +158,7 @@ knitr::kable(
 | `$/enrollments[]`                                             | `additional_exclusion`                     | consumed |
 | `$/enrollments[]`                                             | `additional_inclusion`                     | consumed |
 | `$/enrollments[]`                                             | `comparator_tolerance_weeks`               | consumed |
+| `$/enrollments[]`                                             | `family`                                   | consumed |
 | `$/enrollments[]`                                             | `id`                                       | consumed |
 | `$/enrollments[]`                                             | `intervention_tolerance_weeks`             | consumed |
 | `$/enrollments[]`                                             | `name`                                     | consumed |
@@ -374,6 +375,35 @@ first.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 refuses the second entry.
 
+## The enrollment family
+
+An enrollment MAY set `family`, a short label that groups enrollments in
+the results workbook.
+
+``` yaml
+enrollments:
+  - id: "01"
+    name: "Statin initiation vs none"
+    family: "Main"
+  - id: "02"
+    name: "Statin initiation vs none, age 54-60"
+    family: "Sens: age 54-60"
+```
+
+The label changes no cohort, model or estimate. `$export_tables()` shows
+it in the `Family` column of the Summary sheet. `$reload_spec()` applies
+a new `family` as a label change, so the cached results stay valid.
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops, and
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reports a row of kind `enrollment_family`, in two cases:
+
+- A `family` is not one non-empty character string. Quote a value that
+  YAML reads as a number, such as `family: "2008"`.
+- Some enrollments set `family`, and others do not. When one enrollment
+  sets it, every enrollment MUST set it.
+
 ## What you see when a key is refused
 
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
@@ -451,7 +481,7 @@ file name.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 checks neither.
 [`?tteplan_check_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
-lists the six problem kinds.
+lists the eight problem kinds.
 
 ## See also
 

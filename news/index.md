@@ -1,5 +1,25 @@
 # Changelog
 
+## swereg 27.2.5
+
+### New features
+
+- **`$export_tables()` writes a “Summary” sheet after Provenance, with
+  one row per ETT.** It shows the events and the incidence rate ratio of
+  each estimand, the per-protocol share of the intention-to-treat
+  person-years, and the per-protocol risk difference. Each per-protocol
+  value uses the truncated weights, and each estimate matches the “ITT
+  results” or “PP results” sheet. The header is row 1 and carries an
+  autofilter.
+- **An enrollment MAY set `family`, a display label that the Summary
+  sheet shows in a `Family` column.** It MUST be one non-empty string,
+  and when one enrollment sets it, every enrollment MUST set it.
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  reports a bad `family` as the new kind `enrollment_family`, and
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  stops on it. `$reload_spec()` applies a new `family` as a label
+  change.
+
 ## swereg 27.2.4
 
 ### Bug fixes

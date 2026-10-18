@@ -57,6 +57,9 @@ Validation checks:
 - Each enrollment must have `id`, `treatment$implementation$variable`
   and `treatment$implementation$seed`
 
+- An enrollment MAY set `family`, one non-empty character string. When
+  one enrollment sets it, every enrollment MUST set it
+
 - Computed confounders must have `implementation$source_variable`
 
 Warns about open questions with `status: "open"`.
