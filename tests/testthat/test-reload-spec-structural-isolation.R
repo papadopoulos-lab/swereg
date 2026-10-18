@@ -403,6 +403,7 @@ rsi_full_spec <- function(variant = "sentinel") {
     enrollments = list(list(
       id = "01",
       name = "Enrollment 01",
+      family = "Main",
       observed_var = obs,
       intervention_tolerance_weeks = 0L,
       comparator_tolerance_weeks = 0L,
@@ -584,6 +585,7 @@ RSI_LEAF_SIDE <- c(
   # implementation, the observation encoding and both tolerances each decide
   # who is enrolled and when swereg censors them.
   "$/enrollments[]/name" = "cosmetic",
+  "$/enrollments[]/family" = "cosmetic",
   "$/enrollments[]/treatment/description" = "cosmetic",
   "$/enrollments[]/treatment/arms/comparator" = "cosmetic",
   "$/enrollments[]/treatment/arms/intervention" = "cosmetic",

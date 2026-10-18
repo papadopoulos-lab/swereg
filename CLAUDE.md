@@ -392,7 +392,7 @@ Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`
 - **inclusion_criteria.isoyears**: `[start, end]` — global ISO year range filter
 - **exclusion_criteria**: list with `name` and an `implementation` block. `implementation.source_variable` names one skeleton column or a list of them. `implementation.window` is `"lifetime_before_baseline"`, `"lifetime_before_and_after_baseline"`, a number of weeks, or `"N year(s)"`. A washout declares `implementation.type`, `no_prior_value` or `only_prior_value`. `tteplan_read_spec()` refuses `lifetime_before_and_after_baseline` on an outcome variable, because that window reads the weeks after time zero
-- **enrollments**: each has `id`, `observed_var`, `intervention_tolerance_weeks`, `comparator_tolerance_weeks`, `treatment`, `additional_inclusion` (e.g. age range) and `additional_exclusion`. `treatment.implementation` holds `variable`, `intervention_value`, `comparator_value`, `comparator_to_intervention_ratio` and `seed`
+- **enrollments**: each MAY set `family`, a display label for the Summary sheet. When one enrollment sets it, every enrollment MUST set it. Each has `id`, `observed_var`, `intervention_tolerance_weeks`, `comparator_tolerance_weeks`, `treatment`, `additional_inclusion` (e.g. age range) and `additional_exclusion`. `treatment.implementation` holds `variable`, `intervention_value`, `comparator_value`, `comparator_to_intervention_ratio` and `seed`
 
 ### Key TTE functions, one per file
 

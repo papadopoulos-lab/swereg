@@ -359,7 +359,9 @@
 #' Enrollments match by `id`. An enrollment that only one spec holds is
 #' structural, because a cached run covers the enrollments the old spec named.
 #'
-#' The name, the treatment description and both arm labels are labels.
+#' The name, the family, the treatment description and both arm labels are
+#' labels. A `family` that one spec sets and the other omits is a label
+#' change too.
 #'
 #' Four keys are definitions: the two additional criteria containers, the
 #' treatment implementation, the observation encoding and both arm tolerances.
@@ -439,6 +441,13 @@
     if (!identical(o_old$name, o_new$name)) {
       pc(sprintf("enrollments[%s]$name", id), o_old$name, o_new$name)
     }
+    if (!identical(o_old[["family"]], o_new[["family"]])) {
+      pc(
+        sprintf("enrollments[%s]$family", id),
+        o_old[["family"]],
+        o_new[["family"]]
+      )
+    }
     if (!identical(o_old$treatment$description, o_new$treatment$description)) {
       pc(
         sprintf("enrollments[%s]$treatment$description", id),
@@ -474,6 +483,7 @@
       c(
         "id",
         "name",
+        "family",
         "observed_var",
         "intervention_tolerance_weeks",
         "comparator_tolerance_weeks",
@@ -651,6 +661,9 @@
     if (!identical(e_old$name, e_new$name)) {
       e_old$name <- e_new$name
     }
+    if (!identical(e_old[["family"]], e_new[["family"]])) {
+      e_old[["family"]] <- e_new[["family"]]
+    }
     if (!identical(e_old$treatment$description, e_new$treatment$description)) {
       e_old$treatment$description <- e_new$treatment$description
     }
@@ -681,7 +694,7 @@
 #' 4. `confounders[<var>]$name`, `$categories`, `$codes` and `$rationale`
 #' 5. `subgroups[<var>]$name`
 #' 6. `standing_methods`, `target_trial` and `open_questions`, each whole
-#' 7. `enrollments[<id>]$name`
+#' 7. `enrollments[<id>]$name` and `$family`
 #' 8. `enrollments[<id>]$treatment$description`
 #' 9. `enrollments[<id>]$treatment$arms$intervention` and `$comparator`
 #'

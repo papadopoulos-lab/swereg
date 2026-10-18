@@ -44,6 +44,8 @@ the follow-up outcome. The rule covers the global
 \item Each outcome must have \code{implementation$variable}
 \item Each enrollment must have \code{id}, \code{treatment$implementation$variable}
 and \code{treatment$implementation$seed}
+\item An enrollment MAY set \code{family}, one non-empty character string.
+When one enrollment sets it, every enrollment MUST set it
 \item Computed confounders must have \code{implementation$source_variable}
 }
 

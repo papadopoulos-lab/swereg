@@ -207,6 +207,33 @@ An enrollment takes at most one `age_range`. Every `age_range` writes the one
 column `eligible_age`, so a second entry would replace the first.
 `tteplan_read_spec()` refuses the second entry.
 
+# The enrollment family
+
+An enrollment MAY set `family`, a short label that groups enrollments in the
+results workbook.
+
+```yaml
+enrollments:
+  - id: "01"
+    name: "Statin initiation vs none"
+    family: "Main"
+  - id: "02"
+    name: "Statin initiation vs none, age 54-60"
+    family: "Sens: age 54-60"
+```
+
+The label changes no cohort, model or estimate. `$export_tables()` shows it in
+the `Family` column of the Summary sheet. `$reload_spec()` applies a new
+`family` as a label change, so the cached results stay valid.
+
+`tteplan_read_spec()` stops, and `tteplan_check_spec()` reports a row of kind
+`enrollment_family`, in two cases:
+
+- A `family` is not one non-empty character string. Quote a value that YAML
+  reads as a number, such as `family: "2008"`.
+- Some enrollments set `family`, and others do not. When one enrollment sets
+  it, every enrollment MUST set it.
+
 # What you see when a key is refused
 
 `tteplan_read_spec()` reports every refused key in one message, and reads no
@@ -266,7 +293,7 @@ problems and no specification. No path into a specification skips the gate.
 one row per problem. It reports the keys the gate refuses, and it continues
 past them. It also reports a repeated enrollment `id`, and a
 `study$implementation$version` that differs from the `spec_vNNN` in the file
-name. `tteplan_read_spec()` checks neither. `?tteplan_check_spec` lists the six
+name. `tteplan_read_spec()` checks neither. `?tteplan_check_spec` lists the eight
 problem kinds.
 
 # See also

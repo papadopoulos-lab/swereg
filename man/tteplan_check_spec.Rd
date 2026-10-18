@@ -16,7 +16,7 @@ character columns:
 \item{\code{path}}{The normalised key path of the problem, for example
 \verb{$/study/implementation/version}. A problem with the whole file has
 the path \code{$}.}
-\item{\code{kind}}{The problem kind. The Details section lists the seven
+\item{\code{kind}}{The problem kind. The Details section lists the eight
 kinds.}
 \item{\code{message}}{What is wrong, and the repair where swereg knows it.}
 }
@@ -28,7 +28,7 @@ It never stops on a bad specification, so a caller can check many files in
 one pass.
 }
 \details{
-The checker reports seven kinds of problem:
+The checker reports eight kinds of problem:
 \describe{
 \item{\code{unreadable}}{The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
@@ -48,6 +48,11 @@ outcome. That window reads the weeks after time zero, so the criterion
 selects on the follow-up outcome. The checker writes one row for each
 criterion and outcome. The checker reads the global
 \code{exclusion_criteria} and each enrollment's \code{additional_exclusion}.}
+\item{\code{enrollment_family}}{An enrollment's \code{family} is not one non-empty
+character string. Or some enrollments set \code{family} and others do not.
+When one enrollment sets \code{family}, every enrollment MUST set it. The
+checker writes one row for each bad value, and one row that names the
+enrollments without a \code{family}.}
 \item{\code{read_error}}{\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops after its key gate. The
 message is the message of that error.}
 }

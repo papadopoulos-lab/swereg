@@ -42,6 +42,8 @@
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id`, `treatment$implementation$variable`
 #'     and `treatment$implementation$seed`
+#'   \item An enrollment MAY set `family`, one non-empty character string.
+#'     When one enrollment sets it, every enrollment MUST set it
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -562,11 +564,15 @@ tteplan_read_spec <- function(spec_path) {
   spec <- .tte_check_sparse_rule(spec)
 
   # An exclusion on an outcome variable that reads the weeks after time zero
-  # selects on the follow-up outcome. This check runs last, and
-  # `tteplan_check_spec()` relies on that order.
+  # selects on the follow-up outcome. This check and the family check below
+  # run last, in this order, and `tteplan_check_spec()` relies on that order.
   outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
   if (length(outcome_selecting) > 0L) {
     stop(.tte_outcome_selecting_message(outcome_selecting), call. = FALSE)
+  }
+  family_found <- .tte_enrollment_family_problems(spec)
+  if (length(family_found) > 0L) {
+    stop(.tte_enrollment_family_message(family_found), call. = FALSE)
   }
 
   # Warn about open questions

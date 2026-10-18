@@ -141,6 +141,14 @@
   toc_names <- c(toc_names, "Provenance")
   toc_desc <- c(toc_desc, "Pipeline metadata and table of contents")
 
+  # --- Summary sheet ---
+  .write_summary_sheet(wb, plan)
+  toc_names <- c(toc_names, "Summary")
+  toc_desc <- c(
+    toc_desc,
+    "One row per ETT - ITT and PP (truncated weights) estimates"
+  )
+
   # --- Study Specification sheet ---
   .write_spec_summary(wb, plan)
   toc_names <- c(toc_names, "Study Specification")

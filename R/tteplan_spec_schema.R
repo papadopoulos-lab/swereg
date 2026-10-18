@@ -144,6 +144,7 @@
       "additional_exclusion",
       "additional_inclusion",
       "comparator_tolerance_weeks",
+      "family",
       "id",
       "intervention_tolerance_weeks",
       "name",

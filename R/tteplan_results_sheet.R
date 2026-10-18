@@ -144,6 +144,51 @@
 }
 
 
+#' Pick the accessor row that carries the risk difference of one ETT.
+#'
+#' The results sheets and the Summary sheet both call this, so they agree on
+#' which row a risk difference comes from.
+#'
+#' @param est A `$get_estimates()` table.
+#' @param hit Integer vector, the rows of `est` for one ETT and one estimand
+#'   and weighting combination.
+#' @param rd_slot Character(1) or NULL, the risk-difference slot. `NULL`
+#'   means the caller asked for no risk difference.
+#' @return A one-row table, or `NULL` when there is no stored risk difference.
+#' @noRd
+.results_rd_row <- function(est, hit, rd_slot) {
+  if (
+    is.null(rd_slot) ||
+      length(hit) == 0L ||
+      !isTRUE(est$rd_stored[hit[1L]])
+  ) {
+    return(NULL)
+  }
+  return(est[hit[1L]])
+}
+
+
+#' Decide whether a results sheet carries the risk-difference columns.
+#'
+#' The sheet carries them when at least one of its rows has a finite risk
+#' difference. The Summary sheet applies the same rule, so it shows a risk
+#' difference only when the results sheet shows one.
+#'
+#' @param rd_cells A list with one element per sheet row, each the output of
+#'   `.rd_sheet_cells()`.
+#' @return Logical(1).
+#' @noRd
+.results_has_rd <- function(rd_cells) {
+  return(any(vapply(
+    rd_cells,
+    function(cells) {
+      return(is.finite(cells[[3]]))
+    },
+    logical(1)
+  )))
+}
+
+
 #' Resolve the confidence level the risk-difference interval header states.
 #'
 #' One header covers the whole column, so every interval under it must have
@@ -274,15 +319,7 @@
         est$estimand == combo[["estimand"]] &
         est$weights == combo[["weights"]]
     )
-    rd_row <- if (
-      is.null(rd_slot) ||
-        length(hit) == 0L ||
-        !isTRUE(est$rd_stored[hit[1L]])
-    ) {
-      NULL
-    } else {
-      est[hit[1L]]
-    }
+    rd_row <- .results_rd_row(est, hit, rd_slot)
     rd_cells[[length(rd_cells) + 1L]] <- .rd_sheet_cells(rd_row)
     if (!is.null(rd_row)) {
       rd_levels <- c(rd_levels, as.numeric(rd_row[["conf_level"]])[1])
@@ -326,11 +363,7 @@
   # The four risk-difference columns are composed only when something populated
   # them. A header over a block of empty cells claims a quantity that was never
   # computed, and computing it costs minutes per ETT, so most exports have none.
-  has_rd <- any(vapply(
-    rd_cells,
-    function(cells) is.finite(cells[[3]]),
-    logical(1)
-  ))
+  has_rd <- .results_has_rd(rd_cells)
   if (has_rd) {
     rd_headers <- c(
       rd_names,

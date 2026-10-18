@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the seven
+#'     \item{`kind`}{The problem kind. The Details section lists the eight
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports seven kinds of problem:
+#' The checker reports eight kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -42,6 +42,11 @@
 #'     selects on the follow-up outcome. The checker writes one row for each
 #'     criterion and outcome. The checker reads the global
 #'     `exclusion_criteria` and each enrollment's `additional_exclusion`.}
+#'   \item{`enrollment_family`}{An enrollment's `family` is not one non-empty
+#'     character string. Or some enrollments set `family` and others do not.
+#'     When one enrollment sets `family`, every enrollment MUST set it. The
+#'     checker writes one row for each bad value, and one row that names the
+#'     enrollments without a `family`.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
 #'     message is the message of that error.}
 #' }
@@ -99,6 +104,8 @@ tteplan_check_spec <- function(spec_path) {
   rows <- c(rows, .tte_check_spec_version(spec, spec_path))
   outcome_rows <- .tte_check_spec_outcome_exclusions(spec)
   rows <- c(rows, outcome_rows)
+  family_found <- .tte_enrollment_family_problems(spec)
+  rows <- c(rows, .tte_check_spec_family(family_found))
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -110,8 +117,9 @@ tteplan_check_spec <- function(spec_path) {
       },
       error = function(e) conditionMessage(e)
     )
-    # `tteplan_read_spec()` stops on the outcome-selecting exclusions last.
-    # The rows above already report each of them.
+    # `tteplan_read_spec()` stops on the outcome-selecting exclusions, then
+    # on the enrollment families. Those are its last two stops, and the rows
+    # above already report each finding.
     if (
       length(outcome_rows) > 0L &&
         identical(
@@ -120,6 +128,12 @@ tteplan_check_spec <- function(spec_path) {
             spec
           ))
         )
+    ) {
+      read_error <- NULL
+    }
+    if (
+      length(family_found) > 0L &&
+        identical(read_error, .tte_enrollment_family_message(family_found))
     ) {
       read_error <- NULL
     }
@@ -555,4 +569,125 @@ tteplan_check_spec <- function(spec_path) {
     vapply(found, `[[`, character(1), "message"),
     collapse = "\n"
   ))
+}
+
+
+#' Every problem with the `family` key of the enrollments
+#'
+#' `family` is a display label that groups enrollments. It MUST be one
+#' non-empty character string. When one enrollment sets it, every enrollment
+#' MUST set it. A key that is present with a null value counts as set, and
+#' its value is bad.
+#'
+#' The finder reads the parsed specification before or after
+#' `tteplan_read_spec()` normalises it, and never stops on a bad shape.
+#'
+#' @param spec The parsed specification.
+#' @return A list with one element per finding. Each element holds `path`,
+#'   the normalised key path, and `message`.
+#' @noRd
+.tte_enrollment_family_problems <- function(spec) {
+  enrollments <- .tte_check_spec_get(spec, "enrollments")
+  if (!.tte_spec_is_sequence(enrollments) || length(enrollments) == 0L) {
+    return(list())
+  }
+  label <- vapply(
+    seq_along(enrollments),
+    function(i) {
+      return(paste0(
+        "enrollments[", i, "] '",
+        .tte_spec_scalar_at(enrollments[[i]], "id"), "'"
+      ))
+    },
+    character(1)
+  )
+  has_family <- vapply(
+    enrollments,
+    function(e) {
+      return(is.list(e) && "family" %in% names(e))
+    },
+    logical(1)
+  )
+  found <- list()
+  for (i in which(has_family)) {
+    value <- enrollments[[i]][["family"]]
+    ok <- is.character(value) &&
+      length(value) == 1L &&
+      !is.na(value) &&
+      nzchar(trimws(value))
+    if (!ok) {
+      found <- c(found, list(list(
+        path = "$/enrollments[]/family",
+        message = paste0(
+          label[i],
+          " has family ",
+          .tte_family_show(value),
+          ". family MUST be one non-empty character string. Quote a ",
+          "value that YAML reads as a number or a logical."
+        )
+      )))
+    }
+  }
+  if (any(has_family) && !all(has_family)) {
+    found <- c(found, list(list(
+      path = "$/enrollments[]/family",
+      message = paste0(
+        paste(label[!has_family], collapse = ", "),
+        " set no family, and ",
+        sum(has_family),
+        " of ",
+        length(has_family),
+        " enrollments set one. When one enrollment sets family, every ",
+        "enrollment MUST set it."
+      )
+    )))
+  }
+  return(found)
+}
+
+
+#' Show a bad `family` value in a message
+#'
+#' @param value A parsed YAML value.
+#' @return A character scalar.
+#' @noRd
+.tte_family_show <- function(value) {
+  if (is.null(value)) {
+    return("null")
+  }
+  if (is.atomic(value) && length(value) == 1L && !is.na(value)) {
+    if (is.character(value)) {
+      return(paste0("'", value, "'"))
+    }
+    return(paste0(as.character(value), " (", class(value)[1], ")"))
+  }
+  return(paste0("a ", class(value)[1], " of length ", length(value)))
+}
+
+
+#' The error message of the enrollment family findings
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param found A list from `.tte_enrollment_family_problems()`.
+#' @return A character scalar.
+#' @noRd
+.tte_enrollment_family_message <- function(found) {
+  return(paste(
+    vapply(found, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
+}
+
+
+#' Rows for every problem with the `family` key of the enrollments
+#'
+#' @param found A list from `.tte_enrollment_family_problems()`.
+#' @return A list of rows of kind `enrollment_family`.
+#' @noRd
+.tte_check_spec_family <- function(found) {
+  return(lapply(found, function(f) {
+    return(.tte_check_spec_row(f$path, "enrollment_family", f$message))
+  }))
 }
