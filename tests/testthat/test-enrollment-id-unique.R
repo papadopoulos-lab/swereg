@@ -227,6 +227,16 @@ test_that("read_spec stops on a whitespace id, and check_spec reports one row", 
 })
 
 
+test_that("read_spec stops on an id that is only a non-breaking space", {
+  # Default trimws() strips ASCII whitespace only, so U+00A0 needs the
+  # Unicode classes.
+  path <- eu_spec_path_raw(c('"01"', '"02"', '"\\u00A0"'))
+  expect_error(tteplan_read_spec(path), "enrollments[3] has id", fixed = TRUE)
+  r <- tteplan_check_spec(path)
+  expect_identical(r$kind, "invalid_enrollment_id")
+})
+
+
 test_that("a missing id gives one id row and no read_error row", {
   path <- eu_spec_path_raw(c('"01"', "~", '"03"'))
   msg <- paste0(

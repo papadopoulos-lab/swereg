@@ -330,7 +330,7 @@ tteplan_check_spec <- function(spec_path) {
   if (!(is.character(x) || is.numeric(x)) || length(x) != 1L || is.na(x)) {
     return(FALSE)
   }
-  if (is.character(x) && !nzchar(trimws(x))) {
+  if (is.character(x) && !nzchar(trimws(x, whitespace = "[\\h\\v]"))) {
     return(FALSE)
   }
   return(TRUE)
