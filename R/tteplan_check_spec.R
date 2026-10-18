@@ -100,7 +100,8 @@ tteplan_check_spec <- function(spec_path) {
 
   rows <- .tte_check_spec_keys(spec)
   key_gate_passes <- length(rows) == 0L
-  rows <- c(rows, .tte_check_spec_enrollment_ids(spec))
+  id_rows <- .tte_check_spec_enrollment_ids(spec)
+  rows <- c(rows, id_rows)
   rows <- c(rows, .tte_check_spec_version(spec, spec_path))
   outcome_rows <- .tte_check_spec_outcome_exclusions(spec)
   rows <- c(rows, outcome_rows)
@@ -118,8 +119,9 @@ tteplan_check_spec <- function(spec_path) {
       error = function(e) conditionMessage(e)
     )
     # `tteplan_read_spec()` stops on the outcome-selecting exclusions, then
-    # on the enrollment families. Those are its last two stops, and the rows
-    # above already report each finding.
+    # on the enrollment families, then on the repeated enrollment ids. Those
+    # are its last three stops, and the rows above already report each
+    # finding.
     if (
       length(outcome_rows) > 0L &&
         identical(
@@ -134,6 +136,12 @@ tteplan_check_spec <- function(spec_path) {
     if (
       length(family_found) > 0L &&
         identical(read_error, .tte_enrollment_family_message(family_found))
+    ) {
+      read_error <- NULL
+    }
+    if (
+      length(id_rows) > 0L &&
+        identical(read_error, .tte_enrollment_id_message(id_rows))
     ) {
       read_error <- NULL
     }
@@ -334,6 +342,22 @@ tteplan_check_spec <- function(spec_path) {
     )
   }
   return(rows)
+}
+
+
+#' The error message of the repeated enrollment ids
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param rows A list of rows from `.tte_check_spec_enrollment_ids()`.
+#' @return A character scalar.
+#' @noRd
+.tte_enrollment_id_message <- function(rows) {
+  return(paste(
+    vapply(rows, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
 }
 
 

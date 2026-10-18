@@ -1,3 +1,13 @@
+# swereg 27.2.6
+
+## Bug fixes
+
+* **`tteplan_read_spec()` stops on an enrollment `id` that two or more enrollments carry (#58).** The message names each repeated `id` and the positions of its enrollments. `tteplan_check_spec()` reported the repeat, but `tteplan_read_spec()` accepted it, and `$reload_spec()` and the Summary sheet then read only the first enrollment with that `id`.
+
+## Documentation
+
+* **The spec example of `vignette("tte-workflow")` sets `family`, and the text points to `vignette("tte-spec-schema")` for its rules.**
+
 # swereg 27.2.5
 
 ## New features

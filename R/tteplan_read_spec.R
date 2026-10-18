@@ -42,6 +42,8 @@
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id`, `treatment$implementation$variable`
 #'     and `treatment$implementation$seed`
+#'   \item Each enrollment MUST have its own `id`. The error names each
+#'     repeated id and the positions of the enrollments that carry it
 #'   \item An enrollment MAY set `family`, one non-empty character string.
 #'     When one enrollment sets it, every enrollment MUST set it
 #'   \item Computed confounders must have `implementation$source_variable`
@@ -564,8 +566,9 @@ tteplan_read_spec <- function(spec_path) {
   spec <- .tte_check_sparse_rule(spec)
 
   # An exclusion on an outcome variable that reads the weeks after time zero
-  # selects on the follow-up outcome. This check and the family check below
-  # run last, in this order, and `tteplan_check_spec()` relies on that order.
+  # selects on the follow-up outcome. This check, the family check and the
+  # enrollment id check below run last, in this order, and
+  # `tteplan_check_spec()` relies on that order.
   outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
   if (length(outcome_selecting) > 0L) {
     stop(.tte_outcome_selecting_message(outcome_selecting), call. = FALSE)
@@ -573,6 +576,12 @@ tteplan_read_spec <- function(spec_path) {
   family_found <- .tte_enrollment_family_problems(spec)
   if (length(family_found) > 0L) {
     stop(.tte_enrollment_family_message(family_found), call. = FALSE)
+  }
+  # `$reload_spec()` and the Summary sheet look an enrollment up by its id, and
+  # take the first match. A repeated id hides every later enrollment.
+  id_rows <- .tte_check_spec_enrollment_ids(spec)
+  if (length(id_rows) > 0L) {
+    stop(.tte_enrollment_id_message(id_rows), call. = FALSE)
   }
 
   # Warn about open questions

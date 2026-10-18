@@ -293,8 +293,10 @@ problems and no specification. No path into a specification skips the gate.
 one row per problem. It reports the keys the gate refuses, and it continues
 past them. It also reports a repeated enrollment `id`, and a
 `study$implementation$version` that differs from the `spec_vNNN` in the file
-name. `tteplan_read_spec()` checks neither. `?tteplan_check_spec` lists the eight
-problem kinds.
+name. `tteplan_read_spec()` stops on a repeated `id`, because `$reload_spec()`
+and the Summary sheet find an enrollment by its `id`. It does not compare the
+version with the file name. `?tteplan_check_spec` lists the eight problem
+kinds.
 
 # See also
 
