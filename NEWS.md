@@ -7,6 +7,8 @@
 ## Documentation
 
 * **The spec example of `vignette("tte-workflow")` sets `family`, and the text points to `vignette("tte-spec-schema")` for its rules.**
+* **The spec example of `vignette("tte-workflow")` sets `study$implementation$version`.** Without it, the example saved as `spec_v001.yaml` failed `tteplan_check_spec()` with a `version_mismatch` row.
+* **`vignette("tte-spec-schema")` names the three functions that read a specification through `tteplan_read_spec()`.** It named `tteplan_from_spec()`, which does not exist, and left out `tteplan_excel_spec_summary()`.
 
 # swereg 27.2.5
 

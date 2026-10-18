@@ -196,6 +196,7 @@ study:
   description: "..."
   implementation:
     project_prefix: "statins_primary_prevention"
+    version: "v001"
 
 inclusion_criteria:
   isoyears: [2010, 2023]

@@ -282,10 +282,12 @@ reads it: `window_weeks`, `source_variable_combined`, `variable_combined`, and
 the two-field `observed_var`. The schema names none of them, because the schema
 describes the input.
 
-`R/` holds two calls to `yaml::yaml.load()`. One is in `tteplan_read_spec()`,
-and two functions call that function: `tteplan_from_spec()`, and the plan's own
-`$reload_spec()` method. The other is in `tteplan_check_spec()`, which returns
-problems and no specification. No path into a specification skips the gate.
+`R/` holds two calls to `yaml::yaml.load()`. One is in `tteplan_read_spec()`.
+Three functions read a specification through it:
+`tteplan_from_spec_and_registrystudy()`, `tteplan_excel_spec_summary()` and the
+plan's own `$reload_spec()` method. The other call is in `tteplan_check_spec()`,
+which returns problems and no specification. No path into a specification skips
+the gate.
 
 # Check a specification without stopping
 
