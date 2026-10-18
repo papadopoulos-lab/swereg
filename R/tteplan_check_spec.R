@@ -360,7 +360,7 @@ tteplan_check_spec <- function(spec_path) {
     what <- if (is.null(value)) {
       " is missing 'id'. "
     } else {
-      paste0(" has id ", .tte_family_show(value), ". ")
+      paste0(" has id ", .tte_spec_value_show(value), ". ")
     }
     rows <- c(
       rows,
@@ -732,7 +732,7 @@ tteplan_check_spec <- function(spec_path) {
         message = paste0(
           label[i],
           " has family ",
-          .tte_family_show(value),
+          .tte_spec_value_show(value),
           ". family MUST be one non-empty character string. Quote a ",
           "value that YAML reads as a number or a logical."
         )
@@ -757,12 +757,12 @@ tteplan_check_spec <- function(spec_path) {
 }
 
 
-#' Show a bad `family` value in a message
+#' Show a bad spec value, such as a `family` or an enrollment `id`, in a message
 #'
 #' @param value A parsed YAML value.
 #' @return A character scalar.
 #' @noRd
-.tte_family_show <- function(value) {
+.tte_spec_value_show <- function(value) {
   if (is.null(value)) {
     return("null")
   }
