@@ -42,6 +42,10 @@
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id`, `treatment$implementation$variable`
 #'     and `treatment$implementation$seed`
+#'   \item Each `id` MUST be one non-empty character string or one number.
+#'     YAML reads an unquoted `01` as the number 1, so `"01"` and `01` are
+#'     two different ids. The error names the position of each enrollment
+#'     with a missing or bad `id`
 #'   \item Each enrollment MUST have its own `id`. The error names each
 #'     repeated id and the positions of the enrollments that carry it
 #'   \item An enrollment MAY set `family`, one non-empty character string.
@@ -271,12 +275,14 @@ tteplan_read_spec <- function(spec_path) {
   # then lists that column twice.
   global_inclusion_cols <- .tte_global_inclusion_col_names(spec)
 
-  # Validate enrollments
+  # Validate enrollments. Every later message and lookup reads the id, so a
+  # missing id, or an id that is not one value, stops here first.
+  id_value_rows <- .tte_check_spec_enrollment_id_values(spec)
+  if (length(id_value_rows) > 0L) {
+    stop(.tte_enrollment_id_message(id_value_rows), call. = FALSE)
+  }
   for (i in seq_along(spec$enrollments)) {
     enr <- spec$enrollments[[i]]
-    if (is.null(enr$id)) {
-      stop("enrollments[", i, "] is missing 'id'", call. = FALSE)
-    }
 
     # The observation contract. Every enrollment MUST state how observation is
     # encoded. There is no exemption for an older spec. A spec that cannot say

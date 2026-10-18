@@ -16,7 +16,7 @@ character columns:
 \item{\code{path}}{The normalised key path of the problem, for example
 \verb{$/study/implementation/version}. A problem with the whole file has
 the path \code{$}.}
-\item{\code{kind}}{The problem kind. The Details section lists the eight
+\item{\code{kind}}{The problem kind. The Details section lists the nine
 kinds.}
 \item{\code{message}}{What is wrong, and the repair where swereg knows it.}
 }
@@ -28,7 +28,7 @@ It never stops on a bad specification, so a caller can check many files in
 one pass.
 }
 \details{
-The checker reports eight kinds of problem:
+The checker reports nine kinds of problem:
 \describe{
 \item{\code{unreadable}}{The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
@@ -37,8 +37,13 @@ parsed specification to check.}
 message lists the keys that the context accepts.}
 \item{\code{retired_key}}{The schema refuses the key path. The message names
 the replacement.}
+\item{\code{invalid_enrollment_id}}{An enrollment has no \code{id}, or its \code{id} is
+not one non-empty character string or one number. The checker refuses
+a sequence, a mapping, and an empty or whitespace-only string. It
+writes one row for each such enrollment.}
 \item{\code{duplicate_enrollment_id}}{Two or more enrollments carry the same
-\code{id}. The checker writes one row for each repeated id.}
+\code{id}. The checker writes one row for each repeated id. It compares
+only the ids that give no \code{invalid_enrollment_id} row.}
 \item{\code{version_mismatch}}{The file name has the form \code{spec_vNNN.yaml},
 and \code{study$implementation$version} is missing or is not \code{vNNN}. The
 checker skips this check for every other file name.}

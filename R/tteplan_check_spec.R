@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the eight
+#'     \item{`kind`}{The problem kind. The Details section lists the nine
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports eight kinds of problem:
+#' The checker reports nine kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -31,8 +31,13 @@
 #'     message lists the keys that the context accepts.}
 #'   \item{`retired_key`}{The schema refuses the key path. The message names
 #'     the replacement.}
+#'   \item{`invalid_enrollment_id`}{An enrollment has no `id`, or its `id` is
+#'     not one non-empty character string or one number. The checker refuses
+#'     a sequence, a mapping, and an empty or whitespace-only string. It
+#'     writes one row for each such enrollment.}
 #'   \item{`duplicate_enrollment_id`}{Two or more enrollments carry the same
-#'     `id`. The checker writes one row for each repeated id.}
+#'     `id`. The checker writes one row for each repeated id. It compares
+#'     only the ids that give no `invalid_enrollment_id` row.}
 #'   \item{`version_mismatch`}{The file name has the form `spec_vNNN.yaml`,
 #'     and `study$implementation$version` is missing or is not `vNNN`. The
 #'     checker skips this check for every other file name.}
@@ -100,6 +105,8 @@ tteplan_check_spec <- function(spec_path) {
 
   rows <- .tte_check_spec_keys(spec)
   key_gate_passes <- length(rows) == 0L
+  id_value_rows <- .tte_check_spec_enrollment_id_values(spec)
+  rows <- c(rows, id_value_rows)
   id_rows <- .tte_check_spec_enrollment_ids(spec)
   rows <- c(rows, id_rows)
   rows <- c(rows, .tte_check_spec_version(spec, spec_path))
@@ -118,10 +125,16 @@ tteplan_check_spec <- function(spec_path) {
       },
       error = function(e) conditionMessage(e)
     )
-    # `tteplan_read_spec()` stops on the outcome-selecting exclusions, then
-    # on the enrollment families, then on the repeated enrollment ids. Those
-    # are its last three stops, and the rows above already report each
-    # finding.
+    # `tteplan_read_spec()` stops on a missing or bad enrollment id before it
+    # reads the enrollments. It stops on the outcome-selecting exclusions,
+    # then on the enrollment families, then on the repeated enrollment ids,
+    # as its last three stops. The rows above already report each finding.
+    if (
+      length(id_value_rows) > 0L &&
+        identical(read_error, .tte_enrollment_id_message(id_value_rows))
+    ) {
+      read_error <- NULL
+    }
     if (
       length(outcome_rows) > 0L &&
         identical(
@@ -305,7 +318,74 @@ tteplan_check_spec <- function(spec_path) {
 }
 
 
+#' Whether a parsed YAML value is a valid enrollment id
+#'
+#' A valid id is one character string or one number. It is not `NA`, and a
+#' string is not empty or whitespace only.
+#'
+#' @param x A parsed YAML value.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_enrollment_id_ok <- function(x) {
+  if (!(is.character(x) || is.numeric(x)) || length(x) != 1L || is.na(x)) {
+    return(FALSE)
+  }
+  if (is.character(x) && !nzchar(trimws(x))) {
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+
+#' Rows for every enrollment whose id is missing or is not one value
+#'
+#' `tteplan_read_spec()` stops with `.tte_enrollment_id_message()` of these
+#' rows, before it reads any other key of the enrollments.
+#'
+#' @param spec The parsed specification.
+#' @return A list of rows of kind `invalid_enrollment_id`, one for each such
+#'   enrollment.
+#' @noRd
+.tte_check_spec_enrollment_id_values <- function(spec) {
+  enrollments <- .tte_check_spec_get(spec, "enrollments")
+  if (!is.list(enrollments)) {
+    return(list())
+  }
+  rows <- list()
+  for (i in seq_along(enrollments)) {
+    value <- .tte_check_spec_get(enrollments[[i]], "id")
+    if (.tte_enrollment_id_ok(value)) {
+      next
+    }
+    what <- if (is.null(value)) {
+      " is missing 'id'. "
+    } else {
+      paste0(" has id ", .tte_family_show(value), ". ")
+    }
+    rows <- c(
+      rows,
+      list(.tte_check_spec_row(
+        "$/enrollments[]/id",
+        "invalid_enrollment_id",
+        paste0(
+          "enrollments[",
+          i,
+          "]",
+          what,
+          "Each enrollment MUST carry one id: one non-empty character ",
+          "string or one number."
+        )
+      ))
+    )
+  }
+  return(rows)
+}
+
+
 #' Rows for every enrollment id that more than one enrollment carries
+#'
+#' An id that `.tte_enrollment_id_ok()` refuses takes no part in the
+#' comparison. `.tte_check_spec_enrollment_id_values()` reports it.
 #'
 #' @param spec The parsed specification.
 #' @return A list of rows, one for each repeated id.
@@ -317,7 +397,13 @@ tteplan_check_spec <- function(spec_path) {
   }
   ids <- vapply(
     enrollments,
-    function(e) .tte_check_spec_scalar(.tte_check_spec_get(e, "id")),
+    function(e) {
+      value <- .tte_check_spec_get(e, "id")
+      if (!.tte_enrollment_id_ok(value)) {
+        return(NA_character_)
+      }
+      return(as.character(value))
+    },
     character(1)
   )
   repeated <- unique(ids[!is.na(ids) & duplicated(ids)])
@@ -345,12 +431,13 @@ tteplan_check_spec <- function(spec_path) {
 }
 
 
-#' The error message of the repeated enrollment ids
+#' The error message of the bad or repeated enrollment ids
 #'
 #' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
 #' compares its `read_error` against it, so one finding never gives two rows.
 #'
-#' @param rows A list of rows from `.tte_check_spec_enrollment_ids()`.
+#' @param rows A list of rows from `.tte_check_spec_enrollment_id_values()`
+#'   or from `.tte_check_spec_enrollment_ids()`.
 #' @return A character scalar.
 #' @noRd
 .tte_enrollment_id_message <- function(rows) {

@@ -44,6 +44,10 @@ the follow-up outcome. The rule covers the global
 \item Each outcome must have \code{implementation$variable}
 \item Each enrollment must have \code{id}, \code{treatment$implementation$variable}
 and \code{treatment$implementation$seed}
+\item Each \code{id} MUST be one non-empty character string or one number.
+YAML reads an unquoted \code{01} as the number 1, so \code{"01"} and \code{01} are
+two different ids. The error names the position of each enrollment
+with a missing or bad \code{id}
 \item Each enrollment MUST have its own \code{id}. The error names each
 repeated id and the positions of the enrollments that carry it
 \item An enrollment MAY set \code{family}, one non-empty character string.

@@ -2,7 +2,8 @@
 
 ## Bug fixes
 
-* **`tteplan_read_spec()` stops on an enrollment `id` that two or more enrollments carry (#58).** The message names each repeated `id` and the positions of its enrollments. `tteplan_check_spec()` reported the repeat, but `tteplan_read_spec()` accepted it, and `$reload_spec()` and the Summary sheet then read only the first enrollment with that `id`.
+* **`tteplan_read_spec()` stops when two or more enrollments carry the same `id` (#58).** The message names each repeated `id` and the positions of its enrollments. `tteplan_check_spec()` reported the repeat, but `tteplan_read_spec()` accepted it, and `$reload_spec()` and the Summary sheet then read only the first enrollment with that `id`.
+* **Each enrollment `id` MUST be one non-empty character string or one number.** `tteplan_read_spec()` stops on a missing `id`, a sequence, a mapping, or an empty or whitespace-only string, and names the enrollment positions. `tteplan_check_spec()` reports each as the new kind `invalid_enrollment_id`. Before, both functions accepted two enrollments with `id: [foo, bar]`, because the repeat check skipped a sequence.
 
 ## Documentation
 

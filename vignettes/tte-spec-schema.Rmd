@@ -293,12 +293,17 @@ the gate.
 
 `tteplan_check_spec()` reads one specification and returns a data.table with
 one row per problem. It reports the keys the gate refuses, and it continues
-past them. It also reports a repeated enrollment `id`, and a
-`study$implementation$version` that differs from the `spec_vNNN` in the file
-name. `tteplan_read_spec()` stops on a repeated `id`, because `$reload_spec()`
-and the Summary sheet find an enrollment by its `id`. It does not compare the
-version with the file name. `?tteplan_check_spec` lists the eight problem
-kinds.
+past them. It also reports these problems:
+
+- An enrollment `id` is missing, or is not one non-empty character string or
+  one number.
+- Two or more enrollments carry the same `id`.
+- `study$implementation$version` differs from the `spec_vNNN` in the file name.
+
+`tteplan_read_spec()` stops on a missing, bad or repeated `id`, because
+`$reload_spec()` and the Summary sheet find an enrollment by its `id`. It does
+not compare the version with the file name. `?tteplan_check_spec` lists the
+nine problem kinds.
 
 # See also
 
