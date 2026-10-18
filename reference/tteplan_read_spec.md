@@ -57,6 +57,14 @@ Validation checks:
 - Each enrollment must have `id`, `treatment$implementation$variable`
   and `treatment$implementation$seed`
 
+- Each `id` MUST be one non-empty character string or one number. YAML
+  reads an unquoted `01` as the number 1, so `"01"` and `01` are two
+  different ids. The error names the position of each enrollment with a
+  missing or bad `id`
+
+- Each enrollment MUST have its own `id`. The error names each repeated
+  id and the positions of the enrollments that carry it
+
 - An enrollment MAY set `family`, one non-empty character string. When
   one enrollment sets it, every enrollment MUST set it
 

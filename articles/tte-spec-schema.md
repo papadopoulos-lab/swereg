@@ -463,9 +463,11 @@ none of them, because the schema describes the input.
 `R/` holds two calls to
 [`yaml::yaml.load()`](https://yaml.r-lib.org/reference/yaml.load.html).
 One is in
-[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
-and two functions call that function: `tteplan_from_spec()`, and the
-plan’s own `$reload_spec()` method. The other is in
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
+Three functions read a specification through it:
+[`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md),
+[`tteplan_excel_spec_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_excel_spec_summary.md)
+and the plan’s own `$reload_spec()` method. The other call is in
 [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md),
 which returns problems and no specification. No path into a
 specification skips the gate.
@@ -475,13 +477,20 @@ specification skips the gate.
 [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
 reads one specification and returns a data.table with one row per
 problem. It reports the keys the gate refuses, and it continues past
-them. It also reports a repeated enrollment `id`, and a
-`study$implementation$version` that differs from the `spec_vNNN` in the
-file name.
+them. It also reports these problems:
+
+- An enrollment `id` is missing, or is not one non-empty character
+  string or one number.
+- Two or more enrollments carry the same `id`.
+- `study$implementation$version` differs from the `spec_vNNN` in the
+  file name.
+
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-checks neither.
+stops on a missing, bad or repeated `id`, because `$reload_spec()` and
+the Summary sheet find an enrollment by its `id`. It does not compare
+the version with the file name.
 [`?tteplan_check_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
-lists the eight problem kinds.
+lists the nine problem kinds.
 
 ## See also
 

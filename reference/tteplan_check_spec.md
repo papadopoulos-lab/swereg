@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the eight kinds.
+  The problem kind. The Details section lists the nine kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports eight kinds of problem:
+The checker reports nine kinds of problem:
 
 - `unreadable`:
 
@@ -57,10 +57,18 @@ The checker reports eight kinds of problem:
 
   The schema refuses the key path. The message names the replacement.
 
+- `invalid_enrollment_id`:
+
+  An enrollment has no `id`, or its `id` is not one non-empty character
+  string or one number. The checker refuses a sequence, a mapping, and
+  an empty or whitespace-only string. It writes one row for each such
+  enrollment.
+
 - `duplicate_enrollment_id`:
 
   Two or more enrollments carry the same `id`. The checker writes one
-  row for each repeated id.
+  row for each repeated id. It compares only the ids that give no
+  `invalid_enrollment_id` row.
 
 - `version_mismatch`:
 

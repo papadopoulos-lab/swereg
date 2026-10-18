@@ -1,5 +1,47 @@
 # Changelog
 
+## swereg 27.2.6
+
+### Bug fixes
+
+- **[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  stops when two or more enrollments carry the same `id`
+  ([\#58](https://github.com/papadopoulos-lab/swereg/issues/58)).** The
+  message names each repeated `id` and the positions of its enrollments.
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  reported the repeat, but
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  accepted it, and `$reload_spec()` and the Summary sheet then read only
+  the first enrollment with that `id`.
+- **Each enrollment `id` MUST be one non-empty character string or one
+  number.**
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  stops on a missing `id`, a sequence, a mapping, or an empty or
+  whitespace-only string, and names the enrollment positions.
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  reports each as the new kind `invalid_enrollment_id`. Before, both
+  functions accepted two enrollments with `id: [foo, bar]`, because the
+  repeat check skipped a sequence.
+
+### Documentation
+
+- **The spec example of
+  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
+  sets `family`, and the text points to
+  [`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  for its rules.**
+- **The spec example of
+  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
+  sets `study$implementation$version`.** Without it, the example saved
+  as `spec_v001.yaml` failed
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  with a `version_mismatch` row.
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  names the three functions that read a specification through
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).**
+  It named `tteplan_from_spec()`, which does not exist, and left out
+  [`tteplan_excel_spec_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_excel_spec_summary.md).
+
 ## swereg 27.2.5
 
 ### New features

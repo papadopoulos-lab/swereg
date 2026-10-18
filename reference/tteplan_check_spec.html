@@ -11,7 +11,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,7 +94,7 @@ character columns:</p><dl><dt><code>path</code></dt>
 the path <code>$</code>.</p></dd>
 
 <dt><code>kind</code></dt>
-<dd><p>The problem kind. The Details section lists the eight
+<dd><p>The problem kind. The Details section lists the nine
 kinds.</p></dd>
 
 <dt><code>message</code></dt>
@@ -105,7 +105,7 @@ kinds.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The checker reports eight kinds of problem:</p><dl><dt><code>unreadable</code></dt>
+    <p>The checker reports nine kinds of problem:</p><dl><dt><code>unreadable</code></dt>
 <dd><p>The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
 parsed specification to check.</p></dd>
@@ -118,9 +118,16 @@ message lists the keys that the context accepts.</p></dd>
 <dd><p>The schema refuses the key path. The message names
 the replacement.</p></dd>
 
+<dt><code>invalid_enrollment_id</code></dt>
+<dd><p>An enrollment has no <code>id</code>, or its <code>id</code> is
+not one non-empty character string or one number. The checker refuses
+a sequence, a mapping, and an empty or whitespace-only string. It
+writes one row for each such enrollment.</p></dd>
+
 <dt><code>duplicate_enrollment_id</code></dt>
 <dd><p>Two or more enrollments carry the same
-<code>id</code>. The checker writes one row for each repeated id.</p></dd>
+<code>id</code>. The checker writes one row for each repeated id. It compares
+only the ids that give no <code>invalid_enrollment_id</code> row.</p></dd>
 
 <dt><code>version_mismatch</code></dt>
 <dd><p>The file name has the form <code>spec_vNNN.yaml</code>,

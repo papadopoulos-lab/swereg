@@ -181,6 +181,7 @@ study:
   description: "..."
   implementation:
     project_prefix: "statins_primary_prevention"
+    version: "v001"
 
 inclusion_criteria:
   isoyears: [2010, 2023]
@@ -252,6 +253,7 @@ follow_up:
 enrollments:
   - id: "01"
     name: "Statin initiation vs none, age 40-75"
+    family: "Main"
     observed_var:
       sentinel: row_presence
     intervention_tolerance_weeks: 0
@@ -277,7 +279,9 @@ enrollments:
 [`vignette("tte-spec-schema", package = "swereg")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
 lists every legal key path, and
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-refuses any key that list does not name.
+refuses any key that list does not name. `family` is an optional label
+that groups enrollments on the Summary sheet of `tables.xlsx`, and
+`tte-spec-schema` gives its rules.
 
 #### The observation contract
 
