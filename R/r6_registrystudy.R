@@ -197,10 +197,17 @@ RegistryStudy <- R6::R6Class(
     batch_id_list = NULL,
 
     #' @field batch_composition_digest Character or NULL. The
-    #'   `digest::digest()` of `batch_id_list`, set by `$set_ids()` and
-    #'   `$set_batches()`. A study saved by swereg 27.2.6 or earlier has
-    #'   none.
+    #'   `digest::digest()` of `batch_id_list`, and of `matched_set_roster`
+    #'   when it is set. `$set_ids()`, `$set_batches()` and
+    #'   `$set_matched_sets()` set it. A study saved by swereg 27.2.6 or
+    #'   earlier has none.
     batch_composition_digest = NULL,
+
+    #' @field matched_set_roster List of data.tables, one per batch, or
+    #'   NULL. Each holds the roster rows of that batch, in roster row
+    #'   order. `$set_matched_sets()` sets it. `$set_ids()` and
+    #'   `$set_batches()` set it to NULL.
+    matched_set_roster = NULL,
 
     #' @field groups_saved Character vector of rawbatch groups saved to disk.
     groups_saved = NULL,
@@ -672,7 +679,11 @@ RegistryStudy <- R6::R6Class(
       # digest of the composition it adopts, so the guard in $set_ids() and
       # $set_batches() protects its files from here on.
       self$batch_composition_digest <- other$batch_composition_digest %||%
-        .batch_composition_digest(other$batch_id_list)
+        .batch_composition_digest(
+          other$batch_id_list,
+          other$matched_set_roster
+        )
+      self$matched_set_roster <- other$matched_set_roster
       self$groups_saved <- other$groups_saved
       return(invisible(self))
     },
@@ -847,6 +858,7 @@ RegistryStudy <- R6::R6Class(
         batch_id_list,
         "set_ids()"
       )
+      self$matched_set_roster <- NULL
 
       self$n_ids <- as.integer(length(ids))
       self$n_batches <- as.integer(length(batch_id_list))
@@ -908,26 +920,56 @@ RegistryStudy <- R6::R6Class(
           )
         }
       }
-      batch_id_list <- batches
-      names(batch_id_list) <- as.character(seq_along(batch_id_list))
-      self$batch_composition_digest <- .guard_batch_composition(
+      .set_batch_composition(self, batches, NULL, "set_batches()")
+      return(invisible(self))
+    },
+
+    #' @description Set the batch composition from a roster of matched
+    #'   sets. Each set stays whole in one batch. Each membership gets its
+    #'   own skeleton ID and its own copy of the person's rawbatch rows.
+    #'
+    #'   The method packs the sets into batches in order of first
+    #'   appearance of `set_id`, `sets_per_batch` sets per batch. The
+    #'   batches hold the `skeleton_id` values of their roster rows, as
+    #'   `$set_batches()` would set them. The guard of `$set_batches()`
+    #'   applies, and the roster is part of the recorded composition. So a
+    #'   changed roster stops while rawbatch or skeleton files are on disk.
+    #'
+    #'   `$save_rawbatch()` then writes each rawbatch row of a person once
+    #'   for each `skeleton_id` that person has in the batch. The copy
+    #'   carries that `skeleton_id` in the ID column, and its other columns
+    #'   do not change. `$save_rawbatch()` also writes the roster rows of
+    #'   each batch as the rawbatch group `"roster"`, with the person ID and
+    #'   the `skeleton_id` unchanged. Every phase function reads them as
+    #'   `batch_data[["roster"]]`.
+    #'
+    #'   A roster where every `skeleton_id` equals the person ID gives the
+    #'   same rawbatch files as `$set_batches()` on the same IDs, plus the
+    #'   `"roster"` files.
+    #' @param roster A data.table with one row per membership and the
+    #'   columns `id_col` (the person ID in the rawbatch data), `set_id`,
+    #'   `role` (character) and `skeleton_id`. One `skeleton_id` MUST map
+    #'   to one person ID. A `skeleton_id` MUST NOT repeat within one batch,
+    #'   and MAY repeat across batches. Other columns go into the `"roster"`
+    #'   files unchanged.
+    #' @param sets_per_batch A positive whole number. The number of sets in
+    #'   each batch. The last batch MAY hold fewer.
+    #' @return `invisible(self)`.
+    set_matched_sets = function(roster, sets_per_batch) {
+      roster_by_batch <- .pack_matched_sets(
+        roster,
+        sets_per_batch,
+        self$id_col,
+        self$group_names
+      )
+      .set_batch_composition(
         self,
-        batch_id_list,
-        "set_batches()"
+        lapply(roster_by_batch, function(r) {
+          return(r[["skeleton_id"]])
+        }),
+        roster_by_batch,
+        "set_matched_sets()"
       )
-
-      self$n_ids <- as.integer(
-        data.table::uniqueN(unlist(batch_id_list, use.names = FALSE))
-      )
-      self$n_batches <- as.integer(length(batch_id_list))
-      self$batch_id_list <- batch_id_list
-
-      self$groups_saved <- .detect_rawbatch_groups(
-        self$data_rawbatch_dir,
-        self$group_names,
-        self$n_batches
-      )
-
       return(invisible(self))
     },
 

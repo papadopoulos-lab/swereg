@@ -166,9 +166,15 @@ Other skeleton_pipeline:
     \item{\code{batch_id_list}}{List of ID vectors, one per batch.}
 
     \item{\code{batch_composition_digest}}{Character or NULL. The
-\code{digest::digest()} of \code{batch_id_list}, set by \verb{$set_ids()} and
-\verb{$set_batches()}. A study saved by swereg 27.2.6 or earlier has
-none.}
+\code{digest::digest()} of \code{batch_id_list}, and of \code{matched_set_roster}
+when it is set. \verb{$set_ids()}, \verb{$set_batches()} and
+\verb{$set_matched_sets()} set it. A study saved by swereg 27.2.6 or
+earlier has none.}
+
+    \item{\code{matched_set_roster}}{List of data.tables, one per batch, or
+NULL. Each holds the roster rows of that batch, in roster row
+order. \verb{$set_matched_sets()} sets it. \verb{$set_ids()} and
+\verb{$set_batches()} set it to NULL.}
 
     \item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
 
@@ -313,6 +319,7 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
     \item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
     \item \href{#method-RegistryStudy-set_batches}{\code{RegistryStudy$set_batches()}}
+    \item \href{#method-RegistryStudy-set_matched_sets}{\code{RegistryStudy$set_matched_sets()}}
     \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
@@ -351,7 +358,15 @@ lookups instead of O(n) \code{\%in\%} scans. RAM stays ~1x the input
 An ID MAY be in more than one batch (see \verb{$set_batches()}). Then
 each batch gets the rows of the IDs it holds, in input order, by one
 \code{\%in\%} scan per batch. That path adds no \code{BID} column and does not
-change the caller's tables.}
+change the caller's tables.
+
+After \verb{$set_matched_sets()}, each batch gets every row of a person
+once for each \code{skeleton_id} of that person in the batch. The ID column
+of each copy holds that \code{skeleton_id}. The copies of one row are adjacent,
+and the rows keep their input order. The ID column takes the type of
+\code{skeleton_id}. The other columns do not change. Before it writes the
+group, the method writes each missing \code{"roster"} file. A roster where
+every \code{skeleton_id} equals the person ID takes the paths above.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1108,6 +1123,56 @@ records the new one and continues.
 An ID MUST NOT repeat within one batch. The batches get the names
 \code{"1"} to \code{"n"}, as \verb{$set_ids()} gives them. The method does not
 shuffle the IDs.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{invisible(self)}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-set_matched_sets"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-set_matched_sets}{}}}
+\subsection{\code{RegistryStudy$set_matched_sets()}}{
+  Set the batch composition from a roster of matched
+sets. Each set stays whole in one batch. Each membership gets its
+own skeleton ID and its own copy of the person's rawbatch rows.
+
+The method packs the sets into batches in order of first
+appearance of \code{set_id}, \code{sets_per_batch} sets per batch. The
+batches hold the \code{skeleton_id} values of their roster rows, as
+\verb{$set_batches()} would set them. The guard of \verb{$set_batches()}
+applies, and the roster is part of the recorded composition. So a
+changed roster stops while rawbatch or skeleton files are on disk.
+
+\verb{$save_rawbatch()} then writes each rawbatch row of a person once
+for each \code{skeleton_id} that person has in the batch. The copy
+carries that \code{skeleton_id} in the ID column, and its other columns
+do not change. \verb{$save_rawbatch()} also writes the roster rows of
+each batch as the rawbatch group \code{"roster"}, with the person ID and
+the \code{skeleton_id} unchanged. Every phase function reads them as
+\code{batch_data[["roster"]]}.
+
+A roster where every \code{skeleton_id} equals the person ID gives the
+same rawbatch files as \verb{$set_batches()} on the same IDs, plus the
+\code{"roster"} files.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$set_matched_sets(roster, sets_per_batch)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{roster}}{A data.table with one row per membership and the
+columns \code{id_col} (the person ID in the rawbatch data), \code{set_id},
+\code{role} (character) and \code{skeleton_id}. One \code{skeleton_id} MUST map
+to one person ID. A \code{skeleton_id} MUST NOT repeat within one batch,
+and MAY repeat across batches. Other columns go into the \code{"roster"}
+files unchanged.}
+      \item{\code{sets_per_batch}}{A positive whole number. The number of sets in
+each batch. The last batch MAY hold fewer.}
     }
     \if{html}{\out{</div>}}
   }

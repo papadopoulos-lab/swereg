@@ -17,6 +17,14 @@
 #'   each batch gets the rows of the IDs it holds, in input order, by one
 #'   `%in%` scan per batch. That path adds no `BID` column and does not
 #'   change the caller's tables.
+#'
+#'   After `$set_matched_sets()`, each batch gets every row of a person
+#'   once for each `skeleton_id` of that person in the batch. The ID column
+#'   of each copy holds that `skeleton_id`. The copies of one row are adjacent,
+#'   and the rows keep their input order. The ID column takes the type of
+#'   `skeleton_id`. The other columns do not change. Before it writes the
+#'   group, the method writes each missing `"roster"` file. A roster where
+#'   every `skeleton_id` equals the person ID takes the paths above.
 RegistryStudy$set(
   "public",
   "save_rawbatch",
@@ -40,6 +48,8 @@ RegistryStudy$set(
         call. = FALSE
       )
     }
+
+    .write_roster_rawbatch(self)
 
     if (group %in% self$groups_saved) {
       cat(
@@ -66,7 +76,10 @@ RegistryStudy$set(
     ids_overlap <- anyDuplicated(
       unlist(self$batch_id_list, use.names = FALSE)
     ) > 0L
-    if (ids_overlap) {
+    roster <- self$matched_set_roster
+    if (!is.null(roster) && !.roster_is_identity(roster, id_col)) {
+      payload_for_batch <- .rawbatch_rekey_payload(data, roster, id_col)
+    } else if (ids_overlap) {
       payload_for_batch <- .rawbatch_subset_payload(
         data,
         self$batch_id_list,
@@ -275,6 +288,14 @@ RegistryStudy$set("public", "load_rawbatch", function(batch_number) {
     } else {
       result[[g]] <- obj
     }
+  }
+
+  if (!is.null(self$matched_set_roster)) {
+    fpath <- .roster_rawbatch_path(self, batch_number)
+    if (!file.exists(fpath)) {
+      stop("Rawbatch file missing: ", fpath, call. = FALSE)
+    }
+    result[[.ROSTER_GROUP]] <- qs2_read(fpath, nthreads = n_threads)
   }
 
   return(result)
@@ -618,11 +639,50 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
 
 # The digest that identifies a batch composition. A study with no batch has no
 # composition to protect, so it gets NULL, the value a 27.2.6 study holds.
-.batch_composition_digest <- function(batch_id_list) {
+#
+# A roster is part of the composition: the same batch ids with another roster
+# give other rawbatch rows. Without a roster the digest is that of
+# `batch_id_list` alone, as in phase 1. The roster tables go in as plain lists,
+# so a key or an index on them does not move the digest.
+.batch_composition_digest <- function(batch_id_list, roster_by_batch = NULL) {
   if (length(batch_id_list) == 0L) {
     return(NULL)
   }
-  return(digest::digest(batch_id_list))
+  if (is.null(roster_by_batch)) {
+    return(digest::digest(batch_id_list))
+  }
+  return(digest::digest(list(
+    batch_id_list,
+    lapply(roster_by_batch, as.list)
+  )))
+}
+
+# Set the batch composition of `study`, after the guard. $set_batches() and
+# $set_matched_sets() share it. `roster_by_batch` is NULL for $set_batches(),
+# which removes any roster.
+.set_batch_composition <- function(study, batches, roster_by_batch, caller) {
+  batch_id_list <- batches
+  names(batch_id_list) <- as.character(seq_along(batch_id_list))
+  study$batch_composition_digest <- .guard_batch_composition(
+    study,
+    batch_id_list,
+    caller,
+    roster_by_batch
+  )
+
+  study$n_ids <- as.integer(
+    data.table::uniqueN(unlist(batch_id_list, use.names = FALSE))
+  )
+  study$n_batches <- as.integer(length(batch_id_list))
+  study$batch_id_list <- batch_id_list
+  study$matched_set_roster <- roster_by_batch
+
+  study$groups_saved <- .detect_rawbatch_groups(
+    study$data_rawbatch_dir,
+    study$group_names,
+    study$n_batches
+  )
+  return(invisible(study))
 }
 
 # Return the digest to record for `batch_id_list`, or stop.
@@ -636,8 +696,13 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
 # A study with no recorded digest was saved by swereg 27.2.6 or earlier, or
 # never had a composition. It records the new one and continues, so an
 # existing store keeps working.
-.guard_batch_composition <- function(study, batch_id_list, caller) {
-  new_digest <- .batch_composition_digest(batch_id_list)
+.guard_batch_composition <- function(
+  study,
+  batch_id_list,
+  caller,
+  roster_by_batch = NULL
+) {
+  new_digest <- .batch_composition_digest(batch_id_list, roster_by_batch)
   recorded <- study$batch_composition_digest
   if (is.null(recorded) || identical(recorded, new_digest)) {
     return(new_digest)
@@ -686,6 +751,173 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
     names(out) <- names(data)
     for (nm in names(data)) {
       out[[nm]] <- slice(data[[nm]], b)
+    }
+    return(out)
+  })
+}
+
+# The rawbatch group that holds the roster rows of each batch, after
+# $set_matched_sets(). No name in `group_names` may take it.
+.ROSTER_GROUP <- "roster"
+
+.roster_rawbatch_path <- function(study, batch_number) {
+  return(file.path(
+    normalizePath(study$data_rawbatch_dir, mustWork = FALSE),
+    sprintf("%05d_rawbatch_%s.qs2", as.integer(batch_number), .ROSTER_GROUP)
+  ))
+}
+
+# Write the "roster" rawbatch file of each batch that has none. The guard keeps
+# the composition fixed while any rawbatch file is on disk, so a file that is
+# there already holds the current roster rows.
+.write_roster_rawbatch <- function(study) {
+  roster_by_batch <- study$matched_set_roster
+  for (b in seq_along(roster_by_batch)) {
+    path <- .roster_rawbatch_path(study, b)
+    if (!file.exists(path)) {
+      qs2_write_atomic(roster_by_batch[[b]], path)
+    }
+  }
+  return(invisible(NULL))
+}
+
+# Check a matched-set roster and pack its sets into batches. Returns one
+# data.table per batch: the roster rows of that batch, in roster row order.
+.pack_matched_sets <- function(roster, sets_per_batch, id_col, group_names) {
+  fail <- function(...) {
+    stop("set_matched_sets(): ", ..., call. = FALSE)
+  }
+  if (.ROSTER_GROUP %in% group_names) {
+    fail(
+      "`group_names` holds \"",
+      .ROSTER_GROUP,
+      "\", the rawbatch group that the roster rows use. Rename that group."
+    )
+  }
+  if (!data.table::is.data.table(roster) || nrow(roster) == 0L) {
+    fail("`roster` must be a data.table with at least one row.")
+  }
+  required <- c(id_col, "set_id", "role", "skeleton_id")
+  absent <- setdiff(required, names(roster))
+  if (length(absent) > 0L) {
+    fail("`roster` has no column ", paste(absent, collapse = ", "), ".")
+  }
+  if (!is.character(roster[["role"]])) {
+    fail("the `role` column must be character.")
+  }
+  for (col in c(id_col, "set_id", "skeleton_id")) {
+    if (anyNA(roster[[col]])) {
+      fail("the `", col, "` column holds NA.")
+    }
+  }
+  if (
+    !is.numeric(sets_per_batch) ||
+      length(sets_per_batch) != 1L ||
+      is.na(sets_per_batch) ||
+      sets_per_batch < 1 ||
+      sets_per_batch != round(sets_per_batch)
+  ) {
+    fail("`sets_per_batch` must be one positive whole number.")
+  }
+
+  pairs <- unique(data.table::data.table(
+    skeleton_id = roster[["skeleton_id"]],
+    id = roster[[id_col]]
+  ))
+  dup <- anyDuplicated(pairs[["skeleton_id"]])
+  if (dup > 0L) {
+    fail(
+      "skeleton_id ",
+      pairs[["skeleton_id"]][dup],
+      " maps to more than one ",
+      id_col,
+      ". One skeleton_id MUST map to one person."
+    )
+  }
+
+  # Whole sets, in order of first appearance, `sets_per_batch` per batch.
+  sets <- unique(roster[["set_id"]])
+  set_batch <- ceiling(seq_along(sets) / sets_per_batch)
+  row_batch <- set_batch[match(roster[["set_id"]], sets)]
+
+  dup <- anyDuplicated(data.table::data.table(
+    batch = row_batch,
+    skeleton_id = roster[["skeleton_id"]]
+  ))
+  if (dup > 0L) {
+    fail(
+      "skeleton_id ",
+      roster[["skeleton_id"]][dup],
+      " is in batch ",
+      row_batch[dup],
+      " more than once. A skeleton_id MAY repeat across batches, not ",
+      "within one."
+    )
+  }
+
+  rows <- split(seq_len(nrow(roster)), row_batch)
+  out <- lapply(rows, function(i) {
+    return(roster[i])
+  })
+  names(out) <- as.character(seq_along(out))
+  return(out)
+}
+
+# TRUE when every skeleton_id equals its person ID. Re-keying then changes
+# nothing, and $save_rawbatch() takes the path that $set_batches() takes.
+.roster_is_identity <- function(roster_by_batch, id_col) {
+  for (r in roster_by_batch) {
+    if (!all(r[["skeleton_id"]] == r[[id_col]])) {
+      return(FALSE)
+    }
+  }
+  return(TRUE)
+}
+
+# The payload function of $save_rawbatch() after $set_matched_sets(). Batch b
+# gets each row of a person once per skeleton_id of that person in batch b,
+# with `id_col` set to the skeleton_id. The copies of one row are adjacent and
+# follow the roster row order. The rows keep their input order. A list element
+# without `id_col` goes whole into every batch. The caller's tables are not
+# changed.
+.rawbatch_rekey_payload <- function(data, roster_by_batch, id_col) {
+  rekey <- function(dt, b) {
+    if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
+      return(dt)
+    }
+    r <- roster_by_batch[[b]]
+    ids <- unique(r[[id_col]])
+    grp <- match(r[[id_col]], ids)
+    n_per_id <- tabulate(grp, nbins = length(ids))
+    # The skeleton_ids grouped by person. order() is stable, so each group
+    # keeps the roster row order.
+    sid_by_id <- r[["skeleton_id"]][order(grp)]
+    first <- cumsum(n_per_id) - n_per_id + 1L
+
+    g <- match(dt[[id_col]], ids)
+    row <- which(!is.na(g))
+    g <- g[row]
+    times <- n_per_id[g]
+    # A bare symbol in `i` is read from this frame, never from a column.
+    idx <- rep.int(row, times)
+    out <- dt[idx]
+    data.table::set(
+      out,
+      j = id_col,
+      value = sid_by_id[sequence(times, from = first[g])]
+    )
+    return(out)
+  }
+  if (data.table::is.data.table(data)) {
+    return(function(b) {
+      return(rekey(data, b))
+    })
+  }
+  return(function(b) {
+    out <- vector("list", length(data))
+    names(out) <- names(data)
+    for (nm in names(data)) {
+      out[[nm]] <- rekey(data[[nm]], b)
     }
     return(out)
   })
