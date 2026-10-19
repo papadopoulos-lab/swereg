@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -251,10 +251,12 @@ time zero (see note below).</td>
 </tr>
 <tr class="even">
 <td align="left">Weight truncation</td>
-<td align="left">Danaei 2013</td>
+<td align="left">Cole &amp; Hernán 2008 (p. 661)</td>
 <td align="left">
 <code>$s3_truncate_weights()</code>: Winsorization at
-1st/99th percentiles by default.</td>
+1st/99th percentiles by default. The untruncated per-protocol result is
+exported as a sensitivity analysis. Danaei 2013 truncated the stabilised
+weights at a maximum of 10.</td>
 </tr>
 </tbody>
 </table>

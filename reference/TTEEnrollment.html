@@ -49,7 +49,7 @@ check refuses the same objects.'><meta property="og:image" content="https://papa
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -199,8 +199,8 @@ power.</p>
 <dt><code>$survival_curve(weight_col, save_path, title)</code></dt>
 <dd><p>Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying <code>analysis_weight_pp_trunc</code>)</p></dd>
 
-<dt><code>$risk_difference(weight_col, n_boot, seed, conf_level)</code></dt>
-<dd><p>Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level</p></dd>
+<dt><code>$risk_difference(weight_col, n_boot, seed, conf_level, min_persons_at_risk)</code></dt>
+<dd><p>Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level. A stop time with fewer than <code>min_persons_at_risk</code> people at risk in an arm gets none</p></dd>
 
 
 </dl><p><strong>Active bindings:</strong></p><dl><dt><code>$enrollment_stage</code></dt>
@@ -678,6 +678,11 @@ percentiles then describe the other arm alone, which is
 anti-conservative, and more replicates do not repair it. The condition is
 evaluated per horizon and per arm, on the events up to and including that
 stop time.</p>
+<p>A sparse risk set gets no risk difference at all. When either arm has fewer
+than <code>min_persons_at_risk</code> people at risk at a stop time, <code>rd</code>, <code>rd_lo</code>,
+<code>rd_hi</code> and the number-needed-to-treat columns are <code>NA</code> there, and
+<code>interval_status</code> reads <code>"too few at risk at horizon"</code>. The late hazards
+then rest on a few people, and the bootstrap interval undercovers.</p>
 <p>Deaths are censored, not modelled as a competing risk, so this is a
 cause-specific risk difference under independent censoring, not a
 competing-risk one.</p><div class="section">
@@ -686,7 +691,8 @@ competing-risk one.</p><div class="section">
 <span>  <span class="va">weight_col</span>,</span>
 <span>  n_boot <span class="op">=</span> <span class="fl">500L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span></span>
+<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  min_persons_at_risk <span class="op">=</span> <span class="fl">10L</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
@@ -705,6 +711,11 @@ caller's random stream is restored afterwards.</p></dd>
 <dd><p>Numeric in (0, 1), percentile interval level
 (default 0.95).</p></dd>
 
+      <dt><code>min_persons_at_risk</code></dt>
+<dd><p>Whole number of at least 0 (default 10). A stop
+time where either arm has fewer people at risk gets no risk difference.
+<code>0</code> withholds nothing.</p></dd>
+
 
 </dl><p></p></div>
 </div><p></p><div class="section">
@@ -714,11 +725,12 @@ and columns <code>tstop</code>
 (named after <code>design$tstop_var</code>), <code>surv_comparator</code>, <code>surv_intervention</code>,
 <code>rd</code>, <code>rd_lo</code>, <code>rd_hi</code>, <code>interval_status</code>, <code>nnt</code>, <code>nnt_direction</code>,
 <code>n_persons_with_event_comparator</code> and <code>n_persons_with_event_intervention</code>.</p>
-<p><code>interval_status</code> takes one of three values. <code>"ok"</code> means the interval
+<p><code>interval_status</code> takes one of four values. <code>"ok"</code> means the interval
 is estimable and strictly excludes the null. <code>"spans null"</code> means the
 interval is estimable and contains the null. <code>"zero-event arm"</code> means
-there is no interval. A reader can therefore separate an interval that
-spans the null from one that does not exist.</p>
+there is no interval. <code>"too few at risk at horizon"</code> means there is no
+risk difference. A reader can therefore separate an interval that spans
+the null from one that does not exist.</p>
 <p><code>nnt</code> is the signed number needed to treat, <code>-1/rd</code>. <code>nnt_direction</code>
 reads <code>"benefit"</code>, <code>"harm"</code> or <code>NA_character_</code>, and it is the stored
 decision every formatter reads. No formatter re-derives the direction
@@ -733,7 +745,7 @@ sequential trials, which is one person who had the outcome. <code>$rates()</code
 numbers differ.</p>
 <p>The replicate matrix the interval was read off is attached as the <code>rd_boot</code>
 attribute (<code>n_boot</code> rows by one column per stop time), alongside
-<code>conf_level</code> and <code>n_boot</code>.</p>
+<code>conf_level</code>, <code>n_boot</code> and <code>min_persons_at_risk</code>.</p>
 </div>
 
 </div>
@@ -1038,8 +1050,16 @@ formatted output and invisibly returns the list.</p>
 <h3 id="tteenrollment-table-"><code>TTEEnrollment$table1()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-table-"></a></h3>
 <p>Generate baseline characteristics table.</p>
 <p>Returns a long-format <code>data.table</code> with one row per categorical level
-plus one row per continuous variable. See <code>.swereg_table1()</code> for the
-layout. The result has S3 class <code>c("swereg_table1", "data.table", "data.frame")</code>.</p><div class="section">
+plus three rows per continuous variable: mean (SD), median (Q1, Q3) and
+range (min, max). See <code>.swereg_table1()</code> for the layout. The result has
+S3 class <code>c("swereg_table1", "data.table", "data.frame")</code>.</p>
+<p>A weighted median is the first distinct value at which the cumulative
+normalised weight reaches 0.5, after the values are sorted. Where that
+cumulative weight equals 0.5, the median is the mean of that value and
+the next distinct value. Q1 and Q3 use 0.25 and 0.75. An unweighted
+panel uses equal weights, which gives <code><a href="https://rdrr.io/r/stats/median.html" class="external-link">stats::median()</a></code> and <code>type = 2</code>
+of <code><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">stats::quantile()</a></code>. The range reads the rows with a positive
+weight.</p><div class="section">
 <h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">table1</span><span class="op">(</span></span>
 <span>  ipw_col <span class="op">=</span> <span class="cn">NULL</span>,</span>

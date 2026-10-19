@@ -1,5 +1,47 @@
 # Changelog
 
+## swereg 27.2.7
+
+### Bug fixes
+
+- **No risk difference is reported at a stop time where either arm has
+  fewer than 10 persons at risk.** The point estimate, the interval and
+  the number needed to treat are all `NA`, and `interval_status` reads
+  `"too few at risk at horizon"`. With about 3 persons at risk in one
+  arm, the bootstrap interval covered the truth in 161 of 194 simulated
+  datasets. `$s3_analyze(rd_min_persons_at_risk = )` and
+  `$risk_difference(min_persons_at_risk = )` set the threshold. The
+  results sheets, the Summary sheet and the forest figure print “not
+  estimable” with the reason. The incidence rate ratio is unchanged. An
+  existing plan gets the rule after `plan$s3_analyze(ett_ids = )` on the
+  trials it affects.
+- **A CONSORT exclusion line gives the person-trials first, then the
+  persons the step excluded entirely.** An example is “No week in either
+  treatment arm (n = 48,122,520 person-trials; 1 person excluded
+  entirely)”. A step counts a person only when it removes her last
+  person-trial, so “n = 1 persons / 48,122,520 person-trials” misled.
+
+### New features
+
+- **Table 1 shows a continuous variable as median (Q1, Q3) and range
+  (min, max), beside its mean (SD).** The two rows follow the mean (SD)
+  row, unweighted and weighted. The weighted median is the first
+  distinct value at which the cumulative normalised weight reaches 0.5.
+  Where that weight equals 0.5, the median is the mean of that value and
+  the next one. Q1 and Q3 use 0.25 and 0.75, and equal weights give
+  [`stats::median()`](https://rdrr.io/r/stats/median.html) and
+  `quantile(type = 2)`. A plan saved before this version shows the rows
+  after `plan$recompute_baselines(force = TRUE)`.
+
+### Documentation
+
+- **[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  and
+  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
+  cite Cole and Hernán (2008) for the truncation at the 1st and 99th
+  percentiles.** Both cited Danaei et al. (2013), who truncated the
+  stabilised weights at a maximum of 10.
+
 ## swereg 27.2.6
 
 ### Bug fixes

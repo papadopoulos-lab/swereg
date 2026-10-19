@@ -776,7 +776,8 @@ the only place a reader of the job log meets either signal.
       ett_ids = NULL,
       output_dir = NULL,
       swereg_dev_path = NULL,
-      n_workers = default_n_workers("s3")
+      n_workers = default_n_workers("s3"),
+      rd_min_persons_at_risk = 10L
     )
 
 #### Arguments
@@ -808,6 +809,14 @@ the only place a reader of the job log meets either signal.
   `n_workers`; on machines with multi-GB analysis files, set this
   conservatively. CPU threads per worker are auto-partitioned as
   `floor(detectCores() / n_workers)`.
+
+- `rd_min_persons_at_risk`:
+
+  Whole number of at least 0 (default 10). A risk difference is
+  withheld, point estimate included, at a stop time where either arm has
+  fewer people at risk. Its `interval_status` then reads
+  `"too few at risk at horizon"`. The incidence rate ratio does not read
+  it.
 
 ------------------------------------------------------------------------
 
@@ -923,17 +932,23 @@ itself, and MUST NOT print `nnt` alone where the bounds are missing.
 the analysis file of that estimand. On an intention-to-treat row they
 are the intention-to-treat analysis set, which the CONSORT flow reads.
 
+A risk difference withheld for a sparse risk set has `rd`, `rd_lo`,
+`rd_hi` and the number-needed-to-treat columns `NA`, and
+`interval_status` reads `"too few at risk at horizon"`.
+`min_persons_at_risk` holds the head count the rule used, and `NA` where
+the stored result predates the rule.
+
 #### Usage
 
     TTEPlan$get_estimates()
 
 #### Returns
 
-A data.table with 47 columns. The identifiers come first, then the
+A data.table with 48 columns. The identifiers come first, then the
 weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-`n_boot`, `seed` and `conf_level` record what produced the
-risk-difference interval.
+`n_boot`, `seed`, `conf_level` and `min_persons_at_risk` record what
+produced the risk difference.
 
 ------------------------------------------------------------------------
 

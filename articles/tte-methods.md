@@ -684,6 +684,17 @@ replicate that is not missing would then give that arm a risk of exactly
 zero, and the percentiles would reflect the other arm alone. The point
 estimate is still reported.
 
+At a stop time where either arm has fewer than 10 persons at risk, there
+is no risk difference. The point estimate, the interval and the number
+needed to treat are all withheld, and `interval_status` reads
+`"too few at risk at horizon"`. The late hazards then rest on a few
+persons. The sample rarely holds a late event, and the bootstrap cannot
+create one. In 194 simulated datasets with about 3 events and 3.5
+persons at risk in one arm at the horizon, 161 of the 194 intervals
+covered the truth (0.830). The threshold is the `rd_min_persons_at_risk`
+argument of `$s3_analyze()`, default 10. Exports print “not estimable”
+and the reason.
+
 The interval of the number needed to treat is
 $\left( - 1/{RD}_{lo}, - 1/{RD}_{hi} \right)$. It exists only when the
 risk-difference interval strictly excludes zero, because
@@ -923,6 +934,22 @@ terms with no warning. swereg refuses to read a stored enrollment below
 schema 7 and a stored plan below schema 6. Rebuild the plan with s0,
 then run s1, s2 and s3 again.
 
+#### 1.8.10 Baseline characteristics
+
+Table 1 describes each arm at time zero, unweighted and weighted by the
+treatment weight. It reads each confounder at the recruiting week. A
+continuous variable gets three rows: mean (SD), median (Q1, Q3) and
+range (min, max). The weighted median is the first distinct value at
+which the cumulative normalised weight reaches 0.5, after the values are
+sorted. Where that cumulative weight equals 0.5, the median is the mean
+of that value and the next distinct value. Q1 and Q3 use 0.25 and 0.75.
+The unweighted panel uses equal weights, which gives
+[`stats::median()`](https://rdrr.io/r/stats/median.html) and `type = 2`
+of [`stats::quantile()`](https://rdrr.io/r/stats/quantile.html). The
+range reads the rows with a positive weight, so it is the same in both
+panels when every weight is positive. Each variable carries a
+standardised mean difference between the arms.
+
 ### 1.9 Sensitivity analyses
 
 TARGET item 7h.ii.
@@ -1093,7 +1120,7 @@ person-trial, including those that the deviation left with no follow-up.
 Its numerator was the proportion that deviated at time zero.
 
 We truncated the weights at the 1st and 99th percentiles: a weight
-outside them was set to the nearer percentile (Danaei et al. 2013). We
+outside them was set to the nearer percentile (Cole and Hernán 2008). We
 fitted a weighted quasi-Poisson marginal structural model of the event
 indicator on the assigned arm, with log person-time as the offset. It
 included terms for the trial and for the time since time zero at the
@@ -1117,9 +1144,11 @@ replicates. Each replicate resampled persons, not person-trials, and one
 resample served both arms. The weights were held fixed in the bootstrap.
 
 No interval was reported at a time by which either arm had no weighted
-event. The number needed to treat was the negative reciprocal of the
-risk difference, so a positive value meant benefit. We reported its
-interval only when the interval of the risk difference excluded zero.
+event. No risk difference was reported at a time at which either arm had
+fewer than 10 persons at risk. The number needed to treat was the
+negative reciprocal of the risk difference, so a positive value meant
+benefit. We reported its interval only when the interval of the risk
+difference excluded zero.
 
 A missing confounder value at the recruiting week was singly imputed by
 a hot-deck draw. A missing value during follow-up was carried forward
@@ -1130,8 +1159,8 @@ subgroup. We also estimated the IRR within each subgroup level.
 ### Sensitivity analyses
 
 We repeated the per-protocol analysis with untruncated weights, as a
-pre-specified sensitivity analysis. We read a divergence between the two
-estimates as a sign of unstable weights.
+pre-specified sensitivity analysis (Cole and Hernán 2008). We read a
+divergence between the two estimates as a sign of unstable weights.
 
 ### Software
 
@@ -1158,7 +1187,7 @@ fit wrappers that the package’s test suite enforces in continuous
 integration. Section 4.2 maps each layer to its test file and describes
 how to regenerate the artifact.
 
-Provenance: generated 2026-10-10 11:34:03 UTC with swereg 27.3.0,
+Provenance: generated 2026-10-19 16:38:21 UTC with swereg 27.2.7,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).
 
 ### 3.1 Design of the validation battery
@@ -2097,6 +2126,9 @@ file with the change.
   emulation of randomised trials of statins and primary prevention of
   coronary heart disease. *Stat Methods Med Res* 2013;22(1):70–96. DOI
   10.1177/0962280211403603.
+- Cole SR, Hernán MA. Constructing inverse probability weights for
+  marginal structural models. *Am J Epidemiol* 2008;168(6):656–664. DOI
+  10.1093/aje/kwn164.
 - Altman DG. Confidence intervals for the number needed to treat. *BMJ*
   1998;317(7168):1309–1312. DOI 10.1136/bmj.317.7168.1309.
 - Benchimol EI, et al. The REporting of studies Conducted using

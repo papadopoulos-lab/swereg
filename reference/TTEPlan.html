@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -765,7 +765,8 @@ of the job log meets either signal.</p><div class="section">
 <span>  ett_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s3"</span><span class="op">)</span></span>
+<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s3"</span><span class="op">)</span>,</span>
+<span>  rd_min_persons_at_risk <span class="op">=</span> <span class="fl">10L</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
@@ -792,6 +793,13 @@ loop. Each worker reads its own analysis file fresh, so peak RAM
 scales linearly with <code>n_workers</code>; on machines with multi-GB
 analysis files, set this conservatively. CPU threads per worker
 are auto-partitioned as <code>floor(detectCores() / n_workers)</code>.</p></dd>
+
+      <dt><code>rd_min_persons_at_risk</code></dt>
+<dd><p>Whole number of at least 0 (default 10). A
+risk difference is withheld, point estimate included, at a stop time
+where either arm has fewer people at risk. Its <code>interval_status</code> then
+reads <code>"too few at risk at horizon"</code>. The incidence rate ratio does not
+read it.</p></dd>
 
 
 </dl><p></p></div>
@@ -894,16 +902,20 @@ is not an interval. A consumer MUST NOT invert <code>rd_lo</code> and <code>rd_h
 itself, and MUST NOT print <code>nnt</code> alone where the bounds are missing.</p>
 <p><code>n_trials_int</code> and <code>n_trials_cmp</code> count the person-trials of each arm in
 the analysis file of that estimand. On an intention-to-treat row they are
-the intention-to-treat analysis set, which the CONSORT flow reads.</p><div class="section">
+the intention-to-treat analysis set, which the CONSORT flow reads.</p>
+<p>A risk difference withheld for a sparse risk set has <code>rd</code>, <code>rd_lo</code>,
+<code>rd_hi</code> and the number-needed-to-treat columns <code>NA</code>, and <code>interval_status</code>
+reads <code>"too few at risk at horizon"</code>. <code>min_persons_at_risk</code> holds the head
+count the rule used, and <code>NA</code> where the stored result predates the rule.</p><div class="section">
 <h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_estimates</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A data.table with 47 columns. The identifiers come first, then
+<p>A data.table with 48 columns. The identifiers come first, then
 the weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-<code>n_boot</code>, <code>seed</code> and <code>conf_level</code> record what produced the
-risk-difference interval.</p>
+<code>n_boot</code>, <code>seed</code>, <code>conf_level</code> and <code>min_persons_at_risk</code> record what
+produced the risk difference.</p>
 </div>
 
 </div>

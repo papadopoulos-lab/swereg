@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,26 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.7" id="swereg-2727">swereg 27.2.7<a class="anchor" aria-label="anchor" href="#swereg-2727"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-27-2-7">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-2-7"></a></h3>
+<ul><li>
+<strong>No risk difference is reported at a stop time where either arm has fewer than 10 persons at risk.</strong> The point estimate, the interval and the number needed to treat are all <code>NA</code>, and <code>interval_status</code> reads <code>"too few at risk at horizon"</code>. With about 3 persons at risk in one arm, the bootstrap interval covered the truth in 161 of 194 simulated datasets. <code>$s3_analyze(rd_min_persons_at_risk = )</code> and <code>$risk_difference(min_persons_at_risk = )</code> set the threshold. The results sheets, the Summary sheet and the forest figure print “not estimable” with the reason. The incidence rate ratio is unchanged. An existing plan gets the rule after <code>plan$s3_analyze(ett_ids = )</code> on the trials it affects.</li>
+<li>
+<strong>A CONSORT exclusion line gives the person-trials first, then the persons the step excluded entirely.</strong> An example is “No week in either treatment arm (n = 48,122,520 person-trials; 1 person excluded entirely)”. A step counts a person only when it removes her last person-trial, so “n = 1 persons / 48,122,520 person-trials” misled.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-2-7">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-7"></a></h3>
+<ul><li>
+<strong>Table 1 shows a continuous variable as median (Q1, Q3) and range (min, max), beside its mean (SD).</strong> The two rows follow the mean (SD) row, unweighted and weighted. The weighted median is the first distinct value at which the cumulative normalised weight reaches 0.5. Where that weight equals 0.5, the median is the mean of that value and the next one. Q1 and Q3 use 0.25 and 0.75, and equal weights give <code><a href="https://rdrr.io/r/stats/median.html" class="external-link">stats::median()</a></code> and <code>quantile(type = 2)</code>. A plan saved before this version shows the rows after <code>plan$recompute_baselines(force = TRUE)</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-2-7">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-2-7"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> and <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> cite Cole and Hernán (2008) for the truncation at the 1st and 99th percentiles.</strong> Both cited Danaei et al. (2013), who truncated the stabilised weights at a maximum of 10.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.6" id="swereg-2726">swereg 27.2.6<a class="anchor" aria-label="anchor" href="#swereg-2726"></a></h2>
 <div class="section level3">

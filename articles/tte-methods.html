@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -889,6 +889,18 @@ including that time, the risk difference has no interval. Every
 replicate that is not missing would then give that arm a risk of exactly
 zero, and the percentiles would reflect the other arm alone. The point
 estimate is still reported.</p>
+<p>At a stop time where either arm has fewer than 10 persons at risk,
+there is no risk difference. The point estimate, the interval and the
+number needed to treat are all withheld, and
+<code>interval_status</code> reads
+<code>"too few at risk at horizon"</code>. The late hazards then rest on
+a few persons. The sample rarely holds a late event, and the bootstrap
+cannot create one. In 194 simulated datasets with about 3 events and 3.5
+persons at risk in one arm at the horizon, 161 of the 194 intervals
+covered the truth (0.830). The threshold is the
+<code>rd_min_persons_at_risk</code> argument of
+<code>$s3_analyze()</code>, default 10. Exports print “not estimable”
+and the reason.</p>
 <p>The interval of the number needed to treat is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi></mrow></msub><mo>,</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">h</mi><mi mathvariant="normal">i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1/\mathrm{RD}_{\mathrm{lo}}, -1/\mathrm{RD}_{\mathrm{hi}})</annotation></semantics></math>.
 It exists only when the risk-difference interval strictly excludes zero,
@@ -1246,6 +1258,23 @@ schema 7 and a stored plan below schema 6. Rebuild the plan with s0,
 then run s1, s2 and s3 again.</p>
 </div>
 </div>
+<div class="section level4">
+<h4 id="baseline-characteristics">1.8.10 Baseline characteristics<a class="anchor" aria-label="anchor" href="#baseline-characteristics"></a>
+</h4>
+<p>Table 1 describes each arm at time zero, unweighted and weighted by
+the treatment weight. It reads each confounder at the recruiting week. A
+continuous variable gets three rows: mean (SD), median (Q1, Q3) and
+range (min, max). The weighted median is the first distinct value at
+which the cumulative normalised weight reaches 0.5, after the values are
+sorted. Where that cumulative weight equals 0.5, the median is the mean
+of that value and the next distinct value. Q1 and Q3 use 0.25 and 0.75.
+The unweighted panel uses equal weights, which gives
+<code><a href="https://rdrr.io/r/stats/median.html" class="external-link">stats::median()</a></code> and <code>type = 2</code> of
+<code><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">stats::quantile()</a></code>. The range reads the rows with a positive
+weight, so it is the same in both panels when every weight is positive.
+Each variable carries a standardised mean difference between the
+arms.</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="sensitivity-analyses">1.9 Sensitivity analyses<a class="anchor" aria-label="anchor" href="#sensitivity-analyses"></a>
@@ -1462,7 +1491,7 @@ the probability of a deviation at time zero. It was fitted on every
 person-trial, including those that the deviation left with no follow-up.
 Its numerator was the proportion that deviated at time zero.</p>
 <p>We truncated the weights at the 1st and 99th percentiles: a weight
-outside them was set to the nearer percentile (Danaei et al. 2013). We
+outside them was set to the nearer percentile (Cole and Hernán 2008). We
 fitted a weighted quasi-Poisson marginal structural model of the event
 indicator on the assigned arm, with log person-time as the offset. It
 included terms for the trial and for the time since time zero at the
@@ -1484,10 +1513,11 @@ replicates. Each replicate resampled persons, not person-trials, and one
 resample served both arms. The weights were held fixed in the
 bootstrap.</p>
 <p>No interval was reported at a time by which either arm had no
-weighted event. The number needed to treat was the negative reciprocal
-of the risk difference, so a positive value meant benefit. We reported
-its interval only when the interval of the risk difference excluded
-zero.</p>
+weighted event. No risk difference was reported at a time at which
+either arm had fewer than 10 persons at risk. The number needed to treat
+was the negative reciprocal of the risk difference, so a positive value
+meant benefit. We reported its interval only when the interval of the
+risk difference excluded zero.</p>
 <p>A missing confounder value at the recruiting week was singly imputed
 by a hot-deck draw. A missing value during follow-up was carried forward
 within the person-trial. We assessed effect modification by
@@ -1499,8 +1529,8 @@ level.</p>
 <h3 id="sensitivity-analyses-1">Sensitivity analyses<a class="anchor" aria-label="anchor" href="#sensitivity-analyses-1"></a>
 </h3>
 <p>We repeated the per-protocol analysis with untruncated weights, as a
-pre-specified sensitivity analysis. We read a divergence between the two
-estimates as a sign of unstable weights.</p>
+pre-specified sensitivity analysis (Cole and Hernán 2008). We read a
+divergence between the two estimates as a sign of unstable weights.</p>
 </div>
 <div class="section level3">
 <h3 id="software">Software<a class="anchor" aria-label="anchor" href="#software"></a>
@@ -1528,7 +1558,7 @@ rerun uses the same data-generating processes, truth calculations and
 fit wrappers that the package’s test suite enforces in continuous
 integration. Section 4.2 maps each layer to its test file and describes
 how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-10-10 11:34:03 UTC with swereg 27.3.0,
+<p>Provenance: generated 2026-10-19 16:38:21 UTC with swereg 27.2.7,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
@@ -3928,6 +3958,9 @@ Observational data for comparative effectiveness research: an emulation
 of randomised trials of statins and primary prevention of coronary heart
 disease. <em>Stat Methods Med Res</em> 2013;22(1):70–96. DOI
 10.1177/0962280211403603.</li>
+<li>Cole SR, Hernán MA. Constructing inverse probability weights for
+marginal structural models. <em>Am J Epidemiol</em> 2008;168(6):656–664.
+DOI 10.1093/aje/kwn164.</li>
 <li>Altman DG. Confidence intervals for the number needed to treat.
 <em>BMJ</em> 1998;317(7168):1309–1312. DOI
 10.1136/bmj.317.7168.1309.</li>
