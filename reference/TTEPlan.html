@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -480,7 +480,43 @@ enrollment <code>family</code>.</p>
 sheets already report every emulated trial with counts, rates, ratios,
 risk differences, intervals and numbers needed to treat. A forest image
 repeated a subset of those numbers. <code>$export()</code> still draws one for a
-manuscript.</p><div class="section">
+manuscript.</p>
+<p>The method also writes <code>results.qs2</code> to the directory of the workbook. A
+manuscript reads that file. It is a named list of aggregate results:</p><dl><dt><code>estimates</code></dt>
+<dd><p><code>$get_estimates()</code>.</p></dd>
+
+<dt><code>curves</code></dt>
+<dd><p><code>$get_curves()</code>.</p></dd>
+
+<dt><code>baselines</code></dt>
+<dd><p><code>$get_baselines()</code>.</p></dd>
+
+<dt><code>attrition</code></dt>
+<dd><p><code>$get_attrition()</code>.</p></dd>
+
+<dt><code>enrollments</code></dt>
+<dd><p>One row per enrollment: <code>enrollment_id</code>,
+<code>enrollment_name</code>, <code>intervention_name</code>, <code>comparator_name</code>, and the
+per-protocol person-trials of each arm, <code>n_baseline_intervention</code> and
+<code>n_baseline_comparator</code>.</p></dd>
+
+<dt><code>spec_version</code></dt>
+<dd><p>The specification version of the plan.</p></dd>
+
+<dt><code>swereg_version</code></dt>
+<dd><p>The swereg version that wrote the file.</p></dd>
+
+<dt><code>swereg_version_computing</code></dt>
+<dd><p>A list with <code>s2</code> and <code>s3</code>, the swereg
+versions stamped on the stored results.</p></dd>
+
+<dt><code>s1_run_id</code>, <code>s2_run_id</code></dt>
+<dd><p>The s1 run id of the plan, and the
+distinct s2 run ids of its ETTs.</p></dd>
+
+
+</dl><p>The file holds no person-level data. No table has a person or person-trial
+identifier, and no table has a row per person or per person-trial.</p><div class="section">
 <h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_tables</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="cn">NULL</span>,</span>
