@@ -156,9 +156,9 @@ test_that("the administrative end names the last day of its ISO week", {
 
 test_that("the code list resolves a computed covariate through its source variable", {
   x <- osf_text(osf_write_spec(), code_registry = osf_registry())[["Code list"]]
-  expect_match(x, "| Prior rare condition | Covariate | D50 | at any time before baseline |  |", fixed = TRUE)
-  expect_match(x, "| Prior oophorectomy | Exclusion | LAE20, LAF10 | at any time before baseline |  |", fixed = TRUE)
-  expect_match(x, "| Outcome | Outcome | I26 |  |  |", fixed = TRUE)
+  expect_match(x, "- Prior rare condition (covariate). Codes: D50. Window: at any time before baseline.", fixed = TRUE)
+  expect_match(x, "- Prior oophorectomy (exclusion). Codes: LAE20, LAF10. Window: at any time before baseline.", fixed = TRUE)
+  expect_match(x, "- Outcome (outcome). Codes: I26.", fixed = TRUE)
 })
 
 test_that("the participant noun is used throughout", {
@@ -170,8 +170,9 @@ test_that("the participant noun is used throughout", {
 
 test_that("an enrollment criterion that reads a variable has a code-list row naming its comparison", {
   x <- osf_text(osf_write_spec(), code_registry = osf_registry())[["Code list"]]
-  expect_match(x, "| No prior Drug C | Inclusion (comparison 2) | derived variable | at any time before baseline |  |", fixed = TRUE)
-  expect_false(grepl("| Age 50-59 |", x, fixed = TRUE))
+  expect_match(x, "- No prior Drug C (inclusion in comparison 2). Derived variable, no codes. Window: at any time before baseline.", fixed = TRUE)
+  expect_false(grepl("- Age 50-59", x, fixed = TRUE))
+  expect_false(grepl("|", x, fixed = TRUE))
 })
 
 test_that("the methods sentences state where each term and offset enters", {

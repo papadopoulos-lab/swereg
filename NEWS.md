@@ -1,3 +1,9 @@
+# swereg 27.2.13
+
+## Documentation
+
+* **The code list of `tteplan_osf_text()` is a bulleted list, not a table.** The OSF form takes text and bullet points. Each item gives the name, its use, the codes or "Derived variable, no codes", the window and the categories.
+
 # swereg 27.2.12
 
 ## Documentation

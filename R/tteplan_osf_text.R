@@ -635,24 +635,23 @@ tteplan_osf_text <- function(
 }
 
 
-#' A Markdown table cell: pipes escaped, line breaks removed
+#' Text on one line: line breaks removed
 #' @noRd
-.osf_cell <- function(x) {
-  x <- gsub("[\r\n]+", " ", as.character(x))
-  return(gsub("|", "\\|", x, fixed = TRUE))
+.osf_one_line <- function(x) {
+  return(trimws(gsub("[\r\n]+", " ", as.character(x))))
 }
 
 
-#' The code-list rows of the enrollment criteria that read a variable
+#' The code-list items of the enrollment criteria that read a variable
 #'
-#' An age or ISO-year range reads no code, so it has no row. A criterion that
-#' every enrollment shares gets one row; any other names its comparisons.
+#' An age or ISO-year range reads no code, so it has no item. A criterion that
+#' every enrollment shares gets one item; any other names its comparisons.
 #' @noRd
 .osf_enrollment_code_rows <- function(ctx, row) {
   out <- character()
   n_enr <- length(ctx$spec$enrollments)
   for (use in c("additional_inclusion", "additional_exclusion")) {
-    label <- if (use == "additional_inclusion") "Inclusion" else "Exclusion"
+    label <- if (use == "additional_inclusion") "inclusion" else "exclusion"
     entries <- list()
     owners <- list()
     for (enr in ctx$spec$enrollments) {
@@ -670,7 +669,7 @@ tteplan_osf_text <- function(
     }
     for (key in names(entries)) {
       own <- unique(owners[[key]])
-      use_label <- if (length(own) == n_enr) label else paste0(label, " (comparison ", .osf_and(own), ")")
+      use_label <- if (length(own) == n_enr) label else paste0(label, " in comparison ", .osf_and(own))
       out <- c(out, row(entries[[key]], use_label, .protocol_impl_variable(entries[[key]]$implementation)))
     }
   }
@@ -683,31 +682,28 @@ tteplan_osf_text <- function(
   spec <- ctx$spec
   row <- function(entry, use, vars, window = TRUE, categories = NULL) {
     wp <- if (window) .osf_window(entry$implementation) else NULL
+    codes <- .osf_codes(ctx, vars)
+    cats <- unlist(categories)
     return(paste0(
-      "| ", .osf_cell(trimws(entry$name %||% "")),
-      " | ", use,
-      " | ", .osf_cell(.osf_codes(ctx, vars)),
-      " | ", wp %||% "",
-      " | ", .osf_cell(paste(unlist(categories), collapse = ", ")),
-      " |"
+      "- ", .osf_one_line(entry$name %||% ""), " (", use, "). ",
+      if (identical(codes, "derived variable")) "Derived variable, no codes." else paste0("Codes: ", .osf_one_line(codes), "."),
+      if (!is.null(wp)) paste0(" Window: ", wp, "."),
+      if (length(cats) > 0L) paste0(" Categories: ", .osf_one_line(paste(cats, collapse = ", ")), ".")
     ))
   }
   rows <- c(
-    lapply(spec$inclusion_criteria$criteria %||% list(), function(e) row(e, "Inclusion", .protocol_impl_variable(e$implementation))),
-    lapply(spec$exclusion_criteria %||% list(), function(e) row(e, "Exclusion", .protocol_impl_variable(e$implementation))),
+    lapply(spec$inclusion_criteria$criteria %||% list(), function(e) row(e, "inclusion", .protocol_impl_variable(e$implementation))),
+    lapply(spec$exclusion_criteria %||% list(), function(e) row(e, "exclusion", .protocol_impl_variable(e$implementation))),
     .osf_enrollment_code_rows(ctx, row),
     lapply(spec$confounders %||% list(), function(e) {
       computed <- isTRUE(e$implementation$computed)
       vars <- if (computed) e$implementation$source_variable %||% .protocol_impl_variable(e$implementation) else .protocol_impl_variable(e$implementation)
-      return(row(e, "Covariate", vars, window = computed, categories = e$categories))
+      return(row(e, "covariate", vars, window = computed, categories = e$categories))
     }),
-    lapply(spec$outcomes, function(e) row(e, "Outcome", e$implementation$variable, window = FALSE))
+    lapply(spec$outcomes, function(e) row(e, "outcome", e$implementation$variable, window = FALSE))
   )
   return(.osf_paragraphs(
-    paste0(
-      "| Variable | Use | Codes | Window | Categories |\n|---|---|---|---|---|\n",
-      paste(unlist(rows), collapse = "\n")
-    ),
-    "Each code matches every code that starts with it. A code that starts with ! is removed from the codes before it. A row marked derived variable has no codes, and its row name defines it."
+    paste(unlist(rows), collapse = "\n"),
+    "Each code matches every code that starts with it. A code that starts with ! is removed from the codes before it."
   ))
 }
