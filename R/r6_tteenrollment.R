@@ -122,7 +122,7 @@
 #'   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
 #'   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
 #'   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
-#'   \item{`$risk_difference(weight_col, n_boot, seed, conf_level)`}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level}
+#'   \item{`$risk_difference(weight_col, n_boot, seed, conf_level, min_persons_at_risk)`}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level. A stop time with fewer than `min_persons_at_risk` people at risk in an arm gets none}
 #' }
 #'
 #' **Active bindings:**
@@ -579,9 +579,17 @@ TTEEnrollment <- R6::R6Class(
     #' @description Generate baseline characteristics table.
     #'
     #' Returns a long-format `data.table` with one row per categorical level
-    #' plus one row per continuous variable. See `.swereg_table1()` for the
-    #' layout. The result has S3 class `c("swereg_table1", "data.table",
-    #' "data.frame")`.
+    #' plus three rows per continuous variable: mean (SD), median (Q1, Q3) and
+    #' range (min, max). See `.swereg_table1()` for the layout. The result has
+    #' S3 class `c("swereg_table1", "data.table", "data.frame")`.
+    #'
+    #' A weighted median is the first distinct value at which the cumulative
+    #' normalised weight reaches 0.5, after the values are sorted. Where that
+    #' cumulative weight equals 0.5, the median is the mean of that value and
+    #' the next distinct value. Q1 and Q3 use 0.25 and 0.75. An unweighted
+    #' panel uses equal weights, which gives `stats::median()` and `type = 2`
+    #' of `stats::quantile()`. The range reads the rows with a positive
+    #' weight.
     #'
     #' @param ipw_col Character or NULL. If specified, the table is
     #'   weighted by `ipw_col`.

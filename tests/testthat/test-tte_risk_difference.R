@@ -106,7 +106,8 @@ rd_out <- function(dt = rd_dt(), n_boot = 200L, seed = 4L, conf_level = 0.95) {
     weight_col = "w",
     n_boot = n_boot,
     seed = seed,
-    conf_level = conf_level
+    conf_level = conf_level,
+    min_persons_at_risk = 0L
   )
 }
 
@@ -221,7 +222,8 @@ test_that("one multiplicity vector is applied to both arms", {
     time_var = "tstop",
     weight_col = "w",
     n_boot = n_boot,
-    keep_mult = TRUE
+    keep_mult = TRUE,
+    min_persons_at_risk = 0L
   )
 
   # One draw per replicate. A separate resample per arm doubles this.
@@ -332,7 +334,8 @@ test_that("person-trial aggregation is exactly person-level aggregation", {
     time_var = "tstop",
     weight_col = "w",
     n_boot = n_boot,
-    keep_mult = TRUE
+    keep_mult = TRUE,
+    min_persons_at_risk = 0L
   )
   boot <- attr(out, "rd_boot")
   mult_int <- attr(out, "mult_intervention")
@@ -720,7 +723,12 @@ test_that("the stored direction agrees with the number needed to treat cell", {
 test_that("the pre-aggregated point estimate equals survival_curve() exactly", {
   trial <- rd_trial()
   curve <- trial$survival_curve(weight_col = "w")
-  out <- trial$risk_difference(weight_col = "w", n_boot = 20L, seed = 4L)
+  out <- trial$risk_difference(
+    weight_col = "w",
+    n_boot = 20L,
+    seed = 4L,
+    min_persons_at_risk = 0L
+  )
 
   ref_int <- curve[exposed == TRUE][order(tstop)]$surv
   ref_cmp <- curve[exposed == FALSE][order(tstop)]$surv
@@ -759,7 +767,8 @@ rd_keep_mult <- function(n_boot, seed = 4L, dt = rd_dt()) {
     time_var = "tstop",
     weight_col = "w",
     n_boot = n_boot,
-    keep_mult = TRUE
+    keep_mult = TRUE,
+    min_persons_at_risk = 0L
   )
 }
 

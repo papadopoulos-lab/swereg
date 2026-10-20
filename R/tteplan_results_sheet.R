@@ -100,7 +100,9 @@
     nnt_direction = est$nnt_direction[hit],
     n_persons_with_event_intervention = est$persons_event_int[hit],
     n_persons_with_event_comparator = est$persons_event_cmp[hit],
-    conf_level = est$conf_level[hit]
+    conf_level = est$conf_level[hit],
+    interval_status = est$interval_status[hit],
+    min_persons_at_risk = est$min_persons_at_risk[hit]
   ))
 }
 
@@ -116,9 +118,14 @@
 #' The risk difference keeps its sign and is scaled to 10,000 people, matching
 #' the forest figure.
 #'
+#' A risk difference withheld for a sparse risk set has no number. Its
+#' interval cell then holds the reason, and the list carries the attribute
+#' `withheld = TRUE`, so the sheet writer can put "not estimable" in the
+#' risk-difference cell.
+#'
 #' @param rd_row A one-row table carrying the `$get_estimates()` risk-difference
-#'   columns (`persons_event_int`, `persons_event_cmp`, `rd`, `rd_lo` and
-#'   `rd_hi`), or NULL.
+#'   columns (`persons_event_int`, `persons_event_cmp`, `rd`, `rd_lo`,
+#'   `rd_hi`, `interval_status` and `min_persons_at_risk`), or NULL.
 #' @return An unnamed list of four cells: two counts, the risk difference, and
 #'   its interval as a display string.
 #' @noRd
@@ -128,6 +135,16 @@
   }
   per <- 10000
   pick <- function(nm) as.numeric(rd_row[[nm]])[1]
+  if (.rd_row_withheld(rd_row)) {
+    cells <- list(
+      pick("persons_event_int"),
+      pick("persons_event_cmp"),
+      NA_real_,
+      .tte_rd_withheld_text(pick("min_persons_at_risk"))
+    )
+    attr(cells, "withheld") <- TRUE
+    return(cells)
+  }
   rd <- pick("rd")
   lo <- pick("rd_lo")
   hi <- pick("rd_hi")
@@ -140,6 +157,58 @@
     } else {
       NA_character_
     }
+  ))
+}
+
+
+#' The head-count rule of a plan's stored risk differences, as TARGET prose
+#'
+#' The TARGET checklist states the rule only where stored results applied it.
+#' Each stored risk difference records the threshold it was computed with, and
+#' a result from before the rule records `NA`. A stand-in plan that is not a
+#' `TTEPlan` has no `$get_estimates()`, and so no stored result.
+#'
+#' The Target trial protocol sheet does not state the rule. It is a
+#' preregistration exhibit, and no s3 result reaches it.
+#'
+#' @param plan A TTEPlan.
+#' @return A character(1). It is `""` when no stored risk difference carries a
+#'   threshold. When some do and some do not, the sentence limits the rule to
+#'   the results computed with it. Two thresholds read as `"10 or 20"`.
+#' @noRd
+.plan_rd_rule_text <- function(plan) {
+  est <- if (inherits(plan, "TTEPlan")) plan$get_estimates() else NULL
+  k_all <- if (is.null(est)) {
+    numeric(0)
+  } else {
+    est$min_persons_at_risk[est$rd_stored %in% TRUE]
+  }
+  k <- sort(unique(k_all[!is.na(k_all)]))
+  if (length(k) == 0L) {
+    return("")
+  }
+  k_txt <- paste(format(k, trim = TRUE, scientific = FALSE), collapse = " or ")
+  return(paste0(
+    if (anyNA(k_all)) "For the results computed with this rule, no" else "No",
+    " risk difference was reported at a time at which either arm had fewer than ",
+    k_txt,
+    " persons at risk. "
+  ))
+}
+
+
+#' Was this stored risk difference withheld for a sparse risk set?
+#'
+#' @param rd_row A one-row table carrying `interval_status`, or NULL.
+#' @return Logical(1).
+#' @noRd
+.rd_row_withheld <- function(rd_row) {
+  if (is.null(rd_row) || !"interval_status" %in% names(rd_row)) {
+    return(FALSE)
+  }
+  return(identical(
+    as.character(rd_row[["interval_status"]])[1L],
+    .RD_STATUS_FEW_AT_RISK
   ))
 }
 
@@ -171,8 +240,9 @@
 #' Decide whether a results sheet carries the risk-difference columns.
 #'
 #' The sheet carries them when at least one of its rows has a finite risk
-#' difference. The Summary sheet applies the same rule, so it shows a risk
-#' difference only when the results sheet shows one.
+#' difference, or a risk difference withheld for a sparse risk set. The
+#' Summary sheet applies the same rule, so it shows a risk difference only when
+#' the results sheet shows one.
 #'
 #' @param rd_cells A list with one element per sheet row, each the output of
 #'   `.rd_sheet_cells()`.
@@ -182,7 +252,7 @@
   return(any(vapply(
     rd_cells,
     function(cells) {
-      return(is.finite(cells[[3]]))
+      return(is.finite(cells[[3]]) || isTRUE(attr(cells, "withheld")))
     },
     logical(1)
   )))
@@ -222,7 +292,9 @@
 #' columns and one measurement block (events / PY / rate per arm + IRR + IRR
 #' interval + p-value). Numbers are real (Excel numFmt via
 #' `.apply_measurement_numfmt()`); the IRR and its interval are display strings.
-#' Used for "PP results" and "ITT results".
+#' Used for "PP results" and "ITT results". An ETT gets a row when it has
+#' usable rates and a usable ratio, or a stored risk difference. A row with a
+#' risk difference and no usable ratio has empty rate and ratio cells.
 #'
 #' The IRR interval header and the risk-difference interval header state the
 #' study level `.s3_conf_level()`.
@@ -311,15 +383,18 @@
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     m <- .sensitivity_row_measurements(est, eid, irr_slot)
-    if (is.null(m)) {
-      next
-    }
     hit <- which(
       est$ett_id == eid &
         est$estimand == combo[["estimand"]] &
         est$weights == combo[["weights"]]
     )
     rd_row <- .results_rd_row(est, hit, rd_slot)
+    # A row with no usable rates or ratio still shows a stored risk
+    # difference, so a withheld one cannot vanish. Its rate and ratio cells
+    # are then empty, as for a missing ratio.
+    if (is.null(m) && is.null(rd_row)) {
+      next
+    }
     rd_cells[[length(rd_cells) + 1L]] <- .rd_sheet_cells(rd_row)
     if (!is.null(rd_row)) {
       rd_levels <- c(rd_levels, as.numeric(rd_row[["conf_level"]])[1])
@@ -462,6 +537,23 @@
         cols = rd_start + j - 1L,
         gridExpand = TRUE,
         stack = TRUE
+      )
+    }
+    # A withheld risk difference gets words, never an empty cell. The interval
+    # cell beside it already names the reason.
+    for (k in which(vapply(
+      rd_cells,
+      function(cells) {
+        return(isTRUE(attr(cells, "withheld")))
+      },
+      logical(1)
+    ))) {
+      openxlsx::writeData(
+        wb,
+        sheet_name,
+        "not estimable",
+        startCol = rd_start + 2L,
+        startRow = data_start_row + k - 1L
       )
     }
   }

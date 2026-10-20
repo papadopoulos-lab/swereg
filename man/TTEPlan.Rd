@@ -629,7 +629,8 @@ of the job log meets either signal.
   ett_ids = NULL,
   output_dir = NULL,
   swereg_dev_path = NULL,
-  n_workers = default_n_workers("s3")
+  n_workers = default_n_workers("s3"),
+  rd_min_persons_at_risk = 10L
 )}
     \if{html}{\out{</div>}}
   }
@@ -650,6 +651,11 @@ loop. Each worker reads its own analysis file fresh, so peak RAM
 scales linearly with \code{n_workers}; on machines with multi-GB
 analysis files, set this conservatively. CPU threads per worker
 are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
+      \item{\code{rd_min_persons_at_risk}}{Whole number of at least 0 (default 10). A
+risk difference is withheld, point estimate included, at a stop time
+where either arm has fewer people at risk. Its \code{interval_status} then
+reads \code{"too few at risk at horizon"}. The incidence rate ratio does not
+read it.}
     }
     \if{html}{\out{</div>}}
   }
@@ -774,17 +780,22 @@ itself, and MUST NOT print \code{nnt} alone where the bounds are missing.
 \code{n_trials_int} and \code{n_trials_cmp} count the person-trials of each arm in
 the analysis file of that estimand. On an intention-to-treat row they are
 the intention-to-treat analysis set, which the CONSORT flow reads.
+
+A risk difference withheld for a sparse risk set has \code{rd}, \code{rd_lo},
+\code{rd_hi} and the number-needed-to-treat columns \code{NA}, and \code{interval_status}
+reads \code{"too few at risk at horizon"}. \code{min_persons_at_risk} holds the head
+count the rule used, and \code{NA} where the stored result predates the rule.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_estimates()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 47 columns. The identifiers come first, then
+    A data.table with 48 columns. The identifiers come first, then
 the weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-\code{n_boot}, \code{seed} and \code{conf_level} record what produced the
-risk-difference interval.
+\code{n_boot}, \code{seed}, \code{conf_level} and \code{min_persons_at_risk} record what
+produced the risk difference.
   }
 }
 

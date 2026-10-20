@@ -68,11 +68,16 @@ TTEPlan$set("public", "results_summary", function() {
 #' the analysis file of that estimand. On an intention-to-treat row they are
 #' the intention-to-treat analysis set, which the CONSORT flow reads.
 #'
-#' @return A data.table with 47 columns. The identifiers come first, then
+#' A risk difference withheld for a sparse risk set has `rd`, `rd_lo`,
+#' `rd_hi` and the number-needed-to-treat columns `NA`, and `interval_status`
+#' reads `"too few at risk at horizon"`. `min_persons_at_risk` holds the head
+#' count the rule used, and `NA` where the stored result predates the rule.
+#'
+#' @return A data.table with 48 columns. The identifiers come first, then
 #'   the weighted counts and the person-trials of each arm. The incidence rate
 #'   ratio follows, then the risk difference and the number needed to treat.
-#'   `n_boot`, `seed` and `conf_level` record what produced the
-#'   risk-difference interval.
+#'   `n_boot`, `seed`, `conf_level` and `min_persons_at_risk` record what
+#'   produced the risk difference.
 TTEPlan$set("public", "get_estimates", function() {
   return(.acc_estimates(self))
 })

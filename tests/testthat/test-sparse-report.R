@@ -336,12 +336,12 @@ test_that("CONSORT labels each step-2 row with its condition and the rule", {
   )
   expect_match(
     dot,
-    "- Prior rare condition B (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 4 persons / 50 person-trials)",
+    "- Prior rare condition B (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 50 person-trials; 4 persons excluded entirely)",
     fixed = TRUE
   )
   expect_match(
     dot,
-    "- Prior rare condition A (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 3 persons / 30 person-trials)",
+    "- Prior rare condition A (rare-condition rule: fewer than 10 persons at baseline in the smallest arm of the driving comparison) (n = 30 person-trials; 3 persons excluded entirely)",
     fixed = TRUE
   )
 })

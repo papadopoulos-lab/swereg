@@ -512,9 +512,12 @@
   )
 
   lines <- sprintf(
-    "Excluded (n = %s persons / %s person-trials):",
-    fmt(elig$n_persons[1L] - elig$n_persons[nrow(elig)]),
-    fmt(elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)])
+    "Excluded (n = %s):",
+    .consort_drop_counts(
+      elig$n_persons[1L] - elig$n_persons[nrow(elig)],
+      elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)],
+      fmt
+    )
   )
   for (g in names(headings)) {
     hit <- which(group == g)
@@ -524,25 +527,62 @@
     lines <- c(
       lines,
       sprintf(
-        "%s (n = %s persons / %s person-trials):",
+        "%s (n = %s):",
         headings[[g]],
-        fmt(sum(rows$change_persons[hit])),
-        fmt(sum(rows$change_person_trials[hit]))
+        .consort_drop_counts(
+          sum(rows$change_persons[hit]),
+          sum(rows$change_person_trials[hit]),
+          fmt
+        )
       )
     )
     for (j in hit) {
       lines <- c(
         lines,
         sprintf(
-          "- %s (n = %s persons / %s person-trials)",
+          "- %s (n = %s)",
           labels_inline(step[j]),
-          fmt(rows$change_persons[j]),
-          fmt(rows$change_person_trials[j])
+          .consort_drop_counts(
+            rows$change_persons[j],
+            rows$change_person_trials[j],
+            fmt
+          )
         )
       )
     }
   }
   return(paste0(paste(lines, collapse = "\\l"), "\\l"))
+}
+
+
+#' The counts of one exclusion line of the CONSORT side box
+#'
+#' A step removes person-trials. It removes a person only when it removes her
+#' last person-trial, so the person count is the number of persons the step
+#' excluded entirely. The person-trials come first, because they are what the
+#' step removes. A person count that is missing gives no person clause.
+#'
+#' @param n_persons Numeric(1), the persons the step excluded entirely.
+#' @param n_person_trials Numeric(1), the person-trials the step removed.
+#' @param fmt The number formatter of the calling renderer.
+#' @return A character(1), for example
+#'   `"48,122,520 person-trials; 1 person excluded entirely"`.
+#' @noRd
+.consort_drop_counts <- function(n_persons, n_person_trials, fmt) {
+  pt <- paste(
+    fmt(n_person_trials),
+    if (isTRUE(n_person_trials == 1)) "person-trial" else "person-trials"
+  )
+  if (is.na(n_persons)) {
+    return(pt)
+  }
+  return(paste0(
+    pt,
+    "; ",
+    fmt(n_persons),
+    if (isTRUE(n_persons == 1)) " person" else " persons",
+    " excluded entirely"
+  ))
 }
 
 
@@ -554,8 +594,9 @@
 #'
 #'   - Starting cohort box (`before_exclusions`) showing total persons and
 #'     person-trials.
-#'   - One red side-box listing every criterion as a bullet, with
-#'     (persons / person-trials) per bullet. The bullets sit under the three
+#'   - One red side-box listing every criterion as a bullet. Each bullet
+#'     gives the person-trials the step removed, then the persons it excluded
+#'     entirely, as `.consort_drop_counts()` formats them. The bullets sit under the three
 #'     CONSORT 2010 headings, "Not meeting inclusion criteria", "Meeting
 #'     exclusion criteria" and "Other reasons". Each heading carries its own
 #'     group total, and the three sum to the box total.

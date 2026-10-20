@@ -376,6 +376,8 @@
 #'   carries it because batchit demands every formal on every item. The
 #'   `irr`, `risk_difference`, `irr_by_subgroup` and
 #'   `effect_modification_test` methods read it.
+#' @param rd_min_persons_at_risk Numeric(1), the smallest head count in each
+#'   arm at which the `risk_difference` method reports a risk difference.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
 .s3_ett_worker <- function(
@@ -385,7 +387,8 @@
   ett_id,
   n_threads,
   subgroup_var = NULL,
-  conf_level = .S3_RD_CONF_LEVEL_DEFAULT
+  conf_level = .S3_RD_CONF_LEVEL_DEFAULT,
+  rd_min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -395,7 +398,8 @@
     weight_col,
     ett_id,
     subgroup_var,
-    conf_level
+    conf_level,
+    rd_min_persons_at_risk
   )
   # The parent merges every key into `results_ett[[eid]]`, so the stamp
   # reaches the stored result beside the slot it came with.
@@ -419,7 +423,8 @@
   weight_col,
   ett_id,
   subgroup_var,
-  conf_level
+  conf_level,
+  rd_min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
 ) {
   safe_call <- function(expr_fn, label) {
     return(tryCatch(
@@ -513,7 +518,8 @@
           weight_col = weight_col,
           n_boot = .S3_RD_N_BOOT,
           seed = .S3_RD_SEED,
-          conf_level = conf_level
+          conf_level = conf_level,
+          min_persons_at_risk = rd_min_persons_at_risk
         ))
       },
       slot

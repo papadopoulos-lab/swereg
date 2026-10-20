@@ -190,7 +190,8 @@
     nnt_direction = "character",
     n_boot = "numeric",
     seed = "numeric",
-    conf_level = "numeric"
+    conf_level = "numeric",
+    min_persons_at_risk = "numeric"
   ),
   curves = c(
     ett_id = "character",
@@ -604,7 +605,8 @@
       nnt_direction = .acc_chr1(rd_row, "nnt_direction"),
       n_boot = .acc_num1(rd_row, "n_boot"),
       seed = .acc_num1(rd_row, "seed"),
-      conf_level = .acc_num1(rd_row, "conf_level")
+      conf_level = .acc_num1(rd_row, "conf_level"),
+      min_persons_at_risk = .acc_num1(rd_row, "min_persons_at_risk")
     ))
   })
   rows <- Filter(Negate(is.null), rows)

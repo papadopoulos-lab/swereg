@@ -44,6 +44,62 @@
 # performance setting move a published confidence interval.
 .RD_BOOT_BATCH <- 50L
 
+# The default of `min_persons_at_risk`, the smallest head count of people at
+# risk in each arm at which a risk difference is reported. Below it, the late
+# hazards rest on a few people, the sample rarely holds a late event, and the
+# bootstrap cannot create one. With about 3 people at risk at the horizon, a
+# simulation measured 0.83 coverage for a nominal 95% interval.
+.RD_MIN_PERSONS_AT_RISK_DEFAULT <- 10L
+
+# The `interval_status` value of a stop time whose risk difference is withheld
+# because an arm has fewer than `min_persons_at_risk` people at risk there.
+.RD_STATUS_FEW_AT_RISK <- "too few at risk at horizon"
+
+#' The text a renderer prints for a withheld risk difference
+#'
+#' @param k Numeric(1), the `min_persons_at_risk` the result was computed
+#'   with, or `NA` when the stored result does not record it.
+#' @param short Logical(1). `TRUE` gives the form a figure cell prints.
+#' @return A character(1) that names the reason.
+#' @noRd
+.tte_rd_withheld_text <- function(k, short = FALSE) {
+  k <- suppressWarnings(as.numeric(k)[1L])
+  known <- length(k) == 1L && !is.na(k)
+  k_txt <- if (known) format(k, trim = TRUE, scientific = FALSE) else ""
+  if (isTRUE(short)) {
+    if (!known) {
+      return("not estimable (too few at risk)")
+    }
+    return(sprintf("not estimable (< %s at risk)", k_txt))
+  }
+  if (!known) {
+    return("not estimable: too few at risk at horizon")
+  }
+  return(sprintf(
+    "not estimable: fewer than %s persons at risk in an arm at horizon",
+    k_txt
+  ))
+}
+
+#' Stop unless `x` is one whole number of at least 0
+#'
+#' @param x The value of a `min_persons_at_risk` argument.
+#' @param arg Character(1), the argument name for the message.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_check_min_persons_at_risk <- function(x, arg) {
+  if (
+    length(x) != 1L ||
+      !is.numeric(x) ||
+      !is.finite(x) ||
+      x < 0 ||
+      x != round(x)
+  ) {
+    stop(arg, " must be a single whole number of at least 0", call. = FALSE)
+  }
+  return(invisible(TRUE))
+}
+
 #' Arm survival for a batch of bootstrap multiplicity rows
 #'
 #' The weighted hazard of one arm, accumulated over the stop times, for
@@ -195,6 +251,15 @@
 #' including that stop time. An arm can have no event by week 52 and
 #' several by week 156, and the week-156 interval is then estimable.
 #'
+#' A sparse risk set gets NO risk difference. When either arm has fewer than
+#' `min_persons_at_risk` people at risk at a stop time, `rd`, `rd_lo`, `rd_hi`
+#' and the number-needed-to-treat columns are `NA` there, and
+#' `interval_status` reads `"too few at risk at horizon"`. The point estimate
+#' goes too, because its late hazards rest on a few people. The head count is
+#' the one in `n_persons_at_risk_comparator` and
+#' `n_persons_at_risk_intervention`. This status wins over `"zero-event arm"`
+#' where both apply. The survival columns stay.
+#'
 #' An interval that CONTAINS the null is a third state, and it is named. A
 #' stop time whose interval is estimable but does not strictly exclude
 #' zero reads `"spans null"`. The number needed to treat has no interval there,
@@ -237,6 +302,9 @@
 #' @param weight_col Character, the weight column (time-varying allowed).
 #' @param n_boot Integer, number of bootstrap replicates.
 #' @param conf_level Numeric in (0, 1), the percentile interval level.
+#' @param min_persons_at_risk Numeric(1), a whole number of at least 0. A stop
+#'   time where either arm has fewer people at risk gets no risk difference.
+#'   Default 10. `0` withholds nothing.
 #' @param keep_mult Logical. When TRUE, the multiplicity vector applied to each
 #'   arm is recorded and attached as the `mult_intervention` and
 #'   `mult_comparator` attributes, one row per replicate. Verification only:
@@ -245,13 +313,15 @@
 #'   it, `.tte_interval_start()` reads each row as covering the one stop
 #'   time that ends at its own stop.
 #' @return A data.table, one row per stop time. The `interval_status`
-#'   column takes one of three values.
+#'   column takes one of four values.
 #'   \itemize{
 #'     \item `"ok"`. The bootstrap interval is estimable and strictly excludes
 #'       the null.
 #'     \item `"spans null"`. The interval is estimable and contains the null.
 #'     \item `"zero-event arm"`. An arm has no positive-weight event through
 #'       that horizon, so there is no interval.
+#'     \item `"too few at risk at horizon"`. An arm has fewer than
+#'       `min_persons_at_risk` people at risk, so there is no risk difference.
 #'   }
 #'   The `nnt` column holds the signed number needed to treat, `-1/rd`. The
 #'   `nnt_lo` and `nnt_hi` columns hold its interval, as `.tte_nntb()` returns
@@ -262,7 +332,7 @@
 #'   columns hold the distinct-person head count of each arm in that stop
 #'   time. Attributes: `rd_boot` (the `n_boot x n_interval` replicate
 #'   matrix the percentiles were read off), `conf_level`, `n_boot`,
-#'   `swereg_type`.
+#'   `min_persons_at_risk`, `swereg_type`.
 #' @noRd
 .tte_rd_curve <- function(
   data,
@@ -274,7 +344,8 @@
   n_boot = 500L,
   conf_level = 0.95,
   keep_mult = FALSE,
-  tstart_var = "tstart"
+  tstart_var = "tstart",
+  min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
 ) {
   . <- arm <- pt <- interval <- num <- den <- NULL # nolint
   first_interval <- N <- NULL # nolint
@@ -331,6 +402,8 @@
       call. = FALSE
     )
   }
+
+  .tte_check_min_persons_at_risk(min_persons_at_risk, "min_persons_at_risk")
 
   tv <- data[[treatment_var]]
   if (anyNA(tv)) {
@@ -515,6 +588,36 @@
   interval_status[!.tte_excludes_null(rd_lo, rd_hi)] <- "spans null"
   interval_status[zero_event_arm] <- "zero-event arm"
 
+  # The head count of people at risk in each arm at each stop time, the
+  # count `$survival_curve()` and `$get_curves()` report. It is read here,
+  # before the decision columns, because a sparse risk set withholds them.
+  spans <- .tte_span_risk_sets(
+    arm = tv,
+    person = person_raw,
+    weight = w,
+    event = ev,
+    tstart = tstart,
+    tstop = data[[time_var]],
+    times = interval_vals
+  )
+  persons_at_risk <- function(which_arm) {
+    return(spans[arm == which_arm]$n_persons_at_risk)
+  }
+  n_at_risk_cmp <- persons_at_risk(FALSE)
+  n_at_risk_int <- persons_at_risk(TRUE)
+
+  # A sparse risk set withholds the WHOLE risk difference, the point estimate
+  # included. The late hazards then rest on a few people. The sample rarely
+  # holds a late event and the bootstrap cannot create one, so the interval
+  # undercovers. This status wins over "zero-event arm", because it withholds
+  # more.
+  few_at_risk <- n_at_risk_cmp < min_persons_at_risk |
+    n_at_risk_int < min_persons_at_risk
+  rd[few_at_risk] <- NA_real_
+  rd_lo[few_at_risk] <- NA_real_
+  rd_hi[few_at_risk] <- NA_real_
+  interval_status[few_at_risk] <- .RD_STATUS_FEW_AT_RISK
+
   # The benefit-or-harm decision, made ONCE, beside `rd`, from the same
   # numbers. Every formatter reads `nnt_direction` and none re-derives it.
   nnt_fields <- .tte_nnt_from_rd(rd)
@@ -567,19 +670,6 @@
   # probability, so no head count can be derived from it. Only the panel holds
   # the identifiers. A woman is at risk at every time her rows span, so a row
   # that opens before the time and closes after it counts her there.
-  spans <- .tte_span_risk_sets(
-    arm = tv,
-    person = person_raw,
-    weight = w,
-    event = ev,
-    tstart = tstart,
-    tstop = data[[time_var]],
-    times = interval_vals
-  )
-  persons_at_risk <- function(which_arm) {
-    return(spans[arm == which_arm]$n_persons_at_risk)
-  }
-
   out <- data.table::data.table(
     interval = interval_vals,
     surv_comparator = surv_cmp,
@@ -594,14 +684,15 @@
     nnt_direction = nnt_fields$nnt_direction,
     n_persons_with_event_comparator = cum_persons(FALSE),
     n_persons_with_event_intervention = cum_persons(TRUE),
-    n_persons_at_risk_comparator = persons_at_risk(FALSE),
-    n_persons_at_risk_intervention = persons_at_risk(TRUE)
+    n_persons_at_risk_comparator = n_at_risk_cmp,
+    n_persons_at_risk_intervention = n_at_risk_int
   )
   data.table::setnames(out, "interval", time_var)
 
   data.table::setattr(out, "rd_boot", boot)
   data.table::setattr(out, "conf_level", conf_level)
   data.table::setattr(out, "n_boot", n_boot)
+  data.table::setattr(out, "min_persons_at_risk", min_persons_at_risk)
   data.table::setattr(out, "swereg_type", "risk_difference")
   if (!is.null(mult_store)) {
     data.table::setattr(out, "mult_intervention", mult_store$intervention)

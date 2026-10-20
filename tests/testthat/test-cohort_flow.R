@@ -87,7 +87,7 @@ test_that(".build_consort_dot renders comparator-draw and analysis boxes from th
   # This flow names no inclusion step, so its one criterion sits under the
   # exclusion heading and the other two headings do not print.
   expect_true(grepl(
-    "Meeting exclusion criteria (n = 200 persons / 1,000 person-trials)",
+    "Meeting exclusion criteria (n = 1,000 person-trials; 200 persons excluded entirely)",
     dot,
     fixed = TRUE
   ))

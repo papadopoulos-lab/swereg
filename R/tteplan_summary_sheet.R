@@ -64,9 +64,10 @@
 #' Build the Summary cells of one estimand and weighting combination
 #'
 #' The rules follow `.write_results_single()`. An ETT without usable rates or
-#' a usable ratio has no row on the results sheet, so all its cells here are
-#' `NA`. The event counts and the risk difference show only when the results
-#' sheet carries its risk-difference columns.
+#' a usable ratio, and without a stored risk difference, has no row on the
+#' results sheet, so all its cells here are `NA`. The event counts and the
+#' risk difference show only when the results sheet carries its
+#' risk-difference columns.
 #'
 #' @param est A `$get_estimates()` table.
 #' @param ett_ids Character vector, the ETTs in sheet order.
@@ -99,7 +100,15 @@
   on_sheet <- logical(n)
   for (i in seq_len(n)) {
     m <- .sensitivity_row_measurements(est, ett_ids[i], slots[["irr"]])
-    if (is.null(m)) {
+    hit <- which(
+      est$ett_id == ett_ids[i] &
+        est$estimand == combo[["estimand"]] &
+        est$weights == combo[["weights"]]
+    )
+    rd_row <- .results_rd_row(est, hit, slots[["rd"]])
+    # The rule of `.write_results_single()`: a stored risk difference keeps
+    # the row on the sheet when the rates or the ratio are missing.
+    if (is.null(m) && is.null(rd_row)) {
       next
     }
     on_sheet[i] <- TRUE
@@ -111,12 +120,7 @@
     }
     out$py_int[i] <- fmt[["PY (int)"]]
     out$py_cmp[i] <- fmt[["PY (cmp)"]]
-    hit <- which(
-      est$ett_id == ett_ids[i] &
-        est$estimand == combo[["estimand"]] &
-        est$weights == combo[["weights"]]
-    )
-    rd_cells[[i]] <- .rd_sheet_cells(.results_rd_row(est, hit, slots[["rd"]]))
+    rd_cells[[i]] <- .rd_sheet_cells(rd_row)
   }
   if (!.results_has_rd(rd_cells[on_sheet])) {
     return(out)
@@ -129,6 +133,10 @@
         "/",
         .summary_count(cells[[2]])
       )
+    }
+    if (isTRUE(attr(cells, "withheld"))) {
+      out$rd[i] <- cells[[4]]
+      next
     }
     if (is.finite(cells[[3]])) {
       point <- .summary_signed(cells[[3]])

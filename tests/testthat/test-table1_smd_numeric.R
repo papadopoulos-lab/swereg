@@ -39,19 +39,22 @@ test_that("smd_numeric is a row-parallel column holding the unrounded double", {
   expect_true("smd_numeric" %in% names(t1))
   expect_type(t1$smd_numeric, "double")
   expect_identical(length(t1$smd_numeric), nrow(t1))
-  expect_identical(nrow(t1), 5L)
+  expect_identical(nrow(t1), 7L)
 
-  # Rows 1 (N), 2 (Sum of weights) and 5 (second level of edu) carry no SMD.
+  # Rows 1 (N), 2 (Sum of weights), 4 and 5 (median and range of age) and 7
+  # (second level of edu) carry no SMD.
   expect_true(is.na(t1$smd_numeric[1]))
   expect_true(is.na(t1$smd_numeric[2]))
+  expect_true(is.na(t1$smd_numeric[4]))
   expect_true(is.na(t1$smd_numeric[5]))
+  expect_true(is.na(t1$smd_numeric[7]))
 
   expect_equal(t1$smd_numeric[3], SMD_AGE, tolerance = 1e-12)
-  expect_equal(t1$smd_numeric[4], SMD_EDU, tolerance = 1e-12)
+  expect_equal(t1$smd_numeric[6], SMD_EDU, tolerance = 1e-12)
 
   # It sits beside the display string, it does not replace it.
   expect_identical(t1$SMD[3], "0.891")
-  expect_identical(t1$SMD[4], "1.155")
+  expect_identical(t1$SMD[6], "1.155")
 })
 
 
@@ -59,7 +62,7 @@ test_that("smd_numeric is not the SMD string parsed back to a number", {
   t1 <- love_fixture_t1()
   # as.numeric("0.891") would land exactly on 0.891; the real double does not.
   expect_gt(abs(t1$smd_numeric[3] - 0.891), 1e-5)
-  expect_gt(abs(t1$smd_numeric[4] - 1.155), 1e-5)
+  expect_gt(abs(t1$smd_numeric[6] - 1.155), 1e-5)
 })
 
 
@@ -67,7 +70,7 @@ test_that("smd_numeric survives subsetting, reordering, rbindlist and qs2", {
   t1 <- love_fixture_t1()
 
   # Row subsetting: the SMD stays attached to its own row.
-  sub <- t1[c(4, 3)]
+  sub <- t1[c(6, 3)]
   expect_equal(sub$smd_numeric[1], SMD_EDU, tolerance = 1e-12)
   expect_equal(sub$smd_numeric[2], SMD_AGE, tolerance = 1e-12)
 
@@ -81,9 +84,9 @@ test_that("smd_numeric survives subsetting, reordering, rbindlist and qs2", {
 
   # rbindlist of two copies.
   stacked <- data.table::rbindlist(list(t1, t1), use.names = TRUE)
-  expect_identical(nrow(stacked), 10L)
+  expect_identical(nrow(stacked), 14L)
   expect_equal(stacked$smd_numeric[3], SMD_AGE, tolerance = 1e-12)
-  expect_equal(stacked$smd_numeric[8], SMD_AGE, tolerance = 1e-12)
+  expect_equal(stacked$smd_numeric[10], SMD_AGE, tolerance = 1e-12)
 
   # qs2 save/read cycle.
   tmp <- withr::local_tempdir()
@@ -92,7 +95,7 @@ test_that("smd_numeric survives subsetting, reordering, rbindlist and qs2", {
   back <- swereg::qs2_read(f)
   expect_true("smd_numeric" %in% names(back))
   expect_equal(back$smd_numeric[3], SMD_AGE, tolerance = 1e-12)
-  expect_equal(back$smd_numeric[4], SMD_EDU, tolerance = 1e-12)
+  expect_equal(back$smd_numeric[6], SMD_EDU, tolerance = 1e-12)
 })
 
 

@@ -109,11 +109,14 @@ skip_if_not_installed("data.table")
 .ceg_n <- function(s) {
   hit <- regmatches(
     s,
-    regexec("\\(n = ([0-9,]+) persons / ([0-9,]+) person-trials\\)", s)
+    regexec(
+      "\\(n = ([0-9,]+) person-trials?; ([0-9,]+) persons? excluded entirely\\)",
+      s
+    )
   )[[1]]
   return(c(
-    persons = as.numeric(gsub(",", "", hit[[2]], fixed = TRUE)),
-    person_trials = as.numeric(gsub(",", "", hit[[3]], fixed = TRUE))
+    persons = as.numeric(gsub(",", "", hit[[3]], fixed = TRUE)),
+    person_trials = as.numeric(gsub(",", "", hit[[2]], fixed = TRUE))
   ))
 }
 

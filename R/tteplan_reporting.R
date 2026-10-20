@@ -591,6 +591,7 @@
       "% confidence interval of the risk difference was the percentile interval of ",
       .S3_RD_N_BOOT,
       " bootstrap replicates that resampled persons, not person-trials. ",
+      .plan_rd_rule_text(plan),
       "The number needed to treat was the negative reciprocal of the risk difference, reported as the number needed to treat for benefit or for harm according to its sign."
     )
   )

@@ -769,6 +769,11 @@ TTEPlan$set(
 #'   scales linearly with `n_workers`; on machines with multi-GB
 #'   analysis files, set this conservatively. CPU threads per worker
 #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
+#' @param rd_min_persons_at_risk Whole number of at least 0 (default 10). A
+#'   risk difference is withheld, point estimate included, at a stop time
+#'   where either arm has fewer people at risk. Its `interval_status` then
+#'   reads `"too few at risk at horizon"`. The incidence rate ratio does not
+#'   read it.
 TTEPlan$set(
   "public",
   "s3_analyze",
@@ -777,12 +782,17 @@ TTEPlan$set(
     ett_ids = NULL,
     output_dir = NULL,
     swereg_dev_path = NULL,
-    n_workers = default_n_workers("s3")
+    n_workers = default_n_workers("s3"),
+    rd_min_persons_at_risk = 10L
   ) {
     # This checked >= 1 but never whole-ness, then as.integer()'d anyway -- so
     # s3_analyze(2.5) silently became 2 workers before parallel_pool() ever
     # saw the value.
     n_workers <- .validate_n_workers(n_workers, "s3_analyze()")
+    .tte_check_min_persons_at_risk(
+      rd_min_persons_at_risk,
+      "rd_min_persons_at_risk"
+    )
     .tte_assert_sparse_decision_current(self, "s3_analyze()")
     .tte_assert_s1_completed(self, "s3_analyze()")
     if (is.null(output_dir)) {
@@ -923,7 +933,8 @@ TTEPlan$set(
         method = method,
         weight_col = weight_col,
         subgroup_var = subgroup_var,
-        conf_level = rd_conf_level
+        conf_level = rd_conf_level,
+        rd_min_persons_at_risk = rd_min_persons_at_risk
       ))
     }
 

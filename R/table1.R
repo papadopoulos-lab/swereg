@@ -4,7 +4,7 @@
 # Replaces the previous tableone-based implementation. Produces a long-format
 # data.table laid out for direct writing to Excel.
 #
-# Layout (one row per variable level + one row per continuous variable):
+# Layout (one row per variable level + three rows per continuous variable):
 #   Variable | Level | Overall | <comparator> | <intervention> | [SMD]
 #
 # Missingness handling:
@@ -12,8 +12,9 @@
 #     denominator within the column, so they sum to 100 across levels.
 #   * When show_missing = TRUE, the variable name in the Variable column is
 #     suffixed with " (missing X.X%)" using the Overall-column missing share.
-#   * Continuous variables emit one stat row per variable; categorical
-#     variables emit one row per level. There is no separate Missing row.
+#   * Continuous variables emit three stat rows per variable: mean (SD),
+#     median (Q1, Q3) and range (min, max). Categorical variables emit one row
+#     per level.
 # =============================================================================
 
 
@@ -54,6 +55,80 @@
   v_den <- sw - sum(wv^2) / sw
   sd <- if (v_den > 0) sqrt(v_num / v_den) else NA_real_
   return(list(mean = m, sd = sd, n = length(xv), sum_w = sw))
+}
+
+
+#' Weighted quartiles and range over the non-NA support of x.
+#'
+#' The values are sorted in ascending order, and tied values are pooled with
+#' the sum of their weights. The weighted p-quantile is the first distinct
+#' value at which the cumulative normalised weight reaches p. Where that
+#' cumulative weight equals p, the quantile is the mean of that value and the
+#' next distinct value. The median uses p = 0.5, Q1 uses 0.25 and Q3 uses 0.75.
+#' With equal weights this is `type = 2` of `stats::quantile()`, so the median
+#' equals `stats::median()`.
+#'
+#' A row with a missing value, a missing weight or a weight of zero or less
+#' does not enter. Both comparisons with p allow a tolerance of
+#' `sqrt(.Machine$double.eps)`. Four weights of 0.7 give a cumulative weight of
+#' 0.7499999999999999 at the third value, and the comparison MUST read it as
+#' 0.75. The weights are divided by their maximum before they are summed, so
+#' weights near `.Machine$double.xmax` do not overflow.
+#'
+#' The range is the smallest and the largest value of the same rows. It needs
+#' no weight, so it is the same in an unweighted and a weighted panel when no
+#' row has a weight of zero.
+#' @param x A numeric, `Date` or `POSIXct` vector.
+#' @param w A numeric vector of weights, or NULL for equal weights.
+#' @return A list with `q1`, `median`, `q3`, `min` and `max`, each a double.
+#'   Each is `NA_real_` when no row has a value and a positive weight.
+#' @noRd
+.t1_wtd_quartiles <- function(x, w) {
+  x <- as.numeric(x)
+  if (is.null(w)) w <- rep(1, length(x))
+  out <- list(
+    q1 = NA_real_,
+    median = NA_real_,
+    q3 = NA_real_,
+    min = NA_real_,
+    max = NA_real_
+  )
+  ok <- !is.na(x) & !is.na(w) & w > 0
+  # The guard for a zero total weight: no row has a value and a positive
+  # weight. An arm whose every value is missing reaches it, and so does an arm
+  # whose every weight is zero.
+  if (!any(ok)) {
+    return(out)
+  }
+  ord <- order(x[ok], method = "radix")
+  xv <- x[ok][ord]
+  wv <- w[ok][ord]
+  # Divide by the largest weight first: sum(c(1e308, 1e308)) is Inf.
+  wv <- wv / max(wv)
+  cum_w <- cumsum(wv) / sum(wv)
+  # The last row of each run of tied values carries the cumulative weight of
+  # that distinct value.
+  ends <- c(which(diff(xv) != 0), length(xv))
+  ux <- xv[ends]
+  cum_u <- cum_w[ends]
+  tol <- sqrt(.Machine$double.eps)
+  at <- function(p) {
+    i <- which(cum_u >= p - tol)[1L]
+    # The last distinct value has a cumulative weight of 1, and p is at most
+    # 0.75, so ux[i + 1L] exists whenever this branch runs.
+    if (abs(cum_u[i] - p) <= tol) {
+      # Half of each, so two values near `.Machine$double.xmax` do not
+      # overflow in their sum.
+      return(ux[i] / 2 + ux[i + 1L] / 2)
+    }
+    return(ux[i])
+  }
+  out$q1 <- at(0.25)
+  out$median <- at(0.5)
+  out$q3 <- at(0.75)
+  out$min <- xv[1L]
+  out$max <- xv[length(xv)]
+  return(out)
 }
 
 
@@ -145,6 +220,29 @@
 }
 
 
+#' Format median (Q1, Q3).
+#' @noRd
+.t1_fmt_median_q <- function(q, digits_num) {
+  if (is.na(q$median)) return("")
+  fmt <- paste0("%.", digits_num, "f")
+  return(sprintf(
+    paste0(fmt, " (", fmt, ", ", fmt, ")"),
+    q$median,
+    q$q1,
+    q$q3
+  ))
+}
+
+
+#' Format the range as min, max.
+#' @noRd
+.t1_fmt_range <- function(q, digits_num) {
+  if (is.na(q$min)) return("")
+  fmt <- paste0("%.", digits_num, "f")
+  return(sprintf(paste0(fmt, ", ", fmt), q$min, q$max))
+}
+
+
 #' Format the n / sum-of-weights row at the top of the table. Rounded to
 #' the nearest integer and printed with thousand separators.
 #' @noRd
@@ -186,8 +284,12 @@
 #'
 #' Internal helper used by `TTEEnrollment$table1()` and the workbook writers.
 #' Returns a long-format `data.table` with one row per categorical level plus
-#' one row per continuous variable, plus a leading `n` row. Optionally
+#' three rows per continuous variable, plus a leading `n` row. Optionally
 #' includes an `SMD` column comparing the two strata levels.
+#'
+#' A continuous variable gets a mean (SD) row, then a `"Median (Q1, Q3)"` row
+#' and a `"Range (min, max)"` row. `.t1_wtd_quartiles()` defines the weighted
+#' quartiles. The two new rows carry an empty `Variable` cell and no SMD.
 #'
 #' @param data A `data.table`-like object holding the baseline rows.
 #' @param vars Character vector of variable names to summarise.
@@ -419,6 +521,32 @@
         int = .t1_fmt_mean_sd(s_int$mean, s_int$sd, digits_num),
         smd = smd_val,
         smd_numeric = smd_num
+      )
+      # Two rows after the mean (SD) row, on the rows the mean reads. Their
+      # empty Variable cell keeps the variable of the mean (SD) row as the key
+      # of every row of the block, the Missing row included.
+      q_by_group <- lapply(
+        list(overall = mask_overall, comp = mask_comp, int = mask_int),
+        function(mask) {
+          return(.t1_wtd_quartiles(
+            x_full[mask],
+            if (weighted) w_full[mask] else NULL
+          ))
+        }
+      )
+      add_row(
+        variable = "",
+        level = "Median (Q1, Q3)",
+        overall = .t1_fmt_median_q(q_by_group$overall, digits_num),
+        comp = .t1_fmt_median_q(q_by_group$comp, digits_num),
+        int = .t1_fmt_median_q(q_by_group$int, digits_num)
+      )
+      add_row(
+        variable = "",
+        level = "Range (min, max)",
+        overall = .t1_fmt_range(q_by_group$overall, digits_num),
+        comp = .t1_fmt_range(q_by_group$comp, digits_num),
+        int = .t1_fmt_range(q_by_group$int, digits_num)
       )
       if (emit_missing_row) {
         add_row(
