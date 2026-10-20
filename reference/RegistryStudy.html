@@ -15,7 +15,7 @@ file per batch with incremental invalidation."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -191,6 +191,21 @@ choices in <code>$register_codes()</code>.</p>
 
     <dt><code>batch_id_list</code></dt>
 <dd><p>List of ID vectors, one per batch.</p></dd>
+
+
+    <dt><code>batch_composition_digest</code></dt>
+<dd><p>Character or NULL. The
+<code><a href="https://eddelbuettel.github.io/digest/man/digest.html" class="external-link">digest::digest()</a></code> of <code>batch_id_list</code>, and of <code>matched_set_roster</code>
+when it is set. <code>$set_ids()</code>, <code>$set_batches()</code> and
+<code>$set_matched_sets()</code> set it. A study saved by swereg 27.2.6 or
+earlier has none.</p></dd>
+
+
+    <dt><code>matched_set_roster</code></dt>
+<dd><p>List of data.tables, one per batch, or
+NULL. Each holds the roster rows of that batch, in roster row
+order. <code>$set_matched_sets()</code> sets it. <code>$set_ids()</code> and
+<code>$set_batches()</code> set it to NULL.</p></dd>
 
 
     <dt><code>groups_saved</code></dt>
@@ -378,6 +393,8 @@ message if the file is missing.</p></dd>
 <li><p><a href="#method-RegistryStudy-register_derived_codes"><code>RegistryStudy$register_derived_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-apply_codes_to_skeleton"><code>RegistryStudy$apply_codes_to_skeleton()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-set_ids"><code>RegistryStudy$set_ids()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-set_batches"><code>RegistryStudy$set_batches()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-set_matched_sets"><code>RegistryStudy$set_matched_sets()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-load_skeleton_meta"><code>RegistryStudy$load_skeleton_meta()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_meta_path"><code>RegistryStudy$skeleton_meta_path()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_pipeline_hashes"><code>RegistryStudy$skeleton_pipeline_hashes()</code></a></p></li>
@@ -408,7 +425,18 @@ daemons; the 'mirai' package must be installed. Each splittable
 data.table gets <code>BID</code> added in-place and is keyed on it
 (<code>setkey(dt, BID)</code>), so per-batch slices are O(log n) keyed
 lookups instead of O(n) <code>%in%</code> scans. RAM stays ~1x the input
-(no split materialisation).</p></dd>
+(no split materialisation).</p>
+<p>An ID MAY be in more than one batch (see <code>$set_batches()</code>). Then
+each batch gets the rows of the IDs it holds, in input order, by one
+<code>%in%</code> scan per batch. That path adds no <code>BID</code> column and does not
+change the caller's tables.</p>
+<p>After <code>$set_matched_sets()</code>, each batch gets every row of a person
+once for each <code>skeleton_id</code> of that person in the batch. The ID column
+of each copy holds that <code>skeleton_id</code>. The copies of one row are adjacent,
+and the rows keep their input order. The ID column takes the type of
+<code>skeleton_id</code>. The other columns do not change. Before it writes the
+group, the method writes each missing <code>"roster"</code> file. A roster where
+every <code>skeleton_id</code> equals the person ID takes the paths above.</p></dd>
 
 
 </dl><p></p></div>
@@ -1071,22 +1099,100 @@ column, and a new object otherwise.</p>
 
 </div>
 
+<p></p><hr><a id="method-RegistryStudy-set_batches"></a><div class="section">
+<h3 id="registrystudy-set-batches-"><code>RegistryStudy$set_batches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-set-batches-"></a></h3>
+<p>Set the batch composition directly, one ID vector per
+batch, in the given order. Use it to keep a matched set in one
+batch, which <code>$set_ids()</code> cannot do because it shuffles the IDs.</p>
+<p>An ID MAY be in more than one batch. <code>$save_rawbatch()</code> then
+writes every row of that ID into each batch that holds it. The
+population and summary counts sum over the batches, so they count
+a person in two batches twice.</p>
+<p>The method stops when rawbatch or skeleton files are on disk and
+the new composition differs from the recorded one. A study with
+no recorded composition, for example one saved by swereg 27.2.6,
+records the new one and continues.</p><div class="section">
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">set_batches</span><span class="op">(</span><span class="va">batches</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batches</code></dt>
+<dd><p>A non-empty list of non-empty vectors of person IDs.
+An ID MUST NOT repeat within one batch. The batches get the names
+<code>"1"</code> to <code>"n"</code>, as <code>$set_ids()</code> gives them. The method does not
+shuffle the IDs.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<p><code>invisible(self)</code>.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-set_matched_sets"></a><div class="section">
+<h3 id="registrystudy-set-matched-sets-"><code>RegistryStudy$set_matched_sets()</code><a class="anchor" aria-label="anchor" href="#registrystudy-set-matched-sets-"></a></h3>
+<p>Set the batch composition from a roster of matched
+sets. Each set stays whole in one batch. Each membership gets its
+own skeleton ID and its own copy of the person's rawbatch rows.</p>
+<p>The method packs the sets into batches in order of first
+appearance of <code>set_id</code>, <code>sets_per_batch</code> sets per batch. The
+batches hold the <code>skeleton_id</code> values of their roster rows, as
+<code>$set_batches()</code> would set them. The guard of <code>$set_batches()</code>
+applies, and the roster is part of the recorded composition. So a
+changed roster stops while rawbatch or skeleton files are on disk.</p>
+<p><code>$save_rawbatch()</code> then writes each rawbatch row of a person once
+for each <code>skeleton_id</code> that person has in the batch. The copy
+carries that <code>skeleton_id</code> in the ID column, and its other columns
+do not change. <code>$save_rawbatch()</code> also writes the roster rows of
+each batch as the rawbatch group <code>"roster"</code>, with the person ID and
+the <code>skeleton_id</code> unchanged. Every phase function reads them as
+<code>batch_data[["roster"]]</code>.</p>
+<p>A roster where every <code>skeleton_id</code> equals the person ID gives the
+same rawbatch files as <code>$set_batches()</code> on the same IDs, plus the
+<code>"roster"</code> files.</p><div class="section">
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">set_matched_sets</span><span class="op">(</span><span class="va">roster</span>, <span class="va">sets_per_batch</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>roster</code></dt>
+<dd><p>A data.table with one row per membership and the
+columns <code>id_col</code> (the person ID in the rawbatch data), <code>set_id</code>,
+<code>role</code> (character) and <code>skeleton_id</code>. One <code>skeleton_id</code> MUST map
+to one person ID. A <code>skeleton_id</code> MUST NOT repeat within one batch,
+and MAY repeat across batches. Other columns go into the <code>"roster"</code>
+files unchanged.</p></dd>
+
+      <dt><code>sets_per_batch</code></dt>
+<dd><p>A positive whole number. The number of sets in
+each batch. The last batch MAY hold fewer.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<p><code>invisible(self)</code>.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-RegistryStudy-load_skeleton_meta"></a><div class="section">
 <h3 id="registrystudy-load-skeleton-meta-"><code>RegistryStudy$load_skeleton_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-skeleton-meta-"></a></h3>
 <p>Read the <code>meta_%05d.qs2</code> sidecar for one batch.
 Returns <code>NULL</code> if missing or unreadable (treated as cache miss
 by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton_meta</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
 <dd><p>Integer batch index.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>A list (the meta payload) or <code>NULL</code>.</p>
 </div>
 
@@ -1095,17 +1201,17 @@ by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
 <p></p><hr><a id="method-RegistryStudy-skeleton_meta_path"></a><div class="section">
 <h3 id="registrystudy-skeleton-meta-path-"><code>RegistryStudy$skeleton_meta_path()</code><a class="anchor" aria-label="anchor" href="#registrystudy-skeleton-meta-path-"></a></h3>
 <p>Filesystem path of a meta sidecar.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_meta_path</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
 <dd><p>Integer batch index.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
 <p>Character. The full path.</p>
 </div>
 
@@ -1121,10 +1227,10 @@ Use this to spot batches out of sync with each other or with
 or corrupted) surface as rows with <code>NA</code> <code>identity_hash</code>,
 <code>NA</code> <code>framework_fn_hash</code>, <code>NA</code> <code>trim_fn_hash</code> and <code>NA</code>
 <code>phase_order</code>.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span>files <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
+<h4 id="arguments-19">Arguments<a class="anchor" aria-label="anchor" href="#arguments-19"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>files</code></dt>
 <dd><p>Optional character vector of skeleton file paths. When
 <code>NULL</code> (default) every <code>skeleton_NNNNN.qs2</code> in
@@ -1134,7 +1240,7 @@ about to read to scope the answer to those files.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
 <p>A <code>data.table</code> with columns: batch, identity_hash,
 identity, framework_fn_hash, trim_fn_hash, phase_order,
 n_randvars, n_code_entries, saved_at. <code>identity</code> is a list column
@@ -1155,10 +1261,10 @@ not, naming the component that differs.</p>
 <p>Runs as the pre-flight check inside
 <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, so partial-rebuild
 stragglers or config drift never silently flow into a TTE plan.</p><div class="section">
-<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
+<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span>files <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
+<h4 id="arguments-20">Arguments<a class="anchor" aria-label="anchor" href="#arguments-20"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>files</code></dt>
 <dd><p>Optional character vector of skeleton file paths to
 check. <code>NULL</code> (default) checks every skeleton in the store. A
@@ -1168,7 +1274,7 @@ describes what it will read.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<h4 id="returns-19">Returns<a class="anchor" aria-label="anchor" href="#returns-19"></a></h4>
 <p>The single identity hash on success, invisibly.</p>
 </div>
 
@@ -1206,14 +1312,14 @@ column, because phase 2 already ran. (Phase 3.)</p></li>
 whichever phase needs it first. If no phase needs it (everything
 already in sync), the rawbatch read is skipped entirely and the
 per-batch work is just load then save.</p><div class="section">
-<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
+<h4 id="usage-31">Usage<a class="anchor" aria-label="anchor" href="#usage-31"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"skeleton"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-19">Arguments<a class="anchor" aria-label="anchor" href="#arguments-19"></a></h4>
+<h4 id="arguments-21">Arguments<a class="anchor" aria-label="anchor" href="#arguments-21"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batches</code></dt>
 <dd><p>Integer vector of batch indices to process, or
 <code>NULL</code> (default) for all batches in <code>self$batch_id_list</code>.</p></dd>
@@ -1229,7 +1335,7 @@ generic batch runner.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
+<h4 id="returns-20">Returns<a class="anchor" aria-label="anchor" href="#returns-20"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1238,10 +1344,10 @@ generic batch runner.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="registrystudy-clone-"><code>RegistryStudy$clone()</code><a class="anchor" aria-label="anchor" href="#registrystudy-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
+<h4 id="usage-32">Usage<a class="anchor" aria-label="anchor" href="#usage-32"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-20">Arguments<a class="anchor" aria-label="anchor" href="#arguments-20"></a></h4>
+<h4 id="arguments-22">Arguments<a class="anchor" aria-label="anchor" href="#arguments-22"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

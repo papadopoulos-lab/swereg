@@ -1,5 +1,27 @@
 # Changelog
 
+## swereg 27.2.8
+
+### New features
+
+- **`RegistryStudy$set_batches()` sets the batch composition directly,
+  and an ID MAY be in more than one batch.** `$save_rawbatch()` writes
+  the rows of that ID into each batch that holds it, so the population
+  and summary counts count that person once per batch.
+- **`$set_ids()` and `$set_batches()` stop when the composition changes
+  while rawbatch or skeleton files are on disk.** A study saved by
+  27.2.6 or earlier has no recorded composition, so it records one and
+  continues.
+- **`RegistryStudy$set_matched_sets()` sets the batch composition from a
+  roster of matched sets.** Each set stays in one batch. Each membership
+  gets its own `skeleton_id` and its own copy of the person’s rawbatch
+  rows. A control in two sets then gets its codes in both.
+- **`$save_rawbatch()` writes the roster rows of each batch as the
+  rawbatch group `"roster"`, and phase functions read them as
+  `batch_data[["roster"]]`.** The roster is part of the recorded
+  composition, so a changed roster stops while rawbatch or skeleton
+  files are on disk.
+
 ## swereg 27.2.7
 
 ### Bug fixes

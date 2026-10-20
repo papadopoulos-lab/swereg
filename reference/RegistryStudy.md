@@ -127,6 +127,20 @@ Other skeleton_pipeline:
 
   List of ID vectors, one per batch.
 
+- `batch_composition_digest`:
+
+  Character or NULL. The
+  [`digest::digest()`](https://eddelbuettel.github.io/digest/man/digest.html)
+  of `batch_id_list`, and of `matched_set_roster` when it is set.
+  `$set_ids()`, `$set_batches()` and `$set_matched_sets()` set it. A
+  study saved by swereg 27.2.6 or earlier has none.
+
+- `matched_set_roster`:
+
+  List of data.tables, one per batch, or NULL. Each holds the roster
+  rows of that batch, in roster row order. `$set_matched_sets()` sets
+  it. `$set_ids()` and `$set_batches()` set it to NULL.
+
 - `groups_saved`:
 
   Character vector of rawbatch groups saved to disk.
@@ -329,6 +343,10 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$set_ids()`](#method-RegistryStudy-set_ids)
 
+- [`RegistryStudy$set_batches()`](#method-RegistryStudy-set_batches)
+
+- [`RegistryStudy$set_matched_sets()`](#method-RegistryStudy-set_matched_sets)
+
 - [`RegistryStudy$load_skeleton_meta()`](#method-RegistryStudy-load_skeleton_meta)
 
 - [`RegistryStudy$skeleton_meta_path()`](#method-RegistryStudy-skeleton_meta_path)
@@ -373,6 +391,20 @@ Save rawbatch files for one group.
   in-place and is keyed on it (`setkey(dt, BID)`), so per-batch slices
   are O(log n) keyed lookups instead of O(n) `%in%` scans. RAM stays ~1x
   the input (no split materialisation).
+
+  An ID MAY be in more than one batch (see `$set_batches()`). Then each
+  batch gets the rows of the IDs it holds, in input order, by one `%in%`
+  scan per batch. That path adds no `BID` column and does not change the
+  caller's tables.
+
+  After `$set_matched_sets()`, each batch gets every row of a person
+  once for each `skeleton_id` of that person in the batch. The ID column
+  of each copy holds that `skeleton_id`. The copies of one row are
+  adjacent, and the rows keep their input order. The ID column takes the
+  type of `skeleton_id`. The other columns do not change. Before it
+  writes the group, the method writes each missing `"roster"` file. A
+  roster where every `skeleton_id` equals the person ID takes the paths
+  above.
 
 ------------------------------------------------------------------------
 
@@ -1092,6 +1124,89 @@ Set IDs and split into batches.
 - `ids`:
 
   Vector of person IDs.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$set_batches()`
+
+Set the batch composition directly, one ID vector per batch, in the
+given order. Use it to keep a matched set in one batch, which
+`$set_ids()` cannot do because it shuffles the IDs.
+
+An ID MAY be in more than one batch. `$save_rawbatch()` then writes
+every row of that ID into each batch that holds it. The population and
+summary counts sum over the batches, so they count a person in two
+batches twice.
+
+The method stops when rawbatch or skeleton files are on disk and the new
+composition differs from the recorded one. A study with no recorded
+composition, for example one saved by swereg 27.2.6, records the new one
+and continues.
+
+#### Usage
+
+    RegistryStudy$set_batches(batches)
+
+#### Arguments
+
+- `batches`:
+
+  A non-empty list of non-empty vectors of person IDs. An ID MUST NOT
+  repeat within one batch. The batches get the names `"1"` to `"n"`, as
+  `$set_ids()` gives them. The method does not shuffle the IDs.
+
+#### Returns
+
+`invisible(self)`.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$set_matched_sets()`
+
+Set the batch composition from a roster of matched sets. Each set stays
+whole in one batch. Each membership gets its own skeleton ID and its own
+copy of the person's rawbatch rows.
+
+The method packs the sets into batches in order of first appearance of
+`set_id`, `sets_per_batch` sets per batch. The batches hold the
+`skeleton_id` values of their roster rows, as `$set_batches()` would set
+them. The guard of `$set_batches()` applies, and the roster is part of
+the recorded composition. So a changed roster stops while rawbatch or
+skeleton files are on disk.
+
+`$save_rawbatch()` then writes each rawbatch row of a person once for
+each `skeleton_id` that person has in the batch. The copy carries that
+`skeleton_id` in the ID column, and its other columns do not change.
+`$save_rawbatch()` also writes the roster rows of each batch as the
+rawbatch group `"roster"`, with the person ID and the `skeleton_id`
+unchanged. Every phase function reads them as `batch_data[["roster"]]`.
+
+A roster where every `skeleton_id` equals the person ID gives the same
+rawbatch files as `$set_batches()` on the same IDs, plus the `"roster"`
+files.
+
+#### Usage
+
+    RegistryStudy$set_matched_sets(roster, sets_per_batch)
+
+#### Arguments
+
+- `roster`:
+
+  A data.table with one row per membership and the columns `id_col` (the
+  person ID in the rawbatch data), `set_id`, `role` (character) and
+  `skeleton_id`. One `skeleton_id` MUST map to one person ID. A
+  `skeleton_id` MUST NOT repeat within one batch, and MAY repeat across
+  batches. Other columns go into the `"roster"` files unchanged.
+
+- `sets_per_batch`:
+
+  A positive whole number. The number of sets in each batch. The last
+  batch MAY hold fewer.
+
+#### Returns
+
+`invisible(self)`.
 
 ------------------------------------------------------------------------
 

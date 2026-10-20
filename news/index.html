@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,20 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.8" id="swereg-2728">swereg 27.2.8<a class="anchor" aria-label="anchor" href="#swereg-2728"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-2-8">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-8"></a></h3>
+<ul><li>
+<strong><code>RegistryStudy$set_batches()</code> sets the batch composition directly, and an ID MAY be in more than one batch.</strong> <code>$save_rawbatch()</code> writes the rows of that ID into each batch that holds it, so the population and summary counts count that person once per batch.</li>
+<li>
+<strong><code>$set_ids()</code> and <code>$set_batches()</code> stop when the composition changes while rawbatch or skeleton files are on disk.</strong> A study saved by 27.2.6 or earlier has no recorded composition, so it records one and continues.</li>
+<li>
+<strong><code>RegistryStudy$set_matched_sets()</code> sets the batch composition from a roster of matched sets.</strong> Each set stays in one batch. Each membership gets its own <code>skeleton_id</code> and its own copy of the person’s rawbatch rows. A control in two sets then gets its codes in both.</li>
+<li>
+<strong><code>$save_rawbatch()</code> writes the roster rows of each batch as the rawbatch group <code>"roster"</code>, and phase functions read them as <code>batch_data[["roster"]]</code>.</strong> The roster is part of the recorded composition, so a changed roster stops while rawbatch or skeleton files are on disk.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.7" id="swereg-2727">swereg 27.2.7<a class="anchor" aria-label="anchor" href="#swereg-2727"></a></h2>
 <div class="section level3">

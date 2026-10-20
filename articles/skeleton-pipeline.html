@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -476,10 +476,66 @@ no callback argument. The study itself holds the pipeline, and no call
 passes it in.</p>
 </div>
 <div class="section level3">
+<h3 id="batches-that-keep-matched-sets-together">Batches that keep matched sets together<a class="anchor" aria-label="anchor" href="#batches-that-keep-matched-sets-together"></a>
+</h3>
+<p><code>$set_ids()</code> shuffles the IDs before it splits them into
+batches. So the case and the controls of one matched set usually go into
+different batches. Two methods set the batch composition directly.</p>
+<p><code>$set_batches()</code> takes one vector of IDs per batch, in the
+given order. An ID MAY be in more than one batch.
+<code>$save_rawbatch()</code> then writes every row of that ID into each
+batch that holds it. The population and summary counts sum over the
+batches, so they count that person once per batch.</p>
+<p><code>$set_matched_sets()</code> takes a roster with one row per
+membership:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">roster</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  lopnr       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101</span>, <span class="fl">202</span>, <span class="fl">303</span>, <span class="fl">404</span>, <span class="fl">202</span><span class="op">)</span>,</span>
+<span>  set_id      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"b"</span><span class="op">)</span>,</span>
+<span>  role        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"case"</span>, <span class="st">"control"</span>, <span class="st">"control"</span>, <span class="st">"case"</span>, <span class="st">"control"</span><span class="op">)</span>,</span>
+<span>  skeleton_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101</span>, <span class="fl">202000101</span>, <span class="fl">303000101</span>, <span class="fl">404</span>, <span class="fl">202000404</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">set_matched_sets</span><span class="op">(</span><span class="va">roster</span>, sets_per_batch <span class="op">=</span> <span class="fl">50L</span><span class="op">)</span></span></code></pre></div>
+<p>The method keeps each set in one batch. It packs the sets in order of
+first appearance of <code>set_id</code>, <code>sets_per_batch</code>
+sets per batch.</p>
+<p>Person 202 is a control in sets a and b.
+<code>$save_rawbatch()</code> writes each rawbatch row of person 202
+twice, once with <code>lopnr</code> 202000101 and once with 202000404.
+The other columns of the rows do not change. A framework that builds the
+skeleton from these rows gives each membership its own <code>id</code>.
+Phase 2 then gives both memberships the codes of person 202.</p>
+<p>The roster has three rules:</p>
+<ul>
+<li>One <code>skeleton_id</code> MUST map to one person.</li>
+<li>A <code>skeleton_id</code> MUST NOT repeat within one batch. It MAY
+repeat across batches.</li>
+<li>The <code>role</code> column MUST be character.</li>
+</ul>
+<p><code>$save_rawbatch()</code> also writes the roster rows of each
+batch as the rawbatch group <code>"roster"</code>, with
+<code>lopnr</code> and <code>skeleton_id</code> unchanged. A phase
+function reads them as <code>batch_data[["roster"]]</code>. This
+randvars step adds the set and the role to the skeleton:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">rv_roster</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">batch_data</span>, <span class="va">config</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">roster</span> <span class="op">&lt;-</span> <span class="va">batch_data</span><span class="op">[[</span><span class="st">"roster"</span><span class="op">]</span><span class="op">]</span></span>
+<span>  <span class="va">skeleton</span><span class="op">[</span><span class="va">roster</span>, on <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>id <span class="op">=</span> <span class="st">"skeleton_id"</span><span class="op">)</span>,</span>
+<span>    <span class="fu">`:=`</span><span class="op">(</span>set_id <span class="op">=</span> <span class="va">i.set_id</span>, role <span class="op">=</span> <span class="va">i.role</span><span class="op">)</span><span class="op">]</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Do not change the roster while rawbatch or skeleton files are on
+disk. The recorded composition includes the roster, and
+<code>$set_ids()</code>, <code>$set_batches()</code> and
+<code>$set_matched_sets()</code> stop when the new composition differs
+from it. Delete the files with <code>$delete_rawbatches()</code> and
+<code>$delete_skeletons()</code> first.</p>
+</div>
+<div class="section level3">
 <h3 id="the-reload-clobber-anti-pattern">The reload-clobber anti-pattern<a class="anchor" aria-label="anchor" href="#the-reload-clobber-anti-pattern"></a>
 </h3>
 <p>This pattern fails when you run the pipeline more than once:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># WRONG</span></span>
 <span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">current_framework_fn</span><span class="op">)</span>     <span class="co"># fresh in-memory</span></span>
@@ -492,7 +548,7 @@ passes it in.</p>
 version on disk. It reverts any edits you just made, with no warning.
 Instead, copy only the persisted <em>runtime</em> state (IDs, batches,
 groups_saved) into the new study, and leave its config unchanged:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># CORRECT</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">meta_file</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">study</span><span class="op">$</span><span class="fu">adopt_runtime_state_from</span><span class="op">(</span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/qs2_read.html">qs2_read</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">meta_file</span><span class="op">)</span><span class="op">)</span></span>
@@ -504,7 +560,7 @@ groups_saved) into the new study, and leave its config unchanged:</p>
 <p>Each <code>Skeleton</code> can compute its own
 <code>pipeline_hash()</code> from its stored phase provenance. The study
 exposes the expected value:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span> <span class="op">==</span> <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># FALSE means this batch is definitely stale</span></span></code></pre></div>
@@ -520,7 +576,7 @@ other. Each hash covers that function’s own body and formals, and
 follows no call into a helper. Change either one and the two hashes stay
 equal over a stale skeleton.</p>
 <p>Two summary helpers:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Per-batch table with framework hash, randvars count, code count, saved_at</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>

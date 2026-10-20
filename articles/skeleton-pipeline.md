@@ -373,6 +373,66 @@ steps on `study` BEFORE you call `$process_skeletons()`.
 `$process_skeletons()` has no callback argument. The study itself holds
 the pipeline, and no call passes it in.
 
+### Batches that keep matched sets together
+
+`$set_ids()` shuffles the IDs before it splits them into batches. So the
+case and the controls of one matched set usually go into different
+batches. Two methods set the batch composition directly.
+
+`$set_batches()` takes one vector of IDs per batch, in the given order.
+An ID MAY be in more than one batch. `$save_rawbatch()` then writes
+every row of that ID into each batch that holds it. The population and
+summary counts sum over the batches, so they count that person once per
+batch.
+
+`$set_matched_sets()` takes a roster with one row per membership:
+
+``` r
+roster <- data.table::data.table(
+  lopnr       = c(101, 202, 303, 404, 202),
+  set_id      = c("a", "a", "a", "b", "b"),
+  role        = c("case", "control", "control", "case", "control"),
+  skeleton_id = c(101, 202000101, 303000101, 404, 202000404)
+)
+study$set_matched_sets(roster, sets_per_batch = 50L)
+```
+
+The method keeps each set in one batch. It packs the sets in order of
+first appearance of `set_id`, `sets_per_batch` sets per batch.
+
+Person 202 is a control in sets a and b. `$save_rawbatch()` writes each
+rawbatch row of person 202 twice, once with `lopnr` 202000101 and once
+with 202000404. The other columns of the rows do not change. A framework
+that builds the skeleton from these rows gives each membership its own
+`id`. Phase 2 then gives both memberships the codes of person 202.
+
+The roster has three rules:
+
+- One `skeleton_id` MUST map to one person.
+- A `skeleton_id` MUST NOT repeat within one batch. It MAY repeat across
+  batches.
+- The `role` column MUST be character.
+
+`$save_rawbatch()` also writes the roster rows of each batch as the
+rawbatch group `"roster"`, with `lopnr` and `skeleton_id` unchanged. A
+phase function reads them as `batch_data[["roster"]]`. This randvars
+step adds the set and the role to the skeleton:
+
+``` r
+rv_roster <- function(skeleton, batch_data, config) {
+  roster <- batch_data[["roster"]]
+  skeleton[roster, on = c(id = "skeleton_id"),
+    `:=`(set_id = i.set_id, role = i.role)]
+  return(skeleton)
+}
+```
+
+Do not change the roster while rawbatch or skeleton files are on disk.
+The recorded composition includes the roster, and `$set_ids()`,
+`$set_batches()` and `$set_matched_sets()` stop when the new composition
+differs from it. Delete the files with `$delete_rawbatches()` and
+`$delete_skeletons()` first.
+
 ### The reload-clobber anti-pattern
 
 This pattern fails when you run the pipeline more than once:
