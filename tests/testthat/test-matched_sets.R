@@ -688,17 +688,35 @@ test_that("with two workers, every membership of every roster of 2 cases and 3 c
   pairs[, r := (s - 1L) * 27L + r]
   combined <- .ms_interleave(pairs[, -"s"], rep(1:3, each = 27L))
 
-  # A daemon of save_rawbatch() is an Rscript process, which reads the profile
-  # that R_PROFILE_USER names. The profile records the process id.
+  # A daemon of save_rawbatch() unserializes its slice of the persons table.
+  # The slice carries the probe attribute of the table. mirai calls the
+  # registered unserialize function on the probe, in the daemon, and that
+  # function records the process id. A serial save_rawbatch() unserializes
+  # nothing, so it records no process id.
   pid_dir <- withr::local_tempdir()
-  profile <- withr::local_tempfile(fileext = ".R")
-  writeLines(
-    sprintf(
-      "writeLines('', file.path('%s', paste0('pid_', Sys.getpid())))",
-      normalizePath(pid_dir, winslash = "/")
-    ),
-    profile
-  )
+  # mirai::register_serial() cannot remove a registration. The test restores
+  # the internal registry of mirai when it stops.
+  mirai_state <- get(".", envir = asNamespace("mirai"))
+  old_serial <- mirai_state[["serial"]]
+  withr::defer(assign("serial", old_serial, envir = mirai_state))
+  # The first call in a daemon waits 1 second. The dispatcher then gives the
+  # next slice to the other daemon, so a fast daemon cannot take every slice.
+  record_pid <- eval(bquote(function(raw) {
+    f <- file.path(.(pid_dir), paste0("pid_", Sys.getpid()))
+    if (!file.exists(f)) {
+      writeLines("", f)
+      Sys.sleep(1)
+    }
+    return(new.env())
+  }))
+  send_probe <- function(x) {
+    return(serialize(NULL, NULL))
+  }
+  # mirai sends both functions to each daemon. A function defined here
+  # encloses the test frame, which holds the probe, and save_rawbatch() hangs.
+  environment(record_pid) <- baseenv()
+  environment(send_probe) <- baseenv()
+  mirai::register_serial("swereg_ms_pid_probe", send_probe, record_pid)
 
   dir <- withr::local_tempdir()
   study <- .ms_study(dir, framework = .ms_framework_pid)
@@ -708,10 +726,13 @@ test_that("with two workers, every membership of every roster of 2 cases and 3 c
     sets_per_batch = combined$sets_per_batch
   )
   people <- unique(roster[, list(lopnr, archetype)])
-  withr::with_envvar(
-    c(R_PROFILE_USER = profile),
-    .ms_save_rawbatch(study, .ms_raw(people$lopnr, people$archetype), 2L)
+  raw <- .ms_raw(people$lopnr, people$archetype)
+  data.table::setattr(
+    raw$persons,
+    "pid_probe",
+    structure(new.env(), class = "swereg_ms_pid_probe")
   )
+  .ms_save_rawbatch(study, raw, 2L)
   .ms_process(study, n_workers = 2L)
 
   rawbatch_pids <- as.integer(sub("^pid_", "", list.files(pid_dir)))
