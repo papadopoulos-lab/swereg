@@ -1,5 +1,18 @@
 # Changelog
 
+## swereg 27.2.11
+
+### Documentation
+
+- **[`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  writes four sentences more plainly.** The comparator draw “creates no
+  matched sets, so no analysis conditions on matched sets”; assignment
+  “uses only the weeks” in which a person is eligible and holds a
+  compared strategy; the tolerance “applies to the weekly treatment
+  value, after any bridging of gaps between dispensings by the treatment
+  classification”; and the code-list note says that a row marked derived
+  variable has no codes. No statement changed its meaning.
+
 ## swereg 27.2.10
 
 ### New features
