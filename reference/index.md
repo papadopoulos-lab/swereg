@@ -72,6 +72,8 @@ methodology
   : Load a TTEPlan from disk with the current class definition
 - [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
   : Locate and load a TTEPlan from candidate directories
+- [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  : Write the OSF preregistration text that a spec determines
 - [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
   : Read and validate a YAML study specification
 - [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)

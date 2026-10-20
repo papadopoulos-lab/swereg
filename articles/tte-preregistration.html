@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -163,6 +163,34 @@ registry, <code>period_width</code> and <code>protocol_ett_id</code>. Do
 not edit the workbook by hand: change the YAML and write the workbook
 again.</p>
 <p>Register after s0 and before s1.</p>
+</div>
+<div class="section level2">
+<h2 id="write-the-osf-text">Write the OSF text<a class="anchor" aria-label="anchor" href="#write-the-osf-text"></a>
+</h2>
+<p><code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> writes the text of each OSF field
+that the specification determines, from the specification YAML and the
+code registry. It reads no skeleton, so it runs before s0. It returns a
+named character vector of Markdown texts, one for each field:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">osf</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_osf_text.html">tteplan_osf_text</a></span><span class="op">(</span></span>
+<span>  <span class="st">"/path/to/spec/spec_v001.yaml"</span>,</span>
+<span>  code_registry <span class="op">=</span> <span class="va">study</span>,</span>
+<span>  global_max_isoyearweek <span class="op">=</span> <span class="st">"2025-01"</span>,</span>
+<span>  people <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"woman"</span>, <span class="st">"women"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">osf</span><span class="op">[[</span><span class="st">"Data inclusion and exclusion"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+<p>The text prints the <code>name</code> of each criterion, covariate
+and outcome, the <code>description</code> of each outcome and treatment,
+and the arm labels, as the specification writes them. Write those fields
+for a reader of the registration: no variable names, no internal version
+or approach numbers. The categories of a covariate are data values, so
+they appear in the code list only. The author writes the fields that the
+specification cannot answer: the title, the research question and the
+primary result, the foreknowledge, the data sources and the ethics
+approval.</p>
+<p>Build the registration document from these texts, for example in a
+<code>.qmd</code> that calls the function. Do not copy the text by hand:
+a copy goes stale when the specification changes.</p>
 </div>
 <div class="section level2">
 <h2 id="the-osf-sections-field-by-field">The OSF sections, field by field<a class="anchor" aria-label="anchor" href="#the-osf-sections-field-by-field"></a>
@@ -384,17 +412,17 @@ pre-specified rule. Each candidate confounder held by fewer than
 comparisons becomes an exclusion criterion of every comparison. The
 other candidates stay confounders. Each candidate is the variable of a
 confounder with <code>computed: true</code>.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">confounders</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior ischaemic stroke"</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_i63</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="fu">sparse_rule</span><span class="kw">:</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="at">  </span><span class="fu">min_n</span><span class="kw">:</span><span class="at"> </span><span class="dv">100</span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="at">  </span><span class="fu">decided_by</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">"01"</span><span class="kw">]</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="at">  </span><span class="fu">candidates</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">rd_no_osd_i63_everbefore</span><span class="kw">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">confounders</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior ischaemic stroke"</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_i63</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">sparse_rule</span><span class="kw">:</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="at">  </span><span class="fu">min_n</span><span class="kw">:</span><span class="at"> </span><span class="dv">100</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="at">  </span><span class="fu">decided_by</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">"01"</span><span class="kw">]</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="at">  </span><span class="fu">candidates</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">rd_no_osd_i63_everbefore</span><span class="kw">]</span></span></code></pre></div>
 <p><code>decided_by</code> names the driving comparisons. The rule is
 decided from baseline counts in the eligible population, before the
 comparator draw and without follow-up outcomes. s1 makes that
@@ -416,7 +444,7 @@ extraction that you document as such.</p>
 swereg computes them after s3, from the study’s own events.</p>
 <p>To plan from external numbers, apply the naive Poisson formula that
 the MDE columns use:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mde</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">rate0</span>, <span class="va">py0</span>, <span class="va">py1</span>, <span class="va">power</span> <span class="op">=</span> <span class="fl">0.8</span>, <span class="va">conf_level</span> <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">e0</span> <span class="op">&lt;-</span> <span class="va">rate0</span> <span class="op">*</span> <span class="va">py0</span></span>
 <span>  <span class="va">e1</span> <span class="op">&lt;-</span> <span class="va">rate0</span> <span class="op">*</span> <span class="va">py1</span></span>
