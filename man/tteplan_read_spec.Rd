@@ -140,6 +140,7 @@ Other tte_spec:
 \code{\link[=tteplan_apply_exclusions]{tteplan_apply_exclusions()}},
 \code{\link[=tteplan_excel_spec_summary]{tteplan_excel_spec_summary()}},
 \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}},
+\code{\link[=tteplan_osf_text]{tteplan_osf_text()}},
 \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}}
 }
 \concept{tte_spec}

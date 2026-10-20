@@ -74,6 +74,24 @@ change the YAML and write the workbook again.
 
 Register after s0 and before s1.
 
+# Write the OSF text
+
+`tteplan_osf_text()` writes the text of each OSF field that the specification determines, from the specification YAML and the code registry. It reads no skeleton, so it runs before s0. It returns a named character vector of Markdown texts, one for each field:
+
+```r
+osf <- swereg::tteplan_osf_text(
+  "/path/to/spec/spec_v001.yaml",
+  code_registry = study,
+  global_max_isoyearweek = "2025-01",
+  people = c("woman", "women")
+)
+cat(osf[["Data inclusion and exclusion"]])
+```
+
+The text prints the `name` of each criterion, covariate and outcome, the `description` of each outcome and treatment, and the arm labels, as the specification writes them. Write those fields for a reader of the registration: no variable names, no internal version or approach numbers. The categories of a covariate are data values, so they appear in the code list only. The author writes the fields that the specification cannot answer: the title, the research question and the primary result, the foreknowledge, the data sources and the ethics approval.
+
+Build the registration document from these texts, for example in a `.qmd` that calls the function. Do not copy the text by hand: a copy goes stale when the specification changes.
+
 # The OSF sections, field by field
 
 The YAML column names a key of the specification. `vignette("tte-spec-schema")`

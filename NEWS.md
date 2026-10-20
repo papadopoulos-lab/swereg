@@ -1,3 +1,9 @@
+# swereg 27.2.9
+
+## New features
+
+* **`tteplan_osf_text()` writes the text of the OSF Preregistration fields that the specification determines.** It returns one Markdown text for each of these fields: Study design, Sample size, Measured variables (exposures, outcomes and baseline covariates), Statistical models, Transformations, Data inclusion and exclusion, Missing data, Other planned analysis, and a code list. Every exclusion criterion, covariate and outcome of the specification appears, and each fact sits in one field. The rare-condition rule sits under Data inclusion and exclusion. The function reads the specification and the code registry only, so it runs before s0, as `tteplan_excel_spec_summary()` does. It prints the `name` and `description` fields as the specification writes them, so write those for a reader of the registration.
+
 # swereg 27.2.8
 
 ## New features
