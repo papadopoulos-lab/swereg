@@ -357,7 +357,7 @@ tteplan_osf_text <- function(
     paste0(
       "Under the per-protocol estimand, follow-up also stops at the first week that does not hold the assigned strategy, beyond the tolerance of the arm. A week with a missing treatment value counts as such a week. Under the intention-to-treat estimand, a deviation does not stop follow-up."
     ),
-    if (length(tol) > 0L) paste(tol, collapse = " ") else "The tolerance is 0 weeks in every arm, so the first such week is a deviation. The tolerance applies to the weekly treatment value as the data hold it, after any bridging of gaps between dispensings in the treatment classification.",
+    if (length(tol) > 0L) paste(tol, collapse = " ") else "The tolerance is 0 weeks in every arm, so the first such week is a deviation. The tolerance applies to the weekly treatment value, after any bridging of gaps between dispensings by the treatment classification.",
     "The statistical analysis is described under 'Statistical models'."
   ))
 }
@@ -381,7 +381,7 @@ tteplan_osf_text <- function(
   return(.osf_paragraphs(
     paste0(
       "In each comparison and each trial, every eligible ", ctx$one, " in the intervention arm is enrolled. Comparators are drawn at random from the eligible ",
-      ctx$many, " in the comparator arm: ", ratio_text, ", or all of them if the trial holds fewer. The draw is made within each trial. It creates no matched sets, and no later step conditions on one."
+      ctx$many, " in the comparator arm: ", ratio_text, ", or all of them if the trial holds fewer. The draw is made within each trial and creates no matched sets, so no analysis conditions on matched sets."
     ),
     paste0(
       "A ", ctx$one, " can enter several trials, so the number of person-trials can exceed the number of ", ctx$many,
@@ -406,8 +406,8 @@ tteplan_osf_text <- function(
     paste0("The study has ", length(items), if (length(items) == 1L) " comparison" else " comparisons", ". Each compares an intervention strategy, named first, with a comparator strategy."),
     .osf_numbered(items),
     paste0(
-      "Assignment reads only the weeks of the enrollment period in which the ", ctx$one,
-      " is eligible and holds one of the two compared strategies. Every other week is dropped first. A ", ctx$one,
+      "Assignment uses only the weeks of the enrollment period in which the ", ctx$one,
+      " is eligible and holds one of the two compared strategies. A ", ctx$one,
       " enters the intervention arm when at least one of those weeks holds the intervention strategy, and the comparator arm when all of them hold the comparator strategy. A ",
       ctx$one, " with no such week does not enter that trial. Eligibility is assessed week by week, so a treatment started earlier in the enrollment period can make a later week ineligible."
     )
@@ -708,6 +708,6 @@ tteplan_osf_text <- function(
       "| Variable | Use | Codes | Window | Categories |\n|---|---|---|---|---|\n",
       paste(unlist(rows), collapse = "\n")
     ),
-    "Each code matches every code that starts with it. A code that starts with ! is removed from the codes before it. A derived variable is defined by its name."
+    "Each code matches every code that starts with it. A code that starts with ! is removed from the codes before it. A row marked derived variable has no codes, and its row name defines it."
   ))
 }
