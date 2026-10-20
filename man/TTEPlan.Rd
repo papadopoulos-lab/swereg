@@ -349,6 +349,27 @@ sheets already report every emulated trial with counts, rates, ratios,
 risk differences, intervals and numbers needed to treat. A forest image
 repeated a subset of those numbers. \verb{$export()} still draws one for a
 manuscript.
+
+The method also writes \code{results.qs2} to the directory of the workbook. A
+manuscript reads that file. It is a named list of aggregate results:
+\describe{
+\item{\code{estimates}}{\verb{$get_estimates()}.}
+\item{\code{curves}}{\verb{$get_curves()}.}
+\item{\code{baselines}}{\verb{$get_baselines()}.}
+\item{\code{attrition}}{\verb{$get_attrition()}.}
+\item{\code{enrollments}}{One row per enrollment: \code{enrollment_id},
+\code{enrollment_name}, \code{intervention_name}, \code{comparator_name}, and the
+per-protocol person-trials of each arm, \code{n_baseline_intervention} and
+\code{n_baseline_comparator}.}
+\item{\code{spec_version}}{The specification version of the plan.}
+\item{\code{swereg_version}}{The swereg version that wrote the file.}
+\item{\code{swereg_version_computing}}{A list with \code{s2} and \code{s3}, the swereg
+versions stamped on the stored results.}
+\item{\code{s1_run_id}, \code{s2_run_id}}{The s1 run id of the plan, and the
+distinct s2 run ids of its ETTs.}
+}
+The file holds no person-level data. No table has a person or person-trial
+identifier, and no table has a row per person or per person-trial.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$export_tables(

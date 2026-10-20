@@ -1,3 +1,9 @@
+# swereg 27.2.10
+
+## New features
+
+* **`$export_tables()` also writes `results.qs2` next to the workbook.** A manuscript reads it, so an analysis project no longer builds its own results object. It is a named list: `estimates`, `curves`, `baselines` and `attrition` from the four accessors, `enrollments` with one row per enrollment, `spec_version`, `swereg_version`, `swereg_version_computing`, `s1_run_id` and `s2_run_id`. The `enrollments` table holds the enrollment id and name, the intervention and comparator names, and the per-protocol person-trials of each arm. No table holds a person or person-trial identifier, and no table holds a row per person or per person-trial. An existing plan gets the file at its next s4 export.
+
 # swereg 27.2.9
 
 ## New features

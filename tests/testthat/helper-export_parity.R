@@ -688,7 +688,7 @@
     )))
   )
   sheets <- .xp_read_sheets(path)
-  files <- sort(setdiff(list.files(dir), "tables.xlsx"))
+  files <- sort(setdiff(list.files(dir), c("tables.xlsx", "results.qs2")))
   # NO BYTE DIGEST. `ggplot2::ggsave()` picks its rasteriser by probing for
   # `ragg`, and `ragg` is in neither Imports nor Suggests. `R CMD check` hides
   # it, so the same figure rasterises through cairo there and through ragg in an

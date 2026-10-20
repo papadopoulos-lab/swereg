@@ -33,6 +33,27 @@
 #' repeated a subset of those numbers. `$export()` still draws one for a
 #' manuscript.
 #'
+#' The method also writes `results.qs2` to the directory of the workbook. A
+#' manuscript reads that file. It is a named list of aggregate results:
+#' \describe{
+#'   \item{`estimates`}{`$get_estimates()`.}
+#'   \item{`curves`}{`$get_curves()`.}
+#'   \item{`baselines`}{`$get_baselines()`.}
+#'   \item{`attrition`}{`$get_attrition()`.}
+#'   \item{`enrollments`}{One row per enrollment: `enrollment_id`,
+#'     `enrollment_name`, `intervention_name`, `comparator_name`, and the
+#'     per-protocol person-trials of each arm, `n_baseline_intervention` and
+#'     `n_baseline_comparator`.}
+#'   \item{`spec_version`}{The specification version of the plan.}
+#'   \item{`swereg_version`}{The swereg version that wrote the file.}
+#'   \item{`swereg_version_computing`}{A list with `s2` and `s3`, the swereg
+#'     versions stamped on the stored results.}
+#'   \item{`s1_run_id`, `s2_run_id`}{The s1 run id of the plan, and the
+#'     distinct s2 run ids of its ETTs.}
+#' }
+#' The file holds no person-level data. No table has a person or person-trial
+#' identifier, and no table has a row per person or per person-trial.
+#'
 #' @param path File path for the output `.xlsx` file.
 #' @param table1_enrollment Enrollment ID for Table 1 (main baseline table).
 #'   Default: the enrollment with the most baseline observations. An id

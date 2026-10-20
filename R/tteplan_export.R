@@ -566,8 +566,14 @@
     widths = c(8, 25, 60)
   )
 
+  # Built before the workbook is saved. A build error then leaves no new
+  # workbook beside an older results.qs2.
+  results <- .plan_results_object(plan)
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   cat("Saved:", path, "\n")
+  results_path <- file.path(dirname(path), "results.qs2")
+  qs2_write_atomic(results, results_path)
+  cat("Saved:", results_path, "\n")
   return(invisible(path))
 }
 
