@@ -1,0 +1,14 @@
+swereg compute_summary
+======================
+Built:           2026-10-19T14:02:50Z
+swereg version:  27.2.6
+Skeletons:       2 / 2 (FULL)
+
+Time period with WEEKLY data: 2020-01 to 2020-01
+  n_persons (any row, weekly or annual):  6
+  n_person_weeks:                         6
+
+Time period with ANNUAL data: NA to NA
+  n_person_years:                         0
+
+(no per-column counts available)

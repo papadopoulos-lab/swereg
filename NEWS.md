@@ -1,3 +1,10 @@
+# swereg 27.2.8
+
+## New features
+
+* **`RegistryStudy$set_batches()` sets the batch composition directly, and an ID MAY be in more than one batch.** `$save_rawbatch()` writes the rows of that ID into each batch that holds it, so the population and summary counts count that person once per batch.
+* **`$set_ids()` and `$set_batches()` stop when the composition changes while rawbatch or skeleton files are on disk.** A study saved by 27.2.6 or earlier has no recorded composition, so it records one and continues.
+
 # swereg 27.2.7
 
 ## Bug fixes

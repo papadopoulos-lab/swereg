@@ -12,6 +12,11 @@
 #'   (`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
 #'   lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 #'   (no split materialisation).
+#'
+#'   An ID MAY be in more than one batch (see `$set_batches()`). Then
+#'   each batch gets the rows of the IDs it holds, in input order, by one
+#'   `%in%` scan per batch. That path adds no `BID` column and does not
+#'   change the caller's tables.
 RegistryStudy$set(
   "public",
   "save_rawbatch",
@@ -55,63 +60,77 @@ RegistryStudy$set(
     }
     n_batches_local <- self$n_batches
 
-    id_to_batch <- data.table::data.table(
-      .id_ = unlist(self$batch_id_list, use.names = FALSE),
-      BID = rep.int(seq_len(n_batches_local), lengths(self$batch_id_list))
-    )
-    data.table::setnames(id_to_batch, ".id_", id_col)
-    data.table::setkeyv(id_to_batch, id_col)
-
-    # Annotate each splittable data.table with BID and key on it.
-    # Both modifications are in-place; peak RAM stays ~1x the table.
-    prepare_dt <- function(dt) {
-      if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
-        return(FALSE)
-      }
-      dt[id_to_batch, on = id_col, BID := i.BID]
-      data.table::setkey(dt, BID)
-      return(TRUE)
-    }
-
-    data_is_dt <- data.table::is.data.table(data)
-    if (data_is_dt) {
-      prepared <- prepare_dt(data)
-      payload_for_batch <- function(b) {
-        sl <- data[.(b), nomatch = NULL]
-        if (prepared) {
-          sl[, BID := NULL]
-        }
-        return(sl)
-      }
-      cleanup_caller_state <- function() {
-        if (prepared && "BID" %in% names(data)) return(data[, BID := NULL])
-      }
+    # An id in two batches cannot carry one BID. That case takes the subset
+    # path below. A disjoint composition keeps the BID path, so its rawbatch
+    # files stay byte-identical to swereg 27.2.6.
+    ids_overlap <- anyDuplicated(
+      unlist(self$batch_id_list, use.names = FALSE)
+    ) > 0L
+    if (ids_overlap) {
+      payload_for_batch <- .rawbatch_subset_payload(
+        data,
+        self$batch_id_list,
+        id_col
+      )
     } else {
-      prepared <- vapply(data, prepare_dt, logical(1))
-      payload_for_batch <- function(b) {
-        out <- vector("list", length(data))
-        names(out) <- names(data)
-        for (nm in names(data)) {
-          if (prepared[[nm]]) {
-            sl <- data[[nm]][.(b), nomatch = NULL]
+      id_to_batch <- data.table::data.table(
+        .id_ = unlist(self$batch_id_list, use.names = FALSE),
+        BID = rep.int(seq_len(n_batches_local), lengths(self$batch_id_list))
+      )
+      data.table::setnames(id_to_batch, ".id_", id_col)
+      data.table::setkeyv(id_to_batch, id_col)
+
+      # Annotate each splittable data.table with BID and key on it.
+      # Both modifications are in-place; peak RAM stays ~1x the table.
+      prepare_dt <- function(dt) {
+        if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
+          return(FALSE)
+        }
+        dt[id_to_batch, on = id_col, BID := i.BID]
+        data.table::setkey(dt, BID)
+        return(TRUE)
+      }
+
+      data_is_dt <- data.table::is.data.table(data)
+      if (data_is_dt) {
+        prepared <- prepare_dt(data)
+        payload_for_batch <- function(b) {
+          sl <- data[.(b), nomatch = NULL]
+          if (prepared) {
             sl[, BID := NULL]
-            out[[nm]] <- sl
-          } else {
-            out[[nm]] <- data[[nm]]
           }
+          return(sl)
         }
-        return(out)
-      }
-      cleanup_caller_state <- function() {
-        for (nm in names(data)) {
-          if (prepared[[nm]] && "BID" %in% names(data[[nm]])) {
-            data[[nm]][, BID := NULL]
+        cleanup_caller_state <- function() {
+          if (prepared && "BID" %in% names(data)) return(data[, BID := NULL])
+        }
+      } else {
+        prepared <- vapply(data, prepare_dt, logical(1))
+        payload_for_batch <- function(b) {
+          out <- vector("list", length(data))
+          names(out) <- names(data)
+          for (nm in names(data)) {
+            if (prepared[[nm]]) {
+              sl <- data[[nm]][.(b), nomatch = NULL]
+              sl[, BID := NULL]
+              out[[nm]] <- sl
+            } else {
+              out[[nm]] <- data[[nm]]
+            }
           }
+          return(out)
         }
-        return(invisible(NULL))
+        cleanup_caller_state <- function() {
+          for (nm in names(data)) {
+            if (prepared[[nm]] && "BID" %in% names(data[[nm]])) {
+              data[[nm]][, BID := NULL]
+            }
+          }
+          return(invisible(NULL))
+        }
       }
+      on.exit(cleanup_caller_state(), add = TRUE)
     }
-    on.exit(cleanup_caller_state(), add = TRUE)
 
     # Normalize the resolved rawbatch dir to an ABSOLUTE path before building
     # outpaths: the n_workers > 1 path declares these as batchit `outputs`,
@@ -596,3 +615,78 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   ))
   return(invisible(NULL))
 })
+
+# The digest that identifies a batch composition. A study with no batch has no
+# composition to protect, so it gets NULL, the value a 27.2.6 study holds.
+.batch_composition_digest <- function(batch_id_list) {
+  if (length(batch_id_list) == 0L) {
+    return(NULL)
+  }
+  return(digest::digest(batch_id_list))
+}
+
+# Return the digest to record for `batch_id_list`, or stop.
+#
+# The rawbatch and skeleton files on disk belong to the composition that wrote
+# them, file by file: batch 3 holds the ids batch 3 held then. A new composition
+# would read those files under the wrong ids, so it stops while any of them
+# remains. The skeletons count as well as the rawbatches, because
+# $delete_rawbatches() leaves the skeletons behind.
+#
+# A study with no recorded digest was saved by swereg 27.2.6 or earlier, or
+# never had a composition. It records the new one and continues, so an
+# existing store keeps working.
+.guard_batch_composition <- function(study, batch_id_list, caller) {
+  new_digest <- .batch_composition_digest(batch_id_list)
+  recorded <- study$batch_composition_digest
+  if (is.null(recorded) || identical(recorded, new_digest)) {
+    return(new_digest)
+  }
+  n_rawbatch <- length(list.files(
+    study$data_rawbatch_dir,
+    pattern = "^\\d+_rawbatch_.*\\.qs2$"
+  ))
+  n_skeleton <- length(study$skeleton_files)
+  if (n_rawbatch > 0L || n_skeleton > 0L) {
+    stop(
+      caller,
+      ": the new batch composition differs from the one that wrote the ",
+      n_rawbatch,
+      " rawbatch and ",
+      n_skeleton,
+      " skeleton files on disk. Delete them with $delete_rawbatches() and ",
+      "$delete_skeletons() first, or keep the recorded composition.",
+      call. = FALSE
+    )
+  }
+  return(new_digest)
+}
+
+# The payload function of $save_rawbatch() when an id is in more than one
+# batch. Batch b gets the rows whose `id_col` is in batch b, in their input
+# order and with their column types. A list element without `id_col` goes whole
+# into every batch, as on the BID path. The caller's tables are not changed.
+.rawbatch_subset_payload <- function(data, batch_id_list, id_col) {
+  slice <- function(dt, b) {
+    if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
+      return(dt)
+    }
+    # A bare symbol in `i` is read from this frame, never from a column, so
+    # a column named `keep` or `b` cannot change the subset.
+    keep <- dt[[id_col]] %in% batch_id_list[[b]]
+    return(dt[keep])
+  }
+  if (data.table::is.data.table(data)) {
+    return(function(b) {
+      return(slice(data, b))
+    })
+  }
+  return(function(b) {
+    out <- vector("list", length(data))
+    names(out) <- names(data)
+    for (nm in names(data)) {
+      out[[nm]] <- slice(data[[nm]], b)
+    }
+    return(out)
+  })
+}

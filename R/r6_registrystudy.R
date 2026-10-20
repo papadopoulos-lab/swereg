@@ -196,6 +196,12 @@ RegistryStudy <- R6::R6Class(
     #' @field batch_id_list List of ID vectors, one per batch.
     batch_id_list = NULL,
 
+    #' @field batch_composition_digest Character or NULL. The
+    #'   `digest::digest()` of `batch_id_list`, set by `$set_ids()` and
+    #'   `$set_batches()`. A study saved by swereg 27.2.6 or earlier has
+    #'   none.
+    batch_composition_digest = NULL,
+
     #' @field groups_saved Character vector of rawbatch groups saved to disk.
     groups_saved = NULL,
 
@@ -662,6 +668,11 @@ RegistryStudy <- R6::R6Class(
       self$n_ids <- other$n_ids
       self$n_batches <- other$n_batches
       self$batch_id_list <- other$batch_id_list
+      # A study saved by swereg 27.2.6 or earlier has no digest. Record the
+      # digest of the composition it adopts, so the guard in $set_ids() and
+      # $set_batches() protects its files from here on.
+      self$batch_composition_digest <- other$batch_composition_digest %||%
+        .batch_composition_digest(other$batch_id_list)
       self$groups_saved <- other$groups_saved
       return(invisible(self))
     },
@@ -831,12 +842,86 @@ RegistryStudy <- R6::R6Class(
       ids <- sample(ids)
 
       batch_id_list <- split(ids, ceiling(seq_along(ids) / self$batch_size))
+      self$batch_composition_digest <- .guard_batch_composition(
+        self,
+        batch_id_list,
+        "set_ids()"
+      )
 
       self$n_ids <- as.integer(length(ids))
       self$n_batches <- as.integer(length(batch_id_list))
       self$batch_id_list <- batch_id_list
 
       # Scan disk for existing rawbatch groups
+      self$groups_saved <- .detect_rawbatch_groups(
+        self$data_rawbatch_dir,
+        self$group_names,
+        self$n_batches
+      )
+
+      return(invisible(self))
+    },
+
+    #' @description Set the batch composition directly, one ID vector per
+    #'   batch, in the given order. Use it to keep a matched set in one
+    #'   batch, which `$set_ids()` cannot do because it shuffles the IDs.
+    #'
+    #'   An ID MAY be in more than one batch. `$save_rawbatch()` then
+    #'   writes every row of that ID into each batch that holds it. The
+    #'   population and summary counts sum over the batches, so they count
+    #'   a person in two batches twice.
+    #'
+    #'   The method stops when rawbatch or skeleton files are on disk and
+    #'   the new composition differs from the recorded one. A study with
+    #'   no recorded composition, for example one saved by swereg 27.2.6,
+    #'   records the new one and continues.
+    #' @param batches A non-empty list of non-empty vectors of person IDs.
+    #'   An ID MUST NOT repeat within one batch. The batches get the names
+    #'   `"1"` to `"n"`, as `$set_ids()` gives them. The method does not
+    #'   shuffle the IDs.
+    #' @return `invisible(self)`.
+    set_batches = function(batches) {
+      if (!is.list(batches) || length(batches) == 0L) {
+        stop(
+          "set_batches(): `batches` must be a non-empty list of ID vectors.",
+          call. = FALSE
+        )
+      }
+      for (b in seq_along(batches)) {
+        ids <- batches[[b]]
+        if (!is.atomic(ids) || length(ids) == 0L) {
+          stop(
+            "set_batches(): batch ",
+            b,
+            " must be a non-empty vector of IDs.",
+            call. = FALSE
+          )
+        }
+        if (anyDuplicated(ids) > 0L) {
+          stop(
+            "set_batches(): batch ",
+            b,
+            " holds ID ",
+            ids[anyDuplicated(ids)],
+            " more than once. An ID MAY repeat across batches, not within one.",
+            call. = FALSE
+          )
+        }
+      }
+      batch_id_list <- batches
+      names(batch_id_list) <- as.character(seq_along(batch_id_list))
+      self$batch_composition_digest <- .guard_batch_composition(
+        self,
+        batch_id_list,
+        "set_batches()"
+      )
+
+      self$n_ids <- as.integer(
+        data.table::uniqueN(unlist(batch_id_list, use.names = FALSE))
+      )
+      self$n_batches <- as.integer(length(batch_id_list))
+      self$batch_id_list <- batch_id_list
+
       self$groups_saved <- .detect_rawbatch_groups(
         self$data_rawbatch_dir,
         self$group_names,

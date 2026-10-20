@@ -165,6 +165,11 @@ Other skeleton_pipeline:
 
     \item{\code{batch_id_list}}{List of ID vectors, one per batch.}
 
+    \item{\code{batch_composition_digest}}{Character or NULL. The
+\code{digest::digest()} of \code{batch_id_list}, set by \verb{$set_ids()} and
+\verb{$set_batches()}. A study saved by swereg 27.2.6 or earlier has
+none.}
+
     \item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
 
     \item{\code{code_registry}}{List of code registration entries, appended
@@ -307,6 +312,7 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
     \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
     \item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
+    \item \href{#method-RegistryStudy-set_batches}{\code{RegistryStudy$set_batches()}}
     \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
@@ -340,7 +346,12 @@ daemons; the 'mirai' package must be installed. Each splittable
 data.table gets \code{BID} added in-place and is keyed on it
 (\code{setkey(dt, BID)}), so per-batch slices are O(log n) keyed
 lookups instead of O(n) \code{\%in\%} scans. RAM stays ~1x the input
-(no split materialisation).}
+(no split materialisation).
+
+An ID MAY be in more than one batch (see \verb{$set_batches()}). Then
+each batch gets the rows of the IDs it holds, in input order, by one
+\code{\%in\%} scan per batch. That path adds no \code{BID} column and does not
+change the caller's tables.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1065,6 +1076,43 @@ column, and a new object otherwise.
       \item{\code{ids}}{Vector of person IDs.}
     }
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-set_batches"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-set_batches}{}}}
+\subsection{\code{RegistryStudy$set_batches()}}{
+  Set the batch composition directly, one ID vector per
+batch, in the given order. Use it to keep a matched set in one
+batch, which \verb{$set_ids()} cannot do because it shuffles the IDs.
+
+An ID MAY be in more than one batch. \verb{$save_rawbatch()} then
+writes every row of that ID into each batch that holds it. The
+population and summary counts sum over the batches, so they count
+a person in two batches twice.
+
+The method stops when rawbatch or skeleton files are on disk and
+the new composition differs from the recorded one. A study with
+no recorded composition, for example one saved by swereg 27.2.6,
+records the new one and continues.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$set_batches(batches)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batches}}{A non-empty list of non-empty vectors of person IDs.
+An ID MUST NOT repeat within one batch. The batches get the names
+\code{"1"} to \code{"n"}, as \verb{$set_ids()} gives them. The method does not
+shuffle the IDs.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{invisible(self)}.
   }
 }
 
