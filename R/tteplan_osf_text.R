@@ -357,7 +357,7 @@ tteplan_osf_text <- function(
     paste0(
       "Under the per-protocol estimand, follow-up also stops at the first week that does not hold the assigned strategy, beyond the tolerance of the arm. A week with a missing treatment value counts as such a week. Under the intention-to-treat estimand, a deviation does not stop follow-up."
     ),
-    if (length(tol) > 0L) paste(tol, collapse = " ") else "The tolerance is 0 weeks in every arm, so the first such week is a deviation. The tolerance applies to the weekly treatment value, after any bridging of gaps between dispensings by the treatment classification.",
+    if (length(tol) > 0L) paste(tol, collapse = " ") else "The tolerance is 0 weeks in every arm, so the first such week is a deviation.",
     "The statistical analysis is described under 'Statistical models'."
   ))
 }

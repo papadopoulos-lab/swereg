@@ -1,3 +1,9 @@
+# swereg 27.2.12
+
+## Documentation
+
+* **`tteplan_osf_text()` no longer says how the tolerance relates to gap bridging in the treatment classification.** The treatment classification is the study's own, and its rules belong in its documentation, not in a sentence swereg writes into every registration.
+
 # swereg 27.2.11
 
 ## Documentation
