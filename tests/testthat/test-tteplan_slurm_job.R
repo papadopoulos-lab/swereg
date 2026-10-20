@@ -126,7 +126,10 @@ test_that("the plan directory reaches the script as an absolute path", {
 
   job <- plan$slurm_job("s1", time = "12:00:00")
 
-  expect_match(job[["script"]], 'swereg::tte_stage\\("s1", "/')
+  expect_match(
+    job[["script"]],
+    paste0('swereg::tte_stage\\("s1", "', abs_path_start())
+  )
 })
 
 test_that("s2 stays at one worker whatever SWEREG_N_WORKERS_S2 says", {

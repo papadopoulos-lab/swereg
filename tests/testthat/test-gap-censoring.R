@@ -169,10 +169,7 @@ skip_if_not_installed("withr")
     "weeks_to_loss"
   )
   k <- d[order(id, tstart), cols, with = FALSE]
-  f <- tempfile()
-  on.exit(unlink(f))
-  writeLines(do.call(paste, c(as.list(k), sep = "|")), f)
-  unname(tools::md5sum(f))
+  md5_of_lines(do.call(paste, c(as.list(k), sep = "|")))
 }
 
 

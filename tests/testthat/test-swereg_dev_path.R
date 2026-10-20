@@ -55,7 +55,10 @@ test_that(".dev_source_root() strips a trailing /inst before deciding", {
   root <- .mk_src_tree()
   dir.create(file.path(root, "inst"))
 
-  expect_identical(swereg:::.dev_source_root(file.path(root, "inst")), root)
+  expect_identical(
+    swereg:::.dev_source_root(file.path(root, "inst")),
+    dirname_form(root)
+  )
 })
 
 test_that(".dev_source_root() returns NULL for a tree with no R/ source files", {

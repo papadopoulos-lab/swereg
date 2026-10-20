@@ -133,8 +133,11 @@ test_that("s2 dispatch declares one absolute output per item via run_and_write",
   for (o in outputs) {
     expect_named(o, "analysis")
     expect_true(is.character(o))
-    expect_match(o[["analysis"]], "^/")
-    expect_identical(dirname(o[["analysis"]]), normalizePath(output_dir))
+    expect_match(o[["analysis"]], paste0("^", abs_path_start()))
+    expect_identical(
+      dirname(o[["analysis"]]),
+      dirname_form(normalizePath(output_dir))
+    )
   }
   expect_identical(
     unname(vapply(outputs, function(o) basename(o[["analysis"]]), character(1))),

@@ -408,8 +408,8 @@ test_that("the s1e call site dispatches via run_and_write(style = 'staged_writer
   o <- a$outputs[[1L]]
   expect_true(is.character(o))
   expect_named(o, c("raw", "imp"))
-  expect_match(o[["raw"]], "^/")
-  expect_match(o[["imp"]], "^/")
+  expect_match(o[["raw"]], paste0("^", abs_path_start()))
+  expect_match(o[["imp"]], paste0("^", abs_path_start()))
   expect_false(identical(o[["raw"]], o[["imp"]]))
 })
 

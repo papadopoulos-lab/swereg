@@ -108,7 +108,9 @@ test_that(".validate_scratch_root() expands a tilde with a path after it", {
   )
 
   expect_match(msg, "work_root.*existing directory")
-  expect_match(msg, path.expand("~/x"), fixed = TRUE)
+  # The message quotes the path with encodeString(), which doubles each
+  # backslash of a Windows path.
+  expect_match(msg, encodeString(path.expand("~/x"), quote = "\""), fixed = TRUE)
 })
 
 test_that(".validate_scratch_root() expands a bare tilde", {
@@ -147,7 +149,7 @@ test_that(".validate_scratch_root() refuses a root that does not exist", {
   )
 
   expect_match(msg, "work_root.*existing directory")
-  expect_match(msg, absent, fixed = TRUE)
+  expect_match(msg, encodeString(absent, quote = "\""), fixed = TRUE)
 })
 
 # dir.exists(), not file.exists(). A regular file is not a directory, and s1

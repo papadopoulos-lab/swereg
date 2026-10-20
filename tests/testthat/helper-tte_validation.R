@@ -45,7 +45,8 @@ val_n_replicates <- function(scenario) {
 # top-level expression is deparsed, and the per-file hash is the md5 of those
 # lines in file order. The result is the md5 of one line per file,
 # `<path> <per-file hash>`, in the order of .VAL_ESTIMATOR_FILES. A missing
-# file is an error, never a skipped file.
+# file is an error, never a skipped file. md5_of_lines() is in
+# helper-portable.R, and it ends each line in "\n" on every platform.
 val_estimator_hash <- function(root) {
   paths <- file.path(root, .VAL_ESTIMATOR_FILES)
   missing <- .VAL_ESTIMATOR_FILES[!file.exists(paths)]
@@ -57,12 +58,6 @@ val_estimator_hash <- function(root) {
       paste(missing, collapse = ", "),
       call. = FALSE
     )
-  }
-  md5_of_lines <- function(x) {
-    tmp <- tempfile()
-    on.exit(unlink(tmp), add = TRUE)
-    writeLines(x, tmp, useBytes = TRUE)
-    unname(tools::md5sum(tmp))
   }
   control <- c("keepNA", "keepInteger", "niceNames", "showAttributes")
   file_hashes <- vapply(

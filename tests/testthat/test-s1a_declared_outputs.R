@@ -264,7 +264,7 @@ test_that("the s1a call site declares 2 x n_enrollments outputs per skeleton", {
       ))
     )
     # batchit rejects a relative declared output.
-    expect_true(all(grepl("^/", o)))
+    expect_true(all(grepl(paste0("^", abs_path_start()), o)))
   }
   expect_identical(anyDuplicated(unlist(unname(outputs), use.names = FALSE)), 0L)
 

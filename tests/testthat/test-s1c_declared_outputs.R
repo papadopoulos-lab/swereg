@@ -252,8 +252,8 @@ test_that("s1c dispatch declares two absolute outputs via run_and_write", {
   o <- outputs[[1L]]
   expect_true(is.character(o))
   expect_named(o, c("enrolled_ids", "counts"))
-  expect_match(o[["enrolled_ids"]], "^/")
-  expect_match(o[["counts"]], "^/")
+  expect_match(o[["enrolled_ids"]], paste0("^", abs_path_start()))
+  expect_match(o[["counts"]], paste0("^", abs_path_start()))
 
   it <- items[[1L]]
   eid <- it$enrollment_spec$enrollment_id

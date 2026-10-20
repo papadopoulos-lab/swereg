@@ -13,7 +13,9 @@ run_progress_probe <- function(steps, sleep_s, interval_s, signals = steps) {
   ))
   handler <- progress_line_handler()
   path <- withr::local_tempfile(fileext = ".log")
-  con <- file(path, open = "wt")
+  # Binary mode, so the log holds the bytes the handler writes. A text-mode
+  # connection on Windows writes "\r\n" for each "\n".
+  con <- file(path, open = "wb")
   withr::defer({
     if (sink.number(type = "message") != 2L) sink(type = "message")
     close(con)

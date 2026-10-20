@@ -211,7 +211,7 @@ test_that("s1d dispatch declares one absolute output per item via run_and_write"
   for (o in outputs) {
     expect_named(o, "panel")
     expect_true(is.character(o))
-    expect_match(o[["panel"]], "^/")
+    expect_match(o[["panel"]], paste0("^", abs_path_start()))
   }
   expect_identical(
     unname(vapply(outputs, function(o) o[["panel"]], character(1))),
