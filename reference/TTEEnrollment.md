@@ -124,12 +124,10 @@ execution order):**
   Weighted discrete-time survival curve from the person-week panel (ITT
   via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)
 
-- `$risk_difference(weight_col, n_boot, seed, conf_level, min_persons_at_risk)`:
+- `$risk_difference(weight_col, n_boot, seed, conf_level)`:
 
   Signed cause-specific risk difference at each distinct stop time, with
-  a percentile bootstrap interval resampled at the person level. A stop
-  time with fewer than `min_persons_at_risk` people at risk in an arm
-  gets none
+  a percentile bootstrap interval resampled at the person level
 
 **Active bindings:**
 
@@ -672,13 +670,6 @@ anti-conservative, and more replicates do not repair it. The condition
 is evaluated per horizon and per arm, on the events up to and including
 that stop time.
 
-A sparse risk set gets no risk difference at all. When either arm has
-fewer than `min_persons_at_risk` people at risk at a stop time, `rd`,
-`rd_lo`, `rd_hi` and the number-needed-to-treat columns are `NA` there,
-and `interval_status` reads `"too few at risk at horizon"`. The late
-hazards then rest on a few people, and the bootstrap interval
-undercovers.
-
 Deaths are censored, not modelled as a competing risk, so this is a
 cause-specific risk difference under independent censoring, not a
 competing-risk one.
@@ -689,8 +680,7 @@ competing-risk one.
       weight_col,
       n_boot = 500L,
       seed = NULL,
-      conf_level = 0.95,
-      min_persons_at_risk = 10L
+      conf_level = 0.95
     )
 
 #### Arguments
@@ -713,12 +703,6 @@ competing-risk one.
 
   Numeric in (0, 1), percentile interval level (default 0.95).
 
-- `min_persons_at_risk`:
-
-  Whole number of at least 0 (default 10). A stop time where either arm
-  has fewer people at risk gets no risk difference. `0` withholds
-  nothing.
-
 #### Returns
 
 A data.table with one row per distinct stop time of the panel rows, and
@@ -727,12 +711,11 @@ columns `tstop` (named after `design$tstop_var`), `surv_comparator`,
 `nnt_direction`, `n_persons_with_event_comparator` and
 `n_persons_with_event_intervention`.
 
-`interval_status` takes one of four values. `"ok"` means the interval is
-estimable and strictly excludes the null. `"spans null"` means the
+`interval_status` takes one of three values. `"ok"` means the interval
+is estimable and strictly excludes the null. `"spans null"` means the
 interval is estimable and contains the null. `"zero-event arm"` means
-there is no interval. `"too few at risk at horizon"` means there is no
-risk difference. A reader can therefore separate an interval that spans
-the null from one that does not exist.
+there is no interval. A reader can therefore separate an interval that
+spans the null from one that does not exist.
 
 `nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
 reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
@@ -750,7 +733,7 @@ two numbers differ.
 
 The replicate matrix the interval was read off is attached as the
 `rd_boot` attribute (`n_boot` rows by one column per stop time),
-alongside `conf_level`, `n_boot` and `min_persons_at_risk`.
+alongside `conf_level` and `n_boot`.
 
 ------------------------------------------------------------------------
 

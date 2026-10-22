@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -171,6 +171,9 @@ interaction with treatment (1.8.8).</li>
 <li>Missing data, and how it is handled. Default: the rules of 1.8.7.
 They include a single hot-deck imputation of a missing confounder value
 at entry.</li>
+<li>The threshold of the horizon rule: the minimum expected events per
+arm in each year of follow-up. No default: the specification states it,
+for example 5, or swereg stops (1.8.6).</li>
 </ul>
 </div>
 <div class="section level3">
@@ -464,6 +467,8 @@ A positive value is the number needed to treat for benefit (NNTB). A
 negative value is reported by its magnitude as the number needed to
 treat for harm (NNTH) (Altman 1998). A risk difference of exactly zero
 has no number needed to treat.</p>
+<p>The horizon rule of 1.8.6 can withhold both scales and the number
+needed to treat of an estimand.</p>
 <p>The risk is the net risk implied by the cause-specific hazard of the
 outcome. It describes a world without death only if removing death would
 not change that hazard. It is not the cumulative incidence with death as
@@ -843,6 +848,11 @@ weights carry the whole adjustment, as in the IRR model. A stop time at
 which an arm has nobody at risk leaves the survival of that arm
 unchanged. The risk difference is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_{0}(t) - \hat S_{1}(t)</annotation></semantics></math>.</p>
+<p>The stored survival curves run to the end of follow-up, whatever the
+horizon rule of 1.8.6 decides. After the reportable horizon, the stored
+curve carries no risk difference and no number needed to treat. In the
+survival figure, each curve stops at the reportable horizon. A grey band
+labelled “Not estimable” covers the rest of follow-up.</p>
 </div>
 <div class="section level4">
 <h4 id="inference">1.8.6 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
@@ -889,18 +899,6 @@ including that time, the risk difference has no interval. Every
 replicate that is not missing would then give that arm a risk of exactly
 zero, and the percentiles would reflect the other arm alone. The point
 estimate is still reported.</p>
-<p>At a stop time where either arm has fewer than 10 persons at risk,
-there is no risk difference. The point estimate, the interval and the
-number needed to treat are all withheld, and
-<code>interval_status</code> reads
-<code>"too few at risk at horizon"</code>. The late hazards then rest on
-a few persons. The sample rarely holds a late event, and the bootstrap
-cannot create one. In 194 simulated datasets with about 3 events and 3.5
-persons at risk in one arm at the horizon, 161 of the 194 intervals
-covered the truth (0.830). The threshold is the
-<code>rd_min_persons_at_risk</code> argument of
-<code>$s3_analyze()</code>, default 10. Exports print “not estimable”
-and the reason.</p>
 <p>The interval of the number needed to treat is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi></mrow></msub><mo>,</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">h</mi><mi mathvariant="normal">i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1/\mathrm{RD}_{\mathrm{lo}}, -1/\mathrm{RD}_{\mathrm{hi}})</annotation></semantics></math>.
 It exists only when the risk-difference interval strictly excludes zero,
@@ -911,6 +909,55 @@ interval. Altman (1998) reports such an interval as running from an NNTH
 through infinity to an NNTB, and this implementation does not. The sign
 of the point estimate of the risk difference alone decides benefit or
 harm.</p>
+<div class="section level5">
+<h5 id="the-horizon-rule">The horizon rule<a class="anchor" aria-label="anchor" href="#the-horizon-rule"></a>
+</h5>
+<p>The horizon rule decides whether an estimand is reported. Follow-up
+is cut into years of 52 weeks from time zero:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>52</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(0, 52]</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>52</mn><mo>,</mo><mn>104</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(52, 104]</annotation></semantics></math>,
+and so on. The last year ends at the horizon. When the horizon is not a
+multiple of 52 weeks, the last year is shorter, and the same threshold
+applies to it.</p>
+<p>In year
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">{y}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\mathrm{PY}_{a,y}</annotation></semantics></math>
+is the weighted person-time of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>,
+in person-years, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>D</mi><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">D_{a,y}</annotation></semantics></math>
+is its weighted events. A row contributes the part of its interval that
+falls inside the year. An event counts in the year that holds the stop
+time of its row. The weight is the analysis weight of 1.8.3 for the
+estimand. The expected events of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
+use the pooled rate of both arms:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><mfrac><mrow><msub><mi>D</mi><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><mo>+</mo><msub><mi>D</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><mo>+</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+E_{a,y} = \mathrm{PY}_{a,y} \,
+\frac{D_{0,y} + D_{1,y}}{\mathrm{PY}_{0,y} + \mathrm{PY}_{1,y}}.
+</annotation></semantics></math></p>
+<p>A year with no person-time in either arm has
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">E_{a,y} = 0</annotation></semantics></math>
+in both arms. A year passes when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{0,y}</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{1,y}</annotation></semantics></math>
+both reach the threshold that the specification states. The reportable
+horizon is the end of the last year before the first year that fails. It
+is 0 when the first year fails.</p>
+<p>When any year up to the horizon fails, the estimates of that estimand
+are withheld. The IRR, the risk difference and the number needed to
+treat are reported as NE, not estimable. The subgroup IRRs and the
+effect-modification tests of 1.8.8 are withheld too. Events,
+person-time, rates and the stored survival curves are still reported.
+The per-protocol decision uses the truncated product weight. It also
+covers the untruncated per-protocol IRR of 1.9, which is a sensitivity
+estimate of the same estimand.</p>
+<p>Which years pass depends on the observed events, through the pooled
+rate. So the decision is not independent of the outcome. The rule is a
+prespecified reporting rule. It does not guarantee the precision of an
+estimate or the coverage of an interval.</p>
+</div>
 </div>
 <div class="section level4">
 <h4 id="missing-data">1.8.7 Missing data<a class="anchor" aria-label="anchor" href="#missing-data"></a>
@@ -1376,14 +1423,19 @@ example 2</td>
 <td>the analysis horizon</td>
 </tr>
 <tr class="odd">
+<td><code>[m]</code></td>
+<td>the threshold of the horizon rule, in expected events per arm per
+follow-up year, for example 5</td>
+</tr>
+<tr class="even">
 <td><code>[end]</code></td>
 <td>the administrative end of study</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>[tolerance]</code></td>
 <td>the tolerance of each arm, in weeks</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>[subgroups]</code></td>
 <td>the pre-specified subgroups</td>
 </tr>
@@ -1513,11 +1565,18 @@ replicates. Each replicate resampled persons, not person-trials, and one
 resample served both arms. The weights were held fixed in the
 bootstrap.</p>
 <p>No interval was reported at a time by which either arm had no
-weighted event. No risk difference was reported at a time at which
-either arm had fewer than 10 persons at risk. The number needed to treat
-was the negative reciprocal of the risk difference, so a positive value
-meant benefit. We reported its interval only when the interval of the
-risk difference excluded zero.</p>
+weighted event. The number needed to treat was the negative reciprocal
+of the risk difference, so a positive value meant benefit. We reported
+its interval only when the interval of the risk difference excluded
+zero.</p>
+<p>We prespecified a reporting rule of at least <code>[m]</code>
+expected events per arm in each year of follow-up. The expected events
+of an arm in a 52-week year were its weighted person-time multiplied by
+the pooled weighted event rate of both arms. When any year up to
+<code>[horizon]</code> failed, we reported no IRR, risk difference or
+number needed to treat. Which years passed depended on the observed
+events, through the pooled rate. The rule was a reporting rule, not a
+guarantee of precision.</p>
 <p>A missing confounder value at the recruiting week was singly imputed
 by a hot-deck draw. A missing value during follow-up was carried forward
 within the person-trial. We assessed effect modification by
@@ -1558,7 +1617,7 @@ rerun uses the same data-generating processes, truth calculations and
 fit wrappers that the package’s test suite enforces in continuous
 integration. Section 4.2 maps each layer to its test file and describes
 how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-10-19 16:38:21 UTC with swereg 27.2.7,
+<p>Provenance: generated 2026-10-22 01:25:10 UTC with swereg 27.2.13,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
@@ -3804,6 +3863,26 @@ from time zero as the column <code>follow_up_interval</code>, and the
 stored risk-difference rows use the same name</td>
 </tr>
 <tr class="even">
+<td align="left">1.6, 1.8.6</td>
+<td align="left">Horizon rule</td>
+<td align="left">
+<code>horizon_rule$min_expected_events</code> in the
+YAML spec, which <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> requires. The year is
+the package constant <code>.HORIZON_WINDOW_WEEKS</code>, 52 weeks. The
+risk-difference work item of <code>$s3_analyze()</code> computes the
+years outside <code>safe_call()</code>, and the parent merge stops when
+an ETT has no decision. The records are stored as
+<code>horizon_pp</code> and <code>horizon_itt</code>.
+<code>$get_horizon_windows()</code> returns the years, and the
+<code>Expected events</code> sheet of <code>$export_tables()</code>
+shows them. <code>$get_estimates()</code> carries
+<code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
+<code>$export()</code>, <code>$export_tables()</code> and
+<code>$print_target_checklist()</code> stop when a stored result was
+judged with another <code>horizon_rule</code>
+</td>
+</tr>
+<tr class="odd">
 <td align="left">1.8.7</td>
 <td align="left">Missing data</td>
 <td align="left">
@@ -3814,7 +3893,7 @@ value. <code>TTEEnrollment$s1b_fill_followup_confounders()</code>
 carries a follow-up value forward, and
 <code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> counts the filled rows</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.8.8</td>
 <td align="left">Subgroups and heterogeneity</td>
 <td align="left">
@@ -3831,7 +3910,7 @@ The effect-modification model is
 where <code>n</code> is the number of trials; <code>$s3_analyze()</code>
 does not call it</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1.9</td>
 <td align="left">Sensitivity analyses</td>
 <td align="left">The untruncated PP IRR is stored as
@@ -3843,7 +3922,7 @@ and <code>period_id</code>: <code>splines::ns(var, df = 3)</code> with 4
 or more distinct values, <code>factor(var)</code> with 2 or 3, none with
 1</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.8</td>
 <td align="left">Pre-specification</td>
 <td align="left">YAML spec parsed by <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>;

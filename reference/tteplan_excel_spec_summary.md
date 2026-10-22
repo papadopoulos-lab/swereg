@@ -128,6 +128,8 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
+    "horizon_rule:",
+    "  min_expected_events: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",
@@ -158,7 +160,7 @@ out <- tteplan_excel_spec_summary(
   path = file.path(spec_dir, "spec_v001.xlsx"),
   code_registry = study
 )
-#> Spec summary saved to: /tmp/RtmpPhSmte/file1dca40d60f2d/spec_v001.xlsx
+#> Spec summary saved to: /tmp/RtmpMRG9is/file1f2f47e31043/spec_v001.xlsx
 openxlsx::getSheetNames(out)
 #> [1] "Study Specification"   "Target trial protocol"
 unlink(spec_dir, recursive = TRUE)

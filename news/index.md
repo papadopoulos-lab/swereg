@@ -1,5 +1,68 @@
 # Changelog
 
+## swereg 27.2.14
+
+### Breaking changes
+
+- **Every specification MUST declare
+  `horizon_rule: {min_expected_events: <number>}`.**
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  refuses a specification without it. `$s3_analyze()`,
+  `$export_tables()`, `$get_protocol_table()` and
+  `$print_target_checklist()` stop on a plan whose spec lacks it. The
+  house default is 5.
+- **`$s3_analyze(rd_min_persons_at_risk = )` and
+  `$risk_difference(min_persons_at_risk = )` are removed.** The horizon
+  rule replaces the persons-at-risk rule of 27.2.7, and the status
+  `"too few at risk at horizon"` no longer occurs.
+- **Rerun `$s3_analyze()` on a plan that stored its results before
+  27.2.14.** Those results hold no horizon decision, and `$export()`,
+  `$export_tables()` and `$print_target_checklist()` stop on them.
+
+### New features
+
+- **`$s3_analyze()` applies the horizon rule to each estimand of each
+  ETT.** An arm’s expected events in a 52-week follow-up year are its
+  weighted person-years times the pooled weighted rate of both arms.
+  When either arm falls below `min_expected_events` in any year up to
+  the horizon, s3 withholds the estimates of that estimand. These are
+  the rate ratio, risk difference, number needed to treat, subgroup
+  ratios and interaction tests. Events, person-years, rates and the
+  survival curve stay.
+- **The workbook has an `Expected events` sheet.** It gives each
+  follow-up year of each ETT and estimand, with the expected and
+  observed events of each arm, the decision and the reportable horizon.
+- **A withheld rate ratio, risk difference or number needed to treat
+  reads `NE` on every sheet and in the forest figure.**
+- **The survival figure stops each curve at the reportable horizon.** A
+  grey band labelled “Not estimable” covers the rest of follow-up.
+- **`$export()`, `$export_tables()` and `$print_target_checklist()` stop
+  when a stored result has no horizon decision, or a decision made with
+  another `horizon_rule`.** The message names `$s3_analyze()`. The
+  writers compare `min_expected_events` with
+  [`identical()`](https://rdrr.io/r/base/identical.html), so a
+  difference of any size stops them.
+- **[`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  writes a new `Inference criteria` field that states the horizon
+  rule.** TARGET item 6h and the Analysis plan row of the target trial
+  protocol table state it too.
+
+### Bug fixes
+
+- **The minimum detectable effect uses the pooled weighted rate of both
+  arms.** It used the unweighted rate of the comparator arm.
+- **[`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  says that the outcome model holds no confounder.** The earlier wording
+  ruled out every covariate, which was false: the model holds the trial
+  and the time since time zero.
+
+### Documentation
+
+- **[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  states the horizon rule in sections 1.6, 1.8.5 and 1.8.6 and in the
+  manuscript methods.** The text says that the rule depends on the
+  observed events and does not guarantee precision.
+
 ## swereg 27.2.13
 
 ### Documentation

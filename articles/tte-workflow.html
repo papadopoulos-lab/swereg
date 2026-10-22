@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -352,30 +352,33 @@ from Hernan et al. (2008) and Danaei et al. (2013).</p>
 <span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"5 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a></span>
-<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
-<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
-<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
-<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
-<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
-<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
-<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
-<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
-<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
-<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
-<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
-<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
-<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
-<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
-<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
-<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
-<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
-<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_to_intervention_ratio</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
-<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_statin_status</span></span>
-<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
-<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
-<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span></code></pre></div>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="fu">horizon_rule</span><span class="kw">:</span></span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">  </span><span class="fu">min_expected_events</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span><span class="co">    # number &gt;= 0, per arm, per follow-up year</span></span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
+<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
+<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
+<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
+<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
+<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
+<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
+<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_to_intervention_ratio</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
+<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_statin_status</span></span>
+<span id="cb2-100"><a href="#cb2-100" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
+<span id="cb2-101"><a href="#cb2-101" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
+<span id="cb2-102"><a href="#cb2-102" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span></code></pre></div>
 <p><code><a href="../articles/tte-spec-schema.html">vignette("tte-spec-schema", package = "swereg")</a></code> lists
 every legal key path, and <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses any
 key that list does not name. <code>family</code> is an optional label

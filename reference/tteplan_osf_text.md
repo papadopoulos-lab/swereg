@@ -3,8 +3,9 @@
 Writes the text of each field of the OSF Preregistration form whose
 content the study specification and swereg fix: the design, the
 sampling, the treatment strategies, the outcomes, the covariates, the
-eligibility criteria, the analysis and the code list. Each fact appears
-in one field. The other fields point to it as `'Field/Subheading'`.
+eligibility criteria, the analysis, the horizon rule and the code list.
+Each fact appears in one field. The other fields point to it as
+`'Field/Subheading'`.
 
 ## Usage
 
@@ -57,8 +58,10 @@ A named character vector. Each element is the Markdown text of one
 field, and the names are the OSF field headings: `Study design`,
 `Sample size`, `Measured variables/Exposures`,
 `Measured variables/Outcomes`, `Measured variables/Baseline covariates`,
-`Statistical models`, `Transformations`, `Data inclusion and exclusion`,
-`Missing data`, `Other planned analysis` and `Code list`.
+`Statistical models`, `Transformations`, `Inference criteria`,
+`Data inclusion and exclusion`, `Missing data`, `Other planned analysis`
+and `Code list`. `Inference criteria` states the horizon rule from
+`horizon_rule$min_expected_events`.
 
 ## Details
 
@@ -123,6 +126,8 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
+    "horizon_rule:",
+    "  min_expected_events: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

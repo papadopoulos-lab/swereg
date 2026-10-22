@@ -108,30 +108,30 @@ lists every legal key. The Excel column names a section of the Study
 Specification sheet, and a row label where one applies. TARGET items
 come from `$print_target_checklist()` on the same plan.
 
-| OSF section                                     | YAML key                                                                                                                                             | Excel specification                                                                                                             |
-|:------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------|
-| Research questions or hypotheses                | `study$description`, `outcomes[]`, `enrollments[]$treatment$arms`                                                                                    | Outcomes; Enrollments, rows “Treatment:” and “Comparator:”                                                                      |
-| Foreknowledge of data or evidence               | n/a                                                                                                                                                  | n/a. See “Foreknowledge”.                                                                                                       |
-| Study type                                      | Non-randomized study. Adjustment or control-based design: the treatment and censoring weights.                                                       | n/a                                                                                                                             |
-| Intention for causal interpretation             | The estimands of TARGET item 6f                                                                                                                      | n/a                                                                                                                             |
-| Blinding of experimental treatments             | No blinding is involved.                                                                                                                             | n/a                                                                                                                             |
-| Additional blinding during research or analysis | n/a                                                                                                                                                  | n/a. See “Foreknowledge”.                                                                                                       |
-| Study design                                    | `target_trial`, `enrollments[]`, `follow_up[]`                                                                                                       | Study, row “Design:”; Follow-up; Enrollments; the Target trial protocol sheet. TARGET items 6a to 6h and 7.                     |
-| Randomization                                   | Not applicable. The comparator draw is seeded sampling, with `enrollments[]$treatment$implementation$seed`.                                          | n/a                                                                                                                             |
-| Data collection procedures                      | `inclusion_criteria`, `exclusion_criteria`, `enrollments[]$additional_inclusion`, `enrollments[]$additional_exclusion`, `enrollments[]$observed_var` | Inclusion criteria (global); Exclusion criteria (global); Enrollments, rows “Additional inclusion:” and “Additional exclusion:” |
-| Sample size                                     | n/a                                                                                                                                                  | n/a. See “Sample size”.                                                                                                         |
-| Sample size rationale                           | `enrollments[]$treatment$implementation$comparator_to_intervention_ratio`                                                                            | Enrollments, row “Comparator-to-intervention ratio:”. See “Sample size”.                                                        |
-| Starting and stopping rules                     | `inclusion_criteria$isoyears`, `follow_up[]$weeks`, the `global_max_isoyearweek` argument of s0                                                      | Inclusion criteria (global), row “Isoyears:”; Follow-up; Study, row “Admin censoring:”                                          |
-| Manipulated variables                           | None                                                                                                                                                 | n/a                                                                                                                             |
-| Measured variables                              | `enrollments[]$treatment`, `outcomes[]`, `confounders[]`, the criteria, `subgroups[]`                                                                | Enrollments; Outcomes; Confounders; the criteria sections. The sheet does not list `subgroups[]`.                               |
-| Indices                                         | `confounders[]` with `implementation$computed: true`, and their `source_variable` and `window`                                                       | Confounders, rows “Variable:” and “Window:”                                                                                     |
-| Statistical models                              | Fixed by swereg                                                                                                                                      | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1. TARGET item 6h.      |
-| Transformations                                 | n/a                                                                                                                                                  | See “Transformations”.                                                                                                          |
-| Inference criteria                              | `study$implementation$conf_level`, default 0.95                                                                                                      | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.6                   |
-| Data inclusion and exclusion                    | The criteria of “Data collection procedures”, and `sparse_rule`                                                                                      | Confounders, rows of “Rare-condition rule (sparse_rule)”. TARGET items 6a and 7. See “The sparse_rule”.                         |
-| Missing data                                    | Fixed rules, and the `impute_fn` argument of s1                                                                                                      | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.7. TARGET item 11.  |
-| Other planned analyses                          | `subgroups[]`, the untruncated weights, and the intention-to-treat estimand beside the per-protocol one                                              | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), sections 1.8.8 and 1.9          |
-| Context and additional information              | `study$implementation$version`                                                                                                                       | Study, row “Version:”. See “Deviations after registration”.                                                                     |
+| OSF section                                     | YAML key                                                                                                                                             | Excel specification                                                                                                                                                                                                                                                       |
+|:------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Research questions or hypotheses                | `study$description`, `outcomes[]`, `enrollments[]$treatment$arms`                                                                                    | Outcomes; Enrollments, rows “Treatment:” and “Comparator:”                                                                                                                                                                                                                |
+| Foreknowledge of data or evidence               | n/a                                                                                                                                                  | n/a. See “Foreknowledge”.                                                                                                                                                                                                                                                 |
+| Study type                                      | Non-randomized study. Adjustment or control-based design: the treatment and censoring weights.                                                       | n/a                                                                                                                                                                                                                                                                       |
+| Intention for causal interpretation             | The estimands of TARGET item 6f                                                                                                                      | n/a                                                                                                                                                                                                                                                                       |
+| Blinding of experimental treatments             | No blinding is involved.                                                                                                                             | n/a                                                                                                                                                                                                                                                                       |
+| Additional blinding during research or analysis | n/a                                                                                                                                                  | n/a. See “Foreknowledge”.                                                                                                                                                                                                                                                 |
+| Study design                                    | `target_trial`, `enrollments[]`, `follow_up[]`                                                                                                       | Study, row “Design:”; Follow-up; Enrollments; the Target trial protocol sheet. TARGET items 6a to 6h and 7.                                                                                                                                                               |
+| Randomization                                   | Not applicable. The comparator draw is seeded sampling, with `enrollments[]$treatment$implementation$seed`.                                          | n/a                                                                                                                                                                                                                                                                       |
+| Data collection procedures                      | `inclusion_criteria`, `exclusion_criteria`, `enrollments[]$additional_inclusion`, `enrollments[]$additional_exclusion`, `enrollments[]$observed_var` | Inclusion criteria (global); Exclusion criteria (global); Enrollments, rows “Additional inclusion:” and “Additional exclusion:”                                                                                                                                           |
+| Sample size                                     | n/a                                                                                                                                                  | n/a. See “Sample size”.                                                                                                                                                                                                                                                   |
+| Sample size rationale                           | `enrollments[]$treatment$implementation$comparator_to_intervention_ratio`                                                                            | Enrollments, row “Comparator-to-intervention ratio:”. See “Sample size”.                                                                                                                                                                                                  |
+| Starting and stopping rules                     | `inclusion_criteria$isoyears`, `follow_up[]$weeks`, the `global_max_isoyearweek` argument of s0                                                      | Inclusion criteria (global), row “Isoyears:”; Follow-up; Study, row “Admin censoring:”                                                                                                                                                                                    |
+| Manipulated variables                           | None                                                                                                                                                 | n/a                                                                                                                                                                                                                                                                       |
+| Measured variables                              | `enrollments[]$treatment`, `outcomes[]`, `confounders[]`, the criteria, `subgroups[]`                                                                | Enrollments; Outcomes; Confounders; the criteria sections. The sheet does not list `subgroups[]`.                                                                                                                                                                         |
+| Indices                                         | `confounders[]` with `implementation$computed: true`, and their `source_variable` and `window`                                                       | Confounders, rows “Variable:” and “Window:”                                                                                                                                                                                                                               |
+| Statistical models                              | Fixed by swereg                                                                                                                                      | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1. TARGET item 6h.                                                                                                                                                |
+| Transformations                                 | n/a                                                                                                                                                  | See “Transformations”.                                                                                                                                                                                                                                                    |
+| Inference criteria                              | `study$implementation$conf_level`, default 0.95, and `horizon_rule$min_expected_events`                                                              | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.6. [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md) writes the horizon rule as the `Inference criteria` field. |
+| Data inclusion and exclusion                    | The criteria of “Data collection procedures”, and `sparse_rule`                                                                                      | Confounders, rows of “Rare-condition rule (sparse_rule)”. TARGET items 6a and 7. See “The sparse_rule”.                                                                                                                                                                   |
+| Missing data                                    | Fixed rules, and the `impute_fn` argument of s1                                                                                                      | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.7. TARGET item 11.                                                                                                                                            |
+| Other planned analyses                          | `subgroups[]`, the untruncated weights, and the intention-to-treat estimand beside the per-protocol one                                              | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), sections 1.8.8 and 1.9                                                                                                                                                    |
+| Context and additional information              | `study$implementation$version`                                                                                                                       | Study, row “Version:”. See “Deviations after registration”.                                                                                                                                                                                                               |
 
 ### Statistical models
 
@@ -205,36 +205,60 @@ workbook are not a preregistration input. swereg computes them after s3,
 from the study’s own events.
 
 To plan from external numbers, apply the naive Poisson formula that the
-MDE columns use:
+MDE columns use. Under the null, both arms share one rate. In the
+workbook, that rate is the pooled weighted rate of both arms. At
+registration, it is the external rate:
 
 ``` r
-mde <- function(rate0, py0, py1, power = 0.8, conf_level = 0.95) {
-  e0 <- rate0 * py0
-  e1 <- rate0 * py1
-  se <- sqrt(1 / e1 + 1 / e0)
+mde <- function(rate, py_int, py_cmp, power = 0.8, conf_level = 0.95) {
+  e_int <- rate * py_int
+  e_cmp <- rate * py_cmp
+  se <- sqrt(1 / e_int + 1 / e_cmp)
   k <- qnorm(1 - (1 - conf_level) / 2) + qnorm(power)
   round(c(
-    comparator_events = e0,
-    intervention_events = e1,
+    intervention_events = e_int,
+    comparator_events = e_cmp,
     mde_protective = exp(-k * se),
     mde_harmful = exp(k * se)
   ), 2)
 }
 
-# External rate: 4 events per 1,000 person-years in the comparator arm.
+# External rate: 4 events per 1,000 person-years in both arms.
 # 3,000 intervention person-trials and 6,000 comparator person-trials,
 # with a 5-year horizon.
-mde(rate0 = 4 / 1000, py0 = 6000 * 5, py1 = 3000 * 5)
-#>   comparator_events intervention_events      mde_protective         mde_harmful 
-#>              120.00               60.00                0.64                1.56
+mde(rate = 4 / 1000, py_int = 3000 * 5, py_cmp = 6000 * 5)
+#> intervention_events   comparator_events      mde_protective         mde_harmful 
+#>               60.00              120.00                0.64                1.56
 ```
 
 The person-years in this example are the person-trials times the
 horizon. That is an upper bound, because loss, death and the end of data
-stop follow-up early. The formula ignores the weights, and the repeated
-contributions of one person to many trials. So it can differ from the
-detectable effect of the weighted estimator with person-clustered
-standard errors.
+stop follow-up early. The formula ignores the repeated contributions of
+one person to many trials. So it can differ from the detectable effect
+of the weighted estimator with person-clustered standard errors.
+
+The `horizon_rule` computes the same expected events for each follow-up
+year of 52 weeks. When an arm falls below `min_expected_events` in one
+year, s3 withholds the rate ratio, the risk difference and the number
+needed to treat of that estimand. Check each arm and year against the
+threshold, which is 5 in this example:
+
+``` r
+# Expected events per arm and follow-up year. Each person-trial contributes
+# at most 1 person-year per year, so these values are an upper bound.
+expected_per_year <- (4 / 1000) * c(intervention = 3000, comparator = 6000)
+expected_per_year
+#> intervention   comparator 
+#>           12           24
+expected_per_year >= 5
+#> intervention   comparator 
+#>         TRUE         TRUE
+```
+
+At s3, the pooled rate holds the observed events of both arms. So the
+years that pass depend on the outcome data. The rule is a prespecified
+reporting rule, and the `Expected events` sheet of the workbook shows
+its decision.
 
 ## Foreknowledge
 

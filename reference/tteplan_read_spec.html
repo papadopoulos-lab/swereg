@@ -11,7 +11,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,7 +94,10 @@ fields are present.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Window conversion rules:</p><ul><li><p><code>"lifetime_before_baseline"</code> -&gt; <code>Inf</code></p></li>
 <li><p><code>"N year"</code> or <code>"N years"</code> -&gt; <code>N * 52</code></p></li>
-</ul><p>Validation checks:</p><ul><li><p>Required sections: study, enrollments, outcomes, follow_up</p></li>
+</ul><p>Validation checks:</p><ul><li><p>Required sections: study, enrollments, outcomes, follow_up,
+horizon_rule</p></li>
+<li><p><code>horizon_rule$min_expected_events</code> MUST be one finite number of at
+least 0</p></li>
 <li><p><code>study$implementation$project_prefix</code> must exist</p></li>
 <li><p>Each entry in <code>inclusion_criteria$criteria</code> must declare
 <code>implementation$source_variable</code>, and must generate an eligibility
@@ -188,6 +191,22 @@ trial's own recruiting week. Every other candidate stays a confounder. The
 rule is decided from baseline counts in the eligible population, before the
 comparator draw and without follow-up outcomes. <a href="TTEPlan.html">TTEPlan</a> stores the
 decision in its <code>sparse_decision</code> field.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-horizon-rule">The horizon_rule<a class="anchor" aria-label="anchor" href="#the-horizon-rule"></a></h2>
+
+
+
+<p>Every spec MUST declare one <code>horizon_rule</code> block. It holds one key.</p>
+<div class="sourceCode"><pre><code><span></span>
+<span><span class="va">horizon_rule</span><span class="op">:</span></span>
+<span>  <span class="va">min_expected_events</span><span class="op">:</span> <span class="fl">5</span></span></code></pre></div>
+
+<p><code>min_expected_events</code> is the minimum number of expected events per arm in
+each follow-up year. It MUST be one finite number of at least 0. The
+function refuses a missing block, an empty block and any other key in the
+block. <code>$reload_spec()</code> copies a changed value onto a cached plan, because
+the value does not change who is enrolled or how swereg weights them.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

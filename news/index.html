@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,44 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.2.14" id="swereg-27214">swereg 27.2.14<a class="anchor" aria-label="anchor" href="#swereg-27214"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-27-2-14">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-2-14"></a></h3>
+<ul><li>
+<strong>Every specification MUST declare <code>horizon_rule: {min_expected_events: &lt;number&gt;}</code>.</strong> <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses a specification without it. <code>$s3_analyze()</code>, <code>$export_tables()</code>, <code>$get_protocol_table()</code> and <code>$print_target_checklist()</code> stop on a plan whose spec lacks it. The house default is 5.</li>
+<li>
+<strong><code>$s3_analyze(rd_min_persons_at_risk = )</code> and <code>$risk_difference(min_persons_at_risk = )</code> are removed.</strong> The horizon rule replaces the persons-at-risk rule of 27.2.7, and the status <code>"too few at risk at horizon"</code> no longer occurs.</li>
+<li>
+<strong>Rerun <code>$s3_analyze()</code> on a plan that stored its results before 27.2.14.</strong> Those results hold no horizon decision, and <code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop on them.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-2-14">New features<a class="anchor" aria-label="anchor" href="#new-features-27-2-14"></a></h3>
+<ul><li>
+<strong><code>$s3_analyze()</code> applies the horizon rule to each estimand of each ETT.</strong> An arm’s expected events in a 52-week follow-up year are its weighted person-years times the pooled weighted rate of both arms. When either arm falls below <code>min_expected_events</code> in any year up to the horizon, s3 withholds the estimates of that estimand. These are the rate ratio, risk difference, number needed to treat, subgroup ratios and interaction tests. Events, person-years, rates and the survival curve stay.</li>
+<li>
+<strong>The workbook has an <code>Expected events</code> sheet.</strong> It gives each follow-up year of each ETT and estimand, with the expected and observed events of each arm, the decision and the reportable horizon.</li>
+<li><strong>A withheld rate ratio, risk difference or number needed to treat reads <code>NE</code> on every sheet and in the forest figure.</strong></li>
+<li>
+<strong>The survival figure stops each curve at the reportable horizon.</strong> A grey band labelled “Not estimable” covers the rest of follow-up.</li>
+<li>
+<strong><code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop when a stored result has no horizon decision, or a decision made with another <code>horizon_rule</code>.</strong> The message names <code>$s3_analyze()</code>. The writers compare <code>min_expected_events</code> with <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code>, so a difference of any size stops them.</li>
+<li>
+<strong><code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> writes a new <code>Inference criteria</code> field that states the horizon rule.</strong> TARGET item 6h and the Analysis plan row of the target trial protocol table state it too.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-27-2-14">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-2-14"></a></h3>
+<ul><li>
+<strong>The minimum detectable effect uses the pooled weighted rate of both arms.</strong> It used the unweighted rate of the comparator arm.</li>
+<li>
+<strong><code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> says that the outcome model holds no confounder.</strong> The earlier wording ruled out every covariate, which was false: the model holds the trial and the time since time zero.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-2-14">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-2-14"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> states the horizon rule in sections 1.6, 1.8.5 and 1.8.6 and in the manuscript methods.</strong> The text says that the rule depends on the observed events and does not guarantee precision.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.13" id="swereg-27213">swereg 27.2.13<a class="anchor" aria-label="anchor" href="#swereg-27213"></a></h2>
 <div class="section level3">

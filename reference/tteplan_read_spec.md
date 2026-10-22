@@ -31,7 +31,11 @@ Window conversion rules:
 
 Validation checks:
 
-- Required sections: study, enrollments, outcomes, follow_up
+- Required sections: study, enrollments, outcomes, follow_up,
+  horizon_rule
+
+- `horizon_rule$min_expected_events` MUST be one finite number of at
+  least 0
 
 - `study$implementation$project_prefix` must exist
 
@@ -142,6 +146,20 @@ confounder. The rule is decided from baseline counts in the eligible
 population, before the comparator draw and without follow-up outcomes.
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
 stores the decision in its `sparse_decision` field.
+
+## The horizon_rule
+
+Every spec MUST declare one `horizon_rule` block. It holds one key.
+
+    horizon_rule:
+      min_expected_events: 5
+
+`min_expected_events` is the minimum number of expected events per arm
+in each follow-up year. It MUST be one finite number of at least 0. The
+function refuses a missing block, an empty block and any other key in
+the block. `$reload_spec()` copies a changed value onto a cached plan,
+because the value does not change who is enrolled or how swereg weights
+them.
 
 ## See also
 

@@ -375,6 +375,8 @@ Other tte_classes:
 
 - [`TTEPlan$get_subgroups()`](#method-TTEPlan-get_subgroups)
 
+- [`TTEPlan$get_horizon_windows()`](#method-TTEPlan-get_horizon_windows)
+
 - [`TTEPlan$get_protocol_table()`](#method-TTEPlan-get_protocol_table)
 
 - [`TTEPlan$recompute_baselines()`](#method-TTEPlan-recompute_baselines)
@@ -410,6 +412,10 @@ Generates a self-contained document following the TARGET Statement
 of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
 and `[FILL IN]` placeholders for PI completion.
+
+Item 6h states the horizon rule from `spec$horizon_rule`. The method
+stops, and names `$s3_analyze()`, when a stored result was judged with a
+`horizon_rule` other than the one in `spec$horizon_rule`.
 
 #### Usage
 
@@ -449,11 +455,22 @@ Each per-protocol value uses the truncated weights. The header is row 1
 and carries an autofilter. A `Family` column shows when the spec sets an
 enrollment `family`.
 
+A ratio, risk difference or number needed to treat that the horizon rule
+withheld reads `NE` on every sheet. Its events and person-years stay.
+The method stops, and names `$s3_analyze()`, when a stored result was
+judged with a `horizon_rule` other than the one in `spec$horizon_rule`.
+
+The `Expected events` sheet holds one row per ETT, estimand and
+follow-up year of the horizon rule. Each row gives the weighted
+person-years and the pooled weighted rate. It also gives the expected
+and observed weighted events of each arm, whether the year passes, and
+the reportable horizon. The sheet shows why the rule withheld an
+estimate.
+
 The workbook carries no forest plot. The `PP results` and `ITT results`
 sheets already report every emulated trial with counts, rates, ratios,
-risk differences, intervals and numbers needed to treat. A forest image
-repeated a subset of those numbers. `$export()` still draws one for a
-manuscript.
+risk differences and intervals. A forest image repeated a subset of
+those numbers. `$export()` still draws one for a manuscript.
 
 The method also writes `results.qs2` to the directory of the workbook. A
 manuscript reads that file. It is a named list of aggregate results:
@@ -465,6 +482,10 @@ manuscript reads that file. It is a named list of aggregate results:
 - `curves`:
 
   `$get_curves()`.
+
+- `subgroups`:
+
+  `$get_subgroups()`.
 
 - `baselines`:
 
@@ -543,12 +564,12 @@ person-trial.
   minimum detectable effect (MDE) on the `PP results` and `ITT results`
   sheets. Each sheet reports the expected intervention events under the
   null and the protective and harmful MDE incidence rate ratio. The MDE
-  is a naive Poisson calculation on the unweighted counts, at the study
-  confidence level. It ignores the weights and the repeated
+  is a naive Poisson calculation at the study confidence level. Under
+  the null, each arm expects the pooled weighted rate of both arms times
+  its weighted person-years. The calculation ignores the repeated
   contributions of one person. So it can differ from the detectable
   effect of the weighted estimator with person-clustered standard
-  errors. It is not observed power (Hoenig and Heisey 2001). A stored
-  result without unweighted counts gives three blank MDE cells.
+  errors. It is not observed power (Hoenig and Heisey 2001).
 
 ------------------------------------------------------------------------
 
@@ -595,6 +616,13 @@ cause-specific risk difference per 10,000 people, with its interval. The
 option computes nothing. `$s3_analyze()` computes the risk difference
 for every ETT and stores it, so this switch only decides whether the
 figure carries the two extra columns.
+
+The horizon rule shows on both figures. A `"survival"` curve stops at
+the reportable horizon, and a grey band labelled "Not estimable" covers
+the rest of the follow-up. A `"forest"` cell that the rule withheld
+reads `NE`. The method stops, and names `$s3_analyze()`, when a stored
+result was judged with a `horizon_rule` other than the one in
+`spec$horizon_rule`.
 
 The `n_boot`, `seed` and `conf_level` fields are inert and warn.
 `$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
@@ -798,6 +826,29 @@ are recorded on every stored risk-difference row. The export path
 formats those numbers and never recomputes them. The IRR intervals and
 the interval of the ratio of stratum IRRs use the same level.
 
+The horizon rule. The RD item of each estimand also cuts follow-up into
+52-week windows. In each window it computes the expected events of each
+arm, which are the pooled weighted rate times the weighted person-years
+of that arm. A window passes when both arms reach
+`spec$horizon_rule$min_expected_events`. When a window fails, the method
+withholds the estimates of that estimand. It sets these to `NA`:
+
+- the incidence rate ratios and the subgroup ratios;
+
+- the risk difference and the number needed to treat;
+
+- the interaction tests.
+
+Their `interval_status` and `horizon_status` then read
+`"below horizon rule: <arm> arm, weeks <lo>-<hi>"`, which names the
+first failing window. Events, person-years, rates and the survival curve
+stay. The record is stored as `horizon_pp` and `horizon_itt`, and
+`$get_horizon_windows()` returns its window table. Which windows pass
+depends on the observed events, through the pooled rate.
+
+The method stops when the spec has no `horizon_rule`. It also stops when
+an ETT of the run has no horizon decision for an estimand.
+
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.
@@ -823,8 +874,7 @@ the only place a reader of the job log meets either signal.
       ett_ids = NULL,
       output_dir = NULL,
       swereg_dev_path = NULL,
-      n_workers = default_n_workers("s3"),
-      rd_min_persons_at_risk = 10L
+      n_workers = default_n_workers("s3")
     )
 
 #### Arguments
@@ -857,14 +907,6 @@ the only place a reader of the job log meets either signal.
   conservatively. CPU threads per worker are auto-partitioned as
   `floor(detectCores() / n_workers)`.
 
-- `rd_min_persons_at_risk`:
-
-  Whole number of at least 0 (default 10). A risk difference is
-  withheld, point estimate included, at a stop time where either arm has
-  fewer people at risk. Its `interval_status` then reads
-  `"too few at risk at horizon"`. The incidence rate ratio does not read
-  it.
-
 ------------------------------------------------------------------------
 
 ### `TTEPlan$print()`
@@ -894,7 +936,9 @@ the candidates and the decision. Before s1 the decision reads
 `not decided yet (s1 has not run)`. A stored decision prints only when
 the rule in `$spec` still hashes to `$sparse_rule_hash` and s1 completed
 for it. Otherwise the decision reads
-`not decided yet (s1 has not completed for this rule)`.
+`not decided yet (s1 has not completed for this rule)`. It also prints
+`horizon_rule$min_expected_events`, the minimum number of expected
+events per arm in each follow-up year.
 
 #### Usage
 
@@ -963,10 +1007,18 @@ Every number is a bare number. `irr_pvalue` is a probability, not
 `"<0.001"`. `rd` is a proportion, not a rate per 10,000. The consumer
 formats it.
 
-Five sibling methods return the other stored results in the same shape:
+Six sibling methods return the other stored results in the same shape:
 `$get_curves()`, `$get_baselines()`, `$get_attrition()`,
-`$get_matching()` and `$get_subgroups()`. Each takes no argument, and
-each computes nothing.
+`$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
+takes no argument, and each computes nothing.
+
+`horizon_reportable_weeks` and `horizon_status` READ the horizon-rule
+decision `$s3_analyze()` stored for the estimand. Both weightings of the
+per-protocol estimand share one decision. A `horizon_status` that starts
+with `"below horizon rule"` marks a withheld estimand. Its ratio, risk
+difference and number needed to treat are `NA`, and `interval_status`
+holds the same text. A result stored before the rule gives `NA` in both
+columns.
 
 The number needed to treat carries its interval. `nnt` is the point
 estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
@@ -979,23 +1031,17 @@ itself, and MUST NOT print `nnt` alone where the bounds are missing.
 the analysis file of that estimand. On an intention-to-treat row they
 are the intention-to-treat analysis set, which the CONSORT flow reads.
 
-A risk difference withheld for a sparse risk set has `rd`, `rd_lo`,
-`rd_hi` and the number-needed-to-treat columns `NA`, and
-`interval_status` reads `"too few at risk at horizon"`.
-`min_persons_at_risk` holds the head count the rule used, and `NA` where
-the stored result predates the rule.
-
 #### Usage
 
     TTEPlan$get_estimates()
 
 #### Returns
 
-A data.table with 48 columns. The identifiers come first, then the
+A data.table with 49 columns. The identifiers come first, then the
 weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-`n_boot`, `seed`, `conf_level` and `min_persons_at_risk` record what
-produced the risk difference.
+`n_boot`, `seed` and `conf_level` record what produced the
+risk-difference interval.
 
 ------------------------------------------------------------------------
 
@@ -1225,6 +1271,36 @@ subgroups, so treat the schema as production.
 A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
 `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
 `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$get_horizon_windows()`
+
+Every stored horizon-rule window, as one flat table.
+
+One row per emulated trial, estimand, follow-up window and arm. A window
+is 52 weeks wide, and the last window ends at the follow-up of the ETT.
+`py_weighted` and `events_weighted` are the weighted person-years and
+events of the arm in the window. `rate_pooled` is the weighted events of
+both arms over the weighted person-years of both arms. `events_expected`
+is `rate_pooled` times `py_weighted`. `pass` is the decision of the
+window: both arms reach `min_expected_events`.
+
+Each row repeats the record it came from: `weight_col`,
+`min_expected_events`, `horizon_reportable_weeks` and `horizon_status`.
+The method computes nothing. A result stored before the rule gives no
+rows.
+
+#### Usage
+
+    TTEPlan$get_horizon_windows()
+
+#### Returns
+
+A data.table with columns `ett_id`, `estimand`, `weight_col`,
+`min_expected_events`, `window_lo`, `window_hi`, `arm`, `py_weighted`,
+`events_weighted`, `rate_pooled`, `events_expected`, `pass`,
+`horizon_reportable_weeks` and `horizon_status`.
 
 ------------------------------------------------------------------------
 

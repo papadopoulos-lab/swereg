@@ -73,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       124 |
+| consumed |       126 |
 | legacy   |        15 |
 | metadata |        10 |
 
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 149 key paths across 42 mapping contexts.
+The schema declares 151 key paths across 43 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -138,6 +138,7 @@ knitr::kable(
 | `$`                                                           | `enrollments`                              | consumed |
 | `$`                                                           | `exclusion_criteria`                       | consumed |
 | `$`                                                           | `follow_up`                                | consumed |
+| `$`                                                           | `horizon_rule`                             | consumed |
 | `$`                                                           | `inclusion_criteria`                       | consumed |
 | `$`                                                           | `open_questions`                           | consumed |
 | `$`                                                           | `outcomes`                                 | consumed |
@@ -207,6 +208,7 @@ knitr::kable(
 | `$/exclusion_criteria[]/implementation`                       | `window`                                   | consumed |
 | `$/follow_up[]`                                               | `label`                                    | consumed |
 | `$/follow_up[]`                                               | `weeks`                                    | consumed |
+| `$/horizon_rule`                                              | `min_expected_events`                      | consumed |
 | `$/inclusion_criteria`                                        | `additional_inclusion`                     | legacy   |
 | `$/inclusion_criteria`                                        | `criteria`                                 | consumed |
 | `$/inclusion_criteria`                                        | `implementation`                           | legacy   |

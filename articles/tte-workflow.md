@@ -250,6 +250,9 @@ follow_up:
   - { label: "3 years", weeks: 156 }
   - { label: "5 years", weeks: 260 }
 
+horizon_rule:
+  min_expected_events: 5    # number >= 0, per arm, per follow-up year
+
 enrollments:
   - id: "01"
     name: "Statin initiation vs none, age 40-75"

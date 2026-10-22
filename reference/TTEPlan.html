@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -429,6 +429,7 @@ inside <code>self$dir_results</code>, where <code>&lt;version&gt;</code> is <cod
 <li><p><a href="#method-TTEPlan-get_attrition"><code>TTEPlan$get_attrition()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-get_matching"><code>TTEPlan$get_matching()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-get_subgroups"><code>TTEPlan$get_subgroups()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_horizon_windows"><code>TTEPlan$get_horizon_windows()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-get_protocol_table"><code>TTEPlan$get_protocol_table()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-recompute_baselines"><code>TTEPlan$recompute_baselines()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-slurm_job"><code>TTEPlan$slurm_job()</code></a></p></li>
@@ -448,7 +449,10 @@ inside <code>self$dir_results</code>, where <code>&lt;version&gt;</code> is <cod
 (Cashin et al., JAMA 2025) 21-item checklist for transparent reporting
 of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
-and <code>[FILL IN]</code> placeholders for PI completion.</p><div class="section">
+and <code>[FILL IN]</code> placeholders for PI completion.</p>
+<p>Item 6h states the horizon rule from <code>spec$horizon_rule</code>. The method
+stops, and names <code>$s3_analyze()</code>, when a stored result was judged with a
+<code>horizon_rule</code> other than the one in <code>spec$horizon_rule</code>.</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -476,17 +480,28 @@ intention-to-treat person-years;</p></li>
 </ul><p>Each per-protocol value uses the truncated weights. The header is row 1
 and carries an autofilter. A <code>Family</code> column shows when the spec sets an
 enrollment <code>family</code>.</p>
+<p>A ratio, risk difference or number needed to treat that the horizon rule
+withheld reads <code>NE</code> on every sheet. Its events and person-years stay. The
+method stops, and names <code>$s3_analyze()</code>, when a stored result was judged
+with a <code>horizon_rule</code> other than the one in <code>spec$horizon_rule</code>.</p>
+<p>The <code>Expected events</code> sheet holds one row per ETT, estimand and follow-up
+year of the horizon rule. Each row gives the weighted person-years and the
+pooled weighted rate. It also gives the expected and observed weighted
+events of each arm, whether the year passes, and the reportable horizon.
+The sheet shows why the rule withheld an estimate.</p>
 <p>The workbook carries no forest plot. The <code>PP results</code> and <code>ITT results</code>
 sheets already report every emulated trial with counts, rates, ratios,
-risk differences, intervals and numbers needed to treat. A forest image
-repeated a subset of those numbers. <code>$export()</code> still draws one for a
-manuscript.</p>
+risk differences and intervals. A forest image repeated a subset of those
+numbers. <code>$export()</code> still draws one for a manuscript.</p>
 <p>The method also writes <code>results.qs2</code> to the directory of the workbook. A
 manuscript reads that file. It is a named list of aggregate results:</p><dl><dt><code>estimates</code></dt>
 <dd><p><code>$get_estimates()</code>.</p></dd>
 
 <dt><code>curves</code></dt>
 <dd><p><code>$get_curves()</code>.</p></dd>
+
+<dt><code>subgroups</code></dt>
+<dd><p><code>$get_subgroups()</code>.</p></dd>
 
 <dt><code>baselines</code></dt>
 <dd><p><code>$get_baselines()</code>.</p></dd>
@@ -553,12 +568,12 @@ Used by the lazy <code>recompute_baselines()</code> refresh. Defaults to
 of the minimum detectable effect (MDE) on the <code>PP results</code> and
 <code>ITT results</code> sheets. Each sheet reports the expected intervention events
 under the null and the protective and harmful MDE incidence rate ratio.
-The MDE is a naive Poisson calculation on the unweighted counts, at the
-study confidence level. It ignores the weights and the repeated
+The MDE is a naive Poisson calculation at the study confidence level.
+Under the null, each arm expects the pooled weighted rate of both arms
+times its weighted person-years. The calculation ignores the repeated
 contributions of one person. So it can differ from the detectable effect
 of the weighted estimator with person-clustered standard errors. It is not
-observed power (Hoenig and Heisey 2001). A stored result without
-unweighted counts gives three blank MDE cells.</p></dd>
+observed power (Hoenig and Heisey 2001).</p></dd>
 
 
 </dl><p></p></div>
@@ -603,6 +618,11 @@ cause-specific risk difference per 10,000 people, with its interval.
 The option computes nothing. <code>$s3_analyze()</code> computes the risk
 difference for every ETT and stores it, so this switch only decides
 whether the figure carries the two extra columns.</p>
+<p>The horizon rule shows on both figures. A <code>"survival"</code> curve stops at the
+reportable horizon, and a grey band labelled "Not estimable" covers the
+rest of the follow-up. A <code>"forest"</code> cell that the rule withheld reads <code>NE</code>.
+The method stops, and names <code>$s3_analyze()</code>, when a stored result was
+judged with a <code>horizon_rule</code> other than the one in <code>spec$horizon_rule</code>.</p>
 <p>The <code>n_boot</code>, <code>seed</code> and <code>conf_level</code> fields are inert and warn.
 <code>$s3_analyze()</code> fixes <code>n_boot</code> and <code>seed</code>. It reads the confidence level
 from <code>study$implementation$conf_level</code>, so a study sets its level once
@@ -780,6 +800,22 @@ The confidence level is a STUDY property, read from
 are recorded on every stored risk-difference row. The export path formats
 those numbers and never recomputes them. The IRR intervals and the
 interval of the ratio of stratum IRRs use the same level.</p>
+<p>The horizon rule. The RD item of each estimand also cuts follow-up into
+52-week windows. In each window it computes the expected events of each
+arm, which are the pooled weighted rate times the weighted person-years of
+that arm. A window passes when both arms reach
+<code>spec$horizon_rule$min_expected_events</code>. When a window fails, the method
+withholds the estimates of that estimand. It sets these to <code>NA</code>:</p><ul><li><p>the incidence rate ratios and the subgroup ratios;</p></li>
+<li><p>the risk difference and the number needed to treat;</p></li>
+<li><p>the interaction tests.</p></li>
+</ul><p>Their <code>interval_status</code> and <code>horizon_status</code> then read
+<code>"below horizon rule: &lt;arm&gt; arm, weeks &lt;lo&gt;-&lt;hi&gt;"</code>, which names the first
+failing window. Events, person-years, rates and the survival curve stay.
+The record is stored as <code>horizon_pp</code> and <code>horizon_itt</code>, and
+<code>$get_horizon_windows()</code> returns its window table. Which windows pass
+depends on the observed events, through the pooled rate.</p>
+<p>The method stops when the spec has no <code>horizon_rule</code>. It also stops when an
+ETT of the run has no horizon decision for an estimand.</p>
 <p>Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.</p>
@@ -801,8 +837,7 @@ of the job log meets either signal.</p><div class="section">
 <span>  ett_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s3"</span><span class="op">)</span>,</span>
-<span>  rd_min_persons_at_risk <span class="op">=</span> <span class="fl">10L</span></span>
+<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s3"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
@@ -829,13 +864,6 @@ loop. Each worker reads its own analysis file fresh, so peak RAM
 scales linearly with <code>n_workers</code>; on machines with multi-GB
 analysis files, set this conservatively. CPU threads per worker
 are auto-partitioned as <code>floor(detectCores() / n_workers)</code>.</p></dd>
-
-      <dt><code>rd_min_persons_at_risk</code></dt>
-<dd><p>Whole number of at least 0 (default 10). A
-risk difference is withheld, point estimate included, at a stop time
-where either arm has fewer people at risk. Its <code>interval_status</code> then
-reads <code>"too few at risk at horizon"</code>. The incidence rate ratio does not
-read it.</p></dd>
 
 
 </dl><p></p></div>
@@ -870,7 +898,9 @@ the driving enrollments, the candidates and the decision. Before s1 the
 decision reads <code>not decided yet (s1 has not run)</code>. A stored decision prints
 only when the rule in <code>$spec</code> still hashes to <code>$sparse_rule_hash</code> and s1
 completed for it. Otherwise the decision reads
-<code>not decided yet (s1 has not completed for this rule)</code>.</p><div class="section">
+<code>not decided yet (s1 has not completed for this rule)</code>.
+It also prints <code>horizon_rule$min_expected_events</code>, the minimum number of
+expected events per arm in each follow-up year.</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print_spec_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -926,10 +956,17 @@ the ratio and stores it. A result stored before that column existed gives
 <p>Every number is a bare number. <code>irr_pvalue</code> is a probability, not
 <code>"&lt;0.001"</code>. <code>rd</code> is a proportion, not a rate per 10,000. The consumer
 formats it.</p>
-<p>Five sibling methods return the other stored results in the same shape:
+<p>Six sibling methods return the other stored results in the same shape:
 <code>$get_curves()</code>, <code>$get_baselines()</code>, <code>$get_attrition()</code>,
-<code>$get_matching()</code> and <code>$get_subgroups()</code>. Each takes no argument, and
-each computes nothing.</p>
+<code>$get_matching()</code>, <code>$get_subgroups()</code> and <code>$get_horizon_windows()</code>. Each
+takes no argument, and each computes nothing.</p>
+<p><code>horizon_reportable_weeks</code> and <code>horizon_status</code> READ the horizon-rule
+decision <code>$s3_analyze()</code> stored for the estimand. Both weightings of the
+per-protocol estimand share one decision. A <code>horizon_status</code> that starts
+with <code>"below horizon rule"</code> marks a withheld estimand. Its ratio, risk
+difference and number needed to treat are <code>NA</code>, and <code>interval_status</code>
+holds the same text. A result stored before the rule gives <code>NA</code> in both
+columns.</p>
 <p>The number needed to treat carries its interval. <code>nnt</code> is the point
 estimate, and <code>nnt_lo</code> and <code>nnt_hi</code> are the bounds <code>$s3_analyze()</code>
 stored. Both bounds are <code>NA</code> where <code>interval_status</code> reads
@@ -938,20 +975,16 @@ is not an interval. A consumer MUST NOT invert <code>rd_lo</code> and <code>rd_h
 itself, and MUST NOT print <code>nnt</code> alone where the bounds are missing.</p>
 <p><code>n_trials_int</code> and <code>n_trials_cmp</code> count the person-trials of each arm in
 the analysis file of that estimand. On an intention-to-treat row they are
-the intention-to-treat analysis set, which the CONSORT flow reads.</p>
-<p>A risk difference withheld for a sparse risk set has <code>rd</code>, <code>rd_lo</code>,
-<code>rd_hi</code> and the number-needed-to-treat columns <code>NA</code>, and <code>interval_status</code>
-reads <code>"too few at risk at horizon"</code>. <code>min_persons_at_risk</code> holds the head
-count the rule used, and <code>NA</code> where the stored result predates the rule.</p><div class="section">
+the intention-to-treat analysis set, which the CONSORT flow reads.</p><div class="section">
 <h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_estimates</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A data.table with 48 columns. The identifiers come first, then
+<p>A data.table with 49 columns. The identifiers come first, then
 the weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-<code>n_boot</code>, <code>seed</code>, <code>conf_level</code> and <code>min_persons_at_risk</code> record what
-produced the risk difference.</p>
+<code>n_boot</code>, <code>seed</code> and <code>conf_level</code> record what produced the
+risk-difference interval.</p>
 </div>
 
 </div>
@@ -1137,6 +1170,32 @@ subgroups, so treat the schema as production.</p><div class="section">
 
 </div>
 
+<p></p><hr><a id="method-TTEPlan-get_horizon_windows"></a><div class="section">
+<h3 id="tteplan-get-horizon-windows-"><code>TTEPlan$get_horizon_windows()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-horizon-windows-"></a></h3>
+<p>Every stored horizon-rule window, as one flat table.</p>
+<p>One row per emulated trial, estimand, follow-up window and arm. A window
+is 52 weeks wide, and the last window ends at the follow-up of the ETT.
+<code>py_weighted</code> and <code>events_weighted</code> are the weighted person-years and
+events of the arm in the window. <code>rate_pooled</code> is the weighted events of
+both arms over the weighted person-years of both arms. <code>events_expected</code>
+is <code>rate_pooled</code> times <code>py_weighted</code>. <code>pass</code> is the decision of the
+window: both arms reach <code>min_expected_events</code>.</p>
+<p>Each row repeats the record it came from: <code>weight_col</code>,
+<code>min_expected_events</code>, <code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
+The method computes nothing. A result stored before the rule gives no
+rows.</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_horizon_windows</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
+<p>A data.table with columns <code>ett_id</code>, <code>estimand</code>, <code>weight_col</code>,
+<code>min_expected_events</code>, <code>window_lo</code>, <code>window_hi</code>, <code>arm</code>, <code>py_weighted</code>,
+<code>events_weighted</code>, <code>rate_pooled</code>, <code>events_expected</code>, <code>pass</code>,
+<code>horizon_reportable_weeks</code> and <code>horizon_status</code>.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-TTEPlan-get_protocol_table"></a><div class="section">
 <h3 id="tteplan-get-protocol-table-"><code>TTEPlan$get_protocol_table()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-protocol-table-"></a></h3>
 <p>The target trial protocol table of one emulated trial.</p>
@@ -1155,7 +1214,7 @@ spec does not name shows as its column name.</p>
 <p>The method reads <code>plan$spec</code> and <code>plan$ett</code>, and the rare-condition
 decision when the plan holds one. It reads no s2 or s3 result, so it
 works from s0 on.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_protocol_table</span><span class="op">(</span>ett_id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
@@ -1166,7 +1225,7 @@ works from s0 on.</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
 <p>A data.table with 7 rows and 3 character columns.</p>
 </div>
 
@@ -1206,7 +1265,7 @@ and s2 run stamps of the analysis file it reads.</p>
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.</p><div class="section">
-<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span></span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -1230,7 +1289,7 @@ not return. Defaults to <code>FALSE</code>.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1248,7 +1307,7 @@ unique across the projects that share one queue.</p>
 <code>impute_fn</code> is absent from it. A function has no literal that a job script
 can carry. Set <code>impute_fn</code> in the project's own stage script, or call
 <code><a href="tte_stage.html">tte_stage()</a></code> directly.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">slurm_job</span><span class="op">(</span></span>
 <span>  <span class="va">stage</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu">.slurm_job_workers</span><span class="op">(</span><span class="va">stage</span><span class="op">)</span>,</span>
@@ -1324,7 +1383,7 @@ node when the job runs.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
+<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
 <p>An object of class <code>slurm_it</code>, from <code><a href="https://papadopoulos-lab.github.io/batchit/reference/slurm_it.html" class="external-link">batchit::slurm_it()</a></code>.</p>
 </div>
 
@@ -1341,7 +1400,7 @@ countable. Write "one ETT" or "12 ETTs", never "the ETT approach".</p>
 (same comparator draw, same age group, same confounders). They differ only
 in outcome and/or follow-up duration. This avoids redundant
 re-enrollment for each outcome/follow-up combo.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">add_one_ett</span><span class="op">(</span></span>
 <span>  <span class="va">enrollment_id</span>,</span>
 <span>  <span class="va">outcome_var</span>,</span>
@@ -1410,7 +1469,7 @@ person_id_var, outcome_description).</p></dd>
 <p></p><hr><a id="method-TTEPlan-enrollment_spec"></a><div class="section">
 <h3 id="tteplan-enrollment-spec-"><code>TTEPlan$enrollment_spec()</code><a class="anchor" aria-label="anchor" href="#tteplan-enrollment-spec-"></a></h3>
 <p>Extract enrollment spec for the i-th enrollment_id group.</p><div class="section">
-<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
+<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">enrollment_spec</span><span class="op">(</span>i <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
@@ -1420,7 +1479,7 @@ person_id_var, outcome_description).</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
 <p>A list with:</p><dl><dt>design</dt>
 <dd><p>A <a href="TTEDesign.html">TTEDesign</a> object with column mappings. It carries
 the observation encoding and both arm tolerances that the spec
@@ -1470,7 +1529,7 @@ Each sheet holds the same cells as the sheet of that name that
 <code>$export_tables()</code> writes for the same plan state and the same
 <code>protocol_ett_id</code>. No sheet reads an s2 or s3 result, so the method runs
 straight after s0.</p><div class="section">
-<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
+<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span>, protocol_ett_id <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
@@ -1487,7 +1546,7 @@ the plan does not hold warns and falls back to the first ETT.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p><code>invisible(self)</code></p>
 </div>
 
@@ -1502,7 +1561,7 @@ re-running the upstream pipeline.</p>
 comparator-draw parameters, etc.) are <em>not</em> applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="section">
-<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span>spec_path <span class="op">=</span> <span class="cn">NULL</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
@@ -1517,7 +1576,7 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1526,7 +1585,7 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 <p></p><hr><a id="method-TTEPlan-initialize"></a><div class="section">
 <h3 id="tteplan-new-"><code>TTEPlan$new()</code><a class="anchor" aria-label="anchor" href="#tteplan-new-"></a></h3>
 <p>Create a new TTEPlan object.</p><div class="section">
-<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEPlan.html">TTEPlan</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">project_prefix</span>, <span class="va">skeleton_files</span>, <span class="va">global_max_isoyearweek</span>, ett <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
@@ -1552,10 +1611,10 @@ and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="sect
 <h3 id="tteplan-check-version-"><code>TTEPlan$check_version()</code><a class="anchor" aria-label="anchor" href="#tteplan-check-version-"></a></h3>
 <p>Check if this object's schema version matches the current
 class version. Errors if the object was saved with an older schema.</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p><code>invisible(TRUE)</code> if versions match. Errors otherwise with an
 actionable migration message.</p>
 </div>
@@ -1565,10 +1624,10 @@ actionable migration message.</p>
 <p></p><hr><a id="method-TTEPlan-get_sparse_decision"></a><div class="section">
 <h3 id="tteplan-get-sparse-decision-"><code>TTEPlan$get_sparse_decision()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-sparse-decision-"></a></h3>
 <p>Read the frozen decision of the spec's <code>sparse_rule</code>.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_sparse_decision</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
 <p>A copy of the <code>sparse_decision</code> field, or NULL when the spec has
 no <code>sparse_rule</code> or s1 has not run.</p>
 </div>
@@ -1586,7 +1645,7 @@ that don't yet have a <code>dir_tteplan_cp</code>).</p>
 <a href="CandidatePath.html">CandidatePath</a> on the plan (and on its embedded <a href="RegistryStudy.html">RegistryStudy</a>) so
 the on-disk file never carries the saving host's resolved paths.
 Reload with <code><a href="tteplan_load.html">tteplan_load()</a></code>.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span>dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
@@ -1597,7 +1656,7 @@ writes to <code>self$tteplan</code>.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
 <p>Invisibly returns the file path.</p>
 </div>
 
@@ -1606,7 +1665,7 @@ writes to <code>self$tteplan</code>.</p></dd>
 <p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="tteplan-clone-"><code>TTEPlan$clone()</code><a class="anchor" aria-label="anchor" href="#tteplan-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>

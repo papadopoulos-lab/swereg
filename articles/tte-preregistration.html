@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -335,10 +335,12 @@ item 6h.</td>
 <td align="left">Inference criteria</td>
 <td align="left">
 <code>study$implementation$conf_level</code>, default
-0.95</td>
+0.95, and <code>horizon_rule$min_expected_events</code>
+</td>
 <td align="left">
-<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, section
-1.8.6</td>
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, section 1.8.6.
+<code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> writes the horizon rule as the
+<code>Inference criteria</code> field.</td>
 </tr>
 <tr class="odd">
 <td align="left">Data inclusion and exclusion</td>
@@ -443,33 +445,54 @@ extraction that you document as such.</p>
 <code>$export_tables()</code> workbook are not a preregistration input.
 swereg computes them after s3, from the study’s own events.</p>
 <p>To plan from external numbers, apply the naive Poisson formula that
-the MDE columns use:</p>
+the MDE columns use. Under the null, both arms share one rate. In the
+workbook, that rate is the pooled weighted rate of both arms. At
+registration, it is the external rate:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mde</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">rate0</span>, <span class="va">py0</span>, <span class="va">py1</span>, <span class="va">power</span> <span class="op">=</span> <span class="fl">0.8</span>, <span class="va">conf_level</span> <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">e0</span> <span class="op">&lt;-</span> <span class="va">rate0</span> <span class="op">*</span> <span class="va">py0</span></span>
-<span>  <span class="va">e1</span> <span class="op">&lt;-</span> <span class="va">rate0</span> <span class="op">*</span> <span class="va">py1</span></span>
-<span>  <span class="va">se</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">e1</span> <span class="op">+</span> <span class="fl">1</span> <span class="op">/</span> <span class="va">e0</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">mde</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">rate</span>, <span class="va">py_int</span>, <span class="va">py_cmp</span>, <span class="va">power</span> <span class="op">=</span> <span class="fl">0.8</span>, <span class="va">conf_level</span> <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">e_int</span> <span class="op">&lt;-</span> <span class="va">rate</span> <span class="op">*</span> <span class="va">py_int</span></span>
+<span>  <span class="va">e_cmp</span> <span class="op">&lt;-</span> <span class="va">rate</span> <span class="op">*</span> <span class="va">py_cmp</span></span>
+<span>  <span class="va">se</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">e_int</span> <span class="op">+</span> <span class="fl">1</span> <span class="op">/</span> <span class="va">e_cmp</span><span class="op">)</span></span>
 <span>  <span class="va">k</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">conf_level</span><span class="op">)</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="va">power</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    comparator_events <span class="op">=</span> <span class="va">e0</span>,</span>
-<span>    intervention_events <span class="op">=</span> <span class="va">e1</span>,</span>
+<span>    intervention_events <span class="op">=</span> <span class="va">e_int</span>,</span>
+<span>    comparator_events <span class="op">=</span> <span class="va">e_cmp</span>,</span>
 <span>    mde_protective <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">-</span><span class="va">k</span> <span class="op">*</span> <span class="va">se</span><span class="op">)</span>,</span>
 <span>    mde_harmful <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">k</span> <span class="op">*</span> <span class="va">se</span><span class="op">)</span></span>
 <span>  <span class="op">)</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># External rate: 4 events per 1,000 person-years in the comparator arm.</span></span>
+<span><span class="co"># External rate: 4 events per 1,000 person-years in both arms.</span></span>
 <span><span class="co"># 3,000 intervention person-trials and 6,000 comparator person-trials,</span></span>
 <span><span class="co"># with a 5-year horizon.</span></span>
-<span><span class="fu">mde</span><span class="op">(</span>rate0 <span class="op">=</span> <span class="fl">4</span> <span class="op">/</span> <span class="fl">1000</span>, py0 <span class="op">=</span> <span class="fl">6000</span> <span class="op">*</span> <span class="fl">5</span>, py1 <span class="op">=</span> <span class="fl">3000</span> <span class="op">*</span> <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   comparator_events intervention_events      mde_protective         mde_harmful </span></span>
-<span><span class="co">#&gt;              120.00               60.00                0.64                1.56</span></span></code></pre></div>
+<span><span class="fu">mde</span><span class="op">(</span>rate <span class="op">=</span> <span class="fl">4</span> <span class="op">/</span> <span class="fl">1000</span>, py_int <span class="op">=</span> <span class="fl">3000</span> <span class="op">*</span> <span class="fl">5</span>, py_cmp <span class="op">=</span> <span class="fl">6000</span> <span class="op">*</span> <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="co">#&gt; intervention_events   comparator_events      mde_protective         mde_harmful </span></span>
+<span><span class="co">#&gt;               60.00              120.00                0.64                1.56</span></span></code></pre></div>
 <p>The person-years in this example are the person-trials times the
 horizon. That is an upper bound, because loss, death and the end of data
-stop follow-up early. The formula ignores the weights, and the repeated
-contributions of one person to many trials. So it can differ from the
-detectable effect of the weighted estimator with person-clustered
-standard errors.</p>
+stop follow-up early. The formula ignores the repeated contributions of
+one person to many trials. So it can differ from the detectable effect
+of the weighted estimator with person-clustered standard errors.</p>
+<p>The <code>horizon_rule</code> computes the same expected events for
+each follow-up year of 52 weeks. When an arm falls below
+<code>min_expected_events</code> in one year, s3 withholds the rate
+ratio, the risk difference and the number needed to treat of that
+estimand. Check each arm and year against the threshold, which is 5 in
+this example:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Expected events per arm and follow-up year. Each person-trial contributes</span></span>
+<span><span class="co"># at most 1 person-year per year, so these values are an upper bound.</span></span>
+<span><span class="va">expected_per_year</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="fl">4</span> <span class="op">/</span> <span class="fl">1000</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>intervention <span class="op">=</span> <span class="fl">3000</span>, comparator <span class="op">=</span> <span class="fl">6000</span><span class="op">)</span></span>
+<span><span class="va">expected_per_year</span></span>
+<span><span class="co">#&gt; intervention   comparator </span></span>
+<span><span class="co">#&gt;           12           24</span></span>
+<span><span class="va">expected_per_year</span> <span class="op">&gt;=</span> <span class="fl">5</span></span>
+<span><span class="co">#&gt; intervention   comparator </span></span>
+<span><span class="co">#&gt;         TRUE         TRUE</span></span></code></pre></div>
+<p>At s3, the pooled rate holds the observed events of both arms. So the
+years that pass depend on the outcome data. The rule is a prespecified
+reporting rule, and the <code>Expected events</code> sheet of the
+workbook shows its decision.</p>
 </div>
 <div class="section level2">
 <h2 id="foreknowledge">Foreknowledge<a class="anchor" aria-label="anchor" href="#foreknowledge"></a>

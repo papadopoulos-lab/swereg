@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -525,6 +525,50 @@ ETT: per-protocol via
 intention-to-treat via <code>$irr(weight_col = "ipw_trunc")</code>,
 reported side by side (and as separate forest plots) in the exported
 tables.</p>
+</div>
+<div class="section level2">
+<h2 id="horizon-rule">Horizon rule<a class="anchor" aria-label="anchor" href="#horizon-rule"></a>
+</h2>
+<p>The <code>horizon_rule</code> block of the specification sets
+<code>min_expected_events</code>. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
+section 1.8.6 states the rule.</p>
+<table class="table">
+<colgroup>
+<col width="40%">
+<col width="60%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Term</th>
+<th align="left">Meaning</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left"><strong>follow-up year</strong></td>
+<td align="left">One 52-week window of follow-up from time zero:
+<code>(0, 52]</code>, <code>(52, 104]</code>, and so on. The last year
+ends at the ETT’s <code>follow_up</code> and can be shorter.</td>
+</tr>
+<tr class="even">
+<td align="left"><strong>expected events</strong></td>
+<td align="left">An arm’s expected events in a follow-up year: its
+weighted person-years multiplied by the pooled weighted event rate of
+both arms in that year.</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>reportable horizon</strong></td>
+<td align="left">The end of the last follow-up year before the first
+year in which either arm has fewer than <code>min_expected_events</code>
+expected events. It is 0 when the first year fails, and the ETT’s
+<code>follow_up</code> when no year fails.</td>
+</tr>
+<tr class="even">
+<td align="left"><strong>NE</strong></td>
+<td align="left">Not estimable. An IRR, risk difference or number needed
+to treat that the horizon rule withheld reads <code>NE</code> in the
+workbook and in the forest figure.</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section level2">
 <h2 id="enrollment-period-width">Enrollment period width<a class="anchor" aria-label="anchor" href="#enrollment-period-width"></a>
