@@ -122,7 +122,7 @@
 #'   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
 #'   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
 #'   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
-#'   \item{`$risk_difference(weight_col, n_boot, seed, conf_level, min_persons_at_risk)`}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level. A stop time with fewer than `min_persons_at_risk` people at risk in an arm gets none}
+#'   \item{`$risk_difference(weight_col, n_boot, seed, conf_level)`}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level}
 #' }
 #'
 #' **Active bindings:**

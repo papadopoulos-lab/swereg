@@ -273,8 +273,7 @@ test_that("the risk-difference bootstrap uses the same risk sets as the point es
     time_var = "tstop",
     weight_col = "w",
     n_boot = n_boot,
-    keep_mult = TRUE,
-    min_persons_at_risk = 0L
+    keep_mult = TRUE
   )
 
   # The point estimate is the curve the figure draws, arm for arm and time for
@@ -494,12 +493,7 @@ test_that("the pipeline panel holds off-grid stops and the risk set spans them",
   # The comparator arm holds no row that STOPS at week 10, and it is plainly
   # still at risk there. Its survival carries forward, and the risk difference
   # stays estimable at week 10 and after it.
-  rd <- trial$risk_difference(
-    weight_col = "ipw",
-    n_boot = 20L,
-    seed = 1L,
-    min_persons_at_risk = 0L
-  )
+  rd <- trial$risk_difference(weight_col = "ipw", n_boot = 20L, seed = 1L)
   expect_identical(rd$tstop, c(4L, 8L, 10L, 12L))
   expect_false(any(is.na(rd$surv_comparator)))
   expect_false(any(is.na(rd$rd)))

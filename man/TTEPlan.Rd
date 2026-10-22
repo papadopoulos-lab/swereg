@@ -282,6 +282,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-get_attrition}{\code{TTEPlan$get_attrition()}}
     \item \href{#method-TTEPlan-get_matching}{\code{TTEPlan$get_matching()}}
     \item \href{#method-TTEPlan-get_subgroups}{\code{TTEPlan$get_subgroups()}}
+    \item \href{#method-TTEPlan-get_horizon_windows}{\code{TTEPlan$get_horizon_windows()}}
     \item \href{#method-TTEPlan-get_protocol_table}{\code{TTEPlan$get_protocol_table()}}
     \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
     \item \href{#method-TTEPlan-slurm_job}{\code{TTEPlan$slurm_job()}}
@@ -307,6 +308,10 @@ Generates a self-contained document following the TARGET Statement
 of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
 and \verb{[FILL IN]} placeholders for PI completion.
+
+Item 6h states the horizon rule from \code{spec$horizon_rule}. The method
+stops, and names \verb{$s3_analyze()}, when a stored result was judged with a
+\code{horizon_rule} other than the one in \code{spec$horizon_rule}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_target_checklist()}
@@ -344,17 +349,28 @@ Each per-protocol value uses the truncated weights. The header is row 1
 and carries an autofilter. A \code{Family} column shows when the spec sets an
 enrollment \code{family}.
 
+A ratio, risk difference or number needed to treat that the horizon rule
+withheld reads \code{NE} on every sheet. Its events and person-years stay. The
+method stops, and names \verb{$s3_analyze()}, when a stored result was judged
+with a \code{horizon_rule} other than the one in \code{spec$horizon_rule}.
+
+The \verb{Expected events} sheet holds one row per ETT, estimand and follow-up
+year of the horizon rule. Each row gives the weighted person-years and the
+pooled weighted rate. It also gives the expected and observed weighted
+events of each arm, whether the year passes, and the reportable horizon.
+The sheet shows why the rule withheld an estimate.
+
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
-risk differences, intervals and numbers needed to treat. A forest image
-repeated a subset of those numbers. \verb{$export()} still draws one for a
-manuscript.
+risk differences and intervals. A forest image repeated a subset of those
+numbers. \verb{$export()} still draws one for a manuscript.
 
 The method also writes \code{results.qs2} to the directory of the workbook. A
 manuscript reads that file. It is a named list of aggregate results:
 \describe{
 \item{\code{estimates}}{\verb{$get_estimates()}.}
 \item{\code{curves}}{\verb{$get_curves()}.}
+\item{\code{subgroups}}{\verb{$get_subgroups()}.}
 \item{\code{baselines}}{\verb{$get_baselines()}.}
 \item{\code{attrition}}{\verb{$get_attrition()}.}
 \item{\code{enrollments}}{One row per enrollment: \code{enrollment_id},
@@ -401,12 +417,12 @@ Used by the lazy \code{recompute_baselines()} refresh. Defaults to
 of the minimum detectable effect (MDE) on the \verb{PP results} and
 \verb{ITT results} sheets. Each sheet reports the expected intervention events
 under the null and the protective and harmful MDE incidence rate ratio.
-The MDE is a naive Poisson calculation on the unweighted counts, at the
-study confidence level. It ignores the weights and the repeated
+The MDE is a naive Poisson calculation at the study confidence level.
+Under the null, each arm expects the pooled weighted rate of both arms
+times its weighted person-years. The calculation ignores the repeated
 contributions of one person. So it can differ from the detectable effect
 of the weighted estimator with person-clustered standard errors. It is not
-observed power (Hoenig and Heisey 2001). A stored result without
-unweighted counts gives three blank MDE cells.}
+observed power (Hoenig and Heisey 2001).}
     }
     \if{html}{\out{</div>}}
   }
@@ -452,6 +468,12 @@ cause-specific risk difference per 10,000 people, with its interval.
 The option computes nothing. \verb{$s3_analyze()} computes the risk
 difference for every ETT and stores it, so this switch only decides
 whether the figure carries the two extra columns.
+
+The horizon rule shows on both figures. A \code{"survival"} curve stops at the
+reportable horizon, and a grey band labelled "Not estimable" covers the
+rest of the follow-up. A \code{"forest"} cell that the rule withheld reads \code{NE}.
+The method stops, and names \verb{$s3_analyze()}, when a stored result was
+judged with a \code{horizon_rule} other than the one in \code{spec$horizon_rule}.
 
 The \code{n_boot}, \code{seed} and \code{conf_level} fields are inert and warn.
 \verb{$s3_analyze()} fixes \code{n_boot} and \code{seed}. It reads the confidence level
@@ -626,6 +648,27 @@ are recorded on every stored risk-difference row. The export path formats
 those numbers and never recomputes them. The IRR intervals and the
 interval of the ratio of stratum IRRs use the same level.
 
+The horizon rule. The RD item of each estimand also cuts follow-up into
+52-week windows. In each window it computes the expected events of each
+arm, which are the pooled weighted rate times the weighted person-years of
+that arm. A window passes when both arms reach
+\code{spec$horizon_rule$min_expected_events}. When a window fails, the method
+withholds the estimates of that estimand. It sets these to \code{NA}:
+\itemize{
+\item the incidence rate ratios and the subgroup ratios;
+\item the risk difference and the number needed to treat;
+\item the interaction tests.
+}
+Their \code{interval_status} and \code{horizon_status} then read
+\code{"below horizon rule: <arm> arm, weeks <lo>-<hi>"}, which names the first
+failing window. Events, person-years, rates and the survival curve stay.
+The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
+\verb{$get_horizon_windows()} returns its window table. Which windows pass
+depends on the observed events, through the pooled rate.
+
+The method stops when the spec has no \code{horizon_rule}. It also stops when an
+ETT of the run has no horizon decision for an estimand.
+
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.
@@ -650,8 +693,7 @@ of the job log meets either signal.
   ett_ids = NULL,
   output_dir = NULL,
   swereg_dev_path = NULL,
-  n_workers = default_n_workers("s3"),
-  rd_min_persons_at_risk = 10L
+  n_workers = default_n_workers("s3")
 )}
     \if{html}{\out{</div>}}
   }
@@ -672,11 +714,6 @@ loop. Each worker reads its own analysis file fresh, so peak RAM
 scales linearly with \code{n_workers}; on machines with multi-GB
 analysis files, set this conservatively. CPU threads per worker
 are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
-      \item{\code{rd_min_persons_at_risk}}{Whole number of at least 0 (default 10). A
-risk difference is withheld, point estimate included, at a stop time
-where either arm has fewer people at risk. Its \code{interval_status} then
-reads \code{"too few at risk at horizon"}. The incidence rate ratio does not
-read it.}
     }
     \if{html}{\out{</div>}}
   }
@@ -715,6 +752,8 @@ decision reads \verb{not decided yet (s1 has not run)}. A stored decision prints
 only when the rule in \verb{$spec} still hashes to \verb{$sparse_rule_hash} and s1
 completed for it. Otherwise the decision reads
 \verb{not decided yet (s1 has not completed for this rule)}.
+It also prints \code{horizon_rule$min_expected_events}, the minimum number of
+expected events per arm in each follow-up year.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_spec_summary()}
@@ -786,10 +825,18 @@ Every number is a bare number. \code{irr_pvalue} is a probability, not
 \code{"<0.001"}. \code{rd} is a proportion, not a rate per 10,000. The consumer
 formats it.
 
-Five sibling methods return the other stored results in the same shape:
+Six sibling methods return the other stored results in the same shape:
 \verb{$get_curves()}, \verb{$get_baselines()}, \verb{$get_attrition()},
-\verb{$get_matching()} and \verb{$get_subgroups()}. Each takes no argument, and
-each computes nothing.
+\verb{$get_matching()}, \verb{$get_subgroups()} and \verb{$get_horizon_windows()}. Each
+takes no argument, and each computes nothing.
+
+\code{horizon_reportable_weeks} and \code{horizon_status} READ the horizon-rule
+decision \verb{$s3_analyze()} stored for the estimand. Both weightings of the
+per-protocol estimand share one decision. A \code{horizon_status} that starts
+with \code{"below horizon rule"} marks a withheld estimand. Its ratio, risk
+difference and number needed to treat are \code{NA}, and \code{interval_status}
+holds the same text. A result stored before the rule gives \code{NA} in both
+columns.
 
 The number needed to treat carries its interval. \code{nnt} is the point
 estimate, and \code{nnt_lo} and \code{nnt_hi} are the bounds \verb{$s3_analyze()}
@@ -801,22 +848,17 @@ itself, and MUST NOT print \code{nnt} alone where the bounds are missing.
 \code{n_trials_int} and \code{n_trials_cmp} count the person-trials of each arm in
 the analysis file of that estimand. On an intention-to-treat row they are
 the intention-to-treat analysis set, which the CONSORT flow reads.
-
-A risk difference withheld for a sparse risk set has \code{rd}, \code{rd_lo},
-\code{rd_hi} and the number-needed-to-treat columns \code{NA}, and \code{interval_status}
-reads \code{"too few at risk at horizon"}. \code{min_persons_at_risk} holds the head
-count the rule used, and \code{NA} where the stored result predates the rule.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_estimates()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 48 columns. The identifiers come first, then
+    A data.table with 49 columns. The identifiers come first, then
 the weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
-\code{n_boot}, \code{seed}, \code{conf_level} and \code{min_persons_at_risk} record what
-produced the risk difference.
+\code{n_boot}, \code{seed} and \code{conf_level} record what produced the
+risk-difference interval.
   }
 }
 
@@ -1045,6 +1087,37 @@ subgroups, so treat the schema as production.
     A data.table with 13 columns: \code{ett_id}, \code{estimand}, \code{weights},
 \code{subgroup_var}, \code{subgroup_level}, \code{irr}, \code{irr_lo}, \code{irr_hi},
 \code{irr_pvalue}, \code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo} and \code{ratio_hi}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-get_horizon_windows"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-get_horizon_windows}{}}}
+\subsection{\code{TTEPlan$get_horizon_windows()}}{
+  Every stored horizon-rule window, as one flat table.
+
+One row per emulated trial, estimand, follow-up window and arm. A window
+is 52 weeks wide, and the last window ends at the follow-up of the ETT.
+\code{py_weighted} and \code{events_weighted} are the weighted person-years and
+events of the arm in the window. \code{rate_pooled} is the weighted events of
+both arms over the weighted person-years of both arms. \code{events_expected}
+is \code{rate_pooled} times \code{py_weighted}. \code{pass} is the decision of the
+window: both arms reach \code{min_expected_events}.
+
+Each row repeats the record it came from: \code{weight_col},
+\code{min_expected_events}, \code{horizon_reportable_weeks} and \code{horizon_status}.
+The method computes nothing. A result stored before the rule gives no
+rows.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$get_horizon_windows()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with columns \code{ett_id}, \code{estimand}, \code{weight_col},
+\code{min_expected_events}, \code{window_lo}, \code{window_hi}, \code{arm}, \code{py_weighted},
+\code{events_weighted}, \code{rate_pooled}, \code{events_expected}, \code{pass},
+\code{horizon_reportable_weeks} and \code{horizon_status}.
   }
 }
 

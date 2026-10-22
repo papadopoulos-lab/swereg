@@ -101,6 +101,8 @@ TTEPlan$set("public", "print", function(...) {
 #' only when the rule in `$spec` still hashes to `$sparse_rule_hash` and s1
 #' completed for it. Otherwise the decision reads
 #' `not decided yet (s1 has not completed for this rule)`.
+#' It also prints `horizon_rule$min_expected_events`, the minimum number of
+#' expected events per arm in each follow-up year.
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_spec_summary", function() {
   return(.plan_print_spec_summary(self))
@@ -338,6 +340,7 @@ TTEPlan$set("public", "print_spec_summary", function() {
   cat("\n")
 
   .plan_print_sparse_rule(plan, bold)
+  .plan_print_horizon_rule(plan, bold)
 
   # Outcomes
   cat(bold("Outcomes:"), "\n")
@@ -464,5 +467,35 @@ TTEPlan$set("public", "print_spec_summary", function() {
       cat("\n")
     }
   }
+  return(invisible(NULL))
+}
+
+
+#' Print the horizon rule of the spec summary
+#'
+#' Prints `horizon_rule$min_expected_events`. A plan saved before the block
+#' existed holds no `horizon_rule`. It prints `not declared` and names
+#' `$reload_spec()`, which copies the block from the spec file.
+#'
+#' @param plan A `TTEPlan`.
+#' @param bold A function that makes its text bold.
+#' @return `invisible(NULL)`.
+#' @noRd
+.plan_print_horizon_rule <- function(plan, bold) {
+  value <- plan$spec$horizon_rule[["min_expected_events"]]
+  shown <- if (is.null(value)) {
+    "not declared (call $reload_spec() with a spec that declares it)"
+  } else {
+    paste0(format(value), " per arm, per follow-up year")
+  }
+  cat(bold("Horizon rule:"), "\n")
+  cat(
+    "  ",
+    formatC("Min expected events", width = -22, flag = "-"),
+    shown,
+    "\n",
+    sep = ""
+  )
+  cat("\n")
   return(invisible(NULL))
 }

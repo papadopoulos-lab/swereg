@@ -8,7 +8,7 @@
 # reader had to know the slot name, the estimand the slot stands for, and the
 # column names inside it.
 #
-# The six accessors below return that same content as six flat tables. Each
+# The seven accessors below return that same content as seven flat tables. Each
 # takes no argument and returns EVERYTHING it can find. The caller filters.
 #
 # THE RULE THESE ACCESSORS KEEP
@@ -45,7 +45,6 @@
 #
 # Every number they return was stored by a producer.
 # =============================================================================
-
 
 #' The three estimand and weighting combinations `$s3_analyze()` stores.
 #'
@@ -191,7 +190,8 @@
     n_boot = "numeric",
     seed = "numeric",
     conf_level = "numeric",
-    min_persons_at_risk = "numeric"
+    horizon_reportable_weeks = "numeric",
+    horizon_status = "character"
   ),
   curves = c(
     ett_id = "character",
@@ -253,6 +253,22 @@
     ratio_of_irrs = "numeric",
     ratio_lo = "numeric",
     ratio_hi = "numeric"
+  ),
+  horizon_windows = c(
+    ett_id = "character",
+    estimand = "character",
+    weight_col = "character",
+    min_expected_events = "numeric",
+    window_lo = "numeric",
+    window_hi = "numeric",
+    arm = "character",
+    py_weighted = "numeric",
+    events_weighted = "numeric",
+    rate_pooled = "numeric",
+    events_expected = "numeric",
+    pass = "logical",
+    horizon_reportable_weeks = "numeric",
+    horizon_status = "character"
   )
 )
 
@@ -544,6 +560,9 @@
   n_events <- .acc_num1(res$summary, "n_events")
 
   rows <- lapply(.ACC_ESTIMATE_SLOTS, function(combo) {
+    # The horizon record of the estimand. Both weightings of one estimand
+    # share it, because the per-protocol decision covers both.
+    horizon <- .acc_slot(res, paste0("horizon_", combo$estimand))
     rates_value <- .acc_slot(res, combo$rates)
     irr_value <- .acc_slot(res, combo$irr)
     rd_row <- .acc_slot(res, combo$rd)
@@ -606,7 +625,8 @@
       n_boot = .acc_num1(rd_row, "n_boot"),
       seed = .acc_num1(rd_row, "seed"),
       conf_level = .acc_num1(rd_row, "conf_level"),
-      min_persons_at_risk = .acc_num1(rd_row, "min_persons_at_risk")
+      horizon_reportable_weeks = .acc_num1(horizon, "reportable_weeks"),
+      horizon_status = .acc_chr1(horizon, "status")
     ))
   })
   rows <- Filter(Negate(is.null), rows)
@@ -616,23 +636,26 @@
     if (is.null(res) || length(res) == 0L) {
       return(NULL)
     }
-    return(.acc_row(.ACC_SCHEMA$estimates, list(
-      ett_id = as.character(ett_id),
-      enrollment_id = labels$enrollment_id,
-      enrollment_name = labels$enrollment_name,
-      outcome_var = labels$outcome_var,
-      outcome_name = labels$outcome_name,
-      outcome_role = labels$outcome_role,
-      follow_up = labels$follow_up,
-      age_group = labels$age_group,
-      intervention_name = labels$intervention_name,
-      comparator_name = labels$comparator_name,
-      n_events = n_events,
-      rates_stored = FALSE,
-      irr_stored = FALSE,
-      irr_interval_stored = FALSE,
-      rd_stored = FALSE
-    )))
+    return(.acc_row(
+      .ACC_SCHEMA$estimates,
+      list(
+        ett_id = as.character(ett_id),
+        enrollment_id = labels$enrollment_id,
+        enrollment_name = labels$enrollment_name,
+        outcome_var = labels$outcome_var,
+        outcome_name = labels$outcome_name,
+        outcome_role = labels$outcome_role,
+        follow_up = labels$follow_up,
+        age_group = labels$age_group,
+        intervention_name = labels$intervention_name,
+        comparator_name = labels$comparator_name,
+        n_events = n_events,
+        rates_stored = FALSE,
+        irr_stored = FALSE,
+        irr_interval_stored = FALSE,
+        rd_stored = FALSE
+      )
+    ))
   }
   return(data.table::rbindlist(rows, use.names = TRUE))
 }
@@ -876,13 +899,16 @@
     if (all(vapply(counts, is.na, logical(1)))) {
       next
     }
-    rows[[length(rows) + 1L]] <- .acc_row(.ACC_SCHEMA$baselines, list(
-      enrollment_id = as.character(eid),
-      n_baseline = counts$n_baseline,
-      n_baseline_intervention = counts$n_baseline_intervention,
-      n_baseline_comparator = counts$n_baseline_comparator,
-      smd_stored = FALSE
-    ))
+    rows[[length(rows) + 1L]] <- .acc_row(
+      .ACC_SCHEMA$baselines,
+      list(
+        enrollment_id = as.character(eid),
+        n_baseline = counts$n_baseline,
+        n_baseline_intervention = counts$n_baseline_intervention,
+        n_baseline_comparator = counts$n_baseline_comparator,
+        smd_stored = FALSE
+      )
+    )
   }
   return(.acc_bind(rows, .ACC_SCHEMA$baselines))
 }
@@ -1226,4 +1252,53 @@
     }
   }
   return(.acc_bind(rows, .ACC_SCHEMA$subgroups))
+}
+
+
+#' Every stored horizon-rule window, one row per ETT, estimand, window and arm.
+#'
+#' `$s3_analyze()` stores one record per ETT and estimand, as `horizon_pp`
+#' and `horizon_itt`. This accessor stacks their window tables and repeats
+#' the rule and the decision of the record on each row. A result without a
+#' record gives no rows.
+#'
+#' @param plan A TTEPlan.
+#' @return A data.table with the `horizon_windows` schema.
+#' @noRd
+.acc_horizon_windows <- function(plan) {
+  rows <- list()
+  for (id in names(plan$results_ett)) {
+    for (est in names(.TTE_ESTIMANDS)) {
+      rec <- .acc_slot(plan$results_ett[[id]], paste0("horizon_", est))
+      win <- rec$windows
+      if (!data.table::is.data.table(win) || nrow(win) == 0L) {
+        next
+      }
+      out <- data.table::copy(win)
+      data.table::set(out, j = "ett_id", value = as.character(id))
+      data.table::set(out, j = "estimand", value = est)
+      data.table::set(
+        out,
+        j = "weight_col",
+        value = .acc_chr1(rec, "weight_col")
+      )
+      data.table::set(
+        out,
+        j = "min_expected_events",
+        value = .acc_num1(rec$rule, "min_expected_events")
+      )
+      data.table::set(
+        out,
+        j = "horizon_reportable_weeks",
+        value = .acc_num1(rec, "reportable_weeks")
+      )
+      data.table::set(
+        out,
+        j = "horizon_status",
+        value = .acc_chr1(rec, "status")
+      )
+      rows[[length(rows) + 1L]] <- out
+    }
+  }
+  return(.acc_bind(rows, .ACC_SCHEMA$horizon_windows))
 }

@@ -605,13 +605,16 @@
         )
       )
     } else {
-      out <- c(out, paste0(
-        .protocol_washout_rule(ai, var_names, tx) %||%
-          paste0("Require ", .protocol_criterion_label(ai, var_names)),
-        " (",
-        .format_window_human(impl),
-        ")"
-      ))
+      out <- c(
+        out,
+        paste0(
+          .protocol_washout_rule(ai, var_names, tx) %||%
+            paste0("Require ", .protocol_criterion_label(ai, var_names)),
+          " (",
+          .format_window_human(impl),
+          ")"
+        )
+      )
     }
   }
   for (ae in enrollment[["additional_exclusion"]]) {
@@ -774,12 +777,41 @@
           "interval from ",
           .S3_RD_N_BOOT,
           " bootstrap replicates that resample persons"
-        )
+        ),
+        .protocol_horizon_rule_line(spec)
       )
     },
     character()
   )
   return(.protocol_lines(fragments))
+}
+
+
+#' The horizon rule, as one line of the Analysis plan cell
+#'
+#' @param spec Parsed spec list. It MUST carry `horizon_rule`.
+#' @return A character(1). With `min_expected_events` 0, the line says that
+#'   the rule withholds no estimate.
+#' @noRd
+.protocol_horizon_rule_line <- function(spec) {
+  rule <- .tte_assert_horizon_rule_present(spec, "the target trial protocol")
+  k <- format(rule$min_expected_events, trim = TRUE, scientific = FALSE)
+  first <- paste0(
+    "Horizon rule: at least ",
+    k,
+    " expected events per arm in each year of follow-up"
+  )
+  if (rule$min_expected_events == 0) {
+    return(paste0(first, ", so no estimate is withheld"))
+  }
+  return(paste0(
+    first,
+    ", at the pooled weighted event rate of both arms. Follow-up years are ",
+    .HORIZON_WINDOW_WEEKS,
+    " weeks from time zero. When any year up to the horizon fails, the rate ",
+    "ratio, risk difference and number needed to treat of that estimand ",
+    "read NE"
+  ))
 }
 
 

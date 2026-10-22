@@ -1,44 +1,59 @@
 # The minimum detectable effect that the PP results and ITT results sheets
 # report beside each incidence rate ratio.
 
-#' Naive Poisson minimum detectable incidence rate ratio
+#' Minimum detectable incidence rate ratio from the pooled weighted rate
 #'
-#' This is the naive Poisson minimum detectable effect (MDE). It uses the
-#' unweighted comparator events `e0`, the comparator person-years `py0` and the
-#' intervention person-years `py1`.
+#' This is the naive Poisson minimum detectable effect (MDE). Its inputs are
+#' the weighted events and the weighted person-years of both arms.
 #'
-#' Under the null, the intervention arm has the comparator rate, so it expects
-#' `E1 = e0 / py0 * py1` events. The standard error of the log ratio is
-#' `se = sqrt(1 / E1 + 1 / e0)`. Let
+#' Under the null, both arms have the pooled rate
+#' `rate_pooled = (e_int + e_cmp) / (py_int + py_cmp)`. Each arm then expects
+#' `E_a = rate_pooled * py_a` events. The standard error of the log ratio is
+#' `se = sqrt(1 / E_int + 1 / E_cmp)`. Let
 #' `k = qnorm(1 - (1 - conf_level) / 2) + qnorm(power)`. The smallest ratios
 #' that a two-sided test detects with that power are `exp(-k * se)` and
 #' `exp(k * se)`.
 #'
-#' The calculation ignores the weights and the repeated contributions of one
-#' person to many sequential trials. So this MDE can differ from the detectable
-#' effect of the weighted estimator with person-clustered standard errors.
+#' The horizon rule uses the same expected events, per follow-up year. The
+#' pooled rate holds the observed events of both arms, so the MDE depends on
+#' the outcome data.
 #'
-#' The MDE is a design property of the counts. It is not observed power, which
-#' is a function of the p-value and tells the reader nothing new (Hoenig and
-#' Heisey 2001).
+#' The calculation treats the weighted counts as Poisson counts. It ignores
+#' the repeated contributions of one person to many sequential trials. So
+#' this MDE can differ from the detectable effect of the weighted estimator
+#' with person-clustered standard errors.
 #'
-#' @param e0 Numeric, unweighted events in the comparator arm.
-#' @param py0 Numeric, unweighted person-years in the comparator arm.
-#' @param py1 Numeric, unweighted person-years in the intervention arm.
+#' The MDE is not observed power. Observed power is a function of the p-value
+#' and tells the reader nothing new (Hoenig and Heisey 2001).
+#'
+#' @param e_int Numeric, weighted events in the intervention arm.
+#' @param py_int Numeric, weighted person-years in the intervention arm.
+#' @param e_cmp Numeric, weighted events in the comparator arm.
+#' @param py_cmp Numeric, weighted person-years in the comparator arm.
 #' @param power Numeric(1), at least 0.5 and below 1. A power below
 #'   `(1 - conf_level) / 2` makes `k` negative and swaps the two ratios.
 #' @param conf_level Numeric(1) strictly between 0 and 1, the two-sided
 #'   interval level.
-#' @return A list of three numeric vectors as long as `e0`:
-#'   `expected_events` (`E1`), `mde_protective` (below 1) and `mde_harmful`
-#'   (above 1). The two MDE values are `NA` where `e0` or `E1` is 0 or not
-#'   finite.
+#' @return A list of four numeric vectors as long as `e_int`:
+#'   `expected_events` (`E_int`), `expected_events_cmp` (`E_cmp`),
+#'   `mde_protective` (below 1) and `mde_harmful` (above 1). The two MDE
+#'   values are `NA` where `E_int` or `E_cmp` is 0 or not finite.
 #' @noRd
-.tte_mde <- function(e0, py0, py1, power = 0.8, conf_level = 0.95) {
+.tte_mde <- function(
+  e_int,
+  py_int,
+  e_cmp,
+  py_cmp,
+  power = 0.8,
+  conf_level = 0.95
+) {
   .tte_mde_check_level(power, "power")
   .tte_mde_check_level(conf_level, "conf_level")
-  e0 <- as.numeric(e0)
-  e1 <- e0 / as.numeric(py0) * as.numeric(py1)
+  py_int <- as.numeric(py_int)
+  py_cmp <- as.numeric(py_cmp)
+  rate <- (as.numeric(e_int) + as.numeric(e_cmp)) / (py_int + py_cmp)
+  e1 <- rate * py_int
+  e0 <- rate * py_cmp
   se <- sqrt(1 / e1 + 1 / e0)
   k <- stats::qnorm(1 - (1 - conf_level) / 2) + stats::qnorm(power)
   ok <- is.finite(e0) & is.finite(e1) & e0 > 0 & e1 > 0
@@ -57,6 +72,7 @@
   )
   return(list(
     expected_events = e1,
+    expected_events_cmp = e0,
     mde_protective = protective,
     mde_harmful = harmful
   ))
@@ -70,7 +86,7 @@
 #' `.tte_mde()` negative.
 #'
 #' `.tte_mde()` and `.plan_export_tables()` both call it. The export calls it
-#' first, because a plan without unweighted counts never reaches `.tte_mde()`.
+#' first, because a plan without stored rates never reaches `.tte_mde()`.
 #'
 #' @param v The value to check.
 #' @param nm Character(1), the argument name for the message. `"power"`

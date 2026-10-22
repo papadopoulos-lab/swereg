@@ -27,17 +27,28 @@
 #' and carries an autofilter. A `Family` column shows when the spec sets an
 #' enrollment `family`.
 #'
+#' A ratio, risk difference or number needed to treat that the horizon rule
+#' withheld reads `NE` on every sheet. Its events and person-years stay. The
+#' method stops, and names `$s3_analyze()`, when a stored result was judged
+#' with a `horizon_rule` other than the one in `spec$horizon_rule`.
+#'
+#' The `Expected events` sheet holds one row per ETT, estimand and follow-up
+#' year of the horizon rule. Each row gives the weighted person-years and the
+#' pooled weighted rate. It also gives the expected and observed weighted
+#' events of each arm, whether the year passes, and the reportable horizon.
+#' The sheet shows why the rule withheld an estimate.
+#'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,
-#' risk differences, intervals and numbers needed to treat. A forest image
-#' repeated a subset of those numbers. `$export()` still draws one for a
-#' manuscript.
+#' risk differences and intervals. A forest image repeated a subset of those
+#' numbers. `$export()` still draws one for a manuscript.
 #'
 #' The method also writes `results.qs2` to the directory of the workbook. A
 #' manuscript reads that file. It is a named list of aggregate results:
 #' \describe{
 #'   \item{`estimates`}{`$get_estimates()`.}
 #'   \item{`curves`}{`$get_curves()`.}
+#'   \item{`subgroups`}{`$get_subgroups()`.}
 #'   \item{`baselines`}{`$get_baselines()`.}
 #'   \item{`attrition`}{`$get_attrition()`.}
 #'   \item{`enrollments`}{One row per enrollment: `enrollment_id`,
@@ -71,12 +82,12 @@
 #'   of the minimum detectable effect (MDE) on the `PP results` and
 #'   `ITT results` sheets. Each sheet reports the expected intervention events
 #'   under the null and the protective and harmful MDE incidence rate ratio.
-#'   The MDE is a naive Poisson calculation on the unweighted counts, at the
-#'   study confidence level. It ignores the weights and the repeated
+#'   The MDE is a naive Poisson calculation at the study confidence level.
+#'   Under the null, each arm expects the pooled weighted rate of both arms
+#'   times its weighted person-years. The calculation ignores the repeated
 #'   contributions of one person. So it can differ from the detectable effect
 #'   of the weighted estimator with person-clustered standard errors. It is not
-#'   observed power (Hoenig and Heisey 2001). A stored result without
-#'   unweighted counts gives three blank MDE cells.
+#'   observed power (Hoenig and Heisey 2001).
 TTEPlan$set(
   "public",
   "export_tables",
@@ -134,6 +145,12 @@ TTEPlan$set(
 #' The option computes nothing. `$s3_analyze()` computes the risk
 #' difference for every ETT and stores it, so this switch only decides
 #' whether the figure carries the two extra columns.
+#'
+#' The horizon rule shows on both figures. A `"survival"` curve stops at the
+#' reportable horizon, and a grey band labelled "Not estimable" covers the
+#' rest of the follow-up. A `"forest"` cell that the rule withheld reads `NE`.
+#' The method stops, and names `$s3_analyze()`, when a stored result was
+#' judged with a `horizon_rule` other than the one in `spec$horizon_rule`.
 #'
 #' The `n_boot`, `seed` and `conf_level` fields are inert and warn.
 #' `$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level

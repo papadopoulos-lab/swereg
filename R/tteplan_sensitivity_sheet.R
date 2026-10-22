@@ -21,10 +21,13 @@
 #'   \item the ratio is unusable, which is every ratio field `NA`.
 #' }
 #'
+#' `withheld` is `TRUE` when the horizon rule withheld the ratio of the
+#' combination. `.sensitivity_row_fmt()` then prints `NE`.
+#'
 #' @param est A `$get_estimates()` table.
 #' @param ett_id Character(1).
 #' @param slot Character(1), any slot name of the wanted combination.
-#' @return A named list of eleven fields, or `NULL`.
+#' @return A named list of twelve fields, or `NULL`.
 #' @noRd
 .sensitivity_row_measurements <- function(est, ett_id, slot) {
   combo <- .tte_slot_combo(slot)
@@ -61,7 +64,8 @@
     lo = row$irr_lo,
     hi = row$irr_hi,
     pvalue = row$irr_pvalue,
-    irr_estimable = row$irr_estimable
+    irr_estimable = row$irr_estimable,
+    withheld = .tte_horizon_withheld(row$horizon_status)
   ))
 }
 
@@ -304,8 +308,35 @@
       ci,
       as.numeric(m$pvalue)
     )
+    # The horizon rule withheld the ratio. The ratio and the interval read
+    # `NE`. The p-value is a number column, so the sheet writer puts `NE` in
+    # it after the write, through `.sheet_write_ne()`.
+    if (isTRUE(m$withheld)) {
+      cells[7:8] <- list("NE", "NE")
+      cells[[9]] <- NA_real_
+    }
   }
   return(setNames(cells, paste0(col_key_prefix, display_names)))
+}
+
+
+#' Write `NE` into the cells of a number column
+#'
+#' A withheld estimate has no number. The column keeps its number format for
+#' the other rows, so the sheet writer writes the text cell by cell, after the
+#' table.
+#'
+#' @param wb An openxlsx workbook.
+#' @param sheet_name Character(1).
+#' @param rows Integer vector, the sheet rows.
+#' @param col Integer(1), the sheet column.
+#' @return `invisible(NULL)`.
+#' @noRd
+.sheet_write_ne <- function(wb, sheet_name, rows, col) {
+  for (r in rows) {
+    openxlsx::writeData(wb, sheet_name, "NE", startCol = col, startRow = r)
+  }
+  return(invisible(NULL))
 }
 
 
@@ -383,6 +414,8 @@
   # Build one row per ETT. Truncated columns come first, then untruncated.
   est <- plan$get_estimates()
   rows <- list()
+  ne_left <- logical(0)
+  ne_right <- logical(0)
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     untrunc_m <- .sensitivity_row_measurements(est, eid, untrunc_irr_slot)
@@ -415,6 +448,8 @@
     left_cols <- .sensitivity_row_fmt(trunc_m, "t_")
     right_cols <- .sensitivity_row_fmt(untrunc_m, "u_")
     rows[[length(rows) + 1L]] <- c(id_cols, left_cols, right_cols)
+    ne_left <- c(ne_left, isTRUE(trunc_m$withheld))
+    ne_right <- c(ne_right, isTRUE(untrunc_m$withheld))
   }
 
   if (length(rows) == 0L) {
@@ -582,6 +617,9 @@
     body_rows <- data_start_row:data_end_row
     .apply_measurement_numfmt(wb, sheet_name, trunc_cols_start, body_rows)
     .apply_measurement_numfmt(wb, sheet_name, untrunc_cols_start, body_rows)
+    # The p-value of a withheld ratio reads `NE`, as the ratio does.
+    .sheet_write_ne(wb, sheet_name, body_rows[ne_left], trunc_cols_end)
+    .sheet_write_ne(wb, sheet_name, body_rows[ne_right], untrunc_cols_end)
   }
 
   openxlsx::setColWidths(

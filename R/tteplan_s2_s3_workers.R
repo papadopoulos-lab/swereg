@@ -376,8 +376,12 @@
 #'   carries it because batchit demands every formal on every item. The
 #'   `irr`, `risk_difference`, `irr_by_subgroup` and
 #'   `effect_modification_test` methods read it.
-#' @param rd_min_persons_at_risk Numeric(1), the smallest head count in each
-#'   arm at which the `risk_difference` method reports a risk difference.
+#' @param horizon_rule The `horizon_rule` block of the spec, or `NULL`. The
+#'   `risk_difference` method reads it, with `follow_up`, and returns the
+#'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. The
+#'   parent passes both on every item. A direct call without them returns no
+#'   record.
+#' @param follow_up Numeric(1), the follow-up of the ETT in weeks, or `NULL`.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
 .s3_ett_worker <- function(
@@ -388,7 +392,8 @@
   n_threads,
   subgroup_var = NULL,
   conf_level = .S3_RD_CONF_LEVEL_DEFAULT,
-  rd_min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
+  horizon_rule = NULL,
+  follow_up = NULL
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -399,7 +404,8 @@
     ett_id,
     subgroup_var,
     conf_level,
-    rd_min_persons_at_risk
+    horizon_rule,
+    follow_up
   )
   # The parent merges every key into `results_ett[[eid]]`, so the stamp
   # reaches the stored result beside the slot it came with.
@@ -424,7 +430,8 @@
   ett_id,
   subgroup_var,
   conf_level,
-  rd_min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
+  horizon_rule = NULL,
+  follow_up = NULL
 ) {
   safe_call <- function(expr_fn, label) {
     return(tryCatch(
@@ -502,6 +509,22 @@
     } else {
       paste0("rd_", sub("^analysis_weight_", "", weight_col))
     }
+    # The horizon rule, OUTSIDE `safe_call()`. An error here stops the item,
+    # and the item error stops `$s3_analyze()`. A skip envelope in its place
+    # would let the parent report estimates no rule has judged.
+    horizon <- NULL
+    if (!is.null(horizon_rule)) {
+      design <- enrollment$design
+      horizon <- .tte_horizon_record(
+        enrollment$data,
+        weight_col,
+        follow_up,
+        horizon_rule,
+        design$treatment_var,
+        design$tstart_var,
+        design$tstop_var
+      )
+    }
     curve <- safe_call(
       \() {
         # Re-wrapped under the CURRENT class. A serialized R6 object keeps
@@ -518,13 +541,17 @@
           weight_col = weight_col,
           n_boot = .S3_RD_N_BOOT,
           seed = .S3_RD_SEED,
-          conf_level = conf_level,
-          min_persons_at_risk = rd_min_persons_at_risk
+          conf_level = conf_level
         ))
       },
       slot
     )
-    return(.s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var))
+    out <- .s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var)
+    if (!is.null(horizon)) {
+      est <- if (identical(slot, "rd_itt")) "itt" else "pp"
+      out[[paste0("horizon_", est)]] <- horizon
+    }
+    return(out)
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
     suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"

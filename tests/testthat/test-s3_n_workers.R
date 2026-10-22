@@ -20,11 +20,13 @@ skip_if_not_installed("data.table")
 .n_workers_err <- "n_workers must be a single"
 
 .minimal_plan <- function() {
-  swereg::TTEPlan$new(
+  plan <- swereg::TTEPlan$new(
     project_prefix = "test_plan",
     skeleton_files = "skel_001.qs2",
     global_max_isoyearweek = "2020-52"
   )
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
+  plan
 }
 
 test_that("s3_analyze: n_workers must be numeric", {

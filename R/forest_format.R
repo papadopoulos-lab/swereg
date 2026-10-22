@@ -311,14 +311,13 @@
 #' supplies the magnitude and the interval only, and reports no direction, so
 #' this path holds no second decision site.
 #'
-#' A row whose `interval_status` reads `"too few at risk at horizon"` prints
-#' `"not estimable (< k at risk)"` in the risk-difference cell and
-#' `"not estimable"` in the number-needed-to-treat cell. `k` comes from the
-#' optional `min_persons_at_risk` column.
-#'
 #' A legacy `rd_lookup` lacking the decision columns renders an EMPTY number
 #' needed to treat. See `.FOREST_RD_DECISION_COLS` for why that is the chosen
 #' behaviour rather than an error and rather than a re-derivation.
+#'
+#' A row whose `interval_status` starts with `"below horizon rule"` reads
+#' `NE` in both cells. The horizon rule withheld it. A lookup without
+#' `interval_status` withholds nothing.
 #'
 #' @param ett_ids Character vector of ETT ids, in row order.
 #' @param rd_lookup A data.table carrying `.FOREST_RD_COLS`, or NULL. The
@@ -381,28 +380,27 @@
       nn$nntb_hi,
       nnt_direction
     )
-    # A risk difference withheld for a sparse risk set prints its reason in
-    # both cells, never an empty one. A lookup from before the rule carries no
-    # `interval_status`, and no row of it is withheld.
-    if ("interval_status" %in% names(rd_lookup)) {
-      withheld <- as.character(rd_lookup$interval_status[j]) %in%
-        .RD_STATUS_FEW_AT_RISK
-      k_used <- if ("min_persons_at_risk" %in% names(rd_lookup)) {
-        rd_lookup$min_persons_at_risk[j]
-      } else {
-        rep(NA_real_, length(j))
-      }
-      idx <- which(ok)[withheld]
-      txt_rd[idx] <- vapply(
-        k_used[withheld],
-        .tte_rd_withheld_text,
-        character(1),
-        short = TRUE
-      )
-      txt_nnt[idx] <- "not estimable"
-    }
+    withheld <- which(ok)[.tte_horizon_withheld(rd_lookup$interval_status[j])]
+    txt_rd[withheld] <- "NE"
+    txt_nnt[withheld] <- "NE"
   }
   return(list(txt_rd = txt_rd, txt_nnt = txt_nnt))
+}
+
+
+#' Put `NE` in the ratio cells the horizon rule withheld
+#'
+#' @param txt Character vector, the ratio cells.
+#' @param status Character vector of `horizon_status`, or `NULL` for a panel
+#'   built by hand without it.
+#' @return `txt`, with `NE` on every withheld row.
+#' @noRd
+.ff_irr_withheld <- function(txt, status) {
+  if (is.null(status)) {
+    return(txt)
+  }
+  txt[.tte_horizon_withheld(status)] <- "NE"
+  return(txt)
 }
 
 

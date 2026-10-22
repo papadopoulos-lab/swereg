@@ -232,6 +232,7 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
       )
     ),
     follow_up = list(list(label = "1 year", weeks = 52L)),
+    horizon_rule = list(min_expected_events = 0),
     enrollments = list(
       list(
         id = "01",

@@ -95,6 +95,8 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
+    "horizon_rule:",
+    "  min_expected_events: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

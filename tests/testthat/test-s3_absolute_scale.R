@@ -92,7 +92,7 @@ skip_if_not_installed("qs2")
 
 # Write one PP and one ITT analysis file per cell, and return the plan whose
 # grid points at them. `conf_level` writes the study property s3 reads; NULL
-# leaves the plan with no specification at all, which is the default path.
+# leaves the spec with the horizon rule only, which is the default path.
 .abs_plan <- function(
   output_dir,
   n_persons = 60L,
@@ -137,6 +137,7 @@ skip_if_not_installed("qs2")
       study = list(implementation = list(conf_level = conf_level))
     )
   }
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)
@@ -178,9 +179,9 @@ test_that("every ETT carries the absolute scale, ungated", {
   output_dir <- withr::local_tempdir()
   plan <- .abs_run_s3(.abs_plan(output_dir), output_dir)
 
-  # Nothing anywhere asked for this. The plan holds no spec at all, so no
-  # option could have enabled it.
-  expect_null(plan$spec)
+  # Nothing anywhere asked for this. The spec holds the horizon rule s3 needs
+  # and nothing else, so no option could have enabled it.
+  expect_identical(names(plan$spec), "horizon_rule")
 
   ids <- plan$ett$ett_id
   expect_identical(length(ids), 4L)
@@ -325,8 +326,8 @@ test_that("s3 reads the confidence level from the study specification", {
     }
   }
 
-  # No specification at all, so the default applies.
-  expect_null(default$spec)
+  # No study block in the specification, so the default applies.
+  expect_null(default$spec$study)
   expect_equal(
     as.numeric(default$results_ett[["ett01"]]$rd_pp_trunc$conf_level),
     0.95

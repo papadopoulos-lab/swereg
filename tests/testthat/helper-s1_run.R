@@ -20,9 +20,23 @@ tte_stamp_stages <- function(plan) {
     plan$results_enrollment[[k]][["s1_run_id"]] <- id
     plan$results_enrollment[[k]][["s2_run_id"]] <- s2_id
   }
+  # s3 also stores a horizon record for each estimand, and the writers stop
+  # without one. This record holds the decision "nothing withheld" and the
+  # rule of the spec. It holds no window table and no status, so no sheet
+  # changes. A record that is already there stays.
+  rule <- plan$spec$horizon_rule$min_expected_events
   for (k in names(plan$results_ett)) {
     plan$results_ett[[k]][["s1_run_id"]] <- id
     plan$results_ett[[k]][["s2_run_id"]] <- s2_id
+    for (est in c("pp", "itt")) {
+      slot <- paste0("horizon_", est)
+      if (!is.null(rule) && is.null(plan$results_ett[[k]][[slot]])) {
+        plan$results_ett[[k]][[slot]] <- list(
+          rule = list(min_expected_events = as.numeric(rule)),
+          withheld = FALSE
+        )
+      }
+    }
   }
   return(invisible(plan))
 }

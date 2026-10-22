@@ -18,10 +18,10 @@
 
 #' Build the three MDE cells for one row of a results sheet.
 #'
-#' The inputs are the stored UNWEIGHTED counts of the row:
-#' `events_unweighted_cmp`, `py_unweighted_cmp` and `py_unweighted_int`.
-#' `.tte_mde()` holds the formula. A row stored before `$rates()` wrote the
-#' unweighted counts gives three blank cells.
+#' The inputs are the weighted events and person-years of both arms of the
+#' row: `events_int`, `py_int`, `events_cmp` and `py_cmp`. `.tte_mde()` holds
+#' the formula, which uses the pooled weighted rate of both arms. A row
+#' without one of the four gives three blank cells.
 #'
 #' @param est_row A one-row `$get_estimates()` table, or `NULL`.
 #' @param power Numeric(1), the power of the MDE.
@@ -34,16 +34,26 @@
     return(list(NA_real_, NA_real_, NA_real_))
   }
   pick <- function(nm) {
-    if (!nm %in% names(est_row)) return(NA_real_)
+    if (!nm %in% names(est_row)) {
+      return(NA_real_)
+    }
     return(as.numeric(est_row[[nm]])[1])
   }
-  e0 <- pick("events_unweighted_cmp")
-  py0 <- pick("py_unweighted_cmp")
-  py1 <- pick("py_unweighted_int")
-  if (!all(is.finite(c(e0, py0, py1)))) {
+  e_int <- pick("events_int")
+  py_int <- pick("py_int")
+  e_cmp <- pick("events_cmp")
+  py_cmp <- pick("py_cmp")
+  if (!all(is.finite(c(e_int, py_int, e_cmp, py_cmp)))) {
     return(list(NA_real_, NA_real_, NA_real_))
   }
-  mde <- .tte_mde(e0, py0, py1, power = power, conf_level = conf_level)
+  mde <- .tte_mde(
+    e_int,
+    py_int,
+    e_cmp,
+    py_cmp,
+    power = power,
+    conf_level = conf_level
+  )
   return(list(mde$expected_events, mde$mde_protective, mde$mde_harmful))
 }
 
@@ -69,6 +79,8 @@
 #' `.forest_rd_map()` keys the lookup on `ett_id` and reads six required
 #' columns plus the two decision columns. `$get_estimates()` carries all eight
 #' under the accessor's own names, so this renames rather than computes.
+#' `interval_status` rides along, so a cell the horizon rule withheld reads
+#' `NE`.
 #'
 #' An emulated trial gets a row when the plan stored a risk difference for that
 #' estimand and weighting. Every risk-difference field `NA` means the plan
@@ -101,8 +113,7 @@
     n_persons_with_event_intervention = est$persons_event_int[hit],
     n_persons_with_event_comparator = est$persons_event_cmp[hit],
     conf_level = est$conf_level[hit],
-    interval_status = est$interval_status[hit],
-    min_persons_at_risk = est$min_persons_at_risk[hit]
+    interval_status = est$interval_status[hit]
   ))
 }
 
@@ -118,14 +129,14 @@
 #' The risk difference keeps its sign and is scaled to 10,000 people, matching
 #' the forest figure.
 #'
-#' A risk difference withheld for a sparse risk set has no number. Its
-#' interval cell then holds the reason, and the list carries the attribute
-#' `withheld = TRUE`, so the sheet writer can put "not estimable" in the
-#' risk-difference cell.
+#' A risk difference the horizon rule withheld has no number. Its interval
+#' cell reads `NE`, and the list carries the attribute `withheld = TRUE`, so
+#' the sheet writer puts `NE` in the risk-difference cell too. The two counts
+#' stay.
 #'
 #' @param rd_row A one-row table carrying the `$get_estimates()` risk-difference
 #'   columns (`persons_event_int`, `persons_event_cmp`, `rd`, `rd_lo`,
-#'   `rd_hi`, `interval_status` and `min_persons_at_risk`), or NULL.
+#'   `rd_hi` and `interval_status`), or NULL.
 #' @return An unnamed list of four cells: two counts, the risk difference, and
 #'   its interval as a display string.
 #' @noRd
@@ -135,12 +146,12 @@
   }
   per <- 10000
   pick <- function(nm) as.numeric(rd_row[[nm]])[1]
-  if (.rd_row_withheld(rd_row)) {
+  if (.tte_horizon_withheld(rd_row[["interval_status"]])[1L] %in% TRUE) {
     cells <- list(
       pick("persons_event_int"),
       pick("persons_event_cmp"),
       NA_real_,
-      .tte_rd_withheld_text(pick("min_persons_at_risk"))
+      "NE"
     )
     attr(cells, "withheld") <- TRUE
     return(cells)
@@ -161,54 +172,47 @@
 }
 
 
-#' The head-count rule of a plan's stored risk differences, as TARGET prose
+#' The horizon rule of a plan, as TARGET prose
 #'
-#' The TARGET checklist states the rule only where stored results applied it.
-#' Each stored risk difference records the threshold it was computed with, and
-#' a result from before the rule records `NA`. A stand-in plan that is not a
-#' `TTEPlan` has no `$get_estimates()`, and so no stored result.
+#' Item 6h of the TARGET checklist states the rule from `spec$horizon_rule`.
+#' The checklist calls `.tte_assert_horizon_rule_current()` first, so every
+#' stored result was judged with this value.
 #'
-#' The Target trial protocol sheet does not state the rule. It is a
-#' preregistration exhibit, and no s3 result reaches it.
-#'
-#' @param plan A TTEPlan.
-#' @return A character(1). It is `""` when no stored risk difference carries a
-#'   threshold. When some do and some do not, the sentence limits the rule to
-#'   the results computed with it. Two thresholds read as `"10 or 20"`.
+#' @param spec `plan$spec`. It MUST carry `horizon_rule`.
+#' @return A character(1) of whole sentences, separated by spaces. With
+#'   `min_expected_events` 0, one sentence says that the rule withheld no
+#'   estimate.
 #' @noRd
-.plan_rd_rule_text <- function(plan) {
-  est <- if (inherits(plan, "TTEPlan")) plan$get_estimates() else NULL
-  k_all <- if (is.null(est)) {
-    numeric(0)
-  } else {
-    est$min_persons_at_risk[est$rd_stored %in% TRUE]
+.plan_horizon_rule_text <- function(spec) {
+  rule <- .tte_assert_horizon_rule_present(spec, "print_target_checklist()")
+  k <- format(rule$min_expected_events, trim = TRUE, scientific = FALSE)
+  first <- paste0(
+    "A prespecified reporting rule, the horizon rule, required at least ",
+    k,
+    " expected events per arm in each year of follow-up"
+  )
+  if (rule$min_expected_events == 0) {
+    return(paste0(first, ", so it withheld no estimate."))
   }
-  k <- sort(unique(k_all[!is.na(k_all)]))
-  if (length(k) == 0L) {
-    return("")
-  }
-  k_txt <- paste(format(k, trim = TRUE, scientific = FALSE), collapse = " or ")
   return(paste0(
-    if (anyNA(k_all)) "For the results computed with this rule, no" else "No",
-    " risk difference was reported at a time at which either arm had fewer than ",
-    k_txt,
-    " persons at risk. "
-  ))
-}
-
-
-#' Was this stored risk difference withheld for a sparse risk set?
-#'
-#' @param rd_row A one-row table carrying `interval_status`, or NULL.
-#' @return Logical(1).
-#' @noRd
-.rd_row_withheld <- function(rd_row) {
-  if (is.null(rd_row) || !"interval_status" %in% names(rd_row)) {
-    return(FALSE)
-  }
-  return(identical(
-    as.character(rd_row[["interval_status"]])[1L],
-    .RD_STATUS_FEW_AT_RISK
+    first,
+    ". ",
+    "Follow-up was cut into years of ",
+    .HORIZON_WINDOW_WEEKS,
+    " weeks from time zero, and the last year ended at the horizon. ",
+    "The expected events of an arm in a year were its weighted person-time ",
+    "multiplied by the pooled weighted event rate of both arms. ",
+    "When any year failed the rule, the incidence rate ratio, risk ",
+    "difference and number needed to treat of that estimand were not ",
+    "reported. ",
+    if (length(spec$subgroups %||% list()) > 0L) {
+      "Its subgroup rate ratios and interaction tests were withheld too. "
+    },
+    "Events, person-time and rates were still reported. ",
+    "Which years passed depended on the observed events, through the pooled ",
+    "rate. ",
+    "The rule was a reporting rule and did not guarantee precision or ",
+    "coverage."
   ))
 }
 
@@ -240,9 +244,9 @@
 #' Decide whether a results sheet carries the risk-difference columns.
 #'
 #' The sheet carries them when at least one of its rows has a finite risk
-#' difference, or a risk difference withheld for a sparse risk set. The
-#' Summary sheet applies the same rule, so it shows a risk difference only when
-#' the results sheet shows one.
+#' difference, or a risk difference the horizon rule withheld. The Summary
+#' sheet applies the same rule, so it shows a risk difference only when the
+#' results sheet shows one.
 #'
 #' @param rd_cells A list with one element per sheet row, each the output of
 #'   `.rd_sheet_cells()`.
@@ -380,6 +384,7 @@
   rd_cells <- list()
   rd_levels <- numeric(0)
   rows <- list()
+  ne_irr <- logical(0)
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     m <- .sensitivity_row_measurements(est, eid, irr_slot)
@@ -390,8 +395,8 @@
     )
     rd_row <- .results_rd_row(est, hit, rd_slot)
     # A row with no usable rates or ratio still shows a stored risk
-    # difference, so a withheld one cannot vanish. Its rate and ratio cells
-    # are then empty, as for a missing ratio.
+    # difference. Its rate and ratio cells are then empty, as for a missing
+    # ratio.
     if (is.null(m) && is.null(rd_row)) {
       next
     }
@@ -428,6 +433,7 @@
       .sensitivity_row_fmt(m, ""),
       setNames(mde_cells, mde_names)
     )
+    ne_irr <- c(ne_irr, isTRUE(m$withheld))
   }
 
   if (length(rows) == 0L) {
@@ -514,6 +520,13 @@
     n_id + 1L,
     data_start_row:data_end_row
   )
+  # The p-value of a withheld ratio reads `NE`, as the ratio does.
+  .sheet_write_ne(
+    wb,
+    sheet_name,
+    (data_start_row:data_end_row)[ne_irr],
+    n_id + length(display_names)
+  )
   mde_start <- n_id + length(display_names) + 1L
   for (j in seq_along(.MDE_SHEET_NUMFMT)) {
     openxlsx::addStyle(
@@ -539,23 +552,18 @@
         stack = TRUE
       )
     }
-    # A withheld risk difference gets words, never an empty cell. The interval
-    # cell beside it already names the reason.
-    for (k in which(vapply(
+    # A withheld risk difference reads `NE`. Its interval cell already does.
+    ne_rd <- vapply(
       rd_cells,
-      function(cells) {
-        return(isTRUE(attr(cells, "withheld")))
-      },
+      function(cells) isTRUE(attr(cells, "withheld")),
       logical(1)
-    ))) {
-      openxlsx::writeData(
-        wb,
-        sheet_name,
-        "not estimable",
-        startCol = rd_start + 2L,
-        startRow = data_start_row + k - 1L
-      )
-    }
+    )
+    .sheet_write_ne(
+      wb,
+      sheet_name,
+      (data_start_row:data_end_row)[ne_rd],
+      rd_start + 2L
+    )
   }
 
   openxlsx::setColWidths(

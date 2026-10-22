@@ -56,7 +56,10 @@ ec_plan <- function() {
         implementation = list(variable = "osd_a")
       ),
       list(name = "Outcome B", implementation = list(variable = "osd_b"))
-    )
+    ),
+    # `tte_stamp_stages()` gives each result a horizon record of this rule.
+    # The writers stop on a result without one.
+    horizon_rule = list(min_expected_events = 0)
   )
   one <- function(eid, enr) {
     rt <- data.table::data.table(

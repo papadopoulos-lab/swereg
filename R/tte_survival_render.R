@@ -104,6 +104,13 @@
 #' @param ylim Numeric length-2 or NULL, passed to `coord_cartesian()`.
 #' @param int_lab Legend label for the intervention arm (red, listed first).
 #' @param cmp_lab Legend label for the comparator arm (blue).
+#' @param horizon_weeks Numeric(1) or `NULL`, the reportable horizon the
+#'   horizon rule stored. When it is below `follow_up`, both curves stop at
+#'   it. A grey band with the label "Not estimable" then covers
+#'   `(horizon_weeks, follow_up]`. The x axis and the numbers-at-risk table
+#'   still run to `follow_up`. A horizon of 0 makes the whole panel the band.
+#'   `NULL` or `NA` draws no band.
+#' @param follow_up Numeric(1) or `NULL`, the follow-up of the ETT in weeks.
 #' @return A `patchwork` object: the curve panel over the numbers-at-risk
 #'   table. It also inherits `ggplot`, and the curve is the composition's own
 #'   plot, so `ggplot2::layer_data()` and `ggplot2::get_labs()` applied to the
@@ -117,7 +124,9 @@
   subtitle = NULL,
   ylim = NULL,
   int_lab = "Intervention",
-  cmp_lab = "Comparator"
+  cmp_lab = "Comparator",
+  horizon_weeks = NULL,
+  follow_up = NULL
 ) {
   surv <- group <- plot_y <- arm_row <- n_at_risk <- tt <- NULL # nolint
   .data <- NULL # nolint
@@ -151,6 +160,24 @@
   # screen, and completely wrong.
   pd[, plot_y := if (cumulative) 1 - surv else surv]
 
+  # The horizon rule withheld the estimates beyond `horizon_weeks`. The curves
+  # stop there, and a band marks the rest of the follow-up.
+  band <- length(horizon_weeks) == 1L &&
+    length(follow_up) == 1L &&
+    is.finite(horizon_weeks) &&
+    is.finite(follow_up) &&
+    horizon_weeks < follow_up
+  if (band) {
+    pd <- pd[pd[[time_var]] <= horizon_weeks]
+    # The label sits in the middle of the visible y range. A horizon of 0
+    # leaves only the origin, so the panel then shows the whole scale.
+    y_rng <- range(pd$plot_y)
+    if (diff(y_rng) == 0) {
+      y_rng <- c(0, 1)
+    }
+    y_mid <- if (is.null(ylim)) mean(y_rng) else mean(ylim)
+  }
+
   y_lab <- if (cumulative) {
     "Weighted cause-specific cumulative failure"
   } else {
@@ -162,7 +189,7 @@
   # separately-specified scales drift the moment either side is edited.
   times <- sort(unique(curve[[time_var]]))
   x_breaks <- .risk_table_break_times(times)
-  x_limits <- range(c(0, times))
+  x_limits <- range(c(0, times, if (band) follow_up))
   x_scale <- function() {
     return(ggplot2::scale_x_continuous(
       breaks = x_breaks,
@@ -174,7 +201,28 @@
   p_curve <- ggplot2::ggplot(
     pd,
     ggplot2::aes(x = .data[[time_var]], y = plot_y, color = group)
-  ) +
+  )
+  if (band) {
+    p_curve <- p_curve +
+      ggplot2::annotate(
+        "rect",
+        xmin = horizon_weeks,
+        xmax = follow_up,
+        ymin = -Inf,
+        ymax = Inf,
+        fill = "grey85"
+      ) +
+      ggplot2::annotate(
+        "text",
+        x = (horizon_weeks + follow_up) / 2,
+        y = y_mid,
+        label = "Not estimable",
+        angle = 90,
+        colour = "grey30"
+      ) +
+      ggplot2::expand_limits(y = y_rng)
+  }
+  p_curve <- p_curve +
     ggplot2::geom_step(linewidth = 1) +
     ggplot2::scale_color_manual(
       values = stats::setNames(c("blue", "red"), c(cmp_lab, int_lab)),

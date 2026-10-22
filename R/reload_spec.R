@@ -354,6 +354,31 @@
   }
   return(invisible(NULL))
 }
+#' Classify the `horizon_rule` block.
+#'
+#' `min_expected_events` decides which estimates s3 reports. It does not change
+#' who is enrolled, how swereg weights them or which events it counts. s1 and
+#' s2 output stays valid, so the change is cosmetic. Any other key in the block
+#' is unclassified, and so structural.
+#'
+#' @noRd
+.ds_diff_horizon_rule <- function(old, new, pc, ps) {
+  a <- old$horizon_rule[["min_expected_events"]]
+  b <- new$horizon_rule[["min_expected_events"]]
+  if (!identical(a, b)) {
+    pc("horizon_rule$min_expected_events", a, b)
+  }
+  .ds_residual(
+    old$horizon_rule,
+    new$horizon_rule,
+    "min_expected_events",
+    "horizon_rule$",
+    ps
+  )
+  return(invisible(NULL))
+}
+
+
 #' Classify the `enrollments` block.
 #'
 #' Enrollments match by `id`. An enrollment that only one spec holds is
@@ -506,6 +531,7 @@
   "enrollments",
   "exclusion_criteria",
   "follow_up",
+  "horizon_rule",
   "inclusion_criteria",
   "open_questions",
   "outcomes",
@@ -557,6 +583,7 @@
   .ds_diff_outcomes(old, new, push_c, push_s)
   .ds_diff_var_blocks(old, new, push_c, push_s)
   .ds_diff_display(old, new, push_c)
+  .ds_diff_horizon_rule(old, new, push_c, push_s)
   .ds_diff_enrollments(old, new, push_c, push_s)
   .ds_residual(old, new, .DS_TOP_LEVEL_BLOCKS, "", push_s)
 
@@ -697,6 +724,8 @@
 #' 7. `enrollments[<id>]$name` and `$family`
 #' 8. `enrollments[<id>]$treatment$description`
 #' 9. `enrollments[<id>]$treatment$arms$intervention` and `$comparator`
+#' 10. `horizon_rule$min_expected_events`. A plan saved before the block
+#'     existed holds no `horizon_rule`, and this function writes one into it.
 #'
 #' It matches an outcome by position, a confounder and a subgroup by
 #' implementation variable, and an enrollment by `id`. That is how
@@ -744,6 +773,12 @@
   }
 
   old$enrollments <- .copy_enrollment_labels(old$enrollments, new$enrollments)
+
+  a <- old$horizon_rule[["min_expected_events"]]
+  b <- new$horizon_rule[["min_expected_events"]]
+  if (!identical(a, b)) {
+    old$horizon_rule[["min_expected_events"]] <- b
+  }
 
   return(old)
 }

@@ -36,14 +36,17 @@ A named character vector. Each element is the Markdown text of one
 field, and the names are the OSF field headings: \verb{Study design},
 \verb{Sample size}, \verb{Measured variables/Exposures},
 \verb{Measured variables/Outcomes}, \verb{Measured variables/Baseline covariates},
-\verb{Statistical models}, \code{Transformations}, \verb{Data inclusion and exclusion},
-\verb{Missing data}, \verb{Other planned analysis} and \verb{Code list}.
+\verb{Statistical models}, \code{Transformations}, \verb{Inference criteria},
+\verb{Data inclusion and exclusion}, \verb{Missing data}, \verb{Other planned analysis}
+and \verb{Code list}. \verb{Inference criteria} states the horizon rule from
+\code{horizon_rule$min_expected_events}.
 }
 \description{
 Writes the text of each field of the OSF Preregistration form whose content
 the study specification and swereg fix: the design, the sampling, the
 treatment strategies, the outcomes, the covariates, the eligibility
-criteria, the analysis and the code list. Each fact appears in one field.
+criteria, the analysis, the horizon rule and the code list. Each fact
+appears in one field.
 The other fields point to it as \code{'Field/Subheading'}.
 }
 \details{
@@ -91,6 +94,8 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
+    "horizon_rule:",
+    "  min_expected_events: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

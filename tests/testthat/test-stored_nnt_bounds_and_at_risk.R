@@ -438,6 +438,7 @@ test_that("the survival figure draws from storage with no analysis file", {
       title = "Fixture",
       implementation = list(project_prefix = "nn")
     ),
+    horizon_rule = list(min_expected_events = 0),
     enrollments = list(list(
       id = "01",
       name = "Enrollment one",

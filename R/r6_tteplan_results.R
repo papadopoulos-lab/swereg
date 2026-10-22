@@ -52,10 +52,18 @@ TTEPlan$set("public", "results_summary", function() {
 #' `"<0.001"`. `rd` is a proportion, not a rate per 10,000. The consumer
 #' formats it.
 #'
-#' Five sibling methods return the other stored results in the same shape:
+#' Six sibling methods return the other stored results in the same shape:
 #' `$get_curves()`, `$get_baselines()`, `$get_attrition()`,
-#' `$get_matching()` and `$get_subgroups()`. Each takes no argument, and
-#' each computes nothing.
+#' `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
+#' takes no argument, and each computes nothing.
+#'
+#' `horizon_reportable_weeks` and `horizon_status` READ the horizon-rule
+#' decision `$s3_analyze()` stored for the estimand. Both weightings of the
+#' per-protocol estimand share one decision. A `horizon_status` that starts
+#' with `"below horizon rule"` marks a withheld estimand. Its ratio, risk
+#' difference and number needed to treat are `NA`, and `interval_status`
+#' holds the same text. A result stored before the rule gives `NA` in both
+#' columns.
 #'
 #' The number needed to treat carries its interval. `nnt` is the point
 #' estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
@@ -68,16 +76,11 @@ TTEPlan$set("public", "results_summary", function() {
 #' the analysis file of that estimand. On an intention-to-treat row they are
 #' the intention-to-treat analysis set, which the CONSORT flow reads.
 #'
-#' A risk difference withheld for a sparse risk set has `rd`, `rd_lo`,
-#' `rd_hi` and the number-needed-to-treat columns `NA`, and `interval_status`
-#' reads `"too few at risk at horizon"`. `min_persons_at_risk` holds the head
-#' count the rule used, and `NA` where the stored result predates the rule.
-#'
-#' @return A data.table with 48 columns. The identifiers come first, then
+#' @return A data.table with 49 columns. The identifiers come first, then
 #'   the weighted counts and the person-trials of each arm. The incidence rate
 #'   ratio follows, then the risk difference and the number needed to treat.
-#'   `n_boot`, `seed`, `conf_level` and `min_persons_at_risk` record what
-#'   produced the risk difference.
+#'   `n_boot`, `seed` and `conf_level` record what produced the
+#'   risk-difference interval.
 TTEPlan$set("public", "get_estimates", function() {
   return(.acc_estimates(self))
 })
@@ -270,6 +273,29 @@ TTEPlan$set("public", "get_subgroups", function() {
   return(.acc_subgroups(self))
 })
 
+#' @description Every stored horizon-rule window, as one flat table.
+#'
+#' One row per emulated trial, estimand, follow-up window and arm. A window
+#' is 52 weeks wide, and the last window ends at the follow-up of the ETT.
+#' `py_weighted` and `events_weighted` are the weighted person-years and
+#' events of the arm in the window. `rate_pooled` is the weighted events of
+#' both arms over the weighted person-years of both arms. `events_expected`
+#' is `rate_pooled` times `py_weighted`. `pass` is the decision of the
+#' window: both arms reach `min_expected_events`.
+#'
+#' Each row repeats the record it came from: `weight_col`,
+#' `min_expected_events`, `horizon_reportable_weeks` and `horizon_status`.
+#' The method computes nothing. A result stored before the rule gives no
+#' rows.
+#'
+#' @return A data.table with columns `ett_id`, `estimand`, `weight_col`,
+#'   `min_expected_events`, `window_lo`, `window_hi`, `arm`, `py_weighted`,
+#'   `events_weighted`, `rate_pooled`, `events_expected`, `pass`,
+#'   `horizon_reportable_weeks` and `horizon_status`.
+TTEPlan$set("public", "get_horizon_windows", function() {
+  return(.acc_horizon_windows(self))
+})
+
 #' @description The target trial protocol table of one emulated trial.
 #'
 #' The table has seven rows, one per protocol component in the order of
@@ -396,7 +422,11 @@ TTEPlan$set(
       analysis_files <- file.path(output_dir, enr_rows$file_analysis)
       present <- file.exists(analysis_files)
       if (!any(present)) {
-        warning("No analysis files found on disk for enrollment ", eid, call. = FALSE)
+        warning(
+          "No analysis files found on disk for enrollment ",
+          eid,
+          call. = FALSE
+        )
         next
       }
       analysis_files <- analysis_files[present]

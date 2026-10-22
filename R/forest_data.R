@@ -62,7 +62,8 @@
 #' renders `(no estimate)`.
 #'
 #' `irr_estimable` travels with the ratio. `$s3_analyze()` decides it and
-#' stores it, and every formatter below reads that column.
+#' stores it, and every formatter below reads that column. `horizon_status`
+#' travels too, so a ratio the horizon rule withheld reads `NE`.
 #'
 #' `outcome_description` is read from `plan$ett`, which is an INPUT rather than
 #' a result. `$get_estimates()` carries no such column.
@@ -158,7 +159,8 @@
       lo = row$irr_lo,
       hi = row$irr_hi,
       pvalue = row$irr_pvalue,
-      irr_estimable = row$irr_estimable
+      irr_estimable = row$irr_estimable,
+      horizon_status = row$horizon_status
     ))
   })
   rows <- Filter(Negate(is.null), rows)
@@ -210,7 +212,7 @@
 #'   `tstop_var`).
 #' @return A one-row data.table with the columns
 #'   `.render_combined_forest_plot()` expects in `rd_lookup`, plus
-#'   `follow_up_interval`, `conf_level` and `min_persons_at_risk`.
+#'   `follow_up_interval` and `conf_level`.
 #' @noRd
 .forest_rd_row <- function(ett_id, curve, time_var) {
   if (is.null(curve) || nrow(curve) == 0L) {
@@ -221,9 +223,6 @@
   }
   i <- which.max(curve[[time_var]])
   cl <- attr(curve, "conf_level", exact = TRUE)
-  # The head-count threshold the curve was computed with. A curve from before
-  # the threshold existed gives `NA`.
-  k_attr <- attr(curve, "min_persons_at_risk", exact = TRUE)
   # Copied, never derived. A curve written before the decision columns existed
   # gives `NA`, and `NA` renders an empty cell downstream.
   from_curve <- function(nm, empty) {
@@ -245,8 +244,7 @@
     n_persons_with_event_comparator = as.numeric(
       curve$n_persons_with_event_comparator[i]
     ),
-    conf_level = if (is.null(cl)) NA_real_ else as.numeric(cl),
-    min_persons_at_risk = if (is.null(k_attr)) NA_real_ else as.numeric(k_attr)
+    conf_level = if (is.null(cl)) NA_real_ else as.numeric(cl)
   ))
 }
 

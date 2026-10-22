@@ -87,7 +87,7 @@ power.
 \item{\verb{$rates(weight_col)}}{Calculate events, person-years, and rates}
 \item{\verb{$irr(weight_col)}}{Fit Poisson models and extract IRR}
 \item{\verb{$survival_curve(weight_col, save_path, title)}}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying \code{analysis_weight_pp_trunc})}
-\item{\verb{$risk_difference(weight_col, n_boot, seed, conf_level, min_persons_at_risk)}}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level. A stop time with fewer than \code{min_persons_at_risk} people at risk in an arm gets none}
+\item{\verb{$risk_difference(weight_col, n_boot, seed, conf_level)}}{Signed cause-specific risk difference at each distinct stop time, with a percentile bootstrap interval resampled at the person level}
 }
 
 \strong{Active bindings:}
@@ -582,12 +582,6 @@ anti-conservative, and more replicates do not repair it. The condition is
 evaluated per horizon and per arm, on the events up to and including that
 stop time.
 
-A sparse risk set gets no risk difference at all. When either arm has fewer
-than \code{min_persons_at_risk} people at risk at a stop time, \code{rd}, \code{rd_lo},
-\code{rd_hi} and the number-needed-to-treat columns are \code{NA} there, and
-\code{interval_status} reads \code{"too few at risk at horizon"}. The late hazards
-then rest on a few people, and the bootstrap interval undercovers.
-
 Deaths are censored, not modelled as a competing risk, so this is a
 cause-specific risk difference under independent censoring, not a
 competing-risk one.
@@ -597,8 +591,7 @@ competing-risk one.
   weight_col,
   n_boot = 500L,
   seed = NULL,
-  conf_level = 0.95,
-  min_persons_at_risk = 10L
+  conf_level = 0.95
 )}
     \if{html}{\out{</div>}}
   }
@@ -612,9 +605,6 @@ allowed), as in \verb{$survival_curve()}.}
 caller's random stream is restored afterwards.}
       \item{\code{conf_level}}{Numeric in (0, 1), percentile interval level
 (default 0.95).}
-      \item{\code{min_persons_at_risk}}{Whole number of at least 0 (default 10). A stop
-time where either arm has fewer people at risk gets no risk difference.
-\code{0} withholds nothing.}
     }
     \if{html}{\out{</div>}}
   }
@@ -625,12 +615,11 @@ and columns \code{tstop}
 \code{rd}, \code{rd_lo}, \code{rd_hi}, \code{interval_status}, \code{nnt}, \code{nnt_direction},
 \code{n_persons_with_event_comparator} and \code{n_persons_with_event_intervention}.
 
-\code{interval_status} takes one of four values. \code{"ok"} means the interval
+\code{interval_status} takes one of three values. \code{"ok"} means the interval
 is estimable and strictly excludes the null. \code{"spans null"} means the
 interval is estimable and contains the null. \code{"zero-event arm"} means
-there is no interval. \code{"too few at risk at horizon"} means there is no
-risk difference. A reader can therefore separate an interval that spans
-the null from one that does not exist.
+there is no interval. A reader can therefore separate an interval that
+spans the null from one that does not exist.
 
 \code{nnt} is the signed number needed to treat, \code{-1/rd}. \code{nnt_direction}
 reads \code{"benefit"}, \code{"harm"} or \code{NA_character_}, and it is the stored
@@ -648,7 +637,7 @@ numbers differ.
 
 The replicate matrix the interval was read off is attached as the \code{rd_boot}
 attribute (\code{n_boot} rows by one column per stop time), alongside
-\code{conf_level}, \code{n_boot} and \code{min_persons_at_risk}.
+\code{conf_level} and \code{n_boot}.
   }
 }
 

@@ -16,6 +16,10 @@
 #'
 #' The two interval headers state the study level `.s3_conf_level()`, the
 #' level s3 computed the stratum intervals at.
+#'
+#' An estimand that the horizon rule withheld reads `NE` in its stratum ratio
+#' and interval cells, and in its interaction-test cells on the `"all"` row.
+#' The writer reads the decision from `horizon_status` in `$get_estimates()`.
 #' @noRd
 .write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
@@ -45,6 +49,12 @@
 
   sg <- plan$get_subgroups()
   analysed <- .plan_analysed_ett_ids(plan)
+  est <- plan$get_estimates()
+  withheld_of <- function(eid, want_estimand) {
+    hit <- which(est$ett_id == eid & est$estimand == want_estimand)
+    return(any(.tte_horizon_withheld(est$horizon_status[hit])))
+  }
+  ne_rows <- list()
   ci_hdr <- paste0(.ff_conf_pct(.s3_conf_level(plan$spec)), "% CI")
 
   # `which()` runs OUTSIDE the data.table subset, so `want_estimand` is the
@@ -111,6 +121,8 @@
     } else {
       character(0)
     }
+    ne_pp <- withheld_of(eid, "pp")
+    ne_itt <- withheld_of(eid, "itt")
     for (sv in sg_vars) {
       pp <- slot_rows(eid, sv, "pp")
       itt <- slot_rows(eid, sv, "itt")
@@ -127,6 +139,11 @@
         pc <- irr_cell(pp, lvl)
         ic <- irr_cell(itt, lvl)
         is_all <- identical(lvl, "all")
+        # `[<-` with `list()`, so a row with nothing withheld keeps its slot.
+        ne_rows[length(ne_rows) + 1L] <- list(c(
+          if (ne_pp) c(5L, 6L, if (is_all) c(9L, 10L)),
+          if (ne_itt) c(7L, 8L, if (is_all) c(11L, 12L))
+        ))
         rows[[length(rows) + 1L]] <- data.frame(
           Enrollment = eid,
           Outcome = ett$outcome_name[i],
@@ -179,6 +196,13 @@
       border = "bottom"
     )
   )
+  # A withheld estimand reads `NE`. The number columns keep their numbers on
+  # every other row, so the text goes in cell by cell, after the table.
+  for (k in seq_along(ne_rows)) {
+    for (col in ne_rows[[k]]) {
+      .sheet_write_ne(wb, sheet_name, row_ptr + k, col)
+    }
+  }
   openxlsx::setColWidths(
     wb,
     sheet_name,

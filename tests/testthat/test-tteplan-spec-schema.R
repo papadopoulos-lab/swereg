@@ -111,7 +111,8 @@ test_that("the schema pins the measured legacy and metadata sets", {
 
 test_that("the schema declares the keys swereg reads but no specification uses", {
   # These are the 14 paths the schema declares beyond the 124 the fleet uses,
-  # and the 4 paths of the sparse_rule block that 27.2.1 added.
+  # the 4 paths of the sparse_rule block that 27.2.1 added, and the 2 paths of
+  # the horizon_rule block.
   # `inclusion_criteria$criteria` is the replacement container. `subgroups`,
   # `observed_var$column` and `study$implementation$conf_level` are read by
   # swereg. No specification in the fleet carried any of them when the schema
@@ -134,10 +135,24 @@ test_that("the schema declares the keys swereg reads but no specification uses",
     "$/sparse_rule",
     "$/sparse_rule/min_n",
     "$/sparse_rule/decided_by",
-    "$/sparse_rule/candidates"
+    "$/sparse_rule/candidates",
+    "$/horizon_rule",
+    "$/horizon_rule/min_expected_events"
   )
   expect_identical(
     .tte_spec_key_class(declared),
     rep("consumed", length(declared))
+  )
+})
+
+
+test_that("the horizon_rule block declares one key and no window width", {
+  expect_identical(
+    .TTE_SPEC_SCHEMA[["$/horizon_rule"]],
+    list(consumed = "min_expected_events")
+  )
+  expect_identical(
+    .tte_spec_key_class("$/horizon_rule/window_weeks"),
+    NA_character_
   )
 })

@@ -737,6 +737,27 @@ TTEPlan$set(
 #' those numbers and never recomputes them. The IRR intervals and the
 #' interval of the ratio of stratum IRRs use the same level.
 #'
+#' The horizon rule. The RD item of each estimand also cuts follow-up into
+#' 52-week windows. In each window it computes the expected events of each
+#' arm, which are the pooled weighted rate times the weighted person-years of
+#' that arm. A window passes when both arms reach
+#' `spec$horizon_rule$min_expected_events`. When a window fails, the method
+#' withholds the estimates of that estimand. It sets these to `NA`:
+#' \itemize{
+#'   \item the incidence rate ratios and the subgroup ratios;
+#'   \item the risk difference and the number needed to treat;
+#'   \item the interaction tests.
+#' }
+#' Their `interval_status` and `horizon_status` then read
+#' `"below horizon rule: <arm> arm, weeks <lo>-<hi>"`, which names the first
+#' failing window. Events, person-years, rates and the survival curve stay.
+#' The record is stored as `horizon_pp` and `horizon_itt`, and
+#' `$get_horizon_windows()` returns its window table. Which windows pass
+#' depends on the observed events, through the pooled rate.
+#'
+#' The method stops when the spec has no `horizon_rule`. It also stops when an
+#' ETT of the run has no horizon decision for an estimand.
+#'
 #' Cost. Each risk difference is its own work item, so it is its own worker
 #' process with its own read of the analysis file. That is two more reads
 #' per ETT, or 1,080 more reads on a 540-ETT grid.
@@ -769,11 +790,6 @@ TTEPlan$set(
 #'   scales linearly with `n_workers`; on machines with multi-GB
 #'   analysis files, set this conservatively. CPU threads per worker
 #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
-#' @param rd_min_persons_at_risk Whole number of at least 0 (default 10). A
-#'   risk difference is withheld, point estimate included, at a stop time
-#'   where either arm has fewer people at risk. Its `interval_status` then
-#'   reads `"too few at risk at horizon"`. The incidence rate ratio does not
-#'   read it.
 TTEPlan$set(
   "public",
   "s3_analyze",
@@ -782,17 +798,13 @@ TTEPlan$set(
     ett_ids = NULL,
     output_dir = NULL,
     swereg_dev_path = NULL,
-    n_workers = default_n_workers("s3"),
-    rd_min_persons_at_risk = 10L
+    n_workers = default_n_workers("s3")
   ) {
     # This checked >= 1 but never whole-ness, then as.integer()'d anyway -- so
     # s3_analyze(2.5) silently became 2 workers before parallel_pool() ever
     # saw the value.
     n_workers <- .validate_n_workers(n_workers, "s3_analyze()")
-    .tte_check_min_persons_at_risk(
-      rd_min_persons_at_risk,
-      "rd_min_persons_at_risk"
-    )
+    horizon_rule <- .tte_assert_horizon_rule_present(self$spec, "s3_analyze()")
     .tte_assert_sparse_decision_current(self, "s3_analyze()")
     .tte_assert_s1_completed(self, "s3_analyze()")
     if (is.null(output_dir)) {
@@ -934,7 +946,8 @@ TTEPlan$set(
         weight_col = weight_col,
         subgroup_var = subgroup_var,
         conf_level = rd_conf_level,
-        rd_min_persons_at_risk = rd_min_persons_at_risk
+        horizon_rule = horizon_rule,
+        follow_up = as.numeric(ett_todo$follow_up[match(eid, ett_todo$ett_id)])
       ))
     }
 
@@ -1238,6 +1251,12 @@ TTEPlan$set(
         }
       }
       rm(all_results)
+      # The horizon decisions, after every worker return is stored. It stops
+      # when an ETT of this run has no decision for an estimand.
+      self$results_ett <- .s3_apply_horizon_rule(
+        self$results_ett,
+        ett_todo$ett_id
+      )
     }
 
     # s3 calls the methods of the serialised analysis enrollment, which keep
@@ -1280,6 +1299,7 @@ TTEPlan$set(
     } else {
       cat("s3: no ETT fit raised a warning.\n")
     }
+    .s3_horizon_report(self$results_ett, ett_todo$ett_id)
 
     return(invisible(self))
   }

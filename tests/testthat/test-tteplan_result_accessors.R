@@ -416,7 +416,7 @@ skip_if_not_installed("data.table")
     "irr_hi", "irr_pvalue", "irr_estimable", "irr_stored",
     "irr_interval_stored", "rd_stored", "rd", "rd_lo", "rd_hi",
     "interval_status", "nnt", "nnt_lo", "nnt_hi", "nnt_direction", "n_boot",
-    "seed", "conf_level", "min_persons_at_risk"
+    "seed", "conf_level", "horizon_reportable_weeks", "horizon_status"
   ),
   curves = c(
     "ett_id", "estimand", "weights", "arm", "follow_up_interval", "surv",
@@ -742,9 +742,11 @@ test_that("effect and decision fields carry no formatting", {
   }
   expect_true(is.logical(e$irr_estimable))
 
-  # The two decision columns are stored vocabulary, not rendered text.
+  # The two decision columns are stored vocabulary, not rendered text. The
+  # horizon rule writes a status that starts with its prefix.
   expect_true(all(
-    e$interval_status %in% c("ok", "spans null", "zero-event arm", NA)
+    e$interval_status %in% c("ok", "spans null", "zero-event arm", NA) |
+      startsWith(e$interval_status, swereg:::.HORIZON_STATUS_PREFIX)
   ))
   expect_true(all(e$nnt_direction %in% c("benefit", "harm", NA)))
 

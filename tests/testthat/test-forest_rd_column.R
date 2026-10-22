@@ -487,8 +487,7 @@ test_that("the cached row copies the decision off the curve", {
   curve <- trial$risk_difference(
     weight_col = "analysis_weight_pp_trunc",
     n_boot = 20L,
-    seed = 1L,
-    min_persons_at_risk = 0L
+    seed = 1L
   )
   row <- swereg:::.forest_rd_row("ETT00001", curve, "tstop")
 
@@ -506,8 +505,7 @@ test_that("a curve without the decision columns gives a row with NA, not a guess
   curve <- trial$risk_difference(
     weight_col = "analysis_weight_pp_trunc",
     n_boot = 20L,
-    seed = 1L,
-    min_persons_at_risk = 0L
+    seed = 1L
   )
   curve[, c("nnt", "nnt_direction") := NULL]
 
@@ -742,10 +740,7 @@ rd_export_run_s3 <- function(plan, dir, conf_level = 0.95) {
     ett_id = "ETT00001",
     n_threads = 1L,
     subgroup_var = NULL,
-    conf_level = conf_level,
-    # The fixture holds a handful of people. 0 keeps every stop time, so this
-    # block reads the export path, not the head-count rule.
-    rd_min_persons_at_risk = 0L
+    conf_level = conf_level
   )
   for (k in names(res)) {
     plan$results_ett[["ETT00001"]][[k]] <- res[[k]]

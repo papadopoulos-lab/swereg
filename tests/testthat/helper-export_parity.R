@@ -226,6 +226,7 @@
       title = "Phase six parity fixture",
       implementation = list(project_prefix = "xp", conf_level = 0.95)
     ),
+    horizon_rule = list(min_expected_events = 0),
     enrollments = list(
       list(
         id = "01", name = "Enrollment one",

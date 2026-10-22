@@ -159,6 +159,7 @@ spr_spec_list <- function(rule = NULL, project_prefix = "sprtest") {
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
+    horizon_rule = list(min_expected_events = 0),
     enrollments = list(
       spr_enrollment("01", age_max = 80, seed = 1L),
       spr_enrollment("02", age_max = 55, seed = 2L)

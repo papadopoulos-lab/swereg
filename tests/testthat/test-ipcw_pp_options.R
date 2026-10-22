@@ -76,6 +76,17 @@ skip_if_not_installed("yaml")
         return(list(n_baseline = 100L, swereg_version_s2 = .ipo_running()))
       }
       res <- list(summary = "SUMMARY", swereg_version_s2 = .ipo_running())
+      # A risk-difference item returns the horizon decision of its estimand,
+      # as the real worker does. The parent stops without one.
+      if (identical(it$method, "risk_difference")) {
+        est <- if (identical(it$weight_col, "ipw_trunc")) "itt" else "pp"
+        # The record holds the rule of `ttm_write_spec()`. The writers stop
+        # without it.
+        res[[paste0("horizon_", est)]] <- list(
+          withheld = FALSE,
+          rule = list(min_expected_events = 0)
+        )
+      }
       if (!grepl("_analysis_itt_", basename(it$analysis_path), fixed = TRUE)) {
         res$ipcw_pp_options <- opts[[it$ett_id]]
       }
@@ -114,7 +125,11 @@ skip_if_not_installed("yaml")
   )
   gam <- regmatches(
     it6h,
-    regexpr("(?<=person-time offset\\. ).*?(?= Each included)", it6h, perl = TRUE)
+    regexpr(
+      "(?<=person-time offset\\. ).*?(?= Each included)",
+      it6h,
+      perl = TRUE
+    )
   )
   return(c(by_arm = by_arm, gam = gam))
 }
@@ -151,15 +166,17 @@ test_that("the s2 worker records the settings on a per-protocol file only, and t
   qs2::qs_save(trial, imp, nthreads = 1L)
 
   s2 <- function(estimand) {
-    return(swereg:::.s2_worker(
-      outcome = "event",
-      follow_up = max(long$tstop),
-      file_imp_path = imp,
-      n_threads = 1L,
-      sep_by_tx = FALSE,
-      with_gam = FALSE,
-      estimand = estimand
-    )$analysis)
+    return(
+      swereg:::.s2_worker(
+        outcome = "event",
+        follow_up = max(long$tstop),
+        file_imp_path = imp,
+        n_threads = 1L,
+        sep_by_tx = FALSE,
+        with_gam = FALSE,
+        estimand = estimand
+      )$analysis
+    )
   }
   pp <- s2("pp")
   itt <- s2("itt")
@@ -224,7 +241,10 @@ test_that("item 6h states non-default settings that s2 recorded", {
   eids <- plan$ett$ett_id
   .ipo_run_s3(
     plan,
-    stats::setNames(list(.ipo_opts(FALSE, FALSE), .ipo_opts(FALSE, FALSE)), eids)
+    stats::setNames(
+      list(.ipo_opts(FALSE, FALSE), .ipo_opts(FALSE, FALSE)),
+      eids
+    )
   )
   s <- .ipo_settings(.ipo_6h(plan))
   expect_identical(

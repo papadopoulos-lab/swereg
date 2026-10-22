@@ -25,7 +25,10 @@
 #'
 #' Validation checks:
 #' \itemize{
-#'   \item Required sections: study, enrollments, outcomes, follow_up
+#'   \item Required sections: study, enrollments, outcomes, follow_up,
+#'     horizon_rule
+#'   \item `horizon_rule$min_expected_events` MUST be one finite number of at
+#'     least 0
 #'   \item `study$implementation$project_prefix` must exist
 #'   \item Each entry in `inclusion_criteria$criteria` must declare
 #'     `implementation$source_variable`, and must generate an eligibility
@@ -124,6 +127,21 @@
 #' comparator draw and without follow-up outcomes. [TTEPlan] stores the
 #' decision in its `sparse_decision` field.
 #'
+#' @section The horizon_rule:
+#'
+#' Every spec MUST declare one `horizon_rule` block. It holds one key.
+#'
+#' \preformatted{
+#' horizon_rule:
+#'   min_expected_events: 5
+#' }
+#'
+#' `min_expected_events` is the minimum number of expected events per arm in
+#' each follow-up year. It MUST be one finite number of at least 0. The
+#' function refuses a missing block, an empty block and any other key in the
+#' block. `$reload_spec()` copies a changed value onto a cached plan, because
+#' the value does not change who is enrolled or how swereg weights them.
+#'
 #' @seealso [tteplan_check_spec()], which reports every problem as a row and
 #'   does not stop.
 #' @family tte_spec
@@ -178,7 +196,8 @@ tteplan_read_spec <- function(spec_path) {
     "study",
     "enrollments",
     "outcomes",
-    "follow_up"
+    "follow_up",
+    "horizon_rule"
   )
   missing <- setdiff(required_sections, names(spec))
   if (length(missing) > 0) {
@@ -193,6 +212,8 @@ tteplan_read_spec <- function(spec_path) {
   if (is.null(spec$study$implementation$project_prefix)) {
     stop("study$implementation$project_prefix is required", call. = FALSE)
   }
+
+  spec <- .tte_check_horizon_rule(spec)
 
   # Normalize the global inclusion criteria. `inclusion_criteria` is a fixed
   # container, so a strict-key validator can name every legal path inside it.

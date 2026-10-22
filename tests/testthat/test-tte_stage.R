@@ -65,16 +65,14 @@
       ett_ids = "D_ett_ids",
       output_dir = "D_output_dir",
       swereg_dev_path = "D_swereg_dev_path",
-      n_workers = "D_n_workers",
-      rd_min_persons_at_risk = "D_rd_min_persons_at_risk"
+      n_workers = "D_n_workers"
     ) {
       rec$args$s3 <- list(
         enrollment_ids = enrollment_ids,
         ett_ids = ett_ids,
         output_dir = output_dir,
         swereg_dev_path = swereg_dev_path,
-        n_workers = n_workers,
-        rd_min_persons_at_risk = rd_min_persons_at_risk
+        n_workers = n_workers
       )
       note("s3_analyze")
       invisible(NULL)
@@ -276,8 +274,7 @@ test_that("tte_stage('s3') forwards by name, then summarises, saves and prints t
     "s3",
     "/no/such/plan/dir",
     n_workers = 2L,
-    output_dir = "OUT",
-    rd_min_persons_at_risk = 20L
+    output_dir = "OUT"
   )
 
   expect_identical(
@@ -287,8 +284,7 @@ test_that("tte_stage('s3') forwards by name, then summarises, saves and prints t
       ett_ids = "D_ett_ids",
       output_dir = "OUT",
       swereg_dev_path = "D_swereg_dev_path",
-      n_workers = 2L,
-      rd_min_persons_at_risk = 20L
+      n_workers = 2L
     )
   )
   # s3 stores the baseline panel, so the checklist it prints here is the

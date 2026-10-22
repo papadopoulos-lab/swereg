@@ -157,6 +157,7 @@
     )
   ]
   df[, txt_irr := mapply(.ff_irr_ci, irr, lo, hi, estimable)]
+  df[, txt_irr := .ff_irr_withheld(txt_irr, df[["horizon_status"]])]
 
   # Signed cause-specific risk difference per 10,000 people, with its interval,
   # and the number needed to treat it inverts to. Both cells are empty on a row

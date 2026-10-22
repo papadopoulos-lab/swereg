@@ -38,6 +38,7 @@
   return(list(
     estimates = plan$get_estimates(),
     curves = plan$get_curves(),
+    subgroups = plan$get_subgroups(),
     baselines = baselines,
     attrition = plan$get_attrition(),
     enrollments = enrollments,

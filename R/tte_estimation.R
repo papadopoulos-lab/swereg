@@ -68,8 +68,8 @@ utils::globalVariables("..keep_cols")
   # both the analytic denominator and the underlying sample size.
   #
   # `events_unweighted` and `py_unweighted` are the plain sums over the same
-  # rows. `.tte_mde()` reads them for the minimum detectable effect, which is a
-  # naive Poisson calculation on counts and not on weighted totals.
+  # rows. `.tte_mde()` does not read them. It reads the weighted events and
+  # person-years of both arms, and uses their pooled weighted rate.
   result <- data[,
     .(
       n_persons = data.table::uniqueN(get(design$person_id_var)),
@@ -1090,8 +1090,6 @@ utils::globalVariables("..keep_cols")
 #' @param n_boot Integer(1), the number of bootstrap replicates.
 #' @param seed Integer(1) or NULL. A seed makes the draw reproducible.
 #' @param conf_level Numeric(1) in (0, 1), the percentile interval level.
-#' @param min_persons_at_risk Numeric(1), the smallest head count in each arm
-#'   at which a stop time gets a risk difference.
 #' @return A data.table with one row per follow-up interval.
 #' @noRd
 .tte_est_risk_difference <- function(
@@ -1099,8 +1097,7 @@ utils::globalVariables("..keep_cols")
   weight_col,
   n_boot = 500L,
   seed = NULL,
-  conf_level = 0.95,
-  min_persons_at_risk = .RD_MIN_PERSONS_AT_RISK_DEFAULT
+  conf_level = 0.95
 ) {
   if (self$data_level != "trial") {
     stop(
@@ -1144,8 +1141,7 @@ utils::globalVariables("..keep_cols")
     weight_col = weight_col,
     n_boot = n_boot,
     conf_level = conf_level,
-    tstart_var = design$tstart_var,
-    min_persons_at_risk = min_persons_at_risk
+    tstart_var = design$tstart_var
   ))
 }
 

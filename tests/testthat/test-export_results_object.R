@@ -41,13 +41,15 @@ test_that("results.qs2 holds the named fields, next to tables.xlsx", {
   expect_identical(
     names(.ro),
     c(
-      "estimates", "curves", "baselines", "attrition", "enrollments",
+      "estimates", "curves", "subgroups", "baselines", "attrition",
+      "enrollments",
       "spec_version", "swereg_version", "swereg_version_computing",
       "s1_run_id", "s2_run_id"
     )
   )
   expect_equal(.ro$estimates, .ro_plan$get_estimates())
   expect_equal(.ro$curves, .ro_plan$get_curves())
+  expect_equal(.ro$subgroups, .ro_plan$get_subgroups())
   expect_equal(.ro$baselines, .ro_plan$get_baselines())
   expect_equal(.ro$attrition, .ro_plan$get_attrition())
   expect_identical(.ro$swereg_version, as.character(utils::packageVersion("swereg")))

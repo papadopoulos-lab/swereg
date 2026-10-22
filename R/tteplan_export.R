@@ -30,7 +30,7 @@
   output_dir = NULL,
   power = 0.8
 ) {
-  # Checked first. A plan without unweighted counts never calls `.tte_mde()`.
+  # Checked first. A plan without stored rates never calls `.tte_mde()`.
   .tte_mde_check_level(power, "power")
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
@@ -40,6 +40,7 @@
   }
   .tte_assert_one_s1_run(plan, "export_tables()")
   .tte_assert_one_s2_run(plan, "export_tables()")
+  .tte_assert_horizon_rule_current(plan, "export_tables()")
   if (
     is.null(plan$results_enrollment) ||
       length(plan$results_enrollment) == 0L
@@ -289,6 +290,14 @@
     "All ETTs - intention-to-treat rates and IRRs"
   )
 
+  # --- Expected events sheet (the horizon-rule window table) ---
+  .write_horizon_sheet(wb, "Expected events", plan)
+  toc_names <- c(toc_names, "Expected events")
+  toc_desc <- c(
+    toc_desc,
+    "Horizon rule - expected events per arm and follow-up year"
+  )
+
   # --- Weight-truncation robustness (supplementary, all ETTs) ---
   # Per-protocol truncated vs untruncated IPW/IPCW weights, side by side.
   # Moved out of the main sequence: the headline sheets are now per
@@ -420,7 +429,10 @@
   # Before 26.13.1 one `<root>_love_plot` pair stood for the Table 1
   # enrollment, and a later re-export would otherwise leave it beside the
   # per-enrollment files.
-  unlink(file.path(img_dir, paste0(img_basename_root, "_love_plot.", c("png", "pdf"))))
+  unlink(file.path(
+    img_dir,
+    paste0(img_basename_root, "_love_plot.", c("png", "pdf"))
+  ))
   baselines <- plan$get_baselines()
   # `which()` runs OUTSIDE the data.table subset. Inside `baselines[...]`
   # the arguments would resolve to the COLUMNS of the same name, and the
@@ -671,6 +683,7 @@
   }
   .tte_assert_one_s1_run(plan, "export()")
   .tte_assert_one_s2_run(plan, "export()")
+  .tte_assert_horizon_rule_current(plan, "export()")
   .plan_warn_computing_versions(plan)
   if (is.null(dir)) {
     dir <- plan$dir_results
@@ -917,6 +930,9 @@
     paths <- character(0)
     id_ett <- as.character(ett_row$ett_id[1])
     curves <- plan$get_curves()
+    # The horizon rule: both curves stop at the reportable horizon, and a grey
+    # band covers the rest of the follow-up.
+    est_all <- plan$get_estimates()
     arms <- .tte_arm_labels_resolved(
       .lookup_arm_labels(plan$spec, spec$enrollment)
     )
@@ -987,7 +1003,11 @@
         title = spec$title %||% ett_row$outcome_name,
         ylim = ylim_plot,
         int_lab = arms[["intervention"]],
-        cmp_lab = arms[["comparator"]]
+        cmp_lab = arms[["comparator"]],
+        horizon_weeks = est_all[
+          ett_id == id_ett & estimand == combo[["estimand"]]
+        ]$horizon_reportable_weeks[1L],
+        follow_up = as.numeric(ett_row$follow_up[1L])
       )
       out <- file.path(dir, paste0(base, "_", est, ".png"))
       ggplot2::ggsave(out, q, width = 8, height = 6, dpi = 300)

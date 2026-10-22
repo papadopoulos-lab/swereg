@@ -25,6 +25,7 @@
   }
   .tte_assert_one_s1_run(plan, "print_target_checklist()")
   .tte_assert_one_s2_run(plan, "print_target_checklist()")
+  .tte_assert_horizon_rule_current(plan, "print_target_checklist()")
 
   bold <- function(x) paste0("\033[1m", x, "\033[0m")
   dim <- function(x) paste0("\033[2m", x, "\033[0m")
@@ -591,8 +592,8 @@
       "% confidence interval of the risk difference was the percentile interval of ",
       .S3_RD_N_BOOT,
       " bootstrap replicates that resampled persons, not person-trials. ",
-      .plan_rd_rule_text(plan),
-      "The number needed to treat was the negative reciprocal of the risk difference, reported as the number needed to treat for benefit or for harm according to its sign."
+      "The number needed to treat was the negative reciprocal of the risk difference, reported as the number needed to treat for benefit or for harm according to its sign. ",
+      .plan_horizon_rule_text(spec)
     )
   )
 
@@ -631,7 +632,11 @@
     )
   }
   incl_7a_text <- if (length(incl_7a) > 0L) {
-    paste0("The inclusion criteria were: ", paste(incl_7a, collapse = "; "), ". ")
+    paste0(
+      "The inclusion criteria were: ",
+      paste(incl_7a, collapse = "; "),
+      ". "
+    )
   } else {
     "The specification stated no inclusion criteria. "
   }

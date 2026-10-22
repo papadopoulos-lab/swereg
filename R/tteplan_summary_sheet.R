@@ -67,7 +67,8 @@
 #' a usable ratio, and without a stored risk difference, has no row on the
 #' results sheet, so all its cells here are `NA`. The event counts and the
 #' risk difference show only when the results sheet carries its
-#' risk-difference columns.
+#' risk-difference columns. A ratio or a risk difference that the horizon rule
+#' withheld reads `NE`, and its event counts stay.
 #'
 #' @param est A `$get_estimates()` table.
 #' @param ett_ids Character vector, the ETTs in sheet order.
@@ -115,7 +116,9 @@
     fmt <- .sensitivity_row_fmt(m, "")
     irr <- fmt[["IRR"]]
     ci <- fmt[["95% CI"]]
-    if (!is.na(irr)) {
+    if (isTRUE(m$withheld)) {
+      out$irr_ci[i] <- "NE"
+    } else if (!is.na(irr)) {
       out$irr_ci[i] <- if (is.na(ci)) irr else paste0(irr, " (", ci, ")")
     }
     out$py_int[i] <- fmt[["PY (int)"]]
@@ -135,10 +138,8 @@
       )
     }
     if (isTRUE(attr(cells, "withheld"))) {
-      out$rd[i] <- cells[[4]]
-      next
-    }
-    if (is.finite(cells[[3]])) {
+      out$rd[i] <- "NE"
+    } else if (is.finite(cells[[3]])) {
       point <- .summary_signed(cells[[3]])
       out$rd[i] <- if (is.na(cells[[4]])) {
         point

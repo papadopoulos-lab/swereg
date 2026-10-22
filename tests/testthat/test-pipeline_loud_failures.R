@@ -48,6 +48,7 @@ skip_if_not_installed("data.table")
 
 test_that("s3_analyze propagates dispatcher failure (no silent swallow)", {
   plan <- .fixture_plan()
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
   # Pre-populate so we don't trip on missing-cache logic.
   plan$results_enrollment <- list("01" = list(table1_unweighted = "stub"))
   plan$results_ett <- list()

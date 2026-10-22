@@ -38,6 +38,8 @@ outcomes:
       variable: osd_z
 follow_up:
   - { label: "1 year", weeks: 52 }
+horizon_rule:
+  min_expected_events: 0
 enrollments:
   - id: "01"
     name: "E01"

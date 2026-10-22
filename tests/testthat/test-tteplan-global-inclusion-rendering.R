@@ -103,6 +103,7 @@ gir_spec <- function(
       implementation = list(variable = "diag_event_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
+    horizon_rule = list(min_expected_events = 0),
     exclusion_criteria = list(list(
       name = "Prior intervention",
       implementation = list(

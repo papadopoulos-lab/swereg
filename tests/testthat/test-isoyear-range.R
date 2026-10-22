@@ -76,7 +76,8 @@ skip_if_not_installed("qs2")
       name = "Outcome A",
       implementation = list(variable = "osd_a")
     )),
-    follow_up = list(list(label = "1 year", weeks = 52L))
+    follow_up = list(list(label = "1 year", weeks = 52L)),
+    horizon_rule = list(min_expected_events = 0)
   ))
 }
 

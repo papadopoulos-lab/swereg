@@ -113,6 +113,7 @@
       "enrollments",
       "exclusion_criteria",
       "follow_up",
+      "horizon_rule",
       "inclusion_criteria",
       "open_questions",
       "outcomes",
@@ -283,6 +284,13 @@
   # `R/tteplan_s1b_sparse.R` reads all three keys.
   "$/sparse_rule" = list(
     consumed = c("candidates", "decided_by", "min_n")
+  ),
+
+  # --- horizon rule ----------------------------------------------------------
+  # `R/tteplan_horizon_rule.R` reads the one key. The window width is not a
+  # spec value, so the gate refuses a `window_weeks` key here.
+  "$/horizon_rule" = list(
+    consumed = "min_expected_events"
   ),
 
   # --- standing methods ------------------------------------------------------

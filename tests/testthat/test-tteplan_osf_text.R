@@ -43,6 +43,8 @@ osf_spec_lines <- function() {
     "      variable: os_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
+    "horizon_rule:",
+    "  min_expected_events: 0",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",
@@ -201,4 +203,25 @@ test_that("subgroups add their analysis and their missing-value rule", {
   expect_match(osf[["Other planned analysis"]], "within each level of Age group", fixed = TRUE)
   expect_match(osf[["Missing data"]], "A missing subgroup value removes the row from the analyses of that subgroup.", fixed = TRUE)
   expect_false(grepl("subgroup", osf_text(osf_write_spec())[["Missing data"]], fixed = TRUE))
+})
+
+test_that("the horizon rule sits in the Inference criteria field, after Transformations", {
+  expect_identical(
+    match(c("Transformations", "Inference criteria"), swereg:::.OSF_FIELDS),
+    c(7L, 8L)
+  )
+  lines <- osf_spec_lines()
+  lines[lines == "  min_expected_events: 0"] <- "  min_expected_events: 5"
+  osf <- osf_text(osf_write_spec(lines))
+  expect_match(
+    osf[["Inference criteria"]],
+    "requires at least 5 expected events per arm in each year of follow-up.",
+    fixed = TRUE
+  )
+  expect_identical(sum(grepl("expected events", osf, fixed = TRUE)), 1L)
+  expect_match(
+    osf_text(osf_write_spec())[["Inference criteria"]],
+    "requires at least 0 expected events per arm in each year of follow-up, so it withholds no estimate.",
+    fixed = TRUE
+  )
 })

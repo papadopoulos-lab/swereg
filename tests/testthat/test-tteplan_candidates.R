@@ -60,6 +60,7 @@
     follow_up = list(
       list(label = "1 year", weeks = 52L)
     ),
+    horizon_rule = list(min_expected_events = 0),
     confounders = list(
       list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     )

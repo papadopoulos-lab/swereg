@@ -15,6 +15,7 @@
   "Measured variables/Baseline covariates",
   "Statistical models",
   "Transformations",
+  "Inference criteria",
   "Data inclusion and exclusion",
   "Missing data",
   "Other planned analysis",
@@ -30,7 +31,8 @@
 #' Writes the text of each field of the OSF Preregistration form whose content
 #' the study specification and swereg fix: the design, the sampling, the
 #' treatment strategies, the outcomes, the covariates, the eligibility
-#' criteria, the analysis and the code list. Each fact appears in one field.
+#' criteria, the analysis, the horizon rule and the code list. Each fact
+#' appears in one field.
 #' The other fields point to it as `'Field/Subheading'`.
 #'
 #' The function reads the spec and the code registry only. It reads no
@@ -66,8 +68,10 @@
 #'   field, and the names are the OSF field headings: `Study design`,
 #'   `Sample size`, `Measured variables/Exposures`,
 #'   `Measured variables/Outcomes`, `Measured variables/Baseline covariates`,
-#'   `Statistical models`, `Transformations`, `Data inclusion and exclusion`,
-#'   `Missing data`, `Other planned analysis` and `Code list`.
+#'   `Statistical models`, `Transformations`, `Inference criteria`,
+#'   `Data inclusion and exclusion`, `Missing data`, `Other planned analysis`
+#'   and `Code list`. `Inference criteria` states the horizon rule from
+#'   `horizon_rule$min_expected_events`.
 #'
 #' @examples
 #' spec_dir <- tempfile()
@@ -97,6 +101,8 @@
 #'     "      variable: osd_outcome",
 #'     "follow_up:",
 #'     "  - {label: 1 year, weeks: 52}",
+#'     "horizon_rule:",
+#'     "  min_expected_events: 5",
 #'     "enrollments:",
 #'     "  - id: '01'",
 #'     "    name: A vs B",
@@ -151,6 +157,7 @@ tteplan_osf_text <- function(
     .osf_covariates(ctx),
     .osf_models(ctx),
     .osf_transformations(ctx),
+    .osf_inference(ctx),
     .osf_eligibility(ctx),
     .osf_missing(ctx),
     .osf_other(ctx),
@@ -447,7 +454,7 @@ tteplan_osf_text <- function(
     ),
     paste0(
       if (is.null(ctx$spec$sparse_rule)) "Every covariate" else "Every covariate that the rare-condition rule keeps",
-      " enters both weight models. The treatment weights use its value at the recruiting week. The censoring weights use its value in each follow-up interval, together with the time since time zero and calendar time. Calendar time does not enter the treatment weights. The outcome model holds no covariate. It adjusts for the trial, which is calendar time at time zero, as described under 'Statistical models'."
+      " enters both weight models. The treatment weights use its value at the recruiting week. The censoring weights use its value in each follow-up interval, together with the time since time zero and calendar time. Calendar time does not enter the treatment weights. The outcome model holds no confounder. It adjusts for the trial, which is calendar time at time zero, as described under 'Statistical models'."
     ),
     sparse
   ))
@@ -468,7 +475,7 @@ tteplan_osf_text <- function(
       " effects. The treatment weights are stabilized inverse probability of treatment weights, from a logistic regression of the assigned arm on the covariates. The per-protocol analysis adds stabilized inverse probability of censoring weights, from three models in each arm: loss of observation, deviation, and deviation at time zero. The intention-to-treat weight, and the per-protocol product of the treatment and censoring weights, are truncated at the 1st and 99th percentiles."
     ),
     paste0(
-      "The outcome model is a weighted quasi-Poisson regression of the outcome on the treatment, the time since time zero and the trial, with a person-time offset. It holds no covariate, so the exponentiated treatment coefficient is the marginal incidence rate ratio. Standard errors are clustered on the ",
+      "The outcome model is a weighted quasi-Poisson regression of the outcome on the treatment, the time since time zero and the trial, with a person-time offset. It holds no confounder, so the exponentiated treatment coefficient is the marginal incidence rate ratio. Standard errors are clustered on the ",
       ctx$one, ", because a ", ctx$one, " can enter several trials. The absolute effect is the risk difference at the end of each horizon, with a percentile interval from ",
       .S3_RD_N_BOOT, " bootstrap replicates that resample ", ctx$many, ". Each effect is reported with its ",
       100 * .s3_conf_level(ctx$spec), "% confidence interval."
@@ -566,6 +573,39 @@ tteplan_osf_text <- function(
     paste0(
       "No ", ctx$one, " is excluded for an extreme value of a measured variable. Extreme weights are truncated, as described under 'Statistical models'."
     )
+  ))
+}
+
+
+#' The horizon rule, as the paragraphs of the Inference criteria field
+#'
+#' The text states `horizon_rule$min_expected_events`, which
+#' `tteplan_read_spec()` requires. With a threshold of 0, one sentence says
+#' that the rule withholds no estimate.
+#' @noRd
+.osf_inference <- function(ctx) {
+  value <- ctx$spec$horizon_rule$min_expected_events
+  k <- format(value, trim = TRUE, scientific = FALSE)
+  first <- paste0(
+    "A prespecified reporting rule, the horizon rule, requires at least ", k,
+    " expected events per arm in each year of follow-up"
+  )
+  if (value == 0) {
+    return(paste0(first, ", so it withholds no estimate."))
+  }
+  return(.osf_paragraphs(
+    paste0(
+      first, ". Follow-up is cut into years of ", .HORIZON_WINDOW_WEEKS,
+      " weeks from time zero. The last year ends at the horizon, so it can be shorter. The expected events of an arm in a year are its weighted person-time multiplied by the pooled weighted event rate of both arms. The reportable horizon is the end of the last year before the first year that fails."
+    ),
+    paste0(
+      "When any year up to the horizon fails the rule, the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
+      if (length(ctx$spec$subgroups %||% list()) > 0L) {
+        " Its subgroup rate ratios and interaction tests are withheld too."
+      },
+      " Events, person-time and rates are still reported."
+    ),
+    "Which years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
   ))
 }
 

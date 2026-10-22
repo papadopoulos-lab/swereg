@@ -133,11 +133,11 @@ test_that(".irr_combine_num pads every value to one width", {
   )
 })
 
-# Item 8. At 1e34 comparator events both ratios round to 1. Before the fix,
+# Item 8. At 1e34 events in each arm both ratios round to 1. Before the fix,
 # the strict orientation assertion stopped.
 test_that(".tte_mde accepts two ratios that round to 1", {
   r <- NULL
-  expect_no_error(r <- swereg:::.tte_mde(1e34, 1, 1))
+  expect_no_error(r <- swereg:::.tte_mde(1e34, 1, 1e34, 1))
   expect_identical(r$mde_protective, 1)
   expect_identical(r$mde_harmful, 1)
 })

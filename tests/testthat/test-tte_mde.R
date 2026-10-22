@@ -1,51 +1,67 @@
 # The minimum detectable effect (MDE) on the PP results and ITT results sheets.
 #
-# `.tte_mde()` is the naive Poisson formula. Its inputs are the UNWEIGHTED
-# comparator events, comparator person-years and intervention person-years
-# that `$rates()` stores at s3. The expected values below are computed by hand,
-# with the two normal quantiles written out, so a change to the formula cannot
-# move the expectation with it.
+# `.tte_mde()` is the naive Poisson formula. Its inputs are the WEIGHTED
+# events and person-years of both arms. Under the null, each arm expects the
+# pooled weighted rate of both arms times its own weighted person-years. The
+# expected values below are computed by hand, with the two normal quantiles
+# written out, so a change to the formula cannot move the expectation with it.
 
 # qnorm(0.975) + qnorm(0.8), to 15 significant digits.
 .mde_k_95_80 <- 1.95996398454005 + 0.841621233572914
 
-test_that(".tte_mde matches the hand computation", {
+test_that(".tte_mde uses the pooled weighted rate of both arms", {
+  # Weighted inputs, so no count is an integer. The two arms have different
+  # rates: 12.5 / 400 = 0.03125 and 37.5 / 600 = 0.0625.
   r <- swereg:::.tte_mde(
-    e0 = 50,
-    py0 = 1000,
-    py1 = 400,
+    e_int = 12.5,
+    py_int = 400,
+    e_cmp = 37.5,
+    py_cmp = 600,
     power = 0.8,
     conf_level = 0.95
   )
-  # E1 = 50 / 1000 * 400 = 20, se = sqrt(1 / 20 + 1 / 50) = sqrt(0.07).
+  # Pooled rate = (12.5 + 37.5) / (400 + 600) = 0.05.
+  # E_int = 0.05 * 400 = 20, E_cmp = 0.05 * 600 = 30.
+  # se = sqrt(1 / 20 + 1 / 30) = sqrt(1 / 12).
+  # The comparator rate alone gives E_int = 0.0625 * 400 = 25 and
+  # E_cmp = 37.5, so it fails each value below.
   expect_equal(r$expected_events, 20, tolerance = 1e-10)
+  expect_equal(r$expected_events_cmp, 30, tolerance = 1e-10)
   expect_equal(
     r$mde_protective,
-    exp(-.mde_k_95_80 * sqrt(0.07)),
+    exp(-.mde_k_95_80 * sqrt(1 / 12)),
     tolerance = 1e-10
   )
   expect_equal(
     r$mde_harmful,
-    exp(.mde_k_95_80 * sqrt(0.07)),
+    exp(.mde_k_95_80 * sqrt(1 / 12)),
     tolerance = 1e-10
   )
-  expect_equal(r$mde_protective, 0.476527532727025, tolerance = 1e-10)
-  expect_equal(r$mde_harmful, 2.09851463204508, tolerance = 1e-10)
+  expect_equal(r$mde_protective, 0.44541538181666, tolerance = 1e-10)
+  expect_equal(r$mde_harmful, 2.24509534430855, tolerance = 1e-10)
 })
 
-test_that(".tte_mde gives NA MDE values when e0 or E1 is 0", {
-  no_cmp <- swereg:::.tte_mde(0, 1000, 400, 0.8, 0.95)
-  expect_identical(no_cmp$expected_events, 0)
-  expect_true(is.na(no_cmp$mde_protective))
-  expect_true(is.na(no_cmp$mde_harmful))
+test_that(".tte_mde gives NA MDE values when E_int or E_cmp is 0", {
+  # No event in either arm: the pooled rate is 0.
+  no_events <- swereg:::.tte_mde(0, 400, 0, 1000, 0.8, 0.95)
+  expect_identical(no_events$expected_events, 0)
+  expect_identical(no_events$expected_events_cmp, 0)
+  expect_true(is.na(no_events$mde_protective))
+  expect_true(is.na(no_events$mde_harmful))
 
-  no_int_time <- swereg:::.tte_mde(50, 1000, 0, 0.8, 0.95)
+  # Events in the comparator arm only still give the intervention arm
+  # expected events, through the pooled rate.
+  int_zero <- swereg:::.tte_mde(0, 400, 50, 1000, 0.8, 0.95)
+  expect_equal(int_zero$expected_events, 50 / 1400 * 400, tolerance = 1e-12)
+  expect_true(is.finite(int_zero$mde_protective))
+
+  no_int_time <- swereg:::.tte_mde(0, 0, 50, 1000, 0.8, 0.95)
   expect_identical(no_int_time$expected_events, 0)
   expect_true(is.na(no_int_time$mde_protective))
   expect_true(is.na(no_int_time$mde_harmful))
 
   expect_error(
-    swereg:::.tte_mde(50, 1000, 400, power = 1, conf_level = 0.95),
+    swereg:::.tte_mde(20, 400, 50, 1000, power = 1, conf_level = 0.95),
     "power"
   )
 })
@@ -56,7 +72,7 @@ test_that(".tte_mde rejects a power below 0.5", {
   # k positive at conf_level 0.95.
   for (p in c(0.01, 0.49)) {
     expect_error(
-      swereg:::.tte_mde(50, 1000, 400, power = p, conf_level = 0.95),
+      swereg:::.tte_mde(20, 400, 50, 1000, power = p, conf_level = 0.95),
       "`power` must be a single finite number with 0.5 <= power < 1",
       label = paste("power =", p)
     )
@@ -79,7 +95,7 @@ test_that(".tte_mde stops on a swapped orientation when the power check is bypas
     .tte_mde_check_level = function(...) invisible(NULL)
   )
   expect_error(
-    swereg:::.tte_mde(50, 1000, 400, power = 0.01, conf_level = 0.95),
+    swereg:::.tte_mde(20, 400, 50, 1000, power = 0.01, conf_level = 0.95),
     "orientation"
   )
 })
@@ -93,9 +109,10 @@ test_that(".tte_mde gives protective < 1 < harmful on the accepted range", {
   )
   for (cs in cases) {
     r <- swereg:::.tte_mde(
-      e0 = c(50, 3),
-      py0 = c(1000, 200),
-      py1 = c(400, 900),
+      e_int = c(20, 1.5),
+      py_int = c(400, 900),
+      e_cmp = c(50, 3),
+      py_cmp = c(1000, 200),
       power = cs$power,
       conf_level = cs$conf_level
     )
@@ -223,7 +240,15 @@ test_that("$rates() stores the unweighted events and person-years per arm", {
   return(list(header = header, data = d))
 }
 
-test_that("the results sheet MDE reads the unweighted counts", {
+# By hand, with py = 160 / 52.25 the unweighted person-years of one arm:
+# weighted events 15 (int) and 2 (cmp), weighted person-years 3 * py (int) and
+# 0.5 * py (cmp). The pooled rate is 17 / (3.5 * py), so E_int = 51 / 3.5 and
+# E_cmp = 8.5 / 3.5. The unweighted counts would give E_int = 4, and the
+# weighted comparator rate alone would give E_int = 12.
+.mde_e_int <- 51 / 3.5
+.mde_se <- sqrt(3.5 / 51 + 3.5 / 8.5)
+
+test_that("the results sheet MDE reads the weighted counts of both arms", {
   skip_if_not_installed("openxlsx")
   plan <- .mde_plan(.mde_weighted_trial()$rates("ipw"))
   for (slots in list(
@@ -231,17 +256,19 @@ test_that("the results sheet MDE reads the unweighted counts", {
     c("rates_itt", "irr_itt")
   )) {
     s <- .mde_read_sheet(plan, slots[[1]], slots[[2]])
-    # By hand: e0 = 4 and py0 = py1, so E1 = 4 and se = sqrt(1/4 + 1/4).
-    # The weighted counts give E1 = 4 / (0.5 * py) * (3 * py) = 24.
-    expect_equal(s$data[["Expected events (int), null"]][1], 4)
+    expect_equal(
+      s$data[["Expected events (int), null"]][1],
+      .mde_e_int,
+      tolerance = 1e-10
+    )
     expect_equal(
       s$data[["MDE IRR, protective"]][1],
-      exp(-.mde_k_95_80 * sqrt(0.5)),
+      exp(-.mde_k_95_80 * .mde_se),
       tolerance = 1e-10
     )
     expect_equal(
       s$data[["MDE IRR, harmful"]][1],
-      exp(.mde_k_95_80 * sqrt(0.5)),
+      exp(.mde_k_95_80 * .mde_se),
       tolerance = 1e-10
     )
   }
@@ -262,15 +289,21 @@ test_that("the MDE block sits right after the p-value column", {
   )
 })
 
-test_that("a plan stored before the unweighted counts gives three blank cells", {
+test_that("a plan stored before the unweighted counts gets the same MDE", {
   skip_if_not_installed("openxlsx")
   rates <- .mde_weighted_trial()$rates("ipw")
   rates[, c("events_unweighted", "py_unweighted") := NULL]
   s <- .mde_read_sheet(.mde_plan(rates), "rates_pp_trunc", "irr_pp_trunc")
-  expect_true(is.na(s$data[["Expected events (int), null"]][1]))
-  expect_true(is.na(s$data[["MDE IRR, protective"]][1]))
-  expect_true(is.na(s$data[["MDE IRR, harmful"]][1]))
-  # The measurement block still reports the weighted counts.
+  expect_equal(
+    s$data[["Expected events (int), null"]][1],
+    .mde_e_int,
+    tolerance = 1e-10
+  )
+  expect_equal(
+    s$data[["MDE IRR, harmful"]][1],
+    exp(.mde_k_95_80 * .mde_se),
+    tolerance = 1e-10
+  )
   expect_equal(s$data[["Events (int)"]][1], 15)
 })
 
@@ -279,8 +312,8 @@ test_that("$export_tables() puts the MDE columns on PP and ITT results only", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   plan <- .xp_plan("new")
-  # ETT00001 stores unweighted counts. Every other trial is a plan stored
-  # before them, so its three cells are blank.
+  # ETT00001 also stores unweighted counts. The MDE MUST ignore them: they
+  # would give E_int = 30 / 900 * 600 = 20.
   add_unweighted <- function(rv) {
     rv <- data.table::copy(rv)
     rv[, `:=`(events_unweighted = c(12, 30), py_unweighted = c(600, 900))]
@@ -302,8 +335,15 @@ test_that("$export_tables() puts the MDE columns on PP and ITT results only", {
     "MDE IRR, protective",
     "MDE IRR, harmful"
   )
-  # e0 = 30, py0 = 900, py1 = 600: E1 = 20 and se = sqrt(1/20 + 1/30).
+  # Weighted counts of ETT00001, by hand. PP: events 10.4 and 20.6,
+  # person-years 62816 and 98765. ITT: events 4.2 and 9.1, person-years 31000
+  # and 51000.
+  pooled <- list(
+    `PP results` = c(e_int = 31 / 161581 * 62816, e_cmp = 31 / 161581 * 98765),
+    `ITT results` = c(e_int = 13.3 / 82000 * 31000, e_cmp = 13.3 / 82000 * 51000)
+  )
   for (sheet in c("PP results", "ITT results")) {
+    want <- pooled[[sheet]]
     d <- openxlsx::read.xlsx(path, sheet = sheet, startRow = 3,
       sep.names = " ", skipEmptyCols = FALSE)
     expect_true(all(mde_headers %in% names(d)), label = sheet)
@@ -314,14 +354,21 @@ test_that("$export_tables() puts the MDE columns on PP and ITT results only", {
     )
     # Row 1 is ETT00001, the first trial of `plan$ett`.
     expect_identical(d$Outcome[1], "Outcome A")
-    expect_equal(d[["Expected events (int), null"]][1], 20)
+    expect_equal(
+      d[["Expected events (int), null"]][1],
+      want[["e_int"]],
+      tolerance = 1e-10,
+      label = sheet
+    )
     expect_equal(
       d[["MDE IRR, protective"]][1],
-      exp(-.mde_k_95_80 * sqrt(1 / 20 + 1 / 30)),
-      tolerance = 1e-10
+      exp(-.mde_k_95_80 * sqrt(1 / want[["e_int"]] + 1 / want[["e_cmp"]])),
+      tolerance = 1e-10,
+      label = sheet
     )
+    # Every other trial stores weighted counts too, so its cells are filled.
     expect_gt(nrow(d), 1L)
-    expect_true(all(is.na(d[["MDE IRR, harmful"]][-1])))
+    expect_true(all(is.finite(d[["MDE IRR, harmful"]])))
   }
   raw <- openxlsx::read.xlsx(path, sheet = "Weight truncation (PP)",
     colNames = FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE)
@@ -417,12 +464,7 @@ test_that("a forest figure draws an estimable ratio below 0.01", {
 test_that("$export_tables(power = ) sets the power of the MDE", {
   skip_if_not_installed("openxlsx")
   plan <- .xp_plan("new")
-  # ETT00001 stores unweighted counts: e0 = 30, py0 = 900, py1 = 600.
-  for (slot in c("rates_pp_trunc", "rates_itt")) {
-    rv <- data.table::copy(plan$results_ett$ETT00001[[slot]])
-    rv[, `:=`(events_unweighted = c(12, 30), py_unweighted = c(600, 900))]
-    plan$results_ett$ETT00001[[slot]] <- rv
-  }
+  # ETT00001, PP: weighted events 10.4 and 20.6, person-years 62816 and 98765.
   dir <- tempfile("mde-power")
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
@@ -437,7 +479,14 @@ test_that("$export_tables(power = ) sets the power of the MDE", {
   }
   at_80 <- read_mde(0.8)
   at_90 <- read_mde(0.9)
-  want_90 <- swereg:::.tte_mde(30, 900, 600, power = 0.9, conf_level = 0.95)
+  want_90 <- swereg:::.tte_mde(
+    10.4,
+    62816,
+    20.6,
+    98765,
+    power = 0.9,
+    conf_level = 0.95
+  )
   expect_equal(
     at_90,
     c(want_90$mde_protective, want_90$mde_harmful),
@@ -449,17 +498,9 @@ test_that("$export_tables(power = ) sets the power of the MDE", {
 })
 
 
-test_that("$export_tables() rejects a bad power on a plan without unweighted counts", {
+test_that("$export_tables() rejects a bad power before it writes the workbook", {
   skip_if_not_installed("openxlsx")
-  # No trial of `.xp_plan("new")` stores unweighted counts, so no MDE cell
-  # reaches `.tte_mde()`. The check MUST still run.
   plan <- .xp_plan("new")
-  has_unweighted <- vapply(
-    plan$results_ett,
-    function(r) "events_unweighted" %in% names(r$rates_pp_trunc),
-    logical(1)
-  )
-  expect_false(any(has_unweighted))
   dir <- tempfile("mde-bad-power")
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)

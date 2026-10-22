@@ -137,6 +137,7 @@ skip_if_not_installed("data.table")
       )
     ),
     follow_up = list(list(label = "5 years", weeks = 260)),
+    horizon_rule = list(min_expected_events = 0),
     enrollments = list(
       list(
         id = "01",

@@ -46,6 +46,7 @@ skip_if_not_installed("qs2")
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)
@@ -62,6 +63,17 @@ skip_if_not_installed("qs2")
         list(summary = "SUMMARY")
       } else {
         list(n_baseline = 100L)
+      }
+      # A risk-difference item returns the horizon decision of its estimand,
+      # as the real worker does. The parent stops without one.
+      if (identical(it$method, "risk_difference")) {
+        est <- if (identical(it$weight_col, "ipw_trunc")) "itt" else "pp"
+        # The record holds the rule of `.sv_plan()`. The writers stop
+        # without it.
+        res[[paste0("horizon_", est)]] <- list(
+          withheld = FALSE,
+          rule = list(min_expected_events = 0)
+        )
       }
       res$swereg_version_s2 <- s2_version
       return(res)
@@ -107,7 +119,10 @@ test_that("s3 stamps both versions on every stored result", {
   # `swereg_version`, `$swereg_version` partially matched `swereg_version_s2`
   # when the stamp was absent, and then read the s2 value.
   for (eid in c("ETT00001", "ETT00002")) {
-    expect_identical(plan$results_ett[[eid]][["swereg_version_s3"]], .sv_running())
+    expect_identical(
+      plan$results_ett[[eid]][["swereg_version_s3"]],
+      .sv_running()
+    )
     expect_false("swereg_version" %in% names(plan$results_ett[[eid]]))
     expect_identical(plan$results_ett[[eid]]$swereg_version_s2, .sv_running())
   }
@@ -408,7 +423,11 @@ test_that("a recompute keeps every version of a carried s2 stamp", {
     .package = "swereg"
   )
   suppressMessages(
-    plan$recompute_baselines(output_dir = dir, enrollment_ids = "01", force = TRUE)
+    plan$recompute_baselines(
+      output_dir = dir,
+      enrollment_ids = "01",
+      force = TRUE
+    )
   )
   expect_identical(
     plan$results_enrollment[["01"]]$swereg_version_s2,
@@ -434,7 +453,11 @@ test_that("a recompute re-stamps the s3 version and keeps the worker's s2 stamp"
     .package = "swereg"
   )
   suppressMessages(
-    plan$recompute_baselines(output_dir = dir, enrollment_ids = "01", force = TRUE)
+    plan$recompute_baselines(
+      output_dir = dir,
+      enrollment_ids = "01",
+      force = TRUE
+    )
   )
 
   after <- plan$results_enrollment[["01"]]

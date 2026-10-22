@@ -84,6 +84,7 @@ rsi_spec <- function(tag = "old", criterion_source = "osd_f20_to_f29") {
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
+    horizon_rule = list(min_expected_events = 0),
     confounders = list(list(
       name = "Age",
       implementation = list(variable = "rd_age_continuous")
@@ -479,6 +480,7 @@ rsi_full_spec <- function(variant = "sentinel") {
       decided_by = "01",
       candidates = "rd_no_rd_exposure_everbefore"
     ),
+    horizon_rule = list(min_expected_events = 0),
     open_questions = list(list(
       question = "Which comparator window?",
       raised_by = "A Person",
@@ -648,6 +650,10 @@ RSI_LEAF_SIDE <- c(
   "$/sparse_rule/candidates" = "structural",
   "$/sparse_rule/decided_by" = "structural",
   "$/sparse_rule/min_n" = "structural",
+
+  # Horizon rule. It decides which estimates s3 reports, and changes no s1 or
+  # s2 output.
+  "$/horizon_rule/min_expected_events" = "cosmetic",
 
   # Open questions. A note. Nothing in R/ acts on it.
   "$/open_questions[]/question" = "cosmetic",

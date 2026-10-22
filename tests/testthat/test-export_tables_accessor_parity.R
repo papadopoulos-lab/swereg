@@ -159,12 +159,17 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".acc_matching" = "accessor module",
   ".acc_ett_labels" = "accessor module",
   ".acc_subgroups" = "accessor module",
+  ".acc_horizon_windows" = "accessor module",
   ".tteplan_fill_summary" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
   # s2 rewrites every analysis file, so it drops the stored results.
   "TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp" = "producer",
   "TTEPlan$public_methods$s3_analyze" = "producer",
+  # s3's parent merge: it applies the horizon decisions to the list s3 just
+  # stored, and names the withheld estimands on stdout.
+  ".s3_apply_horizon_rule" = "producer",
+  ".s3_horizon_report" = "producer",
   "TTEPlan$public_methods$recompute_baselines" = "producer",
   ".restore_enrollment_counts" = "persistence loader",
   "tteplan_load" = "persistence loader",
@@ -201,7 +206,10 @@ test_that("images match on inventory, dimensions and renderer input", {
   # A GUARD ON THE CACHE. The writers call it to check that each stored result
   # carries the current s2 run id of its ETT. The id is provenance, and no
   # accessor returns it.
-  ".tte_assert_one_s2_run" = "cache inspector"
+  ".tte_assert_one_s2_run" = "cache inspector",
+  # A GUARD ON THE CACHE. The writers call it to check that each stored horizon
+  # decision was made with the rule the spec holds now.
+  ".tte_assert_horizon_rule_current" = "cache inspector"
 )
 
 # The participant-flow renderers used to sit on this list. They read
@@ -278,7 +286,23 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_ett[[eid]]$swereg_version_s2 <- do.call(.s2_version_union,",
     "self$results_ett[[eid]][[\"swereg_version_s3\"]] <- s3_version",
     "self$results_ett[[eid]][[\"s1_run_id\"]] <- self$s1_run_id",
-    "self$results_ett[[eid]][[\"s2_run_id\"]] <- .tte_s2_run_of(ett_todo)[m$ett_i]"
+    "self$results_ett[[eid]][[\"s2_run_id\"]] <- .tte_s2_run_of(ett_todo)[m$ett_i]",
+    "self$results_ett <- .s3_apply_horizon_rule(self$results_ett,",
+    ".s3_horizon_report(self$results_ett, ett_todo$ett_id)"
+  ),
+  `.s3_apply_horizon_rule` = c(
+    "function (results_ett, ett_ids)",
+    "res <- results_ett[[eid]]",
+    "results_ett[[eid]] <- res",
+    "return(results_ett)"
+  ),
+  `.s3_horizon_report` = c(
+    "function (results_ett, ett_ids)",
+    "rec <- results_ett[[eid]][[paste0(\"horizon_\", est)]]"
+  ),
+  `.tte_assert_horizon_rule_current` = c(
+    "for (eid in names(plan$results_ett)) {",
+    "rec <- plan$results_ett[[eid]][[paste0(\"horizon_\","
   ),
   `TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp` = c(
     "self$results_enrollment <- NULL",

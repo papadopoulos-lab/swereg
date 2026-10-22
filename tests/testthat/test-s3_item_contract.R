@@ -43,6 +43,7 @@ skip_if_not_installed("data.table")
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)

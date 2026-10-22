@@ -29,4 +29,3 @@ data-raw
 papers
 ^\.vscode$
 ^vignettes/(?!validation-claims\.R$).*\.R$
-^tests/testthat/test-rd-sparse-tail-coverage\.R$

@@ -38,6 +38,9 @@ follow_up:
   - { label: "1 year",  weeks: 52 }
   - { label: "3 years", weeks: 156 }
 
+horizon_rule:
+  min_expected_events: 0
+
 enrollments:
   - id: "01"
     name: "Arm A vs B, age 50-54"

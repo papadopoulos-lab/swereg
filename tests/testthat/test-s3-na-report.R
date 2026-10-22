@@ -42,6 +42,7 @@ skip_if_not_installed("data.table")
     global_max_isoyearweek = "2020-52",
     ett = ett
   )
+  plan$spec$horizon_rule <- list(min_expected_events = 0)
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)
@@ -74,6 +75,15 @@ skip_if_not_installed("data.table")
       return(stats::setNames(vector("list", length(items)), names(items)))
     }
     out <- lapply(items, function(it) {
+      # Each risk-difference item returns the horizon decision of its
+      # estimand, as the real worker does. The parent stops without one.
+      if (identical(it$method, "risk_difference")) {
+        est <- if (identical(it$weight_col, "ipw_trunc")) "itt" else "pp"
+        return(stats::setNames(
+          list(list(withheld = FALSE), s2),
+          c(paste0("horizon_", est), "swereg_version_s2")
+        ))
+      }
       keep <- identical(it$method, "irr") &&
         identical(it$weight_col, "ipw_trunc")
       if (!keep) {
