@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -171,9 +171,11 @@ interaction with treatment (1.8.8).</li>
 <li>Missing data, and how it is handled. Default: the rules of 1.8.7.
 They include a single hot-deck imputation of a missing confounder value
 at entry.</li>
-<li>The threshold of the horizon rule: the minimum expected events per
-arm in each year of follow-up. No default: the specification states it,
-for example 5, or swereg stops (1.8.6).</li>
+<li>The threshold of the minimum-events rule,
+<code>min_expected_events_per_arm_per_year</code>: the minimum expected
+events per arm in each year of follow-up, computed under the null. No
+default: the specification states it, for example 5, or swereg stops
+(1.8.6).</li>
 </ul>
 </div>
 <div class="section level3">
@@ -467,8 +469,8 @@ A positive value is the number needed to treat for benefit (NNTB). A
 negative value is reported by its magnitude as the number needed to
 treat for harm (NNTH) (Altman 1998). A risk difference of exactly zero
 has no number needed to treat.</p>
-<p>The horizon rule of 1.8.6 can withhold both scales and the number
-needed to treat of an estimand.</p>
+<p>The minimum-events rule of 1.8.6 can withhold both scales and the
+number needed to treat of an estimand.</p>
 <p>The risk is the net risk implied by the cause-specific hazard of the
 outcome. It describes a world without death only if removing death would
 not change that hazard. It is not the cumulative incidence with death as
@@ -849,10 +851,10 @@ which an arm has nobody at risk leaves the survival of that arm
 unchanged. The risk difference is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_{0}(t) - \hat S_{1}(t)</annotation></semantics></math>.</p>
 <p>The stored survival curves run to the end of follow-up, whatever the
-horizon rule of 1.8.6 decides. After the reportable horizon, the stored
-curve carries no risk difference and no number needed to treat. In the
-survival figure, each curve stops at the reportable horizon. A grey band
-labelled “Not estimable” covers the rest of follow-up.</p>
+minimum-events rule of 1.8.6 decides. After the reportable horizon, the
+stored curve carries no risk difference and no number needed to treat.
+In the survival figure, each curve stops at the reportable horizon. A
+grey band labelled “Not estimable” covers the rest of follow-up.</p>
 </div>
 <div class="section level4">
 <h4 id="inference">1.8.6 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
@@ -910,10 +912,10 @@ through infinity to an NNTB, and this implementation does not. The sign
 of the point estimate of the risk difference alone decides benefit or
 harm.</p>
 <div class="section level5">
-<h5 id="the-horizon-rule">The horizon rule<a class="anchor" aria-label="anchor" href="#the-horizon-rule"></a>
+<h5 id="the-minimum-events-rule">The minimum-events rule<a class="anchor" aria-label="anchor" href="#the-minimum-events-rule"></a>
 </h5>
-<p>The horizon rule decides whether an estimand is reported. Follow-up
-is cut into years of 52 weeks from time zero:
+<p>The minimum-events rule decides whether an estimand is reported.
+Follow-up is cut into years of 52 weeks from time zero:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>52</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(0, 52]</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>52</mn><mo>,</mo><mn>104</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(52, 104]</annotation></semantics></math>,
 and so on. The last year ends at the horizon. When the horizon is not a
@@ -931,7 +933,8 @@ falls inside the year. An event counts in the year that holds the stop
 time of its row. The weight is the analysis weight of 1.8.3 for the
 estimand. The expected events of arm
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
-use the pooled rate of both arms:</p>
+are computed under the null of no treatment effect, so they use the
+pooled rate of both arms:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><mfrac><mrow><msub><mi>D</mi><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><mo>+</mo><msub><mi>D</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><mo>+</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 E_{a,y} = \mathrm{PY}_{a,y} \,
 \frac{D_{0,y} + D_{1,y}}{\mathrm{PY}_{0,y} + \mathrm{PY}_{1,y}}.
@@ -942,7 +945,8 @@ in both arms. A year passes when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{0,y}</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{1,y}</annotation></semantics></math>
-both reach the threshold that the specification states. The reportable
+both reach the threshold that the specification states as
+<code>min_expected_events_per_arm_per_year</code>. The reportable
 horizon is the end of the last year before the first year that fails. It
 is 0 when the first year fails.</p>
 <p>When any year up to the horizon fails, the estimates of that estimand
@@ -957,6 +961,14 @@ estimate of the same estimand.</p>
 rate. So the decision is not independent of the outcome. The rule is a
 prespecified reporting rule. It does not guarantee the precision of an
 estimate or the coverage of an interval.</p>
+<p><code>$s3_feasibility()</code> applies the same rule after s2, before
+any outcome model is fitted. It reports which estimands pass and the
+reportable horizon of each. It reports no event count, rate or expected
+events after time zero, and no effect estimate. The Attrition sheet of
+<code>feasibility.xlsx</code> keeps the eligibility counts by arm,
+including people excluded for an outcome event before time zero. Its
+decision still depends on the observed events, through the pooled
+rate.</p>
 </div>
 </div>
 <div class="section level4">
@@ -1424,8 +1436,8 @@ example 2</td>
 </tr>
 <tr class="odd">
 <td><code>[m]</code></td>
-<td>the threshold of the horizon rule, in expected events per arm per
-follow-up year, for example 5</td>
+<td>the threshold of the minimum-events rule, in expected events per arm
+per follow-up year, for example 5</td>
 </tr>
 <tr class="even">
 <td><code>[end]</code></td>
@@ -1571,12 +1583,12 @@ its interval only when the interval of the risk difference excluded
 zero.</p>
 <p>We prespecified a reporting rule of at least <code>[m]</code>
 expected events per arm in each year of follow-up. The expected events
-of an arm in a 52-week year were its weighted person-time multiplied by
-the pooled weighted event rate of both arms. When any year up to
-<code>[horizon]</code> failed, we reported no IRR, risk difference or
-number needed to treat. Which years passed depended on the observed
-events, through the pooled rate. The rule was a reporting rule, not a
-guarantee of precision.</p>
+of an arm in a 52-week year were computed under the null: its weighted
+person-time multiplied by the pooled weighted event rate of both arms.
+When any year up to <code>[horizon]</code> failed, we reported no IRR,
+risk difference or number needed to treat. Which years passed depended
+on the observed events, through the pooled rate. The rule was a
+reporting rule, not a guarantee of precision.</p>
 <p>A missing confounder value at the recruiting week was singly imputed
 by a hot-deck draw. A missing value during follow-up was carried forward
 within the person-trial. We assessed effect modification by
@@ -3864,22 +3876,23 @@ stored risk-difference rows use the same name</td>
 </tr>
 <tr class="even">
 <td align="left">1.6, 1.8.6</td>
-<td align="left">Horizon rule</td>
+<td align="left">Minimum-events rule</td>
 <td align="left">
-<code>horizon_rule$min_expected_events</code> in the
-YAML spec, which <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> requires. The year is
-the package constant <code>.HORIZON_WINDOW_WEEKS</code>, 52 weeks. The
-risk-difference work item of <code>$s3_analyze()</code> computes the
+<code>min_expected_events_per_arm_per_year</code> in
+the YAML spec, which <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> requires. The year
+is the package constant <code>.HORIZON_WINDOW_WEEKS</code>, 52 weeks.
+The risk-difference work item of <code>$s3_analyze()</code> computes the
 years outside <code>safe_call()</code>, and the parent merge stops when
 an ETT has no decision. The records are stored as
 <code>horizon_pp</code> and <code>horizon_itt</code>.
 <code>$get_horizon_windows()</code> returns the years, and the
-<code>Expected events</code> sheet of <code>$export_tables()</code>
-shows them. <code>$get_estimates()</code> carries
+<code>Minimum events</code> sheet of <code>$export_tables()</code> shows
+them. <code>$get_estimates()</code> carries
 <code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
 <code>$export()</code>, <code>$export_tables()</code> and
 <code>$print_target_checklist()</code> stop when a stored result was
-judged with another <code>horizon_rule</code>
+judged with another
+<code>min_expected_events_per_arm_per_year</code>
 </td>
 </tr>
 <tr class="odd">

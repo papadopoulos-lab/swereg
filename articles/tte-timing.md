@@ -660,8 +660,8 @@ week six, including for a woman with four-week follow-up intervals.
 The population is every candidate person-trial that reaches its time
 zero `L` under observation and free of every enrollment outcome before
 `L`. The whole enrollment period must also classify it into an arm. When
-the spec has a `sparse_rule`, s1 also drops each person-trial that holds
-an excluded condition at its recruiting week.
+the spec has a `rare_condition_rule`, s1 also drops each person-trial
+that holds an excluded condition at its recruiting week.
 
 The comparator draw happens after that, so the ratio counts qualified
 people.

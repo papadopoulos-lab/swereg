@@ -73,8 +73,8 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       126 |
-| legacy   |        15 |
+| consumed |       125 |
+| legacy   |        17 |
 | metadata |        10 |
 
 | class      | what swereg does with the key                         | a specification that carries it |
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 151 key paths across 43 mapping contexts.
+The schema declares 152 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -138,11 +138,13 @@ knitr::kable(
 | `$`                                                           | `enrollments`                              | consumed |
 | `$`                                                           | `exclusion_criteria`                       | consumed |
 | `$`                                                           | `follow_up`                                | consumed |
-| `$`                                                           | `horizon_rule`                             | consumed |
+| `$`                                                           | `horizon_rule`                             | legacy   |
 | `$`                                                           | `inclusion_criteria`                       | consumed |
+| `$`                                                           | `min_expected_events_per_arm_per_year`     | consumed |
 | `$`                                                           | `open_questions`                           | consumed |
 | `$`                                                           | `outcomes`                                 | consumed |
-| `$`                                                           | `sparse_rule`                              | consumed |
+| `$`                                                           | `rare_condition_rule`                      | consumed |
+| `$`                                                           | `sparse_rule`                              | legacy   |
 | `$`                                                           | `standing_methods`                         | consumed |
 | `$`                                                           | `study`                                    | consumed |
 | `$`                                                           | `subgroups`                                | consumed |
@@ -208,7 +210,6 @@ knitr::kable(
 | `$/exclusion_criteria[]/implementation`                       | `window`                                   | consumed |
 | `$/follow_up[]`                                               | `label`                                    | consumed |
 | `$/follow_up[]`                                               | `weeks`                                    | consumed |
-| `$/horizon_rule`                                              | `min_expected_events`                      | consumed |
 | `$/inclusion_criteria`                                        | `additional_inclusion`                     | legacy   |
 | `$/inclusion_criteria`                                        | `criteria`                                 | consumed |
 | `$/inclusion_criteria`                                        | `implementation`                           | legacy   |
@@ -243,9 +244,9 @@ knitr::kable(
 | `$/outcomes[]`                                                | `name`                                     | consumed |
 | `$/outcomes[]`                                                | `role`                                     | consumed |
 | `$/outcomes[]/implementation`                                 | `variable`                                 | consumed |
-| `$/sparse_rule`                                               | `candidates`                               | consumed |
-| `$/sparse_rule`                                               | `decided_by`                               | consumed |
-| `$/sparse_rule`                                               | `min_n`                                    | consumed |
+| `$/rare_condition_rule`                                       | `candidates`                               | consumed |
+| `$/rare_condition_rule`                                       | `decided_by`                               | consumed |
+| `$/rare_condition_rule`                                       | `min_n`                                    | consumed |
 | `$/standing_methods`                                          | `admin_censoring`                          | metadata |
 | `$/standing_methods`                                          | `calendar_time`                            | consumed |
 | `$/standing_methods`                                          | `comparator_to_intervention_ratio_default` | metadata |

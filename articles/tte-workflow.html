@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -352,33 +352,32 @@ from Hernan et al. (2008) and Danaei et al. (2013).</p>
 <span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"5 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a></span>
-<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="fu">horizon_rule</span><span class="kw">:</span></span>
-<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">  </span><span class="fu">min_expected_events</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span><span class="co">    # number &gt;= 0, per arm, per follow-up year</span></span>
-<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a></span>
-<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
-<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
-<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
-<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
-<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
-<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
-<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
-<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
-<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
-<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
-<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
-<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
-<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
-<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
-<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
-<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
-<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
-<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_to_intervention_ratio</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
-<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_statin_status</span></span>
-<span id="cb2-100"><a href="#cb2-100" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
-<span id="cb2-101"><a href="#cb2-101" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
-<span id="cb2-102"><a href="#cb2-102" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span></code></pre></div>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="fu">min_expected_events_per_arm_per_year</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span><span class="co">    # number &gt;= 0</span></span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a></span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
+<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
+<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
+<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
+<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
+<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
+<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
+<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_to_intervention_ratio</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
+<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_statin_status</span></span>
+<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
+<span id="cb2-100"><a href="#cb2-100" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
+<span id="cb2-101"><a href="#cb2-101" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span></code></pre></div>
 <p><code><a href="../articles/tte-spec-schema.html">vignette("tte-spec-schema", package = "swereg")</a></code> lists
 every legal key path, and <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses any
 key that list does not name. <code>family</code> is an optional label
@@ -725,6 +724,35 @@ dataset column inside the loop body.</p>
 <code>file_analysis</code> carries it.</p>
 </div>
 <div class="section level3">
+<h3 id="feasibility-after-s2-s3_feasibility">Feasibility after s2: <code>$s3_feasibility()</code><a class="anchor" aria-label="anchor" href="#feasibility-after-s2-s3_feasibility"></a>
+</h3>
+<p><code>$s3_feasibility()</code> runs after s2 and before s3. It
+applies the minimum-events rule of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
+to each estimand of each ETT, and it fits no outcome model. Use it to
+choose the comparisons and the horizons before you register the
+study.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">s3_feasibility</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
+<span><span class="va">plan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The method reads the analysis file, weight, follow-up and threshold
+that <code>$s3_analyze()</code> reads, through the same code. Its
+decision is therefore the decision s3 makes. It stores the decision in
+<code>plan$feasibility</code> and writes <code>feasibility.xlsx</code>
+to <code>plan$dir_results</code>. The workbook holds four or five
+sheets: Study Specification, Rare conditions, Attrition, an unweighted
+Table 1 and Minimum events. The Rare conditions sheet appears only when
+the spec carries <code>rare_condition_rule</code>.</p>
+<p>Neither output holds an event count, a rate or expected events after
+time zero, and neither holds an effect estimate. The Attrition sheet
+keeps the eligibility counts by arm, including people excluded for an
+outcome event before time zero. The decision still depends on the
+observed events, through the pooled rate.</p>
+<p><code><a href="../reference/tte_s0_flags.html">tte_s0_flags()</a></code> reads the two flags of a project’s
+<code>s0_init.R</code>, <code>--check</code> and
+<code>--feasibility</code>. It stops on any other argument, and when
+both flags appear.</p>
+</div>
+<div class="section level3">
 <h3 id="running-a-stage-under-slurm-tte_stage">Running a stage under Slurm: <code>tte_stage()</code><a class="anchor" aria-label="anchor" href="#running-a-stage-under-slurm-tte_stage"></a>
 </h3>
 <p>A Slurm batch job runs one stage per script, so each script must load
@@ -732,7 +760,7 @@ the plan itself. <code><a href="../reference/tte_stage.html">swereg::tte_stage()
 call. It loads the plan from <code>dir_tteplan</code>, runs the stage
 method for <code>stage</code>, then runs the steps that follow that
 method.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># s1.R, submitted as its own Slurm job</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tte_stage.html">tte_stage</a></span><span class="op">(</span></span>
 <span>  <span class="st">"s1"</span>,</span>
@@ -742,12 +770,12 @@ method.</p>
 <span>  <span class="op">)</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">6L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The stage id is <code>"s1"</code>, <code>"s2"</code> or
-<code>"s3"</code>, and <code><a href="../reference/tte_stage.html">?tte_stage</a></code> lists the steps each one
-runs after its method. <code>dir_tteplan</code> takes candidate
-directories in priority order. <code><a href="../reference/tte_stage.html">tte_stage()</a></code> uses the first
-one that exists.</p>
-<p>Every argument in <code>...</code> MUST carry a name. The three stage
+<p>The stage id is <code>"s1"</code>, <code>"s2"</code>,
+<code>"s3"</code> or <code>"feasibility"</code>, and
+<code><a href="../reference/tte_stage.html">?tte_stage</a></code> lists the steps each one runs after its method.
+<code>dir_tteplan</code> takes candidate directories in priority order.
+<code><a href="../reference/tte_stage.html">tte_stage()</a></code> uses the first one that exists.</p>
+<p>Every argument in <code>...</code> MUST carry a name. The four stage
 methods take their arguments in different orders, so an unnamed argument
 binds the wrong formal and reports no error. <code><a href="../reference/tte_stage.html">tte_stage()</a></code>
 rejects an unknown name before it loads the plan, so a typo costs no
@@ -762,7 +790,7 @@ reporting of target trial emulations.
 version of that checklist. It maps each TARGET item to the swereg
 configuration that implements it, read from the spec YAML. It marks the
 items that need manual narrative reporting.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Read the output, edit it into a manuscript supplement, and submit it
 with the paper. It does not show that the analysis is correct. It shows

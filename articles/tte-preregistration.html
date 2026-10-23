@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -111,9 +111,10 @@ specification, <code>spec_vNNN.xlsx</code>. After s0 the Excel
 specification holds two sheets, “Study Specification” and “Target trial
 protocol”. The protocol sheet documents one ETT, the first of the grid
 unless <code>protocol_ett_id</code> names another. Once s1 has run, a
-“Sparse conditions” sheet follows the Study Specification sheet when the
-spec has a <code>sparse_rule</code>. This article maps each OSF section
-to a YAML key and to a section of the Study Specification sheet.</p>
+“Rare conditions” sheet follows the Study Specification sheet when the
+spec has a <code>rare_condition_rule</code>. This article maps each OSF
+section to a YAML key and to a section of the Study Specification
+sheet.</p>
 </div>
 <div class="section level2">
 <h2 id="produce-the-excel-specification">Produce the Excel specification<a class="anchor" aria-label="anchor" href="#produce-the-excel-specification"></a>
@@ -335,20 +336,21 @@ item 6h.</td>
 <td align="left">Inference criteria</td>
 <td align="left">
 <code>study$implementation$conf_level</code>, default
-0.95, and <code>horizon_rule$min_expected_events</code>
+0.95, and <code>min_expected_events_per_arm_per_year</code>
 </td>
 <td align="left">
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, section 1.8.6.
-<code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> writes the horizon rule as the
+<code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> writes the minimum-events rule as the
 <code>Inference criteria</code> field.</td>
 </tr>
 <tr class="odd">
 <td align="left">Data inclusion and exclusion</td>
 <td align="left">The criteria of “Data collection procedures”, and
-<code>sparse_rule</code>
+<code>rare_condition_rule</code>
 </td>
 <td align="left">Confounders, rows of “Rare-condition rule
-(sparse_rule)”. TARGET items 6a and 7. See “The sparse_rule”.</td>
+(rare_condition_rule)”. TARGET items 6a and 7. See “The rare-condition
+rule”.</td>
 </tr>
 <tr class="even">
 <td align="left">Missing data</td>
@@ -406,9 +408,9 @@ outcomes or multiple comparisons. State your own rule in the form.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="the-sparse_rule">The sparse_rule<a class="anchor" aria-label="anchor" href="#the-sparse_rule"></a>
+<h2 id="the-rare-condition-rule">The rare-condition rule<a class="anchor" aria-label="anchor" href="#the-rare-condition-rule"></a>
 </h2>
-<p>A <code>sparse_rule</code> block in the specification is a
+<p>A <code>rare_condition_rule</code> block in the specification is a
 pre-specified rule. Each candidate confounder held by fewer than
 <code>min_n</code> persons in the smallest arm of the driving
 comparisons becomes an exclusion criterion of every comparison. The
@@ -421,7 +423,7 @@ confounder with <code>computed: true</code>.</p>
 <span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span>
 <span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
 <span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">sparse_rule</span><span class="kw">:</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">rare_condition_rule</span><span class="kw">:</span></span>
 <span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="at">  </span><span class="fu">min_n</span><span class="kw">:</span><span class="at"> </span><span class="dv">100</span></span>
 <span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="at">  </span><span class="fu">decided_by</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">"01"</span><span class="kw">]</span></span>
 <span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="at">  </span><span class="fu">candidates</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">rd_no_osd_i63_everbefore</span><span class="kw">]</span></span></code></pre></div>
@@ -473,12 +475,14 @@ horizon. That is an upper bound, because loss, death and the end of data
 stop follow-up early. The formula ignores the repeated contributions of
 one person to many trials. So it can differ from the detectable effect
 of the weighted estimator with person-clustered standard errors.</p>
-<p>The <code>horizon_rule</code> computes the same expected events for
-each follow-up year of 52 weeks. When an arm falls below
-<code>min_expected_events</code> in one year, s3 withholds the rate
-ratio, the risk difference and the number needed to treat of that
-estimand. Check each arm and year against the threshold, which is 5 in
-this example:</p>
+<p>The minimum-events rule computes the same expected events under the
+null for each follow-up year of 52 weeks. The expected events of an arm
+are the pooled weighted rate of both arms times the weighted
+person-years of the arm. When an arm falls below
+<code>min_expected_events_per_arm_per_year</code> in one year, s3
+withholds the rate ratio, the risk difference and the number needed to
+treat of that estimand. Check each arm and year against the threshold,
+which is 5 in this example:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Expected events per arm and follow-up year. Each person-trial contributes</span></span>
 <span><span class="co"># at most 1 person-year per year, so these values are an upper bound.</span></span>
@@ -491,7 +495,7 @@ this example:</p>
 <span><span class="co">#&gt;         TRUE         TRUE</span></span></code></pre></div>
 <p>At s3, the pooled rate holds the observed events of both arms. So the
 years that pass depend on the outcome data. The rule is a prespecified
-reporting rule, and the <code>Expected events</code> sheet of the
+reporting rule, and the <code>Minimum events</code> sheet of the
 workbook shows its decision.</p>
 </div>
 <div class="section level2">

@@ -3,8 +3,8 @@
 Writes the text of each field of the OSF Preregistration form whose
 content the study specification and swereg fix: the design, the
 sampling, the treatment strategies, the outcomes, the covariates, the
-eligibility criteria, the analysis, the horizon rule and the code list.
-Each fact appears in one field. The other fields point to it as
+eligibility criteria, the analysis, the minimum-events rule and the code
+list. Each fact appears in one field. The other fields point to it as
 `'Field/Subheading'`.
 
 ## Usage
@@ -60,8 +60,8 @@ field, and the names are the OSF field headings: `Study design`,
 `Measured variables/Outcomes`, `Measured variables/Baseline covariates`,
 `Statistical models`, `Transformations`, `Inference criteria`,
 `Data inclusion and exclusion`, `Missing data`, `Other planned analysis`
-and `Code list`. `Inference criteria` states the horizon rule from
-`horizon_rule$min_expected_events`.
+and `Code list`. `Inference criteria` states the minimum-events rule
+from `min_expected_events_per_arm_per_year`.
 
 ## Details
 
@@ -126,8 +126,7 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
-    "horizon_rule:",
-    "  min_expected_events: 5",
+    "min_expected_events_per_arm_per_year: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

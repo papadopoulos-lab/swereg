@@ -1,8 +1,8 @@
 # Run one target trial emulation pipeline stage
 
 Loads the plan in `dir_tteplan`, runs the stage method, then runs the
-steps that follow it. This is the body of the per-project `s1.R`, `s2.R`
-and `s3.R` stage scripts as one call.
+steps that follow it. This is the body of the per-project `s1.R`,
+`s2.R`, `s3.R` and feasibility stage scripts as one call.
 
 ## Usage
 
@@ -14,7 +14,7 @@ tte_stage(stage, dir_tteplan, ...)
 
 - stage:
 
-  One of `"s1"`, `"s2"` or `"s3"`.
+  One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 
 - dir_tteplan:
 
@@ -37,12 +37,13 @@ invisibly.
 
 The stage id selects the method and the steps after it:
 
-|         |                                             |                                                                   |
-|---------|---------------------------------------------|-------------------------------------------------------------------|
-| `stage` | method                                      | steps after the method                                            |
-| `"s1"`  | `$s1_generate_enrollments_and_ipw()`        | `$save()`, then `$print_target_checklist()`                       |
-| `"s2"`  | `$s2_generate_analysis_files_and_ipcw_pp()` | `$save()`                                                         |
-| `"s3"`  | `$s3_analyze()`                             | `$results_summary()`, `$save()`, then `$print_target_checklist()` |
+|                 |                                             |                                                                   |
+|-----------------|---------------------------------------------|-------------------------------------------------------------------|
+| `stage`         | method                                      | steps after the method                                            |
+| `"s1"`          | `$s1_generate_enrollments_and_ipw()`        | `$save()`, then `$print_target_checklist()`                       |
+| `"s2"`          | `$s2_generate_analysis_files_and_ipcw_pp()` | `$save()`                                                         |
+| `"s3"`          | `$s3_analyze()`                             | `$results_summary()`, `$save()`, then `$print_target_checklist()` |
+| `"feasibility"` | `$s3_feasibility()`                         | `$save()`                                                         |
 
 Each call loads the plan from disk, and a Slurm job runs one stage per
 process. So every stage MUST save the plan. s2 stamps each ETT with its
@@ -51,7 +52,7 @@ s2 run, and s3 refuses an ETT without that stamp.
 Every element of `...` MUST carry a name. `tte_stage()` matches each
 name against the formals of the stage method, and forwards by name.
 
-The three methods take their arguments in different orders, and none of
+The four methods take their arguments in different orders, and none of
 them takes `...`. A positional forward binds the wrong formal and
 reports no error. Naming every argument is what makes the forward safe.
 
@@ -78,6 +79,7 @@ Section "Running a stage under Slurm: `tte_stage()`" of
 
 Other tte_plan:
 [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md),
+[`tte_s0_flags()`](https://papadopoulos-lab.github.io/swereg/reference/tte_s0_flags.md),
 [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md),
 [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
 

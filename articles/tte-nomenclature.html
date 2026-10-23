@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.14</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -527,10 +527,10 @@ reported side by side (and as separate forest plots) in the exported
 tables.</p>
 </div>
 <div class="section level2">
-<h2 id="horizon-rule">Horizon rule<a class="anchor" aria-label="anchor" href="#horizon-rule"></a>
+<h2 id="minimum-events-rule">Minimum-events rule<a class="anchor" aria-label="anchor" href="#minimum-events-rule"></a>
 </h2>
-<p>The <code>horizon_rule</code> block of the specification sets
-<code>min_expected_events</code>. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
+<p>The flat key <code>min_expected_events_per_arm_per_year</code> of the
+specification sets the threshold. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>
 section 1.8.6 states the rule.</p>
 <table class="table">
 <colgroup>
@@ -552,20 +552,21 @@ ends at the ETT’s <code>follow_up</code> and can be shorter.</td>
 <td align="left"><strong>expected events</strong></td>
 <td align="left">An arm’s expected events in a follow-up year: its
 weighted person-years multiplied by the pooled weighted event rate of
-both arms in that year.</td>
+both arms in that year. They are computed under the null.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>reportable horizon</strong></td>
 <td align="left">The end of the last follow-up year before the first
-year in which either arm has fewer than <code>min_expected_events</code>
-expected events. It is 0 when the first year fails, and the ETT’s
-<code>follow_up</code> when no year fails.</td>
+year in which either arm has fewer than
+<code>min_expected_events_per_arm_per_year</code> expected events. It is
+0 when the first year fails, and the ETT’s <code>follow_up</code> when
+no year fails.</td>
 </tr>
 <tr class="even">
 <td align="left"><strong>NE</strong></td>
 <td align="left">Not estimable. An IRR, risk difference or number needed
-to treat that the horizon rule withheld reads <code>NE</code> in the
-workbook and in the forest figure.</td>
+to treat that the minimum-events rule withheld reads <code>NE</code> in
+the workbook and in the forest figure.</td>
 </tr>
 </tbody>
 </table>

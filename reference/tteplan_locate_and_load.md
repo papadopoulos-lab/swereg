@@ -56,5 +56,6 @@ the loaded plan, so a later `$save()` writes them into `tteplan.qs2`.
 
 Other tte_plan:
 [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md),
+[`tte_s0_flags()`](https://papadopoulos-lab.github.io/swereg/reference/tte_s0_flags.md),
 [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md),
 [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)

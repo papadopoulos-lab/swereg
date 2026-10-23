@@ -70,9 +70,11 @@ there is none.
 - Missing data, and how it is handled. Default: the rules of 1.8.7. They
   include a single hot-deck imputation of a missing confounder value at
   entry.
-- The threshold of the horizon rule: the minimum expected events per arm
-  in each year of follow-up. No default: the specification states it,
-  for example 5, or swereg stops (1.8.6).
+- The threshold of the minimum-events rule,
+  `min_expected_events_per_arm_per_year`: the minimum expected events
+  per arm in each year of follow-up, computed under the null. No
+  default: the specification states it, for example 5, or swereg stops
+  (1.8.6).
 
 ### 1.1 Eligibility criteria
 
@@ -349,8 +351,8 @@ number needed to treat for benefit (NNTB). A negative value is reported
 by its magnitude as the number needed to treat for harm (NNTH) (Altman
 1998). A risk difference of exactly zero has no number needed to treat.
 
-The horizon rule of 1.8.6 can withhold both scales and the number needed
-to treat of an estimand.
+The minimum-events rule of 1.8.6 can withhold both scales and the number
+needed to treat of an estimand.
 
 The risk is the net risk implied by the cause-specific hazard of the
 outcome. It describes a world without death only if removing death would
@@ -650,10 +652,10 @@ survival of that arm unchanged. The risk difference is
 ${\widehat{S}}_{0}(t) - {\widehat{S}}_{1}(t)$.
 
 The stored survival curves run to the end of follow-up, whatever the
-horizon rule of 1.8.6 decides. After the reportable horizon, the stored
-curve carries no risk difference and no number needed to treat. In the
-survival figure, each curve stops at the reportable horizon. A grey band
-labelled “Not estimable” covers the rest of follow-up.
+minimum-events rule of 1.8.6 decides. After the reportable horizon, the
+stored curve carries no risk difference and no number needed to treat.
+In the survival figure, each curve stops at the reportable horizon. A
+grey band labelled “Not estimable” covers the rest of follow-up.
 
 #### 1.8.6 Inference
 
@@ -705,10 +707,10 @@ interval as running from an NNTH through infinity to an NNTB, and this
 implementation does not. The sign of the point estimate of the risk
 difference alone decides benefit or harm.
 
-##### The horizon rule
+##### The minimum-events rule
 
-The horizon rule decides whether an estimand is reported. Follow-up is
-cut into years of 52 weeks from time zero: $(0,52\rbrack$,
+The minimum-events rule decides whether an estimand is reported.
+Follow-up is cut into years of 52 weeks from time zero: $(0,52\rbrack$,
 $(52,104\rbrack$, and so on. The last year ends at the horizon. When the
 horizon is not a multiple of 52 weeks, the last year is shorter, and the
 same threshold applies to it.
@@ -717,16 +719,17 @@ In year $y$, ${PY}_{a,y}$ is the weighted person-time of arm $a$, in
 person-years, and $D_{a,y}$ is its weighted events. A row contributes
 the part of its interval that falls inside the year. An event counts in
 the year that holds the stop time of its row. The weight is the analysis
-weight of 1.8.3 for the estimand. The expected events of arm $a$ use the
-pooled rate of both arms:
+weight of 1.8.3 for the estimand. The expected events of arm $a$ are
+computed under the null of no treatment effect, so they use the pooled
+rate of both arms:
 
 $$E_{a,y} = {PY}_{a,y}\,\frac{D_{0,y} + D_{1,y}}{{PY}_{0,y} + {PY}_{1,y}}.$$
 
 A year with no person-time in either arm has $E_{a,y} = 0$ in both arms.
 A year passes when $E_{0,y}$ and $E_{1,y}$ both reach the threshold that
-the specification states. The reportable horizon is the end of the last
-year before the first year that fails. It is 0 when the first year
-fails.
+the specification states as `min_expected_events_per_arm_per_year`. The
+reportable horizon is the end of the last year before the first year
+that fails. It is 0 when the first year fails.
 
 When any year up to the horizon fails, the estimates of that estimand
 are withheld. The IRR, the risk difference and the number needed to
@@ -741,6 +744,14 @@ Which years pass depends on the observed events, through the pooled
 rate. So the decision is not independent of the outcome. The rule is a
 prespecified reporting rule. It does not guarantee the precision of an
 estimate or the coverage of an interval.
+
+`$s3_feasibility()` applies the same rule after s2, before any outcome
+model is fitted. It reports which estimands pass and the reportable
+horizon of each. It reports no event count, rate or expected events
+after time zero, and no effect estimate. The Attrition sheet of
+`feasibility.xlsx` keeps the eligibility counts by arm, including people
+excluded for an outcome event before time zero. Its decision still
+depends on the observed events, through the pooled rate.
 
 #### 1.8.7 Missing data
 
@@ -1042,20 +1053,20 @@ unmeasured confounding in the registers.
 
 Replace each placeholder in the text below with the value of the study.
 
-| Placeholder      | Value                                                                                           |
-|------------------|-------------------------------------------------------------------------------------------------|
-| `[intervention]` | the intervention treatment                                                                      |
-| `[comparator]`   | the comparator strategy                                                                         |
-| `[outcome]`      | the outcome                                                                                     |
-| `[confounders]`  | the confounders                                                                                 |
-| `[width]`        | the width of the enrollment period, in weeks                                                    |
-| `[washout]`      | the new-user washout window                                                                     |
-| `[k]`            | the number of comparators drawn per intervention person-trial, for example 2                    |
-| `[horizon]`      | the analysis horizon                                                                            |
-| `[m]`            | the threshold of the horizon rule, in expected events per arm per follow-up year, for example 5 |
-| `[end]`          | the administrative end of study                                                                 |
-| `[tolerance]`    | the tolerance of each arm, in weeks                                                             |
-| `[subgroups]`    | the pre-specified subgroups                                                                     |
+| Placeholder      | Value                                                                                                  |
+|------------------|--------------------------------------------------------------------------------------------------------|
+| `[intervention]` | the intervention treatment                                                                             |
+| `[comparator]`   | the comparator strategy                                                                                |
+| `[outcome]`      | the outcome                                                                                            |
+| `[confounders]`  | the confounders                                                                                        |
+| `[width]`        | the width of the enrollment period, in weeks                                                           |
+| `[washout]`      | the new-user washout window                                                                            |
+| `[k]`            | the number of comparators drawn per intervention person-trial, for example 2                           |
+| `[horizon]`      | the analysis horizon                                                                                   |
+| `[m]`            | the threshold of the minimum-events rule, in expected events per arm per follow-up year, for example 5 |
+| `[end]`          | the administrative end of study                                                                        |
+| `[tolerance]`    | the tolerance of each arm, in weeks                                                                    |
+| `[subgroups]`    | the pre-specified subgroups                                                                            |
 
 We emulated a sequence of target trials of `[intervention]` versus
 `[comparator]` for `[outcome]` (Hernán et al. 2008; Hernán and Robins
@@ -1189,11 +1200,12 @@ interval only when the interval of the risk difference excluded zero.
 
 We prespecified a reporting rule of at least `[m]` expected events per
 arm in each year of follow-up. The expected events of an arm in a
-52-week year were its weighted person-time multiplied by the pooled
-weighted event rate of both arms. When any year up to `[horizon]`
-failed, we reported no IRR, risk difference or number needed to treat.
-Which years passed depended on the observed events, through the pooled
-rate. The rule was a reporting rule, not a guarantee of precision.
+52-week year were computed under the null: its weighted person-time
+multiplied by the pooled weighted event rate of both arms. When any year
+up to `[horizon]` failed, we reported no IRR, risk difference or number
+needed to treat. Which years passed depended on the observed events,
+through the pooled rate. The rule was a reporting rule, not a guarantee
+of precision.
 
 A missing confounder value at the recruiting week was singly imputed by
 a hot-deck draw. A missing value during follow-up was carried forward
@@ -2116,7 +2128,7 @@ source of the validation evidence.
 | 1.8.3             | Weight truncation                                           | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 1.8.4, 1.8.6      | Outcome model and inference                                 | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it on every ETT at 500 replicates and seed 1, on `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`) and on `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 1.6, 1.8.6        | Horizon rule                                                | `horizon_rule$min_expected_events` in the YAML spec, which [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work item of `$s3_analyze()` computes the years outside `safe_call()`, and the parent merge stops when an ETT has no decision. The records are stored as `horizon_pp` and `horizon_itt`. `$get_horizon_windows()` returns the years, and the `Expected events` sheet of `$export_tables()` shows them. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `horizon_rule`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 1.6, 1.8.6        | Minimum-events rule                                         | `min_expected_events_per_arm_per_year` in the YAML spec, which [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work item of `$s3_analyze()` computes the years outside `safe_call()`, and the parent merge stops when an ETT has no decision. The records are stored as `horizon_pp` and `horizon_itt`. `$get_horizon_windows()` returns the years, and the `Minimum events` sheet of `$export_tables()` shows them. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `min_expected_events_per_arm_per_year`                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | 1.8.7             | Missing data                                                | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan’s `impute_fn`, whose default [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md) draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md) counts the filled rows                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 1.8.8             | Subgroups and heterogeneity                                 | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 1.9               | Sensitivity analyses                                        | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the loss and deviation models as cloglog GLMs, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

@@ -127,19 +127,19 @@ per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
 intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side
 by side (and as separate forest plots) in the exported tables.
 
-## Horizon rule
+## Minimum-events rule
 
-The `horizon_rule` block of the specification sets
-`min_expected_events`.
+The flat key `min_expected_events_per_arm_per_year` of the specification
+sets the threshold.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.6 states the rule.
 
-| Term                   | Meaning                                                                                                                                                                                                             |
-|:-----------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **follow-up year**     | One 52-week window of follow-up from time zero: `(0, 52]`, `(52, 104]`, and so on. The last year ends at the ETT’s `follow_up` and can be shorter.                                                                  |
-| **expected events**    | An arm’s expected events in a follow-up year: its weighted person-years multiplied by the pooled weighted event rate of both arms in that year.                                                                     |
-| **reportable horizon** | The end of the last follow-up year before the first year in which either arm has fewer than `min_expected_events` expected events. It is 0 when the first year fails, and the ETT’s `follow_up` when no year fails. |
-| **NE**                 | Not estimable. An IRR, risk difference or number needed to treat that the horizon rule withheld reads `NE` in the workbook and in the forest figure.                                                                |
+| Term                   | Meaning                                                                                                                                                                                                                              |
+|:-----------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **follow-up year**     | One 52-week window of follow-up from time zero: `(0, 52]`, `(52, 104]`, and so on. The last year ends at the ETT’s `follow_up` and can be shorter.                                                                                   |
+| **expected events**    | An arm’s expected events in a follow-up year: its weighted person-years multiplied by the pooled weighted event rate of both arms in that year. They are computed under the null.                                                    |
+| **reportable horizon** | The end of the last follow-up year before the first year in which either arm has fewer than `min_expected_events_per_arm_per_year` expected events. It is 0 when the first year fails, and the ETT’s `follow_up` when no year fails. |
+| **NE**                 | Not estimable. An IRR, risk difference or number needed to treat that the minimum-events rule withheld reads `NE` in the workbook and in the forest figure.                                                                          |
 
 ## Enrollment period width
 

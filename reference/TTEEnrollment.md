@@ -24,7 +24,7 @@ changes meaning, or when a reader needs a new field. Schema 4 stores the
 fill summary in `fill_summary` and the propensity-model diagnostics in
 `ps_fit`. Schema 5 names the panel column `enrollment_period_id`. Schema
 6 names the calendar period of each row `period_id`. Schema 7 carries
-the `sparse_rule`.
+the rare-condition rule.
 [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
 refuses every enrollment below schema 7 before this check runs. The
 check refuses the same objects.

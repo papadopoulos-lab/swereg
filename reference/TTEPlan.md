@@ -194,10 +194,10 @@ Other tte_classes:
 
 - `sparse_decision`:
 
-  The frozen decision of the spec's `sparse_rule`, or NULL when the spec
-  has none or s1 has not run. s1b writes it. Read it through
+  The frozen decision of the spec's `rare_condition_rule`, or NULL when
+  the spec has none or s1 has not run. s1b writes it. Read it through
   `$get_sparse_decision()`. It is a data.table with one row per
-  candidate, in the order of `sparse_rule$candidates`:
+  candidate, in the order of `rare_condition_rule$candidates`:
 
   variable, label
 
@@ -233,12 +233,12 @@ Other tte_classes:
 
 - `sparse_rule_hash`:
 
-  The hash of the `sparse_rule` that made `sparse_decision`, or NULL.
-  s1c, s2 and s3 stop when the hash of the rule in `spec` differs from
-  it. `$export()`, `$export_tables()` and `$print_target_checklist()`
-  stop on that difference too, when the plan holds a decision or a
-  stored result. `$excel_spec_summary()` and `$print_spec_summary()`
-  then show the rule as not decided yet.
+  The hash of the `rare_condition_rule` that made `sparse_decision`, or
+  NULL. s1c, s2 and s3 stop when the hash of the rule in `spec` differs
+  from it. `$export()`, `$export_tables()` and
+  `$print_target_checklist()` stop on that difference too, when the plan
+  holds a decision or a stored result. `$excel_spec_summary()` and
+  `$print_spec_summary()` then show the rule as not decided yet.
 
 - `s1_run_id`:
 
@@ -251,6 +251,14 @@ Other tte_classes:
   column of `ett`, and s3 into each result it stores. `$export()`,
   `$export_tables()` and `$print_target_checklist()` stop when a stored
   result carries another id.
+
+- `feasibility`:
+
+  The result of `$s3_feasibility()`, or NULL when it has not run. It
+  holds the decision of the minimum-events rule for each ETT and
+  estimand, with the weighted person-years of each arm and window. It
+  holds no event count, rate or expected events. `$s3_analyze()` does
+  not read it.
 
 - `spec_version`:
 
@@ -351,6 +359,8 @@ Other tte_classes:
 
 - [`TTEPlan$export()`](#method-TTEPlan-export)
 
+- [`TTEPlan$s3_feasibility()`](#method-TTEPlan-s3_feasibility)
+
 - [`TTEPlan$s1_generate_enrollments_and_ipw()`](#method-TTEPlan-s1_generate_enrollments_and_ipw)
 
 - [`TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp)
@@ -413,9 +423,9 @@ of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
 and `[FILL IN]` placeholders for PI completion.
 
-Item 6h states the horizon rule from `spec$horizon_rule`. The method
-stops, and names `$s3_analyze()`, when a stored result was judged with a
-`horizon_rule` other than the one in `spec$horizon_rule`.
+Item 6h states the minimum-events rule from
+`spec$min_expected_events_per_arm_per_year`. The method stops, and names
+`$s3_analyze()`, when a stored result was judged with another value.
 
 #### Usage
 
@@ -455,13 +465,14 @@ Each per-protocol value uses the truncated weights. The header is row 1
 and carries an autofilter. A `Family` column shows when the spec sets an
 enrollment `family`.
 
-A ratio, risk difference or number needed to treat that the horizon rule
-withheld reads `NE` on every sheet. Its events and person-years stay.
-The method stops, and names `$s3_analyze()`, when a stored result was
-judged with a `horizon_rule` other than the one in `spec$horizon_rule`.
+A ratio, risk difference or number needed to treat that the
+minimum-events rule withheld reads `NE` on every sheet. Its events and
+person-years stay. The method stops, and names `$s3_analyze()`, when a
+stored result was judged with a `min_expected_events_per_arm_per_year`
+other than the one in the spec.
 
-The `Expected events` sheet holds one row per ETT, estimand and
-follow-up year of the horizon rule. Each row gives the weighted
+The `Minimum events` sheet holds one row per ETT, estimand and follow-up
+year of the minimum-events rule. Each row gives the weighted
 person-years and the pooled weighted rate. It also gives the expected
 and observed weighted events of each arm, whether the year passes, and
 the reportable horizon. The sheet shows why the rule withheld an
@@ -617,12 +628,12 @@ option computes nothing. `$s3_analyze()` computes the risk difference
 for every ETT and stores it, so this switch only decides whether the
 figure carries the two extra columns.
 
-The horizon rule shows on both figures. A `"survival"` curve stops at
-the reportable horizon, and a grey band labelled "Not estimable" covers
-the rest of the follow-up. A `"forest"` cell that the rule withheld
-reads `NE`. The method stops, and names `$s3_analyze()`, when a stored
-result was judged with a `horizon_rule` other than the one in
-`spec$horizon_rule`.
+The minimum-events rule shows on both figures. A `"survival"` curve
+stops at the reportable horizon, and a grey band labelled "Not
+estimable" covers the rest of the follow-up. A `"forest"` cell that the
+rule withheld reads `NE`. The method stops, and names `$s3_analyze()`,
+when a stored result was judged with a
+`min_expected_events_per_arm_per_year` other than the one in the spec.
 
 The `n_boot`, `seed` and `conf_level` fields are inert and warn.
 `$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
@@ -649,6 +660,114 @@ level would print a label the numbers do not have.
 #### Returns
 
 Character vector of all written paths (invisibly).
+
+------------------------------------------------------------------------
+
+### `TTEPlan$s3_feasibility()`
+
+Decide after s2 which ETTs and estimands pass the minimum-events rule,
+and to which horizon. The method fits no outcome model, and
+`self$feasibility` holds no event count, rate or expected events.
+
+#### Usage
+
+    TTEPlan$s3_feasibility(
+      n_workers = default_n_workers("feasibility"),
+      output_dir = NULL,
+      swereg_dev_path = NULL
+    )
+
+#### Arguments
+
+- `n_workers`:
+
+  Integer \>= 1. The number of concurrent worker subprocesses. Each
+  worker reads one analysis file. The default reads
+  `default_n_workers("feasibility")`.
+
+- `output_dir`:
+
+  Optional directory of the analysis files. If `NULL` (default), the
+  method uses `self$dir_tteplan`, then the legacy `self$output_dir`.
+
+- `swereg_dev_path`:
+
+  Path to a local swereg source tree for the workers, or `NULL`.
+
+#### Details
+
+The method reads the analysis files that s2 wrote. It resolves the file,
+the weight column, the follow-up and the rule of each estimand with the
+same code as `$s3_analyze()`. It then calls the same window computation
+and decision. `reportable_weeks`, `withheld` and `status` are therefore
+the values that `$s3_analyze()` stores in `horizon_pp` and
+`horizon_itt`.
+
+The worker subprocess computes the expected events, because the decision
+needs them. It drops `events_weighted`, `rate_pooled` and
+`events_expected` before it returns. The method stores the result in
+`self$feasibility`. Each window keeps `window_lo`, `window_hi`, `arm`,
+`py_weighted` and `pass`.
+
+The decision depends on the observed events, through the pooled rate.
+Neither `self$feasibility` nor `feasibility.xlsx` holds an event count,
+a rate or expected events after time zero, or an effect estimate. The
+Attrition sheet keeps the eligibility counts by arm, including people
+excluded for an outcome event before time zero.
+
+The method writes `feasibility.xlsx` to `self$dir_results`, the
+directory of `$export_tables()`. The workbook holds these sheets:
+
+- Study Specification:
+
+  The sheet of `$export_tables()`.
+
+- Rare conditions:
+
+  The sheet of `$export_tables()`. It is absent when the plan holds no
+  rare-condition decision.
+
+- Attrition:
+
+  The table of `$get_attrition()`.
+
+- Table 1:
+
+  The unweighted baseline table of each enrollment. One panel reads the
+  s1 raw file, before imputation. The other reads the smallest s2
+  analysis file of the enrollment.
+
+- Minimum events:
+
+  One row per ETT, estimand and follow-up year, with the weighted
+  person-years of each arm and the decision.
+
+The method stops when the spec has no
+`min_expected_events_per_arm_per_year`. It also stops unless s1
+completed and s2 wrote every analysis file after that s1 run.
+
+#### Returns
+
+The plan, invisibly. `self$feasibility` is a list:
+
+- records:
+
+  A list keyed by ETT id, then by estimand (`pp`, `itt`). Each record
+  holds `rule`, `weight_col`, `follow_up`, `windows`,
+  `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm` and
+  `status`.
+
+- s1_run_id:
+
+  The s1 run of the analysis files.
+
+- swereg_version:
+
+  The swereg version that ran the method.
+
+- computed_at:
+
+  When the method ran.
 
 ------------------------------------------------------------------------
 
@@ -826,12 +945,13 @@ are recorded on every stored risk-difference row. The export path
 formats those numbers and never recomputes them. The IRR intervals and
 the interval of the ratio of stratum IRRs use the same level.
 
-The horizon rule. The RD item of each estimand also cuts follow-up into
-52-week windows. In each window it computes the expected events of each
-arm, which are the pooled weighted rate times the weighted person-years
-of that arm. A window passes when both arms reach
-`spec$horizon_rule$min_expected_events`. When a window fails, the method
-withholds the estimates of that estimand. It sets these to `NA`:
+The minimum-events rule. The RD item of each estimand also cuts
+follow-up into 52-week windows. In each window it computes the expected
+events of each arm under the null. They are the pooled weighted rate of
+both arms times the weighted person-years of that arm. A window passes
+when both arms reach `spec$min_expected_events_per_arm_per_year`. When a
+window fails, the method withholds the estimates of that estimand. It
+sets these to `NA`:
 
 - the incidence rate ratios and the subgroup ratios;
 
@@ -840,14 +960,15 @@ withholds the estimates of that estimand. It sets these to `NA`:
 - the interaction tests.
 
 Their `interval_status` and `horizon_status` then read
-`"below horizon rule: <arm> arm, weeks <lo>-<hi>"`, which names the
-first failing window. Events, person-years, rates and the survival curve
-stay. The record is stored as `horizon_pp` and `horizon_itt`, and
+`"below minimum-events rule: <arm> arm, weeks <lo>-<hi>"`, which names
+the first failing window. Events, person-years, rates and the survival
+curve stay. The record is stored as `horizon_pp` and `horizon_itt`, and
 `$get_horizon_windows()` returns its window table. Which windows pass
 depends on the observed events, through the pooled rate.
 
-The method stops when the spec has no `horizon_rule`. It also stops when
-an ETT of the run has no horizon decision for an estimand.
+The method stops when the spec has no
+`min_expected_events_per_arm_per_year`. It also stops when an ETT of the
+run has no horizon decision for an estimand.
 
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
@@ -930,15 +1051,15 @@ Print the TTEPlan object.
 Print a target trial specification summary. Console-friendly summary
 derived from the study specification stored on this plan. When
 `$code_registry` is available, variable names are shown in red and
-matched code details in blue (ANSI colors). A spec with a `sparse_rule`
-also prints the rare-condition rule: `min_n`, the driving enrollments,
-the candidates and the decision. Before s1 the decision reads
-`not decided yet (s1 has not run)`. A stored decision prints only when
-the rule in `$spec` still hashes to `$sparse_rule_hash` and s1 completed
-for it. Otherwise the decision reads
+matched code details in blue (ANSI colors). A spec with a
+`rare_condition_rule` also prints the rare-condition rule: `min_n`, the
+driving enrollments, the candidates and the decision. Before s1 the
+decision reads `not decided yet (s1 has not run)`. A stored decision
+prints only when the rule in `$spec` still hashes to `$sparse_rule_hash`
+and s1 completed for it. Otherwise the decision reads
 `not decided yet (s1 has not completed for this rule)`. It also prints
-`horizon_rule$min_expected_events`, the minimum number of expected
-events per arm in each follow-up year.
+the minimum-events rule, `min_expected_events_per_arm_per_year`: the
+minimum number of expected events per arm in each follow-up year.
 
 #### Usage
 
@@ -1012,13 +1133,13 @@ Six sibling methods return the other stored results in the same shape:
 `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 takes no argument, and each computes nothing.
 
-`horizon_reportable_weeks` and `horizon_status` READ the horizon-rule
-decision `$s3_analyze()` stored for the estimand. Both weightings of the
-per-protocol estimand share one decision. A `horizon_status` that starts
-with `"below horizon rule"` marks a withheld estimand. Its ratio, risk
-difference and number needed to treat are `NA`, and `interval_status`
-holds the same text. A result stored before the rule gives `NA` in both
-columns.
+`horizon_reportable_weeks` and `horizon_status` READ the decision of the
+minimum-events rule that `$s3_analyze()` stored for the estimand. Both
+weightings of the per-protocol estimand share one decision. A
+`horizon_status` that starts with `"below minimum-events rule"` marks a
+withheld estimand. Its ratio, risk difference and number needed to treat
+are `NA`, and `interval_status` holds the same text. A result stored
+before the rule gives `NA` in both columns.
 
 The number needed to treat carries its interval. `nnt` is the point
 estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
@@ -1276,20 +1397,21 @@ A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
 
 ### `TTEPlan$get_horizon_windows()`
 
-Every stored horizon-rule window, as one flat table.
+Every stored window of the minimum-events rule, as one flat table.
 
 One row per emulated trial, estimand, follow-up window and arm. A window
 is 52 weeks wide, and the last window ends at the follow-up of the ETT.
 `py_weighted` and `events_weighted` are the weighted person-years and
 events of the arm in the window. `rate_pooled` is the weighted events of
 both arms over the weighted person-years of both arms. `events_expected`
-is `rate_pooled` times `py_weighted`. `pass` is the decision of the
-window: both arms reach `min_expected_events`.
+is `rate_pooled` times `py_weighted`, the expected events under the
+null. `pass` is the decision of the window: both arms reach
+`min_expected_events_per_arm_per_year`.
 
 Each row repeats the record it came from: `weight_col`,
-`min_expected_events`, `horizon_reportable_weeks` and `horizon_status`.
-The method computes nothing. A result stored before the rule gives no
-rows.
+`min_expected_events_per_arm_per_year`, `horizon_reportable_weeks` and
+`horizon_status`. The method computes nothing. A result stored before
+the rule gives no rows.
 
 #### Usage
 
@@ -1298,9 +1420,9 @@ rows.
 #### Returns
 
 A data.table with columns `ett_id`, `estimand`, `weight_col`,
-`min_expected_events`, `window_lo`, `window_hi`, `arm`, `py_weighted`,
-`events_weighted`, `rate_pooled`, `events_expected`, `pass`,
-`horizon_reportable_weeks` and `horizon_status`.
+`min_expected_events_per_arm_per_year`, `window_lo`, `window_hi`, `arm`,
+`py_weighted`, `events_weighted`, `rate_pooled`, `events_expected`,
+`pass`, `horizon_reportable_weeks` and `horizon_status`.
 
 ------------------------------------------------------------------------
 
@@ -1457,15 +1579,16 @@ directly.
 
 - `stage`:
 
-  One of `"s1"`, `"s2"` or `"s3"`.
+  One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 
 - `n_workers`:
 
   Worker count for the stage, forwarded to
   [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
   as a named argument. The default is per stage:
-  `default_n_workers("s1")` for `"s1"`, `1L` for `"s2"`, and
-  `default_n_workers("s3")` for `"s3"`.
+  `default_n_workers("s1")` for `"s1"`, `1L` for `"s2"`,
+  `default_n_workers("s3")` for `"s3"`, and
+  `default_n_workers("feasibility")` for `"feasibility"`.
 
 - `cpus`:
 
@@ -1484,9 +1607,10 @@ directly.
 
   Logical(1), or `NULL` for the per-stage default. `TRUE` asks Slurm to
   requeue the job after a node failure. `NULL` gives `FALSE` for `"s1"`
-  and `TRUE` for the other two stages. s1 deletes its own work directory
-  at the start of every run, so a requeued s1 destroys the work the
-  failed run had already done. s2 and s3 delete nothing at start.
+  and `TRUE` for the other three stages. s1 deletes its own work
+  directory at the start of every run, so a requeued s1 destroys the
+  work the failed run had already done. The other stages delete nothing
+  at start.
 
 - `exclusive`:
 
@@ -1694,7 +1818,7 @@ Export the study specification to a standalone Excel file.
 Writes the preregistration sheets of the plan. The Study Specification
 sheet summarises the spec (design, criteria, confounders, outcomes,
 enrollments) with ICD-10/ATC code annotations from the code registry.
-The Target trial protocol sheet documents one ETT. The Sparse conditions
+The Target trial protocol sheet documents one ETT. The Rare conditions
 sheet is written only when the plan holds a current sparse decision: the
 rule in `$spec` still hashes to `$sparse_rule_hash`, and s1 completed
 for it. Without one, the Study Specification sheet reads the rule as not
@@ -1806,7 +1930,7 @@ migration message.
 
 ### `TTEPlan$get_sparse_decision()`
 
-Read the frozen decision of the spec's `sparse_rule`.
+Read the frozen decision of the spec's `rare_condition_rule`.
 
 #### Usage
 
@@ -1815,7 +1939,7 @@ Read the frozen decision of the spec's `sparse_rule`.
 #### Returns
 
 A copy of the `sparse_decision` field, or NULL when the spec has no
-`sparse_rule` or s1 has not run.
+`rare_condition_rule` or s1 has not run.
 
 ------------------------------------------------------------------------
 

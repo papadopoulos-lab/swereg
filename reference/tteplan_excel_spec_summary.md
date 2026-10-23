@@ -78,7 +78,7 @@ row reads `not built (spec only)` unless you supply
 `global_max_isoyearweek`.
 
 Only s1 decides the rare-condition rule. The workbook therefore states
-the rule as not decided yet, and it has no Sparse conditions sheet. The
+the rule as not decided yet, and it has no Rare conditions sheet. The
 function builds the ETT grid with the code of
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md),
 so the protocol sheet documents the same ETT for the same
@@ -128,8 +128,7 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
-    "horizon_rule:",
-    "  min_expected_events: 5",
+    "min_expected_events_per_arm_per_year: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",
@@ -160,7 +159,7 @@ out <- tteplan_excel_spec_summary(
   path = file.path(spec_dir, "spec_v001.xlsx"),
   code_registry = study
 )
-#> Spec summary saved to: /tmp/RtmpMRG9is/file1f2f47e31043/spec_v001.xlsx
+#> Spec summary saved to: /tmp/RtmpkANRdw/file1fbc8b8a2b4/spec_v001.xlsx
 openxlsx::getSheetNames(out)
 #> [1] "Study Specification"   "Target trial protocol"
 unlink(spec_dir, recursive = TRUE)

@@ -32,6 +32,7 @@ R6 object.
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
 
 Other tte_plan:
+[`tte_s0_flags()`](https://papadopoulos-lab.github.io/swereg/reference/tte_s0_flags.md),
 [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md),
 [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md),
 [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)

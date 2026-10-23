@@ -32,10 +32,13 @@ Window conversion rules:
 Validation checks:
 
 - Required sections: study, enrollments, outcomes, follow_up,
-  horizon_rule
+  min_expected_events_per_arm_per_year
 
-- `horizon_rule$min_expected_events` MUST be one finite number of at
+- `min_expected_events_per_arm_per_year` MUST be one finite number of at
   least 0
+
+- The retired keys `horizon_rule` and `sparse_rule` are refused. The
+  message names the replacement key
 
 - `study$implementation$project_prefix` must exist
 
@@ -115,12 +118,12 @@ logical, because it reads no data.
 [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
 runs that check against the skeleton.
 
-## The sparse_rule
+## The rare_condition_rule
 
-A spec MAY declare one `sparse_rule` block. It turns a rare baseline
-condition into an exclusion criterion of the whole study.
+A spec MAY declare one `rare_condition_rule` block. It turns a rare
+baseline condition into an exclusion criterion of the whole study.
 
-    sparse_rule:
+    rare_condition_rule:
       min_n: 100
       decided_by: ["03"]
       candidates: [rd_no_osd_i63_everbefore]
@@ -147,19 +150,20 @@ population, before the comparator draw and without follow-up outcomes.
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
 stores the decision in its `sparse_decision` field.
 
-## The horizon_rule
+## The minimum-events rule
 
-Every spec MUST declare one `horizon_rule` block. It holds one key.
+Every spec MUST declare the flat key
+`min_expected_events_per_arm_per_year`.
 
-    horizon_rule:
-      min_expected_events: 5
+    min_expected_events_per_arm_per_year: 5
 
-`min_expected_events` is the minimum number of expected events per arm
-in each follow-up year. It MUST be one finite number of at least 0. The
-function refuses a missing block, an empty block and any other key in
-the block. `$reload_spec()` copies a changed value onto a cached plan,
-because the value does not change who is enrolled or how swereg weights
-them.
+The value is the minimum number of expected events per arm in each
+follow-up year. s3 computes the expected events under the null: the
+pooled weighted rate of both arms times the weighted person-years of the
+arm. The value MUST be one finite number of at least 0. The function
+refuses a missing key, an empty value and a mapping. `$reload_spec()`
+copies a changed value onto a cached plan, because the value does not
+change who is enrolled or how swereg weights them.
 
 ## See also
 

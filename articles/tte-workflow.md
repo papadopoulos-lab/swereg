@@ -250,8 +250,7 @@ follow_up:
   - { label: "3 years", weeks: 156 }
   - { label: "5 years", weeks: 260 }
 
-horizon_rule:
-  min_expected_events: 5    # number >= 0, per arm, per follow-up year
+min_expected_events_per_arm_per_year: 5    # number >= 0
 
 enrollments:
   - id: "01"
@@ -616,6 +615,38 @@ distinct from a dataset column inside the loop body.
 wrote the `event` column for the active outcome, and `file_analysis`
 carries it.
 
+### Feasibility after s2: `$s3_feasibility()`
+
+`$s3_feasibility()` runs after s2 and before s3. It applies the
+minimum-events rule of
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+to each estimand of each ETT, and it fits no outcome model. Use it to
+choose the comparisons and the horizons before you register the study.
+
+``` r
+plan$s3_feasibility(n_workers = 4L)
+plan$save()
+```
+
+The method reads the analysis file, weight, follow-up and threshold that
+`$s3_analyze()` reads, through the same code. Its decision is therefore
+the decision s3 makes. It stores the decision in `plan$feasibility` and
+writes `feasibility.xlsx` to `plan$dir_results`. The workbook holds four
+or five sheets: Study Specification, Rare conditions, Attrition, an
+unweighted Table 1 and Minimum events. The Rare conditions sheet appears
+only when the spec carries `rare_condition_rule`.
+
+Neither output holds an event count, a rate or expected events after
+time zero, and neither holds an effect estimate. The Attrition sheet
+keeps the eligibility counts by arm, including people excluded for an
+outcome event before time zero. The decision still depends on the
+observed events, through the pooled rate.
+
+[`tte_s0_flags()`](https://papadopoulos-lab.github.io/swereg/reference/tte_s0_flags.md)
+reads the two flags of a project’s `s0_init.R`, `--check` and
+`--feasibility`. It stops on any other argument, and when both flags
+appear.
+
 ### Running a stage under Slurm: `tte_stage()`
 
 A Slurm batch job runs one stage per script, so each script must load
@@ -637,14 +668,14 @@ swereg::tte_stage(
 )
 ```
 
-The stage id is `"s1"`, `"s2"` or `"s3"`, and
+The stage id is `"s1"`, `"s2"`, `"s3"` or `"feasibility"`, and
 [`?tte_stage`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
 lists the steps each one runs after its method. `dir_tteplan` takes
 candidate directories in priority order.
 [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
 uses the first one that exists.
 
-Every argument in `...` MUST carry a name. The three stage methods take
+Every argument in `...` MUST carry a name. The four stage methods take
 their arguments in different orders, so an unnamed argument binds the
 wrong formal and reports no error.
 [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
