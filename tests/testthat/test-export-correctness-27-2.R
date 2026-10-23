@@ -59,7 +59,7 @@ ec_plan <- function() {
     ),
     # `tte_stamp_stages()` gives each result a horizon record of this rule.
     # The writers stop on a result without one.
-    horizon_rule = list(min_expected_events = 0)
+    min_expected_events_per_arm_per_year = 0
   )
   one <- function(eid, enr) {
     rt <- data.table::data.table(

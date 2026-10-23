@@ -83,7 +83,7 @@ skip_if_not_installed("data.table")
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01",

@@ -421,7 +421,7 @@ plan$s1_generate_enrollments_and_ipw(n_workers = 4L)
 # Loop 1: enroll + collapse + impute + IPW + truncate + save
 #         Five sub-steps. Each item runs in a fresh worker subprocess:
 #         s1a  one item per skeleton,               n_workers at a time
-#         s1b  one item, only when the spec has a sparse_rule
+#         s1b  one item, only when the spec has a rare_condition_rule
 #         s1c  one item per enrollment,             one at a time
 #         s1d  one item per enrollment x skeleton,  n_workers at a time
 #         s1e  one item per enrollment,             one at a time

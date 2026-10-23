@@ -151,10 +151,11 @@ TTEPlan <- R6::R6Class(
     #' @field spec_reload_skipped_diffs Character vector of structural spec
     #'   differences that `$reload_spec()` chose not to apply, or NULL.
     spec_reload_skipped_diffs = NULL,
-    #' @field sparse_decision The frozen decision of the spec's `sparse_rule`,
-    #'   or NULL when the spec has none or s1 has not run. s1b writes it. Read
-    #'   it through `$get_sparse_decision()`. It is a data.table with one row
-    #'   per candidate, in the order of `sparse_rule$candidates`:
+    #' @field sparse_decision The frozen decision of the spec's
+    #'   `rare_condition_rule`, or NULL when the spec has none or s1 has not
+    #'   run. s1b writes it. Read it through `$get_sparse_decision()`. It is a
+    #'   data.table with one row per candidate, in the order of
+    #'   `rare_condition_rule$candidates`:
     #'   \describe{
     #'     \item{variable, label}{The computed confounder and its name.}
     #'     \item{`n_<enrollment>_intervention`, `n_<enrollment>_comparator`}{The
@@ -173,7 +174,7 @@ TTEPlan <- R6::R6Class(
     #'   population, before the comparator draw and without follow-up
     #'   outcomes.
     sparse_decision = NULL,
-    #' @field sparse_rule_hash The hash of the `sparse_rule` that made
+    #' @field sparse_rule_hash The hash of the `rare_condition_rule` that made
     #'   `sparse_decision`, or NULL. s1c, s2 and s3 stop when the hash of the
     #'   rule in `spec` differs from it. `$export()`, `$export_tables()` and
     #'   `$print_target_checklist()` stop on that difference too, when the
@@ -191,6 +192,12 @@ TTEPlan <- R6::R6Class(
     #'   `$export()`, `$export_tables()` and `$print_target_checklist()` stop
     #'   when a stored result carries another id.
     s1_run_id = NULL,
+    #' @field feasibility The result of `$s3_feasibility()`, or NULL when it
+    #'   has not run. It holds the decision of the minimum-events rule for
+    #'   each ETT and estimand, with the weighted person-years of each arm and
+    #'   window. It holds no event count, rate or expected events.
+    #'   `$s3_analyze()` does not read it.
+    feasibility = NULL,
 
     # --- Directory candidates and embedded study ---
 
@@ -251,10 +258,13 @@ TTEPlan <- R6::R6Class(
           )
           missing <- setdiff(required_cols, names(ett))
           if (length(missing) > 0) {
-            stop(paste(
-              "ett missing required columns:",
-              paste(missing, collapse = ", ")
-            ), call. = FALSE)
+            stop(
+              paste(
+                "ett missing required columns:",
+                paste(missing, collapse = ", ")
+              ),
+              call. = FALSE
+            )
           }
         }
       }
@@ -292,9 +302,10 @@ TTEPlan <- R6::R6Class(
       return(invisible(TRUE))
     },
 
-    #' @description Read the frozen decision of the spec's `sparse_rule`.
+    #' @description Read the frozen decision of the spec's
+    #'   `rare_condition_rule`.
     #' @return A copy of the `sparse_decision` field, or NULL when the spec has
-    #'   no `sparse_rule` or s1 has not run.
+    #'   no `rare_condition_rule` or s1 has not run.
     get_sparse_decision = function() {
       if (is.null(self$sparse_decision)) {
         return(NULL)
@@ -345,7 +356,8 @@ TTEPlan <- R6::R6Class(
     dir_tteplan = function() {
       if (is.null(self$dir_tteplan_cp)) {
         stop(
-          "TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?", call. = FALSE
+          "TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?",
+          call. = FALSE
         )
       }
       return(self$dir_tteplan_cp$resolve())

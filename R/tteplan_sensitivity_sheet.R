@@ -21,7 +21,7 @@
 #'   \item the ratio is unusable, which is every ratio field `NA`.
 #' }
 #'
-#' `withheld` is `TRUE` when the horizon rule withheld the ratio of the
+#' `withheld` is `TRUE` when the minimum-events rule withheld the ratio of the
 #' combination. `.sensitivity_row_fmt()` then prints `NE`.
 #'
 #' @param est A `$get_estimates()` table.
@@ -308,9 +308,9 @@
       ci,
       as.numeric(m$pvalue)
     )
-    # The horizon rule withheld the ratio. The ratio and the interval read
-    # `NE`. The p-value is a number column, so the sheet writer puts `NE` in
-    # it after the write, through `.sheet_write_ne()`.
+    # The minimum-events rule withheld the ratio. The ratio and the interval
+    # read `NE`. The p-value is a number column, so the sheet writer puts `NE`
+    # in it after the write, through `.sheet_write_ne()`.
     if (isTRUE(m$withheld)) {
       cells[7:8] <- list("NE", "NE")
       cells[[9]] <- NA_real_

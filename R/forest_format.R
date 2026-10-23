@@ -315,8 +315,8 @@
 #' needed to treat. See `.FOREST_RD_DECISION_COLS` for why that is the chosen
 #' behaviour rather than an error and rather than a re-derivation.
 #'
-#' A row whose `interval_status` starts with `"below horizon rule"` reads
-#' `NE` in both cells. The horizon rule withheld it. A lookup without
+#' A row whose `interval_status` starts with `"below minimum-events rule"` reads
+#' `NE` in both cells. The minimum-events rule withheld it. A lookup without
 #' `interval_status` withholds nothing.
 #'
 #' @param ett_ids Character vector of ETT ids, in row order.
@@ -388,7 +388,7 @@
 }
 
 
-#' Put `NE` in the ratio cells the horizon rule withheld
+#' Put `NE` in the ratio cells the minimum-events rule withheld
 #'
 #' @param txt Character vector, the ratio cells.
 #' @param status Character vector of `horizon_status`, or `NULL` for a panel

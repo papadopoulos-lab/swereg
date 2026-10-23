@@ -26,9 +26,9 @@ stored field changes meaning, or when a reader needs a new field.
 Schema 4 stores the fill summary in \code{fill_summary} and the
 propensity-model diagnostics in \code{ps_fit}. Schema 5 names the panel
 column \code{enrollment_period_id}. Schema 6 names the calendar period of
-each row \code{period_id}. Schema 7 carries the \code{sparse_rule}. \code{\link[=qs2_read]{qs2_read()}}
-refuses every enrollment below schema 7 before this check runs. The
-check refuses the same objects.
+each row \code{period_id}. Schema 7 carries the rare-condition rule.
+\code{\link[=qs2_read]{qs2_read()}} refuses every enrollment below schema 7 before this check
+runs. The check refuses the same objects.
 }
 \section{Baseline treatment}{
 

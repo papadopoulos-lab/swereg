@@ -29,19 +29,21 @@
 #' can carry. Set `impute_fn` in the project's own stage script, or call
 #' [tte_stage()] directly.
 #'
-#' @param stage One of `"s1"`, `"s2"` or `"s3"`.
+#' @param stage One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 #' @param n_workers Worker count for the stage, forwarded to [tte_stage()] as
 #'   a named argument. The default is per stage: `default_n_workers("s1")` for
-#'   `"s1"`, `1L` for `"s2"`, and `default_n_workers("s3")` for `"s3"`.
+#'   `"s1"`, `1L` for `"s2"`, `default_n_workers("s3")` for `"s3"`, and
+#'   `default_n_workers("feasibility")` for `"feasibility"`.
 #' @param cpus Cores the job asks Slurm for. Defaults to `n_workers`.
 #' @param mem Memory request in Slurm's own notation. Defaults to `"95G"`.
 #' @param time Wall-clock limit, as `HH:MM:SS` or `D-HH:MM:SS`. There is no
 #'   default, because a job that outlives its stage costs a queue slot.
 #' @param requeue Logical(1), or `NULL` for the per-stage default. `TRUE` asks
 #'   Slurm to requeue the job after a node failure. `NULL` gives `FALSE` for
-#'   `"s1"` and `TRUE` for the other two stages. s1 deletes its own work
+#'   `"s1"` and `TRUE` for the other three stages. s1 deletes its own work
 #'   directory at the start of every run, so a requeued s1 destroys the work
-#'   the failed run had already done. s2 and s3 delete nothing at start.
+#'   the failed run had already done. The other stages delete nothing at
+#'   start.
 #' @param exclusive Logical(1). `TRUE` asks for the whole node.
 #' @param enrollment_ids Character vector of enrollment ids for `"s3"`, or
 #'   `NULL` to leave the stage default. Forwarded to [tte_stage()] by name.
@@ -92,16 +94,15 @@ TTEPlan$set(
       ett_ids = ett_ids,
       stabilize = stabilize,
       estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
-      estimate_ipcw_pp_separately_by_treatment =
-        estimate_ipcw_pp_separately_by_treatment,
+      estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
       work_root = work_root
     ))
   }
 )
 
-#' The three stage identities `slurm_job()` accepts.
+#' The four stage identities `slurm_job()` accepts.
 #' @noRd
-.SLURM_JOB_STAGES <- c("s1", "s2", "s3")
+.SLURM_JOB_STAGES <- c("s1", "s2", "s3", "feasibility")
 
 #' Stop unless `stage` names one pipeline stage.
 #'
@@ -119,7 +120,8 @@ TTEPlan$set(
     stage %in% .SLURM_JOB_STAGES
   if (!ok) {
     stop(
-      "slurm_job(): `stage` must be one of \"s1\", \"s2\" or \"s3\". Got: ",
+      "slurm_job(): `stage` must be one of \"s1\", \"s2\", \"s3\" or ",
+      "\"feasibility\". Got: ",
       paste(utils::capture.output(utils::str(stage)), collapse = " "),
       call. = FALSE
     )
@@ -134,7 +136,7 @@ TTEPlan$set(
 #' the variable says. s2 stays at one worker for per-ETT memory isolation, so
 #' the mapping states `1L` and no environment variable can move it.
 #'
-#' @param stage One of `"s1"`, `"s2"` or `"s3"`.
+#' @param stage One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 #' @return Integer worker count.
 #' @noRd
 .slurm_job_workers <- function(stage) {
@@ -143,7 +145,8 @@ TTEPlan$set(
     stage,
     s1 = default_n_workers("s1"),
     s2 = 1L,
-    s3 = default_n_workers("s3")
+    s3 = default_n_workers("s3"),
+    feasibility = default_n_workers("feasibility")
   ))
 }
 
@@ -152,9 +155,10 @@ TTEPlan$set(
 #' `NULL` asks for the per-stage default, and the two stage groups differ.
 #' `s1_generate_enrollments_and_ipw()` deletes its work directory at the start
 #' of every run, so a requeued s1 destroys the work the failed run had already
-#' done. s2 and s3 delete nothing at start.
+#' done. The other stages delete nothing at start.
 #'
-#' @param stage One of `"s1"`, `"s2"` or `"s3"`, already checked.
+#' @param stage One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`, already
+#'   checked.
 #' @param requeue Logical(1), or `NULL` for the per-stage default.
 #' @return Logical(1).
 #' @noRd
@@ -200,7 +204,7 @@ TTEPlan$set(
 #' Build the `slurm_it` description of one stage job.
 #'
 #' @param plan The [TTEPlan].
-#' @param stage One of `"s1"`, `"s2"` or `"s3"`.
+#' @param stage One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 #' @param n_workers Validated integer worker count.
 #' @param cpus,mem,time,requeue,exclusive Passed to `batchit::slurm_it()`.
 #' @param enrollment_ids,ett_ids,stabilize Optional stage arguments, or `NULL`.
@@ -247,8 +251,7 @@ TTEPlan$set(
     ett_ids = ett_ids,
     stabilize = stabilize,
     estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
-    estimate_ipcw_pp_separately_by_treatment =
-      estimate_ipcw_pp_separately_by_treatment,
+    estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
     work_root = work_root
   ))
   expr <- sprintf(

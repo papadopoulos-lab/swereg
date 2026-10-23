@@ -7,7 +7,7 @@
 tte_stage(stage, dir_tteplan, ...)
 }
 \arguments{
-\item{stage}{One of \code{"s1"}, \code{"s2"} or \code{"s3"}.}
+\item{stage}{One of \code{"s1"}, \code{"s2"}, \code{"s3"} or \code{"feasibility"}.}
 
 \item{dir_tteplan}{Character vector of candidate directories, in priority
 order, where \code{tteplan.qs2} lives. Passed to
@@ -20,8 +20,8 @@ The \link{TTEPlan}, invisibly.
 }
 \description{
 Loads the plan in \code{dir_tteplan}, runs the stage method, then runs the steps
-that follow it. This is the body of the per-project \code{s1.R}, \code{s2.R} and
-\code{s3.R} stage scripts as one call.
+that follow it. This is the body of the per-project \code{s1.R}, \code{s2.R},
+\code{s3.R} and feasibility stage scripts as one call.
 }
 \details{
 The stage id selects the method and the steps after it:\tabular{lll}{
@@ -29,6 +29,7 @@ The stage id selects the method and the steps after it:\tabular{lll}{
    \code{"s1"} \tab \verb{$s1_generate_enrollments_and_ipw()} \tab \verb{$save()}, then \verb{$print_target_checklist()} \cr
    \code{"s2"} \tab \verb{$s2_generate_analysis_files_and_ipcw_pp()} \tab \verb{$save()} \cr
    \code{"s3"} \tab \verb{$s3_analyze()} \tab \verb{$results_summary()}, \verb{$save()}, then \verb{$print_target_checklist()} \cr
+   \code{"feasibility"} \tab \verb{$s3_feasibility()} \tab \verb{$save()} \cr
 }
 
 
@@ -39,7 +40,7 @@ run, and s3 refuses an ETT without that stamp.
 Every element of \code{...} MUST carry a name. \code{tte_stage()} matches each name
 against the formals of the stage method, and forwards by name.
 
-The three methods take their arguments in different orders, and none of them
+The four methods take their arguments in different orders, and none of them
 takes \code{...}. A positional forward binds the wrong formal and reports no
 error. Naming every argument is what makes the forward safe.
 }
@@ -70,6 +71,7 @@ under Slurm: \code{tte_stage()}" of \code{vignette("tte-workflow")}.
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tte_s0_flags]{tte_s0_flags()}},
 \code{\link[=tteplan_load]{tteplan_load()}},
 \code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}
 }

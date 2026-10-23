@@ -46,16 +46,16 @@
 
 #' Withhold the risk difference on some rows of a stored curve or row
 #'
-#' `$s3_analyze()` calls it for an estimand that the horizon rule withholds.
-#' The horizon-rule status replaces `"zero-event arm"`, `"spans null"` and
-#' `"ok"` on those rows, because it withholds more. The survival columns, the
-#' head counts and the event counts stay.
+#' `$s3_analyze()` calls it for an estimand that the minimum-events rule
+#' withholds. The status of the rule replaces `"zero-event arm"`, `"spans null"`
+#' and `"ok"` on those rows, because it withholds more. The survival columns,
+#' the head counts and the event counts stay.
 #'
 #' @param x A data.table from `.tte_rd_curve()`, or the one-row summary of
 #'   it.
 #' @param rows Logical vector, the rows to withhold. A single `TRUE` takes
 #'   every row.
-#' @param status Character(1), the horizon-rule status.
+#' @param status Character(1), the status of the minimum-events rule.
 #' @return `x`, changed in place and returned.
 #' @noRd
 .tte_rd_withhold_rows <- function(x, rows, status) {
@@ -291,18 +291,17 @@
 #'       that horizon, so there is no interval.
 #'   }
 #'   `$s3_analyze()` can write a fourth value after this function returns.
-#'   It starts with `"below horizon rule"` and marks a stop time beyond the
-#'   reportable horizon. See `.tte_rd_withhold_rows()`.
-#'   The `nnt` column holds the signed number needed to treat, `-1/rd`. The
-#'   `nnt_lo` and `nnt_hi` columns hold its interval, as `.tte_nntb()` returns
-#'   it, and both are `NA` unless the risk-difference interval strictly
-#'   excludes the null. The `nnt_direction` column holds the stored decision. It
-#'   reads `"benefit"`, `"harm"` or `NA_character_`.
-#'   The `n_persons_at_risk_comparator` and `n_persons_at_risk_intervention`
-#'   columns hold the distinct-person head count of each arm in that stop
-#'   time. Attributes: `rd_boot` (the `n_boot x n_interval` replicate
-#'   matrix the percentiles were read off), `conf_level`, `n_boot`,
-#'   `swereg_type`.
+#'   It starts with `"below minimum-events rule"` and marks a stop time beyond
+#'   the reportable horizon. See `.tte_rd_withhold_rows()`. The `nnt` column
+#'   holds the signed number needed to treat, `-1/rd`. The `nnt_lo` and `nnt_hi`
+#'   columns hold its interval, as `.tte_nntb()` returns it, and both are `NA`
+#'   unless the risk-difference interval strictly excludes the null. The
+#'   `nnt_direction` column holds the stored decision. It reads `"benefit"`,
+#'   `"harm"` or `NA_character_`. The `n_persons_at_risk_comparator` and
+#'   `n_persons_at_risk_intervention` columns hold the distinct-person head
+#'   count of each arm in that stop time. Attributes: `rd_boot` (the `n_boot x
+#'   n_interval` replicate matrix the percentiles were read off), `conf_level`,
+#'   `n_boot`, `swereg_type`.
 #' @noRd
 .tte_rd_curve <- function(
   data,

@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 27.2.14
+Version: 27.2.15
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -29,6 +29,7 @@ Imports:
     MASS,
     mgcv,
     openxlsx,
+    optparse,
     patchwork,
     progressr,
     qs2,
@@ -111,6 +112,7 @@ Collate:
     'r6_tteplan.R'
     'r6_tteplan_checklist.R'
     'r6_tteplan_export.R'
+    'r6_tteplan_feasibility.R'
     'r6_tteplan_pipeline.R'
     'r6_tteplan_print.R'
     'r6_tteplan_results.R'
@@ -136,6 +138,7 @@ Collate:
     'tte_observed_var.R'
     'tte_risk_difference.R'
     'tte_risk_sets.R'
+    'tte_s0_flags.R'
     'tte_schema_migration.R'
     'tte_stage.R'
     'tte_survival_render.R'

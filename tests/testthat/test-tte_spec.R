@@ -60,7 +60,7 @@
       list(label = "1 year", weeks = 52L),
       list(label = "2 years", weeks = 104L)
     ),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     exclusion_criteria = list(
       list(
         name = "Prior event A",
@@ -1248,7 +1248,7 @@ test_that("print_spec_summary prints expected sections", {
       list(label = "1 year", weeks = 52),
       list(label = "3 years", weeks = 156)
     ),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Drug X vs none, age 30-39",
@@ -1364,7 +1364,7 @@ test_that("print_spec_summary annotates matched code registry entries", {
       list(name = "Lipid-lowering drugs", implementation = list(variable = "rx_c10a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test enrollment",
@@ -1422,7 +1422,7 @@ test_that("print_spec_summary works without code_registry", {
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1467,7 +1467,7 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1515,7 +1515,7 @@ test_that("print_spec_summary shows date and status from implementation", {
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1586,7 +1586,7 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1664,7 +1664,7 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
       list(name = "Event", implementation = list(variable = "event_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
         id = "01", name = "Test",

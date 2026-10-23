@@ -173,6 +173,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   "TTEPlan$public_methods$recompute_baselines" = "producer",
   ".restore_enrollment_counts" = "persistence loader",
   "tteplan_load" = "persistence loader",
+  ".tte_rename_legacy_statuses" = "persistence loader",
   # Readers of the KEYS. They answer "did this stage run", not "what does it
   # report", and no accessor answers that.
   ".plan_analysed_ett_ids" = "key reader",
@@ -251,6 +252,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   `tteplan_load` = c(
     "fields <- c(\"spec\", \"enrollment_counts\", \"period_width\",",
     "\"output_dir\", \"results_enrollment\", \"results_ett\", \"spec_reloaded_at\",",
+    "plan$results_ett <- .tte_rename_legacy_statuses(plan$results_ett)",
     "if (is.null(plan$enrollment_counts)) {",
     "plan$enrollment_counts <- list()",
     ".restore_enrollment_counts(plan, plan$output_dir, unique(plan$ett$enrollment_id))"

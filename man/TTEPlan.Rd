@@ -165,10 +165,11 @@ called to refresh cosmetic labels.}
     \item{\code{spec_reload_skipped_diffs}}{Character vector of structural spec
 differences that \verb{$reload_spec()} chose not to apply, or NULL.}
 
-    \item{\code{sparse_decision}}{The frozen decision of the spec's \code{sparse_rule},
-or NULL when the spec has none or s1 has not run. s1b writes it. Read
-it through \verb{$get_sparse_decision()}. It is a data.table with one row
-per candidate, in the order of \code{sparse_rule$candidates}:
+    \item{\code{sparse_decision}}{The frozen decision of the spec's
+\code{rare_condition_rule}, or NULL when the spec has none or s1 has not
+run. s1b writes it. Read it through \verb{$get_sparse_decision()}. It is a
+data.table with one row per candidate, in the order of
+\code{rare_condition_rule$candidates}:
 \describe{
 \item{variable, label}{The computed confounder and its name.}
 \item{\verb{n_<enrollment>_intervention}, \verb{n_<enrollment>_comparator}}{The
@@ -187,7 +188,7 @@ The decision is made from baseline counts in the eligible
 population, before the comparator draw and without follow-up
 outcomes.}
 
-    \item{\code{sparse_rule_hash}}{The hash of the \code{sparse_rule} that made
+    \item{\code{sparse_rule_hash}}{The hash of the \code{rare_condition_rule} that made
 \code{sparse_decision}, or NULL. s1c, s2 and s3 stop when the hash of the
 rule in \code{spec} differs from it. \verb{$export()}, \verb{$export_tables()} and
 \verb{$print_target_checklist()} stop on that difference too, when the
@@ -204,6 +205,12 @@ the id matches the current decision. s2 copies the id into the
 \code{s1_run_id} column of \code{ett}, and s3 into each result it stores.
 \verb{$export()}, \verb{$export_tables()} and \verb{$print_target_checklist()} stop
 when a stored result carries another id.}
+
+    \item{\code{feasibility}}{The result of \verb{$s3_feasibility()}, or NULL when it
+has not run. It holds the decision of the minimum-events rule for
+each ETT and estimand, with the weighted person-years of each arm and
+window. It holds no event count, rate or expected events.
+\verb{$s3_analyze()} does not read it.}
 
     \item{\code{spec_version}}{Character. Spec version tag (e.g. \code{"v003"}) that
 selects the YAML filename and the results sub-directory.}
@@ -270,6 +277,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-print_target_checklist}{\code{TTEPlan$print_target_checklist()}}
     \item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
     \item \href{#method-TTEPlan-export}{\code{TTEPlan$export()}}
+    \item \href{#method-TTEPlan-s3_feasibility}{\code{TTEPlan$s3_feasibility()}}
     \item \href{#method-TTEPlan-s1_generate_enrollments_and_ipw}{\code{TTEPlan$s1_generate_enrollments_and_ipw()}}
     \item \href{#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp}{\code{TTEPlan$s2_generate_analysis_files_and_ipcw_pp()}}
     \item \href{#method-TTEPlan-s3_analyze}{\code{TTEPlan$s3_analyze()}}
@@ -309,9 +317,9 @@ of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
 and \verb{[FILL IN]} placeholders for PI completion.
 
-Item 6h states the horizon rule from \code{spec$horizon_rule}. The method
-stops, and names \verb{$s3_analyze()}, when a stored result was judged with a
-\code{horizon_rule} other than the one in \code{spec$horizon_rule}.
+Item 6h states the minimum-events rule from
+\code{spec$min_expected_events_per_arm_per_year}. The method stops, and names
+\verb{$s3_analyze()}, when a stored result was judged with another value.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_target_checklist()}
@@ -349,16 +357,17 @@ Each per-protocol value uses the truncated weights. The header is row 1
 and carries an autofilter. A \code{Family} column shows when the spec sets an
 enrollment \code{family}.
 
-A ratio, risk difference or number needed to treat that the horizon rule
-withheld reads \code{NE} on every sheet. Its events and person-years stay. The
-method stops, and names \verb{$s3_analyze()}, when a stored result was judged
-with a \code{horizon_rule} other than the one in \code{spec$horizon_rule}.
+A ratio, risk difference or number needed to treat that the minimum-events
+rule withheld reads \code{NE} on every sheet. Its events and person-years stay.
+The method stops, and names \verb{$s3_analyze()}, when a stored result was
+judged with a \code{min_expected_events_per_arm_per_year} other than the one in
+the spec.
 
-The \verb{Expected events} sheet holds one row per ETT, estimand and follow-up
-year of the horizon rule. Each row gives the weighted person-years and the
-pooled weighted rate. It also gives the expected and observed weighted
-events of each arm, whether the year passes, and the reportable horizon.
-The sheet shows why the rule withheld an estimate.
+The \verb{Minimum events} sheet holds one row per ETT, estimand and follow-up
+year of the minimum-events rule. Each row gives the weighted person-years
+and the pooled weighted rate. It also gives the expected and observed
+weighted events of each arm, whether the year passes, and the reportable
+horizon. The sheet shows why the rule withheld an estimate.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
@@ -469,11 +478,12 @@ The option computes nothing. \verb{$s3_analyze()} computes the risk
 difference for every ETT and stores it, so this switch only decides
 whether the figure carries the two extra columns.
 
-The horizon rule shows on both figures. A \code{"survival"} curve stops at the
-reportable horizon, and a grey band labelled "Not estimable" covers the
-rest of the follow-up. A \code{"forest"} cell that the rule withheld reads \code{NE}.
-The method stops, and names \verb{$s3_analyze()}, when a stored result was
-judged with a \code{horizon_rule} other than the one in \code{spec$horizon_rule}.
+The minimum-events rule shows on both figures. A \code{"survival"} curve stops
+at the reportable horizon, and a grey band labelled "Not estimable" covers
+the rest of the follow-up. A \code{"forest"} cell that the rule withheld reads
+\code{NE}. The method stops, and names \verb{$s3_analyze()}, when a stored result was
+judged with a \code{min_expected_events_per_arm_per_year} other than the one in
+the spec.
 
 The \code{n_boot}, \code{seed} and \code{conf_level} fields are inert and warn.
 \verb{$s3_analyze()} fixes \code{n_boot} and \code{seed}. It reads the confidence level
@@ -497,6 +507,87 @@ stem) and \code{title}.}
   }
   \subsection{Returns}{
     Character vector of all written paths (invisibly).
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-s3_feasibility"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-s3_feasibility}{}}}
+\subsection{\code{TTEPlan$s3_feasibility()}}{
+  Decide after s2 which ETTs and estimands pass the
+minimum-events rule, and to which horizon. The method fits no outcome
+model, and \code{self$feasibility} holds no event count, rate or expected events.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$s3_feasibility(
+  n_workers = default_n_workers("feasibility"),
+  output_dir = NULL,
+  swereg_dev_path = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{n_workers}}{Integer >= 1. The number of concurrent worker
+subprocesses. Each worker reads one analysis file. The default reads
+\code{default_n_workers("feasibility")}.}
+      \item{\code{output_dir}}{Optional directory of the analysis files. If \code{NULL}
+(default), the method uses \code{self$dir_tteplan}, then the legacy
+\code{self$output_dir}.}
+      \item{\code{swereg_dev_path}}{Path to a local swereg source tree for the
+workers, or \code{NULL}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    The method reads the analysis files that s2 wrote. It resolves the file,
+the weight column, the follow-up and the rule of each estimand with the
+same code as \verb{$s3_analyze()}. It then calls the same window computation and
+decision. \code{reportable_weeks}, \code{withheld} and \code{status} are therefore the
+values that \verb{$s3_analyze()} stores in \code{horizon_pp} and \code{horizon_itt}.
+
+The worker subprocess computes the expected events, because the decision
+needs them. It drops \code{events_weighted}, \code{rate_pooled} and \code{events_expected}
+before it returns. The method stores the result in \code{self$feasibility}.
+Each window keeps \code{window_lo}, \code{window_hi}, \code{arm}, \code{py_weighted} and
+\code{pass}.
+
+The decision depends on the observed events, through the pooled rate.
+Neither \code{self$feasibility} nor \code{feasibility.xlsx} holds an event count, a
+rate or expected events after time zero, or an effect estimate. The
+Attrition sheet keeps the eligibility counts by arm, including people
+excluded for an outcome event before time zero.
+
+The method writes \code{feasibility.xlsx} to \code{self$dir_results}, the directory
+of \verb{$export_tables()}. The workbook holds these sheets:
+\describe{
+\item{Study Specification}{The sheet of \verb{$export_tables()}.}
+\item{Rare conditions}{The sheet of \verb{$export_tables()}. It is absent when
+the plan holds no rare-condition decision.}
+\item{Attrition}{The table of \verb{$get_attrition()}.}
+\item{Table 1}{The unweighted baseline table of each enrollment. One
+panel reads the s1 raw file, before imputation. The other reads the
+smallest s2 analysis file of the enrollment.}
+\item{Minimum events}{One row per ETT, estimand and follow-up year, with
+the weighted person-years of each arm and the decision.}
+}
+
+The method stops when the spec has no
+\code{min_expected_events_per_arm_per_year}. It also stops unless s1 completed
+and s2 wrote every analysis file after that s1 run.
+  }
+  \subsection{Returns}{
+    The plan, invisibly. \code{self$feasibility} is a list:
+\describe{
+\item{records}{A list keyed by ETT id, then by estimand (\code{pp}, \code{itt}).
+Each record holds \code{rule}, \code{weight_col}, \code{follow_up}, \code{windows},
+\code{reportable_weeks}, \code{withheld}, \code{fail_lo}, \code{fail_hi}, \code{fail_arm} and
+\code{status}.}
+\item{s1_run_id}{The s1 run of the analysis files.}
+\item{swereg_version}{The swereg version that ran the method.}
+\item{computed_at}{When the method ran.}
+}
   }
 }
 
@@ -648,26 +739,27 @@ are recorded on every stored risk-difference row. The export path formats
 those numbers and never recomputes them. The IRR intervals and the
 interval of the ratio of stratum IRRs use the same level.
 
-The horizon rule. The RD item of each estimand also cuts follow-up into
-52-week windows. In each window it computes the expected events of each
-arm, which are the pooled weighted rate times the weighted person-years of
-that arm. A window passes when both arms reach
-\code{spec$horizon_rule$min_expected_events}. When a window fails, the method
-withholds the estimates of that estimand. It sets these to \code{NA}:
+The minimum-events rule. The RD item of each estimand also cuts follow-up
+into 52-week windows. In each window it computes the expected events of
+each arm under the null. They are the pooled weighted rate of both arms
+times the weighted person-years of that arm. A window passes when both arms
+reach \code{spec$min_expected_events_per_arm_per_year}. When a window fails, the
+method withholds the estimates of that estimand. It sets these to \code{NA}:
 \itemize{
 \item the incidence rate ratios and the subgroup ratios;
 \item the risk difference and the number needed to treat;
 \item the interaction tests.
 }
 Their \code{interval_status} and \code{horizon_status} then read
-\code{"below horizon rule: <arm> arm, weeks <lo>-<hi>"}, which names the first
-failing window. Events, person-years, rates and the survival curve stay.
-The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
-\verb{$get_horizon_windows()} returns its window table. Which windows pass
-depends on the observed events, through the pooled rate.
+\code{"below minimum-events rule: <arm> arm, weeks <lo>-<hi>"}, which names the
+first failing window. Events, person-years, rates and the survival curve
+stay. The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
+\verb{$get_horizon_windows()} returns its window table. Which windows pass depends
+on the observed events, through the pooled rate.
 
-The method stops when the spec has no \code{horizon_rule}. It also stops when an
-ETT of the run has no horizon decision for an estimand.
+The method stops when the spec has no
+\code{min_expected_events_per_arm_per_year}. It also stops when an ETT of the
+run has no horizon decision for an estimand.
 
 Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
@@ -746,14 +838,13 @@ are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
 Console-friendly summary derived from the study specification stored
 on this plan. When \verb{$code_registry} is available, variable names are
 shown in red and matched code details in blue (ANSI colors).
-A spec with a \code{sparse_rule} also prints the rare-condition rule: \code{min_n},
-the driving enrollments, the candidates and the decision. Before s1 the
-decision reads \verb{not decided yet (s1 has not run)}. A stored decision prints
-only when the rule in \verb{$spec} still hashes to \verb{$sparse_rule_hash} and s1
-completed for it. Otherwise the decision reads
-\verb{not decided yet (s1 has not completed for this rule)}.
-It also prints \code{horizon_rule$min_expected_events}, the minimum number of
-expected events per arm in each follow-up year.
+A spec with a \code{rare_condition_rule} also prints the rare-condition rule:
+\code{min_n}, the driving enrollments, the candidates and the decision. Before s1
+the decision reads \verb{not decided yet (s1 has not run)}. A stored decision
+prints only when the rule in \verb{$spec} still hashes to \verb{$sparse_rule_hash} and
+s1 completed for it. Otherwise the decision reads \verb{not decided yet (s1 has not completed for this rule)}. It also prints the minimum-events rule,
+\code{min_expected_events_per_arm_per_year}: the minimum number of expected events
+per arm in each follow-up year.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_spec_summary()}
@@ -830,13 +921,13 @@ Six sibling methods return the other stored results in the same shape:
 \verb{$get_matching()}, \verb{$get_subgroups()} and \verb{$get_horizon_windows()}. Each
 takes no argument, and each computes nothing.
 
-\code{horizon_reportable_weeks} and \code{horizon_status} READ the horizon-rule
-decision \verb{$s3_analyze()} stored for the estimand. Both weightings of the
-per-protocol estimand share one decision. A \code{horizon_status} that starts
-with \code{"below horizon rule"} marks a withheld estimand. Its ratio, risk
-difference and number needed to treat are \code{NA}, and \code{interval_status}
-holds the same text. A result stored before the rule gives \code{NA} in both
-columns.
+\code{horizon_reportable_weeks} and \code{horizon_status} READ the decision of the
+minimum-events rule that \verb{$s3_analyze()} stored for the estimand. Both
+weightings of the per-protocol estimand share one decision. A
+\code{horizon_status} that starts with \code{"below minimum-events rule"} marks a
+withheld estimand. Its ratio, risk difference and number needed to treat are
+\code{NA}, and \code{interval_status} holds the same text. A result stored before the
+rule gives \code{NA} in both columns.
 
 The number needed to treat carries its interval. \code{nnt} is the point
 estimate, and \code{nnt_lo} and \code{nnt_hi} are the bounds \verb{$s3_analyze()}
@@ -1094,18 +1185,21 @@ subgroups, so treat the schema as production.
 \if{html}{\out{<a id="method-TTEPlan-get_horizon_windows"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-get_horizon_windows}{}}}
 \subsection{\code{TTEPlan$get_horizon_windows()}}{
-  Every stored horizon-rule window, as one flat table.
+  Every stored window of the minimum-events rule, as one flat
+table.
 
 One row per emulated trial, estimand, follow-up window and arm. A window
 is 52 weeks wide, and the last window ends at the follow-up of the ETT.
 \code{py_weighted} and \code{events_weighted} are the weighted person-years and
 events of the arm in the window. \code{rate_pooled} is the weighted events of
 both arms over the weighted person-years of both arms. \code{events_expected}
-is \code{rate_pooled} times \code{py_weighted}. \code{pass} is the decision of the
-window: both arms reach \code{min_expected_events}.
+is \code{rate_pooled} times \code{py_weighted}, the expected events under the null.
+\code{pass} is the decision of the window: both arms reach
+\code{min_expected_events_per_arm_per_year}.
 
 Each row repeats the record it came from: \code{weight_col},
-\code{min_expected_events}, \code{horizon_reportable_weeks} and \code{horizon_status}.
+\code{min_expected_events_per_arm_per_year}, \code{horizon_reportable_weeks} and
+\code{horizon_status}.
 The method computes nothing. A result stored before the rule gives no
 rows.
   \subsection{Usage}{
@@ -1115,8 +1209,8 @@ rows.
   }
   \subsection{Returns}{
     A data.table with columns \code{ett_id}, \code{estimand}, \code{weight_col},
-\code{min_expected_events}, \code{window_lo}, \code{window_hi}, \code{arm}, \code{py_weighted},
-\code{events_weighted}, \code{rate_pooled}, \code{events_expected}, \code{pass},
+\code{min_expected_events_per_arm_per_year}, \code{window_lo}, \code{window_hi}, \code{arm},
+\code{py_weighted}, \code{events_weighted}, \code{rate_pooled}, \code{events_expected}, \code{pass},
 \code{horizon_reportable_weeks} and \code{horizon_status}.
   }
 }
@@ -1271,19 +1365,21 @@ can carry. Set \code{impute_fn} in the project's own stage script, or call
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{stage}}{One of \code{"s1"}, \code{"s2"} or \code{"s3"}.}
+      \item{\code{stage}}{One of \code{"s1"}, \code{"s2"}, \code{"s3"} or \code{"feasibility"}.}
       \item{\code{n_workers}}{Worker count for the stage, forwarded to \code{\link[=tte_stage]{tte_stage()}} as
 a named argument. The default is per stage: \code{default_n_workers("s1")} for
-\code{"s1"}, \code{1L} for \code{"s2"}, and \code{default_n_workers("s3")} for \code{"s3"}.}
+\code{"s1"}, \code{1L} for \code{"s2"}, \code{default_n_workers("s3")} for \code{"s3"}, and
+\code{default_n_workers("feasibility")} for \code{"feasibility"}.}
       \item{\code{cpus}}{Cores the job asks Slurm for. Defaults to \code{n_workers}.}
       \item{\code{mem}}{Memory request in Slurm's own notation. Defaults to \code{"95G"}.}
       \item{\code{time}}{Wall-clock limit, as \code{HH:MM:SS} or \code{D-HH:MM:SS}. There is no
 default, because a job that outlives its stage costs a queue slot.}
       \item{\code{requeue}}{Logical(1), or \code{NULL} for the per-stage default. \code{TRUE} asks
 Slurm to requeue the job after a node failure. \code{NULL} gives \code{FALSE} for
-\code{"s1"} and \code{TRUE} for the other two stages. s1 deletes its own work
+\code{"s1"} and \code{TRUE} for the other three stages. s1 deletes its own work
 directory at the start of every run, so a requeued s1 destroys the work
-the failed run had already done. s2 and s3 delete nothing at start.}
+the failed run had already done. The other stages delete nothing at
+start.}
       \item{\code{exclusive}}{Logical(1). \code{TRUE} asks for the whole node.}
       \item{\code{enrollment_ids}}{Character vector of enrollment ids for \code{"s3"}, or
 \code{NULL} to leave the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
@@ -1415,7 +1511,7 @@ Present when the plan was built from a spec.}
 Writes the preregistration sheets of the plan. The Study Specification
 sheet summarises the spec (design, criteria, confounders, outcomes,
 enrollments) with ICD-10/ATC code annotations from the code registry. The
-Target trial protocol sheet documents one ETT. The Sparse conditions sheet
+Target trial protocol sheet documents one ETT. The Rare conditions sheet
 is written only when the plan holds a current sparse decision: the rule in
 \verb{$spec} still hashes to \verb{$sparse_rule_hash}, and s1 completed for it.
 Without one, the Study Specification sheet reads the rule as not decided
@@ -1521,7 +1617,8 @@ actionable migration message.
 \if{html}{\out{<a id="method-TTEPlan-get_sparse_decision"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-get_sparse_decision}{}}}
 \subsection{\code{TTEPlan$get_sparse_decision()}}{
-  Read the frozen decision of the spec's \code{sparse_rule}.
+  Read the frozen decision of the spec's
+\code{rare_condition_rule}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_sparse_decision()}
@@ -1529,7 +1626,7 @@ actionable migration message.
   }
   \subsection{Returns}{
     A copy of the \code{sparse_decision} field, or NULL when the spec has
-no \code{sparse_rule} or s1 has not run.
+no \code{rare_condition_rule} or s1 has not run.
   }
 }
 

@@ -5,7 +5,7 @@
 # is built once for the file, in this order:
 #
 #   1. s0. `$excel_spec_summary()` writes the preregistration workbook.
-#   2. s1. The workbook gains the Sparse conditions sheet.
+#   2. s1. The workbook gains the Rare conditions sheet.
 #   3. s2 and s3. The workbook is written again, beside `$export_tables()`.
 #      The plan is saved and loaded back.
 #   4. A copy of the plan gets an excluded condition in each supplementary
@@ -30,7 +30,7 @@ sto <- new.env(parent = emptyenv())
 STO_PROTOCOL_ETT <- "ETT00002"
 STO_PREREG_SHEETS <- c(
   "Study Specification",
-  "Sparse conditions",
+  "Rare conditions",
   "Target trial protocol"
 )
 STO_EXCLUDED_VAR <- "rd_no_osd_rare_b_everbefore"
@@ -139,7 +139,7 @@ sto_run <- function() {
 
   # 3b. A copy whose rule changes after the run, with no new s1.
   stale <- plan$clone(deep = TRUE)
-  stale$spec$sparse_rule$min_n <- 5L
+  stale$spec$rare_condition_rule$min_n <- 5L
   sto$stale_tables <- sto_try(stale$export_tables(
     path = file.path(sto$root, "tables_stale.xlsx")
   ))
@@ -240,7 +240,7 @@ test_that("after s0 the preregistration workbook holds the specification and the
 })
 
 
-test_that("after s1 the preregistration workbook adds the Sparse conditions sheet", {
+test_that("after s1 the preregistration workbook adds the Rare conditions sheet", {
   s <- sto_run()
   expect_null(s$spec_s1$error)
   expect_identical(
@@ -298,7 +298,7 @@ test_that("the supplementary baseline sheets drop the excluded conditions and ca
     col1[length(col1)],
     paste0(
       "Not shown: Prior rare condition B. The rare-condition rule made each ",
-      "of these conditions an exclusion criterion. See the Sparse ",
+      "of these conditions an exclusion criterion. See the Rare ",
       "conditions sheet."
     )
   )
@@ -379,7 +379,7 @@ test_that("export_tables writes again after s3 reruns", {
 
 
 STO_STALE_RULE <- paste0(
-  ": the sparse_rule in plan$spec does not match the rule of the frozen ",
+  ": the rare_condition_rule in plan$spec does not match the rule of the frozen ",
   "decision. The hash covers min_n, decided_by and candidates. Re-run s1: ",
   "its step s1b decides again from the current rule."
 )

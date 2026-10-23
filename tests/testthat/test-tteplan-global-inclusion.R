@@ -74,7 +74,7 @@ gi_spec_path <- function(criteria = NULL, enrollment_has_event = NULL) {
       implementation = list(variable = "diag_event_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     exclusion_criteria = list(list(
       name = "Prior intervention",
       implementation = list(

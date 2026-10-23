@@ -92,7 +92,7 @@ skip_if_not_installed("qs2")
 
 # Write one PP and one ITT analysis file per cell, and return the plan whose
 # grid points at them. `conf_level` writes the study property s3 reads; NULL
-# leaves the spec with the horizon rule only, which is the default path.
+# leaves the spec with the minimum-events rule only, which is the default path.
 .abs_plan <- function(
   output_dir,
   n_persons = 60L,
@@ -137,7 +137,7 @@ skip_if_not_installed("qs2")
       study = list(implementation = list(conf_level = conf_level))
     )
   }
-  plan$spec$horizon_rule <- list(min_expected_events = 0)
+  plan$spec$min_expected_events_per_arm_per_year <- 0
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)
@@ -179,9 +179,9 @@ test_that("every ETT carries the absolute scale, ungated", {
   output_dir <- withr::local_tempdir()
   plan <- .abs_run_s3(.abs_plan(output_dir), output_dir)
 
-  # Nothing anywhere asked for this. The spec holds the horizon rule s3 needs
+  # Nothing anywhere asked for this. The spec holds the minimum-events rule s3 needs
   # and nothing else, so no option could have enabled it.
-  expect_identical(names(plan$spec), "horizon_rule")
+  expect_identical(names(plan$spec), "min_expected_events_per_arm_per_year")
 
   ids <- plan$ett$ett_id
   expect_identical(length(ids), 4L)

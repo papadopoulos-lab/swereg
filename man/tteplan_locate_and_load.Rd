@@ -43,6 +43,7 @@ so a later \verb{$save()} writes them into \code{tteplan.qs2}.
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tte_s0_flags]{tte_s0_flags()}},
 \code{\link[=tte_stage]{tte_stage()}},
 \code{\link[=tteplan_load]{tteplan_load()}}
 }

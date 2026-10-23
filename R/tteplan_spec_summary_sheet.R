@@ -645,7 +645,7 @@
 
   # -- Rare-condition rule --------------------------------------------------
   # The rule, the excluded conditions and the final adjustment set, from the
-  # frozen decision. A spec without a sparse_rule adds no row.
+  # frozen decision. A spec without a rare_condition_rule adds no row.
   invisible(lapply(
     .tte_sparse_spec_rows(plan, st_header, st_label),
     function(rw) add_row(rw$a, rw$b, rw$sa, rw$sb)
@@ -776,7 +776,7 @@
 #' Write the preregistration workbook
 #'
 #' The body of `TTEPlan$excel_spec_summary()`. It writes the Study
-#' Specification sheet, the Sparse conditions sheet when the plan holds a
+#' Specification sheet, the Rare conditions sheet when the plan holds a
 #' sparse decision, and the Target trial protocol sheet. Each sheet comes
 #' from the writer `$export_tables()` uses. No writer here reads an s2 or s3
 #' result, or outcome data, so the workbook can be written after s0.
@@ -787,7 +787,11 @@
 #'   takes the first ETT of the grid.
 #' @return The plan, invisibly.
 #' @noRd
-.plan_excel_spec_summary <- function(plan, path = NULL, protocol_ett_id = NULL) {
+.plan_excel_spec_summary <- function(
+  plan,
+  path = NULL,
+  protocol_ett_id = NULL
+) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
       "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",

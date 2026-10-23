@@ -38,14 +38,14 @@ field, and the names are the OSF field headings: \verb{Study design},
 \verb{Measured variables/Outcomes}, \verb{Measured variables/Baseline covariates},
 \verb{Statistical models}, \code{Transformations}, \verb{Inference criteria},
 \verb{Data inclusion and exclusion}, \verb{Missing data}, \verb{Other planned analysis}
-and \verb{Code list}. \verb{Inference criteria} states the horizon rule from
-\code{horizon_rule$min_expected_events}.
+and \verb{Code list}. \verb{Inference criteria} states the minimum-events rule
+from \code{min_expected_events_per_arm_per_year}.
 }
 \description{
 Writes the text of each field of the OSF Preregistration form whose content
 the study specification and swereg fix: the design, the sampling, the
 treatment strategies, the outcomes, the covariates, the eligibility
-criteria, the analysis, the horizon rule and the code list. Each fact
+criteria, the analysis, the minimum-events rule and the code list. Each fact
 appears in one field.
 The other fields point to it as \code{'Field/Subheading'}.
 }
@@ -94,8 +94,7 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
-    "horizon_rule:",
-    "  min_expected_events: 5",
+    "min_expected_events_per_arm_per_year: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

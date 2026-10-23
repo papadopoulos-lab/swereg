@@ -14,8 +14,8 @@
 #' that a two-sided test detects with that power are `exp(-k * se)` and
 #' `exp(k * se)`.
 #'
-#' The horizon rule uses the same expected events, per follow-up year. The
-#' pooled rate holds the observed events of both arms, so the MDE depends on
+#' The minimum-events rule uses the same expected events, per follow-up year.
+#' The pooled rate holds the observed events of both arms, so the MDE depends on
 #' the outcome data.
 #'
 #' The calculation treats the weighted counts as Poisson counts. It ignores

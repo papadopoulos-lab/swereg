@@ -1,4 +1,4 @@
-# Fixtures for the sparse_rule tests (test-s1b-sparse-rule.R).
+# Fixtures for the rare_condition_rule tests (test-s1b-sparse-rule.R).
 #
 # The skeleton is the truth-matrix DGP of helper-tteplan_truth.R, with three
 # event columns added. The study years start one ISO year after the skeleton.
@@ -124,7 +124,7 @@ spr_computed <- function(name, src) {
   ))
 }
 
-# The specification as an R list. `rule` is the sparse_rule block, or NULL.
+# The specification as an R list. `rule` is the rare_condition_rule block, or NULL.
 spr_spec_list <- function(rule = NULL, project_prefix = "sprtest") {
   spec <- list(
     study = list(
@@ -159,14 +159,14 @@ spr_spec_list <- function(rule = NULL, project_prefix = "sprtest") {
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       spr_enrollment("01", age_max = 80, seed = 1L),
       spr_enrollment("02", age_max = 55, seed = 2L)
     )
   )
   if (!is.null(rule)) {
-    spec$sparse_rule <- rule
+    spec$rare_condition_rule <- rule
   }
   return(spec)
 }
@@ -286,7 +286,7 @@ spr_plan_no_s1 <- function(rule = spr_rule(), env = parent.frame()) {
     global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   ))
-  r <- plan$spec$sparse_rule
+  r <- plan$spec$rare_condition_rule
   counts <- data.table::CJ(
     enrollment_id = r$decided_by,
     variable = r$candidates,

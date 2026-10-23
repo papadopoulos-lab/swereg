@@ -1,6 +1,6 @@
 # tte_stage() forwards every argument BY NAME.
 #
-# The three stage methods take their arguments in different orders and none of
+# The four stage methods take their arguments in different orders and none of
 # them takes `...`. s3_analyze() reverses swereg_dev_path and n_workers
 # relative to s1 and s2, so a positional forward binds n_workers to
 # enrollment_ids and R reports nothing. Every test below drives the real
@@ -75,6 +75,19 @@
         n_workers = n_workers
       )
       note("s3_analyze")
+      invisible(NULL)
+    },
+    s3_feasibility = function(
+      n_workers = "D_n_workers",
+      output_dir = "D_output_dir",
+      swereg_dev_path = "D_swereg_dev_path"
+    ) {
+      rec$args$feasibility <- list(
+        n_workers = n_workers,
+        output_dir = output_dir,
+        swereg_dev_path = swereg_dev_path
+      )
+      note("s3_feasibility")
       invisible(NULL)
     },
     save = function(dir = NULL) {
@@ -162,7 +175,8 @@ test_that("the fake plan carries the real stage signatures", {
   for (m in c(
     "s1_generate_enrollments_and_ipw",
     "s2_generate_analysis_files_and_ipcw_pp",
-    "s3_analyze"
+    "s3_analyze",
+    "s3_feasibility"
   )) {
     expect_identical(
       names(formals(fx$plan[[m]])),
@@ -294,6 +308,27 @@ test_that("tte_stage('s3') forwards by name, then summarises, saves and prints t
     fx$rec$calls,
     c("s3_analyze", "results_summary", "save", "print_target_checklist")
   )
+})
+
+
+test_that("tte_stage('feasibility') forwards by name, then saves", {
+  fx <- .ts_fixture()
+  .ts_mock(fx)
+
+  swereg::tte_stage(
+    "feasibility",
+    "/no/such/plan/dir",
+    swereg_dev_path = "DEV",
+    n_workers = 2L
+  )
+
+  expect_identical(
+    fx$rec$args$feasibility,
+    list(n_workers = 2L, output_dir = "D_output_dir", swereg_dev_path = "DEV")
+  )
+  # The step stores its decisions in the plan, and a Slurm job ends with the
+  # process, so the save is the only route they have to disk.
+  expect_identical(fx$rec$calls, c("s3_feasibility", "save"))
 })
 
 

@@ -38,8 +38,8 @@
       n_baseline = n_base
     ))
   })
-  # With a sparse_rule decision, a last column says whether each enrollment
-  # drove the decision or inherited it.
+  # With a rare_condition_rule decision, a last column says whether each
+  # enrollment drove the decision or inherited it.
   dt <- .tte_sparse_role_column(data.table::rbindlist(rows), plan)
   return(openxlsx::writeData(wb, "Enrollments", dt))
 }

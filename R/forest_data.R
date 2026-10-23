@@ -63,7 +63,7 @@
 #'
 #' `irr_estimable` travels with the ratio. `$s3_analyze()` decides it and
 #' stores it, and every formatter below reads that column. `horizon_status`
-#' travels too, so a ratio the horizon rule withheld reads `NE`.
+#' travels too, so a ratio the minimum-events rule withheld reads `NE`.
 #'
 #' `outcome_description` is read from `plan$ett`, which is an INPUT rather than
 #' a result. `$get_estimates()` carries no such column.

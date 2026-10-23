@@ -1,7 +1,7 @@
 # qs2_read() refuses a stored enrollment or plan from an older schema.
 #
 # The `period_id` rename raised the TTEEnrollment schema to 6 and the TTEPlan
-# schema to 5. The sparse_rule raised them to 7 and 6. A deserialised R6 object runs the method bodies it was saved
+# schema to 5. The rare-condition rule raised them to 7 and 6. A deserialised R6 object runs the method bodies it was saved
 # with, so an old object under a migrated column would fit the wrong model and
 # give no error. `qs2_read()` therefore refuses it, BEFORE any method of the
 # object runs, with an error that names the file and says to rebuild the plan

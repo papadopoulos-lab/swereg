@@ -307,17 +307,23 @@ TTEEnrollment <- R6::R6Class(
           )
         }
         if (!design$person_id_var %in% names(data)) {
-          stop(paste(
-            "person_week data requires person_id_var column:",
-            design$person_id_var
-          ), call. = FALSE)
+          stop(
+            paste(
+              "person_week data requires person_id_var column:",
+              design$person_id_var
+            ),
+            call. = FALSE
+          )
         }
       } else {
         if (!design$id_var %in% names(data)) {
-          stop(paste(
-            "trial data requires id_var column:",
-            design$id_var
-          ), call. = FALSE)
+          stop(
+            paste(
+              "trial data requires id_var column:",
+              design$id_var
+            ),
+            call. = FALSE
+          )
         }
       }
       if (!design$treatment_var %in% names(data)) {
@@ -386,9 +392,9 @@ TTEEnrollment <- R6::R6Class(
     #' Schema 4 stores the fill summary in `fill_summary` and the
     #' propensity-model diagnostics in `ps_fit`. Schema 5 names the panel
     #' column `enrollment_period_id`. Schema 6 names the calendar period of
-    #' each row `period_id`. Schema 7 carries the `sparse_rule`. [qs2_read()]
-    #' refuses every enrollment below schema 7 before this check runs. The
-    #' check refuses the same objects.
+    #' each row `period_id`. Schema 7 carries the rare-condition rule.
+    #' [qs2_read()] refuses every enrollment below schema 7 before this check
+    #' runs. The check refuses the same objects.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION

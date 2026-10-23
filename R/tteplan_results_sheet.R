@@ -79,8 +79,8 @@
 #' `.forest_rd_map()` keys the lookup on `ett_id` and reads six required
 #' columns plus the two decision columns. `$get_estimates()` carries all eight
 #' under the accessor's own names, so this renames rather than computes.
-#' `interval_status` rides along, so a cell the horizon rule withheld reads
-#' `NE`.
+#' `interval_status` rides along, so a cell the minimum-events rule withheld
+#' reads `NE`.
 #'
 #' An emulated trial gets a row when the plan stored a risk difference for that
 #' estimand and weighting. Every risk-difference field `NA` means the plan
@@ -129,10 +129,10 @@
 #' The risk difference keeps its sign and is scaled to 10,000 people, matching
 #' the forest figure.
 #'
-#' A risk difference the horizon rule withheld has no number. Its interval
-#' cell reads `NE`, and the list carries the attribute `withheld = TRUE`, so
-#' the sheet writer puts `NE` in the risk-difference cell too. The two counts
-#' stay.
+#' A risk difference the minimum-events rule withheld has no number. Its
+#' interval cell reads `NE`, and the list carries the attribute `withheld =
+#' TRUE`, so the sheet writer puts `NE` in the risk-difference cell too. The two
+#' counts stay.
 #'
 #' @param rd_row A one-row table carrying the `$get_estimates()` risk-difference
 #'   columns (`persons_event_int`, `persons_event_cmp`, `rd`, `rd_lo`,
@@ -172,27 +172,36 @@
 }
 
 
-#' The horizon rule of a plan, as TARGET prose
+#' The minimum-events rule of a plan, as TARGET prose
 #'
-#' Item 6h of the TARGET checklist states the rule from `spec$horizon_rule`.
+#' Item 6h of the TARGET checklist states the rule from
+#' `spec$min_expected_events_per_arm_per_year`.
 #' The checklist calls `.tte_assert_horizon_rule_current()` first, so every
 #' stored result was judged with this value.
 #'
-#' @param spec `plan$spec`. It MUST carry `horizon_rule`.
+#' @param spec `plan$spec`. It MUST carry
+#'   `min_expected_events_per_arm_per_year`.
 #' @return A character(1) of whole sentences, separated by spaces. With
-#'   `min_expected_events` 0, one sentence says that the rule withheld no
-#'   estimate.
+#'   `min_expected_events_per_arm_per_year` 0, one sentence says that the rule
+#'   withheld no estimate.
 #' @noRd
 .plan_horizon_rule_text <- function(spec) {
-  rule <- .tte_assert_horizon_rule_present(spec, "print_target_checklist()")
-  k <- format(rule$min_expected_events, trim = TRUE, scientific = FALSE)
+  .tte_assert_horizon_rule_present(spec, "print_target_checklist()")
+  value <- as.numeric(spec[["min_expected_events_per_arm_per_year"]])
+  k <- format(value, trim = TRUE, scientific = FALSE)
   first <- paste0(
-    "A prespecified reporting rule, the horizon rule, required at least ",
+    "A prespecified reporting rule, the minimum-events rule, required at ",
+    "least ",
     k,
     " expected events per arm in each year of follow-up"
   )
-  if (rule$min_expected_events == 0) {
-    return(paste0(first, ", so it withheld no estimate."))
+  null_def <- paste0(
+    "The expected events of an arm in a year were computed under the null: ",
+    "its weighted person-time multiplied by the pooled weighted event rate ",
+    "of both arms."
+  )
+  if (value == 0) {
+    return(paste0(first, ", so it withheld no estimate. ", null_def))
   }
   return(paste0(
     first,
@@ -200,8 +209,8 @@
     "Follow-up was cut into years of ",
     .HORIZON_WINDOW_WEEKS,
     " weeks from time zero, and the last year ended at the horizon. ",
-    "The expected events of an arm in a year were its weighted person-time ",
-    "multiplied by the pooled weighted event rate of both arms. ",
+    null_def,
+    " ",
     "When any year failed the rule, the incidence rate ratio, risk ",
     "difference and number needed to treat of that estimand were not ",
     "reported. ",
@@ -244,9 +253,9 @@
 #' Decide whether a results sheet carries the risk-difference columns.
 #'
 #' The sheet carries them when at least one of its rows has a finite risk
-#' difference, or a risk difference the horizon rule withheld. The Summary
-#' sheet applies the same rule, so it shows a risk difference only when the
-#' results sheet shows one.
+#' difference, or a risk difference the minimum-events rule withheld. The
+#' Summary sheet applies the same rule, so it shows a risk difference only when
+#' the results sheet shows one.
 #'
 #' @param rd_cells A list with one element per sheet row, each the output of
 #'   `.rd_sheet_cells()`.

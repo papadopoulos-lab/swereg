@@ -105,8 +105,8 @@
 #' @param int_lab Legend label for the intervention arm (red, listed first).
 #' @param cmp_lab Legend label for the comparator arm (blue).
 #' @param horizon_weeks Numeric(1) or `NULL`, the reportable horizon the
-#'   horizon rule stored. When it is below `follow_up`, both curves stop at
-#'   it. A grey band with the label "Not estimable" then covers
+#'   minimum-events rule stored. When it is below `follow_up`, both curves stop
+#'   at it. A grey band with the label "Not estimable" then covers
 #'   `(horizon_weeks, follow_up]`. The x axis and the numbers-at-risk table
 #'   still run to `follow_up`. A horizon of 0 makes the whole panel the band.
 #'   `NULL` or `NA` draws no band.
@@ -160,8 +160,8 @@
   # screen, and completely wrong.
   pd[, plot_y := if (cumulative) 1 - surv else surv]
 
-  # The horizon rule withheld the estimates beyond `horizon_weeks`. The curves
-  # stop there, and a band marks the rest of the follow-up.
+  # The minimum-events rule withheld the estimates beyond `horizon_weeks`. The
+  # curves stop there, and a band marks the rest of the follow-up.
   band <- length(horizon_weeks) == 1L &&
     length(follow_up) == 1L &&
     is.finite(horizon_weeks) &&

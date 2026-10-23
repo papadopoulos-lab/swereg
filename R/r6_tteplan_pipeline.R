@@ -155,7 +155,7 @@ TTEPlan$set(
     # Sub-step    Mode                                 Target
     # --------    ----                                 ------
     # s1a         parallel x skeleton                  .s1a_worker_multi()
-    # s1b         single, only with a sparse_rule      .s1b_worker()
+    # s1b         single, with a rare_condition_rule   .s1b_worker()
     # s1c         single x enrollment                  .s1c_worker()
     # s1d         parallel x (enrollment x skeleton)   .s1d_worker()
     # s1e         single x enrollment                  .s1e_worker()
@@ -174,12 +174,16 @@ TTEPlan$set(
     # worker names outputs only, so a parent/worker drift is a loud child
     # failure rather than a file written where nothing will read it.
     if (is.null(self$ett) || nrow(self$ett) == 0) {
-      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.", call. = FALSE)
+      stop(
+        "plan has no ETTs. Use $add_one_ett() to add ETTs first.",
+        call. = FALSE
+      )
     }
     if (is.null(self$spec)) {
       stop(
         "plan has no spec. ",
-        "Create the plan with tteplan_from_spec_and_registrystudy().", call. = FALSE
+        "Create the plan with tteplan_from_spec_and_registrystudy().",
+        call. = FALSE
       )
     }
     # s1 clears the run id before any other plan field or file changes, and
@@ -332,23 +336,24 @@ TTEPlan$set(
     rm(s1a_items, s1a_outputs)
 
     # ====================================================================
-    # s1b -- the sparse_rule decision (single subworker, once per study)
+    # s1b -- the rare_condition_rule decision (single subworker, once per study)
     # ====================================================================
-    # Runs only when the spec has a sparse_rule. The subworker counts the
-    # holders of each candidate per arm in the driving enrollments' s1a
+    # Runs only when the spec has a rare_condition_rule. The subworker counts
+    # the holders of each candidate per arm in the driving enrollments' s1a
     # tuples. The master freezes the decision on the plan with a hash of the
     # rule, and removes each excluded condition from every enrollment's
-    # confounder set. The decision is made from baseline counts in the
-    # eligible population, before the comparator draw and without follow-up
-    # outcomes.
+    # confounder set. The decision is made from baseline counts in the eligible
+    # population, before the comparator draw and without follow-up outcomes.
     #
     # The new decision and hash go to locals first. The plan's decision,
     # hash and confounder sets change only after s1b succeeds, so a failed
     # run leaves the previous decision in place for the retry to restore.
     new_decision <- NULL
     new_hash <- NULL
-    if (!is.null(spec[["sparse_rule"]])) {
-      cat("\n[s1b] Decide the sparse conditions (driving enrollments, single subworker)\n")
+    if (!is.null(spec[["rare_condition_rule"]])) {
+      cat(
+        "\n[s1b] Decide the rare conditions (driving enrollments, single subworker)\n"
+      )
       new_decision <- .s1b_run(
         spec = spec,
         all_es = all_es,
@@ -358,7 +363,7 @@ TTEPlan$set(
         dev_path = swereg_dev_path,
         p = progressr::progressor(steps = 1L)
       )
-      new_hash <- .tte_sparse_rule_hash(spec[["sparse_rule"]])
+      new_hash <- .tte_sparse_rule_hash(spec[["rare_condition_rule"]])
     }
     changed <- .s1b_apply_to_confounders(
       self,
@@ -531,7 +536,11 @@ TTEPlan$set(
     # log on both paths, so a slow delete is never silent. A directory that
     # survives the delete warns here, because every output is already saved.
     cat("\n")
-    .clear_s1_work_dir(work_dir, label = "Removed s1 work directory", fatal = FALSE)
+    .clear_s1_work_dir(
+      work_dir,
+      label = "Removed s1 work directory",
+      fatal = FALSE
+    )
     self$s1_run_id <- .tte_s1_run_new_id(self)
     return(invisible(self))
   }
@@ -590,7 +599,10 @@ TTEPlan$set(
       output_dir <- self$dir_tteplan
     }
     if (is.null(self$ett) || nrow(self$ett) == 0) {
-      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.", call. = FALSE)
+      stop(
+        "plan has no ETTs. Use $add_one_ett() to add ETTs first.",
+        call. = FALSE
+      )
     }
     .tte_assert_sparse_decision_current(
       self,
@@ -737,26 +749,27 @@ TTEPlan$set(
 #' those numbers and never recomputes them. The IRR intervals and the
 #' interval of the ratio of stratum IRRs use the same level.
 #'
-#' The horizon rule. The RD item of each estimand also cuts follow-up into
-#' 52-week windows. In each window it computes the expected events of each
-#' arm, which are the pooled weighted rate times the weighted person-years of
-#' that arm. A window passes when both arms reach
-#' `spec$horizon_rule$min_expected_events`. When a window fails, the method
-#' withholds the estimates of that estimand. It sets these to `NA`:
+#' The minimum-events rule. The RD item of each estimand also cuts follow-up
+#' into 52-week windows. In each window it computes the expected events of
+#' each arm under the null. They are the pooled weighted rate of both arms
+#' times the weighted person-years of that arm. A window passes when both arms
+#' reach `spec$min_expected_events_per_arm_per_year`. When a window fails, the
+#' method withholds the estimates of that estimand. It sets these to `NA`:
 #' \itemize{
 #'   \item the incidence rate ratios and the subgroup ratios;
 #'   \item the risk difference and the number needed to treat;
 #'   \item the interaction tests.
 #' }
 #' Their `interval_status` and `horizon_status` then read
-#' `"below horizon rule: <arm> arm, weeks <lo>-<hi>"`, which names the first
-#' failing window. Events, person-years, rates and the survival curve stay.
-#' The record is stored as `horizon_pp` and `horizon_itt`, and
-#' `$get_horizon_windows()` returns its window table. Which windows pass
-#' depends on the observed events, through the pooled rate.
+#' `"below minimum-events rule: <arm> arm, weeks <lo>-<hi>"`, which names the
+#' first failing window. Events, person-years, rates and the survival curve
+#' stay. The record is stored as `horizon_pp` and `horizon_itt`, and
+#' `$get_horizon_windows()` returns its window table. Which windows pass depends
+#' on the observed events, through the pooled rate.
 #'
-#' The method stops when the spec has no `horizon_rule`. It also stops when an
-#' ETT of the run has no horizon decision for an estimand.
+#' The method stops when the spec has no
+#' `min_expected_events_per_arm_per_year`. It also stops when an ETT of the
+#' run has no horizon decision for an estimand.
 #'
 #' Cost. Each risk difference is its own work item, so it is its own worker
 #' process with its own read of the analysis file. That is two more reads
@@ -807,18 +820,7 @@ TTEPlan$set(
     horizon_rule <- .tte_assert_horizon_rule_present(self$spec, "s3_analyze()")
     .tte_assert_sparse_decision_current(self, "s3_analyze()")
     .tte_assert_s1_completed(self, "s3_analyze()")
-    if (is.null(output_dir)) {
-      output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
-    }
-    if (is.null(output_dir)) {
-      output_dir <- self$output_dir # legacy fallback
-    }
-    if (is.null(output_dir)) {
-      stop(
-        "output_dir is not set. Pass it as an argument, ",
-        "configure dir_tteplan_cp, or run $s1_generate_enrollments_and_ipw() first.", call. = FALSE
-      )
-    }
+    output_dir <- .tte_s3_output_dir(self, output_dir)
     ett <- self$ett
     # The batch runner is thread-agnostic (each target calls setDTthreads()
     # itself), so the per-worker thread count is decided HERE, not injected by
@@ -833,7 +835,11 @@ TTEPlan$set(
     if (!is.null(enrollment_ids)) {
       bad <- setdiff(enrollment_ids, all_enrollment_ids)
       if (length(bad) > 0L) {
-        stop("Unknown enrollment_ids: ", paste(bad, collapse = ", "), call. = FALSE)
+        stop(
+          "Unknown enrollment_ids: ",
+          paste(bad, collapse = ", "),
+          call. = FALSE
+        )
       }
       all_enrollment_ids <- enrollment_ids
     }
@@ -841,7 +847,11 @@ TTEPlan$set(
     if (!is.null(ett_ids)) {
       bad_ett <- setdiff(ett_ids, ett$ett_id)
       if (length(bad_ett) > 0L) {
-        stop("Unknown ett_ids: ", paste(bad_ett, collapse = ", "), call. = FALSE)
+        stop(
+          "Unknown ett_ids: ",
+          paste(bad_ett, collapse = ", "),
+          call. = FALSE
+        )
       }
       ett_enrollment_ids <- unique(
         ett$enrollment_id[ett$ett_id %in% ett_ids]
@@ -899,20 +909,9 @@ TTEPlan$set(
     enr_s2_run <- character(0)
     if (length(enr_todo) > 0L) {
       enr_items <- lapply(enr_todo, function(eid) {
-        enr_rows <- ett[ett$enrollment_id == eid]
-        analysis_files <- file.path(output_dir, enr_rows$file_analysis)
-        sizes <- file.size(analysis_files)
-        smallest <- which.min(sizes)
-        # Without a file size there is no smallest file. s2 stamps every
-        # ETT with one id, so the first ETT then gives the same stamp.
-        enr_s2_run[[eid]] <<- .tte_s2_run_of(enr_rows)[c(smallest, 1L)[1L]]
-        return(list(
-          analysis_path = analysis_files[smallest],
-          raw_path = file.path(output_dir, enr_rows$file_raw[1]),
-          enrollment_id = eid,
-          n_threads = n_threads,
-          arm_labels = .lookup_arm_labels(self$spec, eid)
-        ))
+        r <- .tte_s3_enrollment_item(self, eid, output_dir, n_threads)
+        enr_s2_run[[eid]] <<- r$s2_run
+        return(r$item)
       })
       # Name the items by enrollment id so .batch_run uses those as stable ids:
       # a worker failure then reports the actual enrollment, not "item 1".
@@ -936,18 +935,19 @@ TTEPlan$set(
     # including the optional ones: an optional argument silently absent is the
     # arm_labels bug's shape, and .batch_run rejects it. The worker matches
     # every argument by name, so the order of the elements below carries no
-    # meaning.
-    s3_item <- function(path, eid, method, weight_col, subgroup_var = NULL) {
+    # meaning. `r` is the resolution of one ETT from `.tte_s3_resolve_ett()`,
+    # which gives the ETT id, its follow-up and the rule.
+    s3_item <- function(path, r, method, weight_col, subgroup_var = NULL) {
       return(list(
         analysis_path = path,
-        ett_id = eid,
+        ett_id = r$ett_id,
         n_threads = n_threads,
         method = method,
         weight_col = weight_col,
         subgroup_var = subgroup_var,
         conf_level = rd_conf_level,
-        horizon_rule = horizon_rule,
-        follow_up = as.numeric(ett_todo$follow_up[match(eid, ett_todo$ett_id)])
+        horizon_rule = r$rule,
+        follow_up = r$follow_up
       ))
     }
 
@@ -955,71 +955,17 @@ TTEPlan$set(
     item_map <- list()
     if (n_ett > 0L) {
       for (i in seq_len(n_ett)) {
-        apath <- file.path(output_dir, ett_todo$file_analysis[i])
-        eid <- ett_todo$ett_id[i]
-
-        # Intention-to-treat reads the ITT analysis file s2 wrote. An old grid
-        # without file_analysis_itt falls back to deriving that path from the
-        # per-protocol analysis path.
-        itt_apath <- if (
-          "file_analysis_itt" %in%
-            names(ett_todo) &&
-            !is.na(ett_todo$file_analysis_itt[i])
-        ) {
-          file.path(output_dir, ett_todo$file_analysis_itt[i])
-        } else {
-          sub("_analysis_", "_analysis_itt_", apath, fixed = TRUE)
-        }
-
-        # Every s3 analysis call this ETT makes, keyed by estimand and then
-        # subset by `.TTE_ESTIMANDS`. The constant decides which estimands
-        # appear and in which order, so an estimand it drops contributes no
-        # item at all. `path` is the analysis file s2 wrote for that estimand,
-        # `weight` is the baseline weight column s3 reads on that file, and
-        # `ratio_calls` are the ratio and rate calls it takes.
-        est_s3 <- list(
-          pp = list(
-            path = apath,
-            weight = "analysis_weight_pp_trunc",
-            ratio_calls = list(
-              list(
-                method = "irr",
-                weight_col = "analysis_weight_pp_trunc",
-                slot = "irr_pp_trunc"
-              ),
-              list(
-                method = "irr",
-                weight_col = "analysis_weight_pp",
-                slot = "irr_pp"
-              )
-            ),
-            rd_slot = "rd_pp_trunc"
-          ),
-          itt = list(
-            path = itt_apath,
-            weight = "ipw_trunc",
-            ratio_calls = list(
-              list(
-                method = "irr",
-                weight_col = "ipw_trunc",
-                slot = "irr_itt"
-              ),
-              list(
-                method = "rates",
-                weight_col = "ipw_trunc",
-                slot = "rates_itt"
-              )
-            ),
-            rd_slot = "rd_itt"
-          )
-        )[names(.TTE_ESTIMANDS)]
+        # The analysis file, weight, follow-up and rule of each estimand.
+        # `$s3_feasibility()` resolves them through the same helper.
+        r <- .tte_s3_resolve_ett(ett_todo, i, output_dir, horizon_rule)
+        est_s3 <- r$estimands
 
         # The summary and the unweighted rates. This call carries no estimand
         # and it reads the analysis file of the first estimand the constant
         # names.
         all_items[[length(all_items) + 1L]] <- s3_item(
           est_s3[[1L]]$path,
-          eid,
+          r,
           "summary_and_rates",
           ""
         )
@@ -1033,7 +979,7 @@ TTEPlan$set(
           for (cl in est$ratio_calls) {
             all_items[[length(all_items) + 1L]] <- s3_item(
               est$path,
-              eid,
+              r,
               cl$method,
               cl$weight_col
             )
@@ -1054,7 +1000,7 @@ TTEPlan$set(
         for (est in est_s3) {
           all_items[[length(all_items) + 1L]] <- s3_item(
             est$path,
-            eid,
+            r,
             "risk_difference",
             est$weight
           )
@@ -1082,20 +1028,26 @@ TTEPlan$set(
           for (est in est_s3) {
             all_items[[length(all_items) + 1L]] <- s3_item(
               est$path,
-              eid,
+              r,
               "irr_by_subgroup",
               est$weight,
               sv
             )
-            item_map[[length(item_map) + 1L]] <- list(ett_i = i, slot = "subgroup")
+            item_map[[length(item_map) + 1L]] <- list(
+              ett_i = i,
+              slot = "subgroup"
+            )
             all_items[[length(all_items) + 1L]] <- s3_item(
               est$path,
-              eid,
+              r,
               "effect_modification_test",
               est$weight,
               sv
             )
-            item_map[[length(item_map) + 1L]] <- list(ett_i = i, slot = "emtest")
+            item_map[[length(item_map) + 1L]] <- list(
+              ett_i = i,
+              slot = "emtest"
+            )
           }
         }
       }
@@ -1164,7 +1116,9 @@ TTEPlan$set(
         if (is.null(enr_results[[i]])) {
           next
         }
-        self$results_enrollment[[enr_todo[i]]][["swereg_version_s3"]] <- s3_version
+        self$results_enrollment[[enr_todo[i]]][[
+          "swereg_version_s3"
+        ]] <- s3_version
         self$results_enrollment[[enr_todo[i]]][["s1_run_id"]] <- self$s1_run_id
         self$results_enrollment[[enr_todo[i]]][["s2_run_id"]] <-
           enr_s2_run[[enr_todo[i]]]
@@ -1304,6 +1258,148 @@ TTEPlan$set(
     return(invisible(self))
   }
 )
+
+#' The directory that holds the s2 analysis files, for s3 and the feasibility
+#' step
+#'
+#' @param plan A `TTEPlan`.
+#' @param output_dir Character(1), or `NULL`. A value given here wins.
+#'   Otherwise the plan's `dir_tteplan` holds, then the legacy `output_dir`
+#'   field.
+#' @return Character(1).
+#' @noRd
+.tte_s3_output_dir <- function(plan, output_dir) {
+  if (is.null(output_dir)) {
+    output_dir <- tryCatch(plan$dir_tteplan, error = function(e) NULL)
+  }
+  if (is.null(output_dir)) {
+    output_dir <- plan$output_dir # legacy fallback
+  }
+  if (is.null(output_dir)) {
+    stop(
+      "output_dir is not set. Pass it as an argument, ",
+      "configure dir_tteplan_cp, or run $s1_generate_enrollments_and_ipw() first.",
+      call. = FALSE
+    )
+  }
+  return(output_dir)
+}
+
+#' The baseline work item of one enrollment, for s3 and the feasibility step
+#'
+#' The item reads the smallest analysis file of the enrollment and its raw
+#' file.
+#'
+#' @param plan A `TTEPlan`.
+#' @param eid Character(1), the enrollment id.
+#' @param output_dir Character(1), from `.tte_s3_output_dir()`.
+#' @param n_threads Integer(1), the threads of one worker.
+#' @return A list: `item`, the arguments of `.s3_enrollment_worker()`, and
+#'   `s2_run`, the s2 run id of the analysis file the item reads.
+#' @noRd
+.tte_s3_enrollment_item <- function(plan, eid, output_dir, n_threads) {
+  ett <- plan$ett
+  enr_rows <- ett[ett$enrollment_id == eid]
+  analysis_files <- file.path(output_dir, enr_rows$file_analysis)
+  sizes <- file.size(analysis_files)
+  smallest <- which.min(sizes)
+  return(list(
+    item = list(
+      analysis_path = analysis_files[smallest],
+      raw_path = file.path(output_dir, enr_rows$file_raw[1]),
+      enrollment_id = eid,
+      n_threads = n_threads,
+      arm_labels = .lookup_arm_labels(plan$spec, eid)
+    ),
+    # Without a file size there is no smallest file. s2 stamps every ETT with
+    # one id, so the first ETT then gives the same stamp.
+    s2_run = .tte_s2_run_of(enr_rows)[c(smallest, 1L)[1L]]
+  ))
+}
+
+#' Resolve the estimands of one ETT, for s3 and the feasibility step
+#'
+#' `$s3_analyze()` and `$s3_feasibility()` both call this function. They then
+#' read the same analysis file and weight column for each estimand, with the
+#' same follow-up and rule.
+#'
+#' @param ett The ETT grid, or a subset of its rows.
+#' @param i Integer(1), the row of `ett`.
+#' @param output_dir Character(1), from `.tte_s3_output_dir()`.
+#' @param rule The minimum-events rule, from
+#'   `.tte_assert_horizon_rule_present()`.
+#' @return A list: `ett_id`, `follow_up` (numeric, in weeks), `rule` and
+#'   `estimands`. `estimands` is keyed by estimand and subset by
+#'   `.TTE_ESTIMANDS`. Each element holds `path`, the analysis file s2 wrote
+#'   for that estimand, and `weight`, the baseline weight column. It also holds
+#'   `ratio_calls` and `rd_slot`, which only s3 reads.
+#' @noRd
+.tte_s3_resolve_ett <- function(ett, i, output_dir, rule) {
+  apath <- file.path(output_dir, ett$file_analysis[i])
+
+  # Intention-to-treat reads the ITT analysis file s2 wrote. An old grid
+  # without file_analysis_itt falls back to deriving that path from the
+  # per-protocol analysis path.
+  itt_apath <- if (
+    "file_analysis_itt" %in%
+      names(ett) &&
+      !is.na(ett$file_analysis_itt[i])
+  ) {
+    file.path(output_dir, ett$file_analysis_itt[i])
+  } else {
+    sub("_analysis_", "_analysis_itt_", apath, fixed = TRUE)
+  }
+
+  # Every s3 analysis call this ETT makes, keyed by estimand and then subset
+  # by `.TTE_ESTIMANDS`. The constant decides which estimands appear and in
+  # which order, so an estimand it drops contributes no item at all. `path`
+  # is the analysis file s2 wrote for that estimand, `weight` is the baseline
+  # weight column s3 reads on that file, and `ratio_calls` are the ratio and
+  # rate calls it takes.
+  estimands <- list(
+    pp = list(
+      path = apath,
+      weight = "analysis_weight_pp_trunc",
+      ratio_calls = list(
+        list(
+          method = "irr",
+          weight_col = "analysis_weight_pp_trunc",
+          slot = "irr_pp_trunc"
+        ),
+        list(
+          method = "irr",
+          weight_col = "analysis_weight_pp",
+          slot = "irr_pp"
+        )
+      ),
+      rd_slot = "rd_pp_trunc"
+    ),
+    itt = list(
+      path = itt_apath,
+      weight = "ipw_trunc",
+      ratio_calls = list(
+        list(
+          method = "irr",
+          weight_col = "ipw_trunc",
+          slot = "irr_itt"
+        ),
+        list(
+          method = "rates",
+          weight_col = "ipw_trunc",
+          slot = "rates_itt"
+        )
+      ),
+      rd_slot = "rd_itt"
+    )
+  )[names(.TTE_ESTIMANDS)]
+
+  return(list(
+    ett_id = ett$ett_id[i],
+    follow_up = as.numeric(ett$follow_up[i]),
+    rule = rule,
+    estimands = estimands
+  ))
+}
 
 #' Merge the s2 versions of several analysis files into one stamp
 #'

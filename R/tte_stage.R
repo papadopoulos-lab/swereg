@@ -1,7 +1,7 @@
 # =============================================================================
 # tte_stage(): one call per pipeline stage
 # =============================================================================
-# The three stage methods take their arguments in DIFFERENT orders and none of
+# The four stage methods take their arguments in DIFFERENT orders and none of
 # them takes `...`:
 #
 #   s1  output_dir, impute_fn, stabilize, n_workers, swereg_dev_path,
@@ -9,6 +9,7 @@
 #   s2  output_dir, estimate_ipcw_pp_separately_by_treatment,
 #       estimate_ipcw_pp_with_gam, n_workers, swereg_dev_path
 #   s3  enrollment_ids, ett_ids, output_dir, swereg_dev_path, n_workers
+#   feasibility  n_workers, output_dir, swereg_dev_path
 #
 # s3 reverses the last two. A positional forward therefore binds n_workers to
 # enrollment_ids and reports no error, so every forward here is by name.
@@ -16,8 +17,8 @@
 #' Run one target trial emulation pipeline stage
 #'
 #' Loads the plan in `dir_tteplan`, runs the stage method, then runs the steps
-#' that follow it. This is the body of the per-project `s1.R`, `s2.R` and
-#' `s3.R` stage scripts as one call.
+#' that follow it. This is the body of the per-project `s1.R`, `s2.R`,
+#' `s3.R` and feasibility stage scripts as one call.
 #'
 #' @details
 #' The stage id selects the method and the steps after it:
@@ -27,6 +28,7 @@
 #' | `"s1"` | `$s1_generate_enrollments_and_ipw()` | `$save()`, then `$print_target_checklist()` |
 #' | `"s2"` | `$s2_generate_analysis_files_and_ipcw_pp()` | `$save()` |
 #' | `"s3"` | `$s3_analyze()` | `$results_summary()`, `$save()`, then `$print_target_checklist()` |
+#' | `"feasibility"` | `$s3_feasibility()` | `$save()` |
 #'
 #' Each call loads the plan from disk, and a Slurm job runs one stage per
 #' process. So every stage MUST save the plan. s2 stamps each ETT with its s2
@@ -35,7 +37,7 @@
 #' Every element of `...` MUST carry a name. `tte_stage()` matches each name
 #' against the formals of the stage method, and forwards by name.
 #'
-#' The three methods take their arguments in different orders, and none of them
+#' The four methods take their arguments in different orders, and none of them
 #' takes `...`. A positional forward binds the wrong formal and reports no
 #' error. Naming every argument is what makes the forward safe.
 #'
@@ -48,7 +50,7 @@
 #'
 #' The formals come from the [TTEPlan] generator, so the check needs no plan.
 #'
-#' @param stage One of `"s1"`, `"s2"` or `"s3"`.
+#' @param stage One of `"s1"`, `"s2"`, `"s3"` or `"feasibility"`.
 #' @param dir_tteplan Character vector of candidate directories, in priority
 #'   order, where `tteplan.qs2` lives. Passed to
 #'   [tteplan_locate_and_load()], which takes the first one that exists.
@@ -71,7 +73,7 @@ tte_stage <- function(stage, dir_tteplan, ...) {
   if (!is.character(stage) || length(stage) != 1L || is.na(stage)) {
     stop(
       "tte_stage(): `stage` must be a single string, one of \"s1\", ",
-      "\"s2\" or \"s3\".",
+      "\"s2\", \"s3\" or \"feasibility\".",
       call. = FALSE
     )
   }
@@ -82,9 +84,13 @@ tte_stage <- function(stage, dir_tteplan, ...) {
     s1 = "s1_generate_enrollments_and_ipw",
     s2 = "s2_generate_analysis_files_and_ipcw_pp",
     s3 = "s3_analyze",
+    feasibility = "s3_feasibility",
     stop(
       sprintf(
-        "tte_stage(): `stage` must be \"s1\", \"s2\" or \"s3\". Got \"%s\".",
+        paste0(
+          "tte_stage(): `stage` must be \"s1\", \"s2\", \"s3\" or ",
+          "\"feasibility\". Got \"%s\"."
+        ),
         stage
       ),
       call. = FALSE
@@ -116,7 +122,9 @@ tte_stage <- function(stage, dir_tteplan, ...) {
       # first complete one. The Item 8 analysis line has no source before
       # this stage runs.
       plan$print_target_checklist()
-    }
+    },
+    # The feasibility step stores its decisions in the plan, so it MUST save.
+    feasibility = plan$save()
   )
   return(invisible(plan))
 }

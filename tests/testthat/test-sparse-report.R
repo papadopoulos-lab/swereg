@@ -1,4 +1,4 @@
-# Reporting the frozen sparse_rule decision (#52), one output at a time.
+# Reporting the frozen rare_condition_rule decision (#52), one output at a time.
 #
 # Every test here builds the plan of spr_report_fast_plan(): a hand-made
 # decision with no s1 run. At min_n = 10 it excludes "Prior rare condition B"
@@ -15,18 +15,18 @@ FAST_EXCLUDED <- c("Prior rare condition B", "Prior rare condition A")
 FAST_ADJUSTMENT_SET <- c("Age", "Prior common condition")
 FAST_DRIVER <- "enrollment 01 (Treated vs control 01)"
 
-test_that("the Sparse conditions sheet shows each candidate, and a small count as <min_n", {
+test_that("the Rare conditions sheet shows each candidate, and a small count as <min_n", {
   plan <- spr_report_fast_plan()
   x <- spr_report_read_sheet(
     function(wb) {
       expect_true(swereg:::.write_sparse_conditions_sheet(wb, plan))
     },
-    "Sparse conditions"
+    "Rare conditions"
   )
   expect_identical(
     x[[1]][1],
     paste0(
-      "Sparse conditions: the rare-condition rule of ",
+      "Rare conditions: the rare-condition rule of ",
       FAST_DRIVER,
       ", decided from baseline counts in the eligible population, before ",
       "the comparator draw and without follow-up outcomes"
@@ -65,7 +65,7 @@ test_that("the Sparse conditions sheet shows each candidate, and a small count a
   expect_identical(x[[7]][5:7], c("excluded", "adjusted", "excluded"))
 })
 
-test_that("the Sparse conditions sheet is absent without a decision", {
+test_that("the Rare conditions sheet is absent without a decision", {
   plan <- spr_report_fast_plan()
   plan$sparse_decision <- NULL
   wb <- openxlsx::createWorkbook()
@@ -79,7 +79,7 @@ test_that("Study Specification states the rule, the exclusions and the adjustmen
     function(wb) swereg:::.write_spec_summary(wb, plan),
     "Study Specification"
   )
-  expect_true("Rare-condition rule (sparse_rule)" %in% ss[[1]])
+  expect_true("Rare-condition rule (rare_condition_rule)" %in% ss[[1]])
   expect_identical(spr_report_spec_value(ss, "Threshold (min_n):"), "10")
   expect_identical(spr_report_spec_value(ss, "Decided by:"), FAST_DRIVER)
   expect_identical(
@@ -173,9 +173,9 @@ test_that("the rule sentence is singular for one driver and plural for two", {
   )
 })
 
-test_that("Study Specification carries no rule rows without a sparse_rule", {
+test_that("Study Specification carries no rule rows without a rare_condition_rule", {
   plan <- spr_report_fast_plan()
-  plan$spec$sparse_rule <- NULL
+  plan$spec$rare_condition_rule <- NULL
   plan$sparse_decision <- NULL
   ss <- spr_report_read_sheet(
     function(wb) swereg:::.write_spec_summary(wb, plan),
@@ -223,7 +223,7 @@ test_that("the Table 1 footnote names the excluded conditions", {
     paste0(
       "Not shown: Prior rare condition B, Prior rare condition A. The ",
       "rare-condition rule made each of these conditions an exclusion ",
-      "criterion. See the Sparse conditions sheet."
+      "criterion. See the Rare conditions sheet."
     )
   )
   t1 <- data.table::data.table(Variable = c("N", "Age"), Level = c("", ""))
@@ -434,10 +434,10 @@ test_that("the TARGET methods text states the rule, the threshold and the inheri
 # rule. Each output that carries one is tested with one driver of two and
 # with both drivers.
 spr_report_all_drive <- function(plan) {
-  plan$spec$sparse_rule$decided_by <- c("01", "02")
+  plan$spec$rare_condition_rule$decided_by <- c("01", "02")
   plan$sparse_decision[, decided_by := "01, 02"]
   # A changed rule and decision need the hash and the stamps of a new s1 run.
-  plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(plan$spec$sparse_rule)
+  plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(plan$spec$rare_condition_rule)
   return(tte_stamp_stages(plan))
 }
 SPR_INHERIT_SPEC <- "The other comparisons inherit the decision."
@@ -653,7 +653,7 @@ test_that("the protocol emulation cell says how the rule chose the exclusions", 
     c(
       paste0(
         "Not eligible under the rare-condition rule: Prior rare condition B, ",
-        "Prior rare condition A (see the Sparse conditions sheet)"
+        "Prior rare condition A (see the Rare conditions sheet)"
       ),
       rule,
       paste0(
@@ -691,9 +691,9 @@ test_that("the protocol emulation cell states the rule without an exclusion", {
   expect_false(any(grepl("randomised trial", emul, fixed = TRUE)))
 })
 
-test_that("without a sparse_rule no output names the rule", {
+test_that("without a rare_condition_rule no output names the rule", {
   plan <- spr_report_fast_plan()
-  plan$spec$sparse_rule <- NULL
+  plan$spec$rare_condition_rule <- NULL
   plan$sparse_decision <- NULL
   txt <- spr_report_checklist(plan)
   expect_false(any(grepl("rare-condition", txt, fixed = TRUE)))

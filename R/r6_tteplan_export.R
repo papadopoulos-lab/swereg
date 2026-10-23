@@ -27,16 +27,17 @@
 #' and carries an autofilter. A `Family` column shows when the spec sets an
 #' enrollment `family`.
 #'
-#' A ratio, risk difference or number needed to treat that the horizon rule
-#' withheld reads `NE` on every sheet. Its events and person-years stay. The
-#' method stops, and names `$s3_analyze()`, when a stored result was judged
-#' with a `horizon_rule` other than the one in `spec$horizon_rule`.
+#' A ratio, risk difference or number needed to treat that the minimum-events
+#' rule withheld reads `NE` on every sheet. Its events and person-years stay.
+#' The method stops, and names `$s3_analyze()`, when a stored result was
+#' judged with a `min_expected_events_per_arm_per_year` other than the one in
+#' the spec.
 #'
-#' The `Expected events` sheet holds one row per ETT, estimand and follow-up
-#' year of the horizon rule. Each row gives the weighted person-years and the
-#' pooled weighted rate. It also gives the expected and observed weighted
-#' events of each arm, whether the year passes, and the reportable horizon.
-#' The sheet shows why the rule withheld an estimate.
+#' The `Minimum events` sheet holds one row per ETT, estimand and follow-up
+#' year of the minimum-events rule. Each row gives the weighted person-years
+#' and the pooled weighted rate. It also gives the expected and observed
+#' weighted events of each arm, whether the year passes, and the reportable
+#' horizon. The sheet shows why the rule withheld an estimate.
 #'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,
@@ -146,11 +147,12 @@ TTEPlan$set(
 #' difference for every ETT and stores it, so this switch only decides
 #' whether the figure carries the two extra columns.
 #'
-#' The horizon rule shows on both figures. A `"survival"` curve stops at the
-#' reportable horizon, and a grey band labelled "Not estimable" covers the
-#' rest of the follow-up. A `"forest"` cell that the rule withheld reads `NE`.
-#' The method stops, and names `$s3_analyze()`, when a stored result was
-#' judged with a `horizon_rule` other than the one in `spec$horizon_rule`.
+#' The minimum-events rule shows on both figures. A `"survival"` curve stops
+#' at the reportable horizon, and a grey band labelled "Not estimable" covers
+#' the rest of the follow-up. A `"forest"` cell that the rule withheld reads
+#' `NE`. The method stops, and names `$s3_analyze()`, when a stored result was
+#' judged with a `min_expected_events_per_arm_per_year` other than the one in
+#' the spec.
 #'
 #' The `n_boot`, `seed` and `conf_level` fields are inert and warn.
 #' `$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level

@@ -61,15 +61,16 @@
     )
   ]
 
-  # The baseline value of each sparse_rule candidate, read at the recruiting
-  # week. s1b counts the holders from these columns, and s1c drops the
-  # person-trials of an excluded condition with them. Without a sparse_rule
-  # this adds no column, so the pre file keeps its 27.2.0 column set.
+  # The baseline value of each rare_condition_rule candidate, read at the
+  # recruiting week. s1b counts the holders from these columns, and s1c drops
+  # the person-trials of an excluded condition with them. Without a
+  # rare_condition_rule this adds no column, so the pre file keeps its 27.2.0
+  # column set.
   tuples <- .s1a_attach_sparse_baseline(
     tuples,
     skeleton,
     pid,
-    spec[["sparse_rule"]][["candidates"]]
+    spec[["rare_condition_rule"]][["candidates"]]
   )
 
   # Cache prepared skeleton for s1d reuse, projected to only the columns
@@ -201,10 +202,10 @@
     canonical[, (drop_cols) := NULL]
   }
   data.table::setkey(canonical, id, isoyearweek)
-  # The sparse_rule candidates, derived once for the skeleton and not once per
-  # enrollment. A computed confounder reads one person's weeks and nothing
-  # from the enrollment. The columns join `pristine_cols`, so every
-  # enrollment below reads them. Without a sparse_rule this is a no-op.
+  # The rare_condition_rule candidates, derived once for the skeleton and not
+  # once per enrollment. A computed confounder reads one person's weeks and
+  # nothing from the enrollment. The columns join `pristine_cols`, so every
+  # enrollment below reads them. Without a rare_condition_rule this is a no-op.
   canonical <- .s1a_derive_sparse_conditions(canonical, spec)
   pristine_cols <- copy(names(canonical))
 
@@ -257,8 +258,8 @@
 #     skeleton in s1d and reads those raw sources (the OR'd
 #     `*_combined` column is materialised at apply time).
 # The cache never holds a computed confounder itself. s1d derives it again from
-# its sources. s1a derives the sparse_rule candidates for the tuples, and
-# leaving them out keeps the cache the same with and without the rule.
+# its sources. s1a derives the rare_condition_rule candidates for the tuples,
+# and leaving them out keeps the cache the same with and without the rule.
 .tte_s1_cache_columns <- function(skeleton, enrollment_spec, spec) {
   design <- enrollment_spec$design
   needed <- c(

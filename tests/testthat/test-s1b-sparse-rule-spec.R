@@ -1,4 +1,4 @@
-# The sparse_rule (#52): the parser, the counting rule of s1b, the
+# The rare_condition_rule (#52): the parser, the counting rule of s1b, the
 # stale-decision guard, persistence, reload_spec and the schema refusal.
 #
 # Nothing in this file runs s1, so it runs in seconds. test-s1b-sparse-rule.R
@@ -34,7 +34,7 @@ spr_rule_yaml <- function(
   candidates = "[rd_no_osd_rare_a_everbefore]",
   min_n = "10"
 ) {
-  lines <- c("sparse_rule:", paste0("  min_n: ", min_n))
+  lines <- c("rare_condition_rule:", paste0("  min_n: ", min_n))
   if (!is.null(decided_by)) {
     lines <- c(lines, paste0("  decided_by: ", decided_by))
   }
@@ -46,13 +46,13 @@ spr_rule_yaml <- function(
 # The parser
 # ---------------------------------------------------------------------------
 
-test_that("a quoted sparse_rule parses into its normal form", {
+test_that("a quoted rare_condition_rule parses into its normal form", {
   spec <- spr_parse(spr_rule_yaml(
     decided_by = "[\"01\", \"02\"]",
     candidates = "[rd_no_osd_rare_b_everbefore, rd_no_osd_common_everbefore]"
   ))
   expect_identical(
-    spec$sparse_rule,
+    spec$rare_condition_rule,
     list(
       min_n = 10L,
       decided_by = c("01", "02"),
@@ -95,34 +95,34 @@ test_that("a candidate that is not a computed confounder stops", {
   )
 })
 
-test_that("a sparse_rule without decided_by stops", {
+test_that("a rare_condition_rule without decided_by stops", {
   expect_match(
     spr_parse_error(spr_rule_yaml(decided_by = NULL)),
-    "sparse_rule has no decided_by",
+    "rare_condition_rule has no decided_by",
     fixed = TRUE
   )
 })
 
-test_that("a sparse_rule key that is present but null or empty stops", {
+test_that("a rare_condition_rule key that is present but null or empty stops", {
   # An absent key is no rule. A key written with no value, or with an empty
   # mapping, is a rule left unfinished.
   expect_match(
-    spr_parse_error("sparse_rule:\n"),
-    "sparse_rule is present but empty",
+    spr_parse_error("rare_condition_rule:\n"),
+    "rare_condition_rule is present but empty",
     fixed = TRUE
   )
   expect_match(
-    spr_parse_error("sparse_rule: {}\n"),
-    "sparse_rule is present but empty",
+    spr_parse_error("rare_condition_rule: {}\n"),
+    "rare_condition_rule is present but empty",
     fixed = TRUE
   )
-  expect_null(spr_parse(NULL)$sparse_rule)
+  expect_null(spr_parse(NULL)$rare_condition_rule)
 })
 
 test_that("min_n NA stops with a message naming min_n", {
   expect_match(
     spr_parse_error(spr_rule_yaml(min_n = ".nan")),
-    "sparse_rule$min_n MUST be one whole number from 1 to 2147483647. It is NA.",
+    "rare_condition_rule$min_n MUST be one whole number from 1 to 2147483647. It is NA.",
     fixed = TRUE
   )
 })
@@ -130,7 +130,7 @@ test_that("min_n NA stops with a message naming min_n", {
 test_that("min_n infinite stops with a message naming min_n", {
   expect_match(
     spr_parse_error(spr_rule_yaml(min_n = ".inf")),
-    "sparse_rule$min_n MUST be one whole number from 1 to 2147483647. It is infinite.",
+    "rare_condition_rule$min_n MUST be one whole number from 1 to 2147483647. It is infinite.",
     fixed = TRUE
   )
 })
@@ -138,7 +138,7 @@ test_that("min_n infinite stops with a message naming min_n", {
 test_that("min_n that is not a whole number stops with a message naming min_n", {
   expect_match(
     spr_parse_error(spr_rule_yaml(min_n = "10.5")),
-    "sparse_rule$min_n MUST be one whole number from 1 to 2147483647. It is 10.5, which is not a whole number.",
+    "rare_condition_rule$min_n MUST be one whole number from 1 to 2147483647. It is 10.5, which is not a whole number.",
     fixed = TRUE
   )
 })
@@ -146,7 +146,7 @@ test_that("min_n that is not a whole number stops with a message naming min_n", 
 test_that("min_n below 1 stops with a message naming min_n", {
   expect_match(
     spr_parse_error(spr_rule_yaml(min_n = "0")),
-    "sparse_rule$min_n MUST be one whole number from 1 to 2147483647. It is 0, which is below 1.",
+    "rare_condition_rule$min_n MUST be one whole number from 1 to 2147483647. It is 0, which is below 1.",
     fixed = TRUE
   )
 })
@@ -155,7 +155,7 @@ test_that("min_n above the largest R integer stops with a message naming min_n",
   # Written as a float: YAML reads the integer 3000000000 as NA.
   expect_match(
     spr_parse_error(spr_rule_yaml(min_n = "3000000000.0")),
-    "sparse_rule$min_n MUST be one whole number from 1 to 2147483647. It is 3000000000, which is above the largest R integer.",
+    "rare_condition_rule$min_n MUST be one whole number from 1 to 2147483647. It is 3000000000, which is above the largest R integer.",
     fixed = TRUE
   )
 })
@@ -228,7 +228,7 @@ test_that("s1b counts a person once per arm when any of her tuples there holds t
 # or "no error".
 spr_s2_after_change <- function(field, value) {
   plan <- spr_plan_no_s1()
-  plan$spec$sparse_rule[[field]] <- value
+  plan$spec$rare_condition_rule[[field]] <- value
   return(tryCatch(
     {
       suppressWarnings(utils::capture.output(
@@ -307,7 +307,7 @@ spr_reload_change <- function(field, value, env = parent.frame()) {
     global_max_isoyearweek = "2019-26"
   )
   plan$spec <- swereg::tteplan_read_spec(path_old)
-  return(list(plan = plan, old = plan$spec$sparse_rule, path_new = path_new))
+  return(list(plan = plan, old = plan$spec$rare_condition_rule, path_new = path_new))
 }
 
 for (spr_field in c("min_n", "decided_by", "candidates")) {
@@ -320,15 +320,15 @@ for (spr_field in c("min_n", "decided_by", "candidates")) {
       candidates = spr_var("osd_common")
     )
     test_that(
-      paste0("sparse_rule$", field, ": reload_spec refuses a change to it"),
+      paste0("rare_condition_rule$", field, ": reload_spec refuses a change to it"),
       {
         x <- spr_reload_change(field, value)
         expect_warning(
           x$plan$reload_spec(spec_path = x$path_new, quiet = TRUE),
-          paste0("sparse_rule$", field),
+          paste0("rare_condition_rule$", field),
           fixed = TRUE
         )
-        expect_identical(x$plan$spec$sparse_rule, x$old)
+        expect_identical(x$plan$spec$rare_condition_rule, x$old)
       }
     )
   })

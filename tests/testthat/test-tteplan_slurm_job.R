@@ -82,6 +82,7 @@ test_that("s2 requeues, and an explicit requeue beats the per-stage default", {
   plan <- .slurm_job_plan(d$project)
 
   expect_true(plan$slurm_job("s2", time = "12:00:00")[["requeue"]])
+  expect_true(plan$slurm_job("feasibility", time = "12:00:00")[["requeue"]])
   # Both directions. A default that could not be overridden would pass an
   # assertion on the s1 direction alone.
   expect_true(
@@ -318,9 +319,22 @@ test_that("the job name is derived from project_prefix and stage", {
   d <- .slurm_job_dirs()
   plan <- .slurm_job_plan(d$project, prefix = "proj006")
 
-  expect_identical(plan$slurm_job("s1", time = "12:00:00")[["name"]], "proj006_s1")
-  expect_identical(plan$slurm_job("s2", time = "12:00:00")[["name"]], "proj006_s2")
-  expect_identical(plan$slurm_job("s3", time = "12:00:00")[["name"]], "proj006_s3")
+  expect_identical(
+    plan$slurm_job("s1", time = "12:00:00")[["name"]],
+    "proj006_s1"
+  )
+  expect_identical(
+    plan$slurm_job("s2", time = "12:00:00")[["name"]],
+    "proj006_s2"
+  )
+  expect_identical(
+    plan$slurm_job("s3", time = "12:00:00")[["name"]],
+    "proj006_s3"
+  )
+  expect_identical(
+    plan$slurm_job("feasibility", time = "12:00:00")[["name"]],
+    "proj006_feasibility"
+  )
 
   # `name` is not a formal, so a caller cannot collide two projects' jobs.
   expect_false("name" %in% names(formals(TTEPlan$public_methods$slurm_job)))

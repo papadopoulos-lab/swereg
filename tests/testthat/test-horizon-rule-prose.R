@@ -1,7 +1,8 @@
-# The generated prose states the horizon rule that runs. TARGET item 6h, the
-# OSF Inference criteria field and the Analysis plan row of the target trial
-# protocol table each read `spec$horizon_rule$min_expected_events`. A changed
-# value changes the sentence. No generated text names persons at risk as a
+# The generated prose states the minimum-events rule that runs. TARGET item
+# 6h, the OSF Inference criteria field and the Analysis plan row of the target
+# trial protocol table each read `spec$min_expected_events_per_arm_per_year`.
+# A changed value changes the sentence. Each says that the expected events are
+# computed under the null. No generated text names persons at risk as a
 # withholding rule.
 #
 # The plan is spr_report_fast_plan() of helper-sparse_report.R. The OSF text
@@ -13,14 +14,16 @@ skip_if_not_installed("withr")
 # The first sentence of each text, for threshold `k`.
 hrp_target_sentence <- function(k) {
   return(paste0(
-    "A prespecified reporting rule, the horizon rule, required at least ",
+    "A prespecified reporting rule, the minimum-events rule, required at ",
+    "least ",
     k,
     " expected events per arm in each year of follow-up"
   ))
 }
 hrp_osf_sentence <- function(k) {
   return(paste0(
-    "A prespecified reporting rule, the horizon rule, requires at least ",
+    "A prespecified reporting rule, the minimum-events rule, requires at ",
+    "least ",
     k,
     " expected events per arm in each year of follow-up"
   ))
@@ -30,7 +33,7 @@ hrp_osf_sentence <- function(k) {
 # one string.
 hrp_target_6h <- function(k, env = parent.frame()) {
   plan <- spr_report_fast_plan(env = env)
-  plan$spec$horizon_rule <- list(min_expected_events = k)
+  plan$spec$min_expected_events_per_arm_per_year <- k
   txt <- spr_report_checklist(plan)
   return(paste(spr_report_item(txt, "6h", "7a-h"), collapse = " "))
 }
@@ -38,7 +41,7 @@ hrp_target_6h <- function(k, env = parent.frame()) {
 # The OSF text of the fixture spec, at threshold `k`.
 hrp_osf <- function(k, subgroups = FALSE) {
   spec <- spr_report_spec()
-  spec$horizon_rule <- list(min_expected_events = k)
+  spec$min_expected_events_per_arm_per_year <- k
   if (subgroups) {
     spec$subgroups <- list(list(
       name = "Age group",
@@ -53,7 +56,7 @@ hrp_osf <- function(k, subgroups = FALSE) {
 # The Analysis plan cell of the protocol table, at threshold `k`, as lines.
 hrp_protocol_lines <- function(k, env = parent.frame()) {
   plan <- spr_report_fast_plan(env = env)
-  plan$spec$horizon_rule <- list(min_expected_events = k)
+  plan$spec$min_expected_events_per_arm_per_year <- k
   ctx <- swereg:::.protocol_context(plan, plan$ett$ett_id[1])
   pt <- swereg:::.build_protocol_table(plan$spec, ctx)
   expect_identical(pt$`Protocol component`[7], "Analysis plan")
@@ -64,7 +67,7 @@ hrp_protocol_lines <- function(k, env = parent.frame()) {
 HRP_OLD_RULE <- "fewer\\s+than\\s+\\S+\\s+persons\\s+at\\s+risk"
 
 
-test_that("TARGET item 6h states min_expected_events from the spec, per arm in each year of follow-up", {
+test_that("TARGET item 6h states the minimum-events value from the spec, per arm in each year of follow-up", {
   for (k in c(5, 7, 2.5)) {
     x <- hrp_target_6h(k)
     expect_identical(
@@ -89,7 +92,7 @@ test_that("TARGET item 6h states min_expected_events from the spec, per arm in e
   )
   expect_match(
     x,
-    "The expected events of an arm in a year were its weighted person-time multiplied by the pooled weighted event rate of both arms.",
+    "The expected events of an arm in a year were computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms.",
     fixed = TRUE
   )
   expect_match(
@@ -111,7 +114,7 @@ test_that("TARGET item 6h states min_expected_events from the spec, per arm in e
   expect_false(grepl(HRP_OLD_RULE, x, perl = TRUE))
 })
 
-test_that("the OSF Inference criteria field states min_expected_events from the spec, per arm in each year of follow-up", {
+test_that("the OSF Inference criteria field states the minimum-events value from the spec, per arm in each year of follow-up", {
   for (k in c(5, 7)) {
     osf <- hrp_osf(k)
     x <- osf[["Inference criteria"]]
@@ -122,12 +125,17 @@ test_that("the OSF Inference criteria field states min_expected_events from the 
     )
     # Each fact sits in one field.
     expect_identical(
-      sum(grepl("horizon rule", osf, fixed = TRUE)),
+      sum(grepl("minimum-events rule", osf, fixed = TRUE)),
       1L,
       info = paste("threshold", k)
     )
   }
   x <- hrp_osf(5)[["Inference criteria"]]
+  expect_match(
+    x,
+    "The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms.",
+    fixed = TRUE
+  )
   expect_match(
     x,
     "Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
@@ -151,17 +159,18 @@ test_that("the OSF Inference criteria field states min_expected_events from the 
   )
 })
 
-test_that("the protocol table Analysis plan cell states min_expected_events from the spec", {
+test_that("the protocol table Analysis plan cell states the minimum-events value from the spec", {
   for (k in c(5, 7)) {
     cell <- hrp_protocol_lines(k)
-    rule <- cell[startsWith(cell, "Horizon rule: ")]
+    rule <- cell[startsWith(cell, "Minimum-events rule: ")]
     expect_identical(
       rule,
       paste0(
-        "Horizon rule: at least ",
+        "Minimum-events rule: at least ",
         k,
-        " expected events per arm in each year of follow-up, at the pooled ",
-        "weighted event rate of both arms. Follow-up years are 52 weeks from ",
+        " expected events per arm in each year of follow-up, computed under ",
+        "the null as the pooled weighted event rate of both arms times the ",
+        "weighted person-years of the arm. Follow-up years are 52 weeks from ",
         "time zero. When any year up to the horizon fails, the rate ratio, ",
         "risk difference and number needed to treat of that estimand read NE"
       )
@@ -169,22 +178,34 @@ test_that("the protocol table Analysis plan cell states min_expected_events from
   }
 })
 
-test_that("a threshold of 0 says that the rule withholds no estimate", {
+test_that("a threshold of 0 says that the rule withholds no estimate, and defines the expected events under the null", {
   expect_match(
     hrp_target_6h(0),
-    paste0(hrp_target_sentence(0), ", so it withheld no estimate."),
+    paste0(
+      hrp_target_sentence(0),
+      ", so it withheld no estimate. The expected events of an arm in a year ",
+      "were computed under the null: its weighted person-time multiplied by ",
+      "the pooled weighted event rate of both arms."
+    ),
     fixed = TRUE
   )
   expect_identical(
     hrp_osf(0)[["Inference criteria"]],
-    paste0(hrp_osf_sentence(0), ", so it withholds no estimate.")
+    paste0(
+      hrp_osf_sentence(0),
+      ", so it withholds no estimate. The expected events of an arm in a year ",
+      "are computed under the null: its weighted person-time multiplied by ",
+      "the pooled weighted event rate of both arms."
+    )
   )
   cell <- hrp_protocol_lines(0)
   expect_identical(
-    cell[startsWith(cell, "Horizon rule: ")],
+    cell[startsWith(cell, "Minimum-events rule: ")],
     paste0(
-      "Horizon rule: at least 0 expected events per arm in each year of ",
-      "follow-up, so no estimate is withheld"
+      "Minimum-events rule: at least 0 expected events per arm in each year of ",
+      "follow-up, computed under the null as the pooled weighted event rate ",
+      "of both arms times the weighted person-years of the arm, so no ",
+      "estimate is withheld"
     )
   )
 })
@@ -199,12 +220,12 @@ test_that("no generated text names persons at risk as a withholding rule", {
   }
 })
 
-test_that("the TARGET checklist stops on a spec without a horizon_rule", {
+test_that("the TARGET checklist stops on a spec without the minimum-events key", {
   plan <- spr_report_fast_plan()
-  plan$spec$horizon_rule <- NULL
+  plan$spec$min_expected_events_per_arm_per_year <- NULL
   expect_error(
     utils::capture.output(plan$print_target_checklist()),
-    "print_target_checklist(): the plan's spec has no horizon_rule",
+    "print_target_checklist(): the plan's spec has no min_expected_events_per_arm_per_year",
     fixed = TRUE
   )
 })

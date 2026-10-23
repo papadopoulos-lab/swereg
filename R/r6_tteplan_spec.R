@@ -330,7 +330,7 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
 #' Writes the preregistration sheets of the plan. The Study Specification
 #' sheet summarises the spec (design, criteria, confounders, outcomes,
 #' enrollments) with ICD-10/ATC code annotations from the code registry. The
-#' Target trial protocol sheet documents one ETT. The Sparse conditions sheet
+#' Target trial protocol sheet documents one ETT. The Rare conditions sheet
 #' is written only when the plan holds a current sparse decision: the rule in
 #' `$spec` still hashes to `$sparse_rule_hash`, and s1 completed for it.
 #' Without one, the Study Specification sheet reads the rule as not decided

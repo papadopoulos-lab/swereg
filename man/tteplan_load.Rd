@@ -22,6 +22,7 @@ new methods are available.
 \seealso{
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tte_s0_flags]{tte_s0_flags()}},
 \code{\link[=tte_stage]{tte_stage()}},
 \code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}
 }

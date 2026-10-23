@@ -48,7 +48,7 @@ ssm_print <- function(plan) {
 
 # The block of the printed summary from the rule header to the blank line.
 ssm_rule_block <- function(txt) {
-  a <- which(txt == "Rare-condition rule (sparse_rule):")
+  a <- which(txt == "Rare-condition rule (rare_condition_rule):")
   expect_length(a, 1L)
   b <- a + which(txt[(a + 1L):length(txt)] == "")[1L]
   return(txt[a:(b - 1L)])
@@ -60,7 +60,7 @@ test_that("print_spec_summary states the rule and the frozen decision", {
   expect_identical(
     ssm_rule_block(ssm_print(plan)),
     c(
-      "Rare-condition rule (sparse_rule):",
+      "Rare-condition rule (rare_condition_rule):",
       "  Threshold (min_n):    10",
       "  Decided by:           enrollment 01 (Treated vs control 01)",
       paste0("  Rule:                 ", SSM_RULE),
@@ -92,10 +92,10 @@ test_that("print_spec_summary says the decision is not decided yet before s1", {
 })
 
 
-test_that("print_spec_summary prints no rule without a sparse_rule", {
+test_that("print_spec_summary prints no rule without a rare_condition_rule", {
   plan <- spr_report_fast_plan()
   plan$sparse_decision <- NULL
-  plan$spec$sparse_rule <- NULL
+  plan$spec$rare_condition_rule <- NULL
   txt <- ssm_print(plan)
   expect_false(any(grepl("Rare-condition rule", txt, fixed = TRUE)))
   # The Confounders block still prints, so the summary is not empty.
@@ -134,10 +134,10 @@ test_that("TARGET 6g says which models the adjustment set enters", {
 })
 
 
-test_that("TARGET 6g says which models the adjustment set enters without a sparse_rule", {
+test_that("TARGET 6g says which models the adjustment set enters without a rare_condition_rule", {
   plan <- spr_report_fast_plan()
   plan$sparse_decision <- NULL
-  plan$spec$sparse_rule <- NULL
+  plan$spec$rare_condition_rule <- NULL
   g <- trimws(spr_report_item(spr_report_checklist(plan), "6g", "6h"))
   g <- g[nzchar(g)]
   expect_identical(g[length(g) - 1L], SSM_MODELS)
@@ -185,10 +185,10 @@ test_that("the protocol Analysis plan cell says which models adjust for each con
 })
 
 
-test_that("the protocol Analysis plan cell keeps the order without a sparse_rule", {
+test_that("the protocol Analysis plan cell keeps the order without a rare_condition_rule", {
   plan <- spr_report_fast_plan()
   plan$sparse_decision <- NULL
-  plan$spec$sparse_rule <- NULL
+  plan$spec$rare_condition_rule <- NULL
   cell <- ssm_analysis_cell(plan)
   adjust <- grep("^Treatment and censoring models adjust for ", cell)
   expect_identical(adjust, 3:6)

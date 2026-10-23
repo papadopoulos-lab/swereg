@@ -84,7 +84,7 @@ rsi_spec <- function(tag = "old", criterion_source = "osd_f20_to_f29") {
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     confounders = list(list(
       name = "Age",
       implementation = list(variable = "rd_age_continuous")
@@ -475,12 +475,12 @@ rsi_full_spec <- function(variant = "sentinel") {
       outcome = list(specification = "The first event of type A"),
       treatment_strategies = list(specification = "Initiate, or do not")
     ),
-    sparse_rule = list(
+    rare_condition_rule = list(
       min_n = 100L,
       decided_by = "01",
       candidates = "rd_no_rd_exposure_everbefore"
     ),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     open_questions = list(list(
       question = "Which comparator window?",
       raised_by = "A Person",
@@ -645,15 +645,15 @@ RSI_LEAF_SIDE <- c(
   "$/inclusion_criteria/criteria[]/type" = "structural",
   "$/inclusion_criteria/isoyears" = "structural",
 
-  # Sparse rule. Each field decides which conditions exclude and which stay
-  # confounders, and the frozen decision was made under all three.
-  "$/sparse_rule/candidates" = "structural",
-  "$/sparse_rule/decided_by" = "structural",
-  "$/sparse_rule/min_n" = "structural",
+  # Rare-condition rule. Each field decides which conditions exclude and which
+  # stay confounders, and the frozen decision was made under all three.
+  "$/rare_condition_rule/candidates" = "structural",
+  "$/rare_condition_rule/decided_by" = "structural",
+  "$/rare_condition_rule/min_n" = "structural",
 
-  # Horizon rule. It decides which estimates s3 reports, and changes no s1 or
-  # s2 output.
-  "$/horizon_rule/min_expected_events" = "cosmetic",
+  # Minimum-events rule. It decides which estimates s3 reports, and changes no
+  # s1 or s2 output.
+  "$/min_expected_events_per_arm_per_year" = "cosmetic",
 
   # Open questions. A note. Nothing in R/ acts on it.
   "$/open_questions[]/question" = "cosmetic",

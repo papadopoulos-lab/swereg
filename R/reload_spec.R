@@ -194,7 +194,7 @@
 
 
 #' Classify the two criteria containers, the follow-up grid and the
-#' sparse_rule.
+#' rare_condition_rule.
 #'
 #' Each one decides who enters the study, or for how long swereg follows them.
 #' A cached result cannot be refreshed with a new value, so every change inside
@@ -211,20 +211,20 @@
   if (!identical(old$follow_up, new$follow_up)) {
     ps("follow_up", old$follow_up, new$follow_up)
   }
-  # The sparse_rule decides who is enrolled and which confounders stay. Each
-  # field is a definition the frozen decision was made under.
+  # The rare_condition_rule decides who is enrolled and which confounders stay.
+  # Each field is a definition the frozen decision was made under.
   for (k in c("min_n", "decided_by", "candidates")) {
-    a <- old$sparse_rule[[k]]
-    b <- new$sparse_rule[[k]]
+    a <- old$rare_condition_rule[[k]]
+    b <- new$rare_condition_rule[[k]]
     if (!identical(a, b)) {
-      ps(paste0("sparse_rule$", k), a, b)
+      ps(paste0("rare_condition_rule$", k), a, b)
     }
   }
   .ds_residual(
-    old$sparse_rule,
-    new$sparse_rule,
+    old$rare_condition_rule,
+    new$rare_condition_rule,
     c("min_n", "decided_by", "candidates"),
-    "sparse_rule$",
+    "rare_condition_rule$",
     ps
   )
   return(invisible(NULL))
@@ -354,27 +354,20 @@
   }
   return(invisible(NULL))
 }
-#' Classify the `horizon_rule` block.
+#' Classify the key `min_expected_events_per_arm_per_year`.
 #'
-#' `min_expected_events` decides which estimates s3 reports. It does not change
-#' who is enrolled, how swereg weights them or which events it counts. s1 and
-#' s2 output stays valid, so the change is cosmetic. Any other key in the block
-#' is unclassified, and so structural.
+#' The value decides which estimates s3 reports. It does not change who is
+#' enrolled, how swereg weights them or which events it counts. s1 and s2
+#' output stays valid, so the change is cosmetic. The key holds one number,
+#' so it has no residual to classify.
 #'
 #' @noRd
 .ds_diff_horizon_rule <- function(old, new, pc, ps) {
-  a <- old$horizon_rule[["min_expected_events"]]
-  b <- new$horizon_rule[["min_expected_events"]]
+  a <- old[["min_expected_events_per_arm_per_year"]]
+  b <- new[["min_expected_events_per_arm_per_year"]]
   if (!identical(a, b)) {
-    pc("horizon_rule$min_expected_events", a, b)
+    pc("min_expected_events_per_arm_per_year", a, b)
   }
-  .ds_residual(
-    old$horizon_rule,
-    new$horizon_rule,
-    "min_expected_events",
-    "horizon_rule$",
-    ps
-  )
   return(invisible(NULL))
 }
 
@@ -531,11 +524,11 @@
   "enrollments",
   "exclusion_criteria",
   "follow_up",
-  "horizon_rule",
   "inclusion_criteria",
+  "min_expected_events_per_arm_per_year",
   "open_questions",
   "outcomes",
-  "sparse_rule",
+  "rare_condition_rule",
   "standing_methods",
   "study",
   "subgroups",
@@ -724,8 +717,8 @@
 #' 7. `enrollments[<id>]$name` and `$family`
 #' 8. `enrollments[<id>]$treatment$description`
 #' 9. `enrollments[<id>]$treatment$arms$intervention` and `$comparator`
-#' 10. `horizon_rule$min_expected_events`. A plan saved before the block
-#'     existed holds no `horizon_rule`, and this function writes one into it.
+#' 10. `min_expected_events_per_arm_per_year`. A plan saved before
+#'     swereg 27.2.14 holds no value, and this function writes one into it.
 #'
 #' It matches an outcome by position, a confounder and a subgroup by
 #' implementation variable, and an enrollment by `id`. That is how
@@ -774,10 +767,10 @@
 
   old$enrollments <- .copy_enrollment_labels(old$enrollments, new$enrollments)
 
-  a <- old$horizon_rule[["min_expected_events"]]
-  b <- new$horizon_rule[["min_expected_events"]]
+  a <- old[["min_expected_events_per_arm_per_year"]]
+  b <- new[["min_expected_events_per_arm_per_year"]]
   if (!identical(a, b)) {
-    old$horizon_rule[["min_expected_events"]] <- b
+    old[["min_expected_events_per_arm_per_year"]] <- b
   }
 
   return(old)

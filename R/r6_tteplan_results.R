@@ -57,13 +57,13 @@ TTEPlan$set("public", "results_summary", function() {
 #' `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 #' takes no argument, and each computes nothing.
 #'
-#' `horizon_reportable_weeks` and `horizon_status` READ the horizon-rule
-#' decision `$s3_analyze()` stored for the estimand. Both weightings of the
-#' per-protocol estimand share one decision. A `horizon_status` that starts
-#' with `"below horizon rule"` marks a withheld estimand. Its ratio, risk
-#' difference and number needed to treat are `NA`, and `interval_status`
-#' holds the same text. A result stored before the rule gives `NA` in both
-#' columns.
+#' `horizon_reportable_weeks` and `horizon_status` READ the decision of the
+#' minimum-events rule that `$s3_analyze()` stored for the estimand. Both
+#' weightings of the per-protocol estimand share one decision. A
+#' `horizon_status` that starts with `"below minimum-events rule"` marks a
+#' withheld estimand. Its ratio, risk difference and number needed to treat are
+#' `NA`, and `interval_status` holds the same text. A result stored before the
+#' rule gives `NA` in both columns.
 #'
 #' The number needed to treat carries its interval. `nnt` is the point
 #' estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
@@ -273,24 +273,27 @@ TTEPlan$set("public", "get_subgroups", function() {
   return(.acc_subgroups(self))
 })
 
-#' @description Every stored horizon-rule window, as one flat table.
+#' @description Every stored window of the minimum-events rule, as one flat
+#' table.
 #'
 #' One row per emulated trial, estimand, follow-up window and arm. A window
 #' is 52 weeks wide, and the last window ends at the follow-up of the ETT.
 #' `py_weighted` and `events_weighted` are the weighted person-years and
 #' events of the arm in the window. `rate_pooled` is the weighted events of
 #' both arms over the weighted person-years of both arms. `events_expected`
-#' is `rate_pooled` times `py_weighted`. `pass` is the decision of the
-#' window: both arms reach `min_expected_events`.
+#' is `rate_pooled` times `py_weighted`, the expected events under the null.
+#' `pass` is the decision of the window: both arms reach
+#' `min_expected_events_per_arm_per_year`.
 #'
 #' Each row repeats the record it came from: `weight_col`,
-#' `min_expected_events`, `horizon_reportable_weeks` and `horizon_status`.
+#' `min_expected_events_per_arm_per_year`, `horizon_reportable_weeks` and
+#' `horizon_status`.
 #' The method computes nothing. A result stored before the rule gives no
 #' rows.
 #'
 #' @return A data.table with columns `ett_id`, `estimand`, `weight_col`,
-#'   `min_expected_events`, `window_lo`, `window_hi`, `arm`, `py_weighted`,
-#'   `events_weighted`, `rate_pooled`, `events_expected`, `pass`,
+#'   `min_expected_events_per_arm_per_year`, `window_lo`, `window_hi`, `arm`,
+#'   `py_weighted`, `events_weighted`, `rate_pooled`, `events_expected`, `pass`,
 #'   `horizon_reportable_weeks` and `horizon_status`.
 TTEPlan$set("public", "get_horizon_windows", function() {
   return(.acc_horizon_windows(self))

@@ -787,26 +787,30 @@
 }
 
 
-#' The horizon rule, as one line of the Analysis plan cell
+#' The minimum-events rule, as one line of the Analysis plan cell
 #'
-#' @param spec Parsed spec list. It MUST carry `horizon_rule`.
-#' @return A character(1). With `min_expected_events` 0, the line says that
-#'   the rule withholds no estimate.
+#' @param spec Parsed spec list. It MUST carry
+#'   `min_expected_events_per_arm_per_year`.
+#' @return A character(1). With `min_expected_events_per_arm_per_year` 0, the
+#'   line says that the rule withholds no estimate.
 #' @noRd
 .protocol_horizon_rule_line <- function(spec) {
-  rule <- .tte_assert_horizon_rule_present(spec, "the target trial protocol")
-  k <- format(rule$min_expected_events, trim = TRUE, scientific = FALSE)
+  .tte_assert_horizon_rule_present(spec, "the target trial protocol")
+  value <- as.numeric(spec[["min_expected_events_per_arm_per_year"]])
+  k <- format(value, trim = TRUE, scientific = FALSE)
   first <- paste0(
-    "Horizon rule: at least ",
+    "Minimum-events rule: at least ",
     k,
-    " expected events per arm in each year of follow-up"
+    " expected events per arm in each year of follow-up, computed under ",
+    "the null as the pooled weighted event rate of both arms times the ",
+    "weighted person-years of the arm"
   )
-  if (rule$min_expected_events == 0) {
+  if (value == 0) {
     return(paste0(first, ", so no estimate is withheld"))
   }
   return(paste0(
     first,
-    ", at the pooled weighted event rate of both arms. Follow-up years are ",
+    ". Follow-up years are ",
     .HORIZON_WINDOW_WEEKS,
     " weeks from time zero. When any year up to the horizon fails, the rate ",
     "ratio, risk difference and number needed to treat of that estimand ",

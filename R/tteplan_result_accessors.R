@@ -258,7 +258,7 @@
     ett_id = "character",
     estimand = "character",
     weight_col = "character",
-    min_expected_events = "numeric",
+    min_expected_events_per_arm_per_year = "numeric",
     window_lo = "numeric",
     window_hi = "numeric",
     arm = "character",
@@ -1255,7 +1255,8 @@
 }
 
 
-#' Every stored horizon-rule window, one row per ETT, estimand, window and arm.
+#' Every stored window of the minimum-events rule, one row per ETT, estimand,
+#' window and arm.
 #'
 #' `$s3_analyze()` stores one record per ETT and estimand, as `horizon_pp`
 #' and `horizon_itt`. This accessor stacks their window tables and repeats
@@ -1284,7 +1285,7 @@
       )
       data.table::set(
         out,
-        j = "min_expected_events",
+        j = "min_expected_events_per_arm_per_year",
         value = .acc_num1(rec$rule, "min_expected_events")
       )
       data.table::set(

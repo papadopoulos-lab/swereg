@@ -95,14 +95,14 @@ TTEPlan$set("public", "print", function(...) {
 #' Console-friendly summary derived from the study specification stored
 #' on this plan. When `$code_registry` is available, variable names are
 #' shown in red and matched code details in blue (ANSI colors).
-#' A spec with a `sparse_rule` also prints the rare-condition rule: `min_n`,
-#' the driving enrollments, the candidates and the decision. Before s1 the
-#' decision reads `not decided yet (s1 has not run)`. A stored decision prints
-#' only when the rule in `$spec` still hashes to `$sparse_rule_hash` and s1
-#' completed for it. Otherwise the decision reads
-#' `not decided yet (s1 has not completed for this rule)`.
-#' It also prints `horizon_rule$min_expected_events`, the minimum number of
-#' expected events per arm in each follow-up year.
+#' A spec with a `rare_condition_rule` also prints the rare-condition rule:
+#' `min_n`, the driving enrollments, the candidates and the decision. Before s1
+#' the decision reads `not decided yet (s1 has not run)`. A stored decision
+#' prints only when the rule in `$spec` still hashes to `$sparse_rule_hash` and
+#' s1 completed for it. Otherwise the decision reads `not decided yet (s1 has
+#' not completed for this rule)`. It also prints the minimum-events rule,
+#' `min_expected_events_per_arm_per_year`: the minimum number of expected events
+#' per arm in each follow-up year.
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_spec_summary", function() {
   return(.plan_print_spec_summary(self))
@@ -451,7 +451,7 @@ TTEPlan$set("public", "print_spec_summary", function() {
 #' Prints the rows of the Study Specification sheet: `min_n`, the driving
 #' enrollments, the candidates, and the decision. The two style arguments of
 #' `.tte_sparse_spec_rows()` only mark the header row here. A spec without a
-#' `sparse_rule` prints nothing.
+#' `rare_condition_rule` prints nothing.
 #'
 #' @param plan A `TTEPlan`.
 #' @param bold A function that makes its text bold.
@@ -471,24 +471,24 @@ TTEPlan$set("public", "print_spec_summary", function() {
 }
 
 
-#' Print the horizon rule of the spec summary
+#' Print the minimum-events rule of the spec summary
 #'
-#' Prints `horizon_rule$min_expected_events`. A plan saved before the block
-#' existed holds no `horizon_rule`. It prints `not declared` and names
-#' `$reload_spec()`, which copies the block from the spec file.
+#' Prints `min_expected_events_per_arm_per_year`. A plan saved before swereg
+#' 27.2.14 holds no value. It prints `not declared` and names
+#' `$reload_spec()`, which copies the value from the spec file.
 #'
 #' @param plan A `TTEPlan`.
 #' @param bold A function that makes its text bold.
 #' @return `invisible(NULL)`.
 #' @noRd
 .plan_print_horizon_rule <- function(plan, bold) {
-  value <- plan$spec$horizon_rule[["min_expected_events"]]
+  value <- plan$spec[["min_expected_events_per_arm_per_year"]]
   shown <- if (is.null(value)) {
     "not declared (call $reload_spec() with a spec that declares it)"
   } else {
     paste0(format(value), " per arm, per follow-up year")
   }
-  cat(bold("Horizon rule:"), "\n")
+  cat(bold("Minimum-events rule:"), "\n")
   cat(
     "  ",
     formatC("Min expected events", width = -22, flag = "-"),

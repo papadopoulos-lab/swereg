@@ -61,7 +61,7 @@ row reads \verb{not built (spec only)} unless you supply
 \code{global_max_isoyearweek}.
 
 Only s1 decides the rare-condition rule. The workbook therefore states the
-rule as not decided yet, and it has no Sparse conditions sheet. The
+rule as not decided yet, and it has no Rare conditions sheet. The
 function builds the ETT grid with the code of
 \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}, so the protocol sheet documents
 the same ETT for the same \code{protocol_ett_id}.
@@ -95,8 +95,7 @@ writeLines(
     "      variable: osd_outcome",
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
-    "horizon_rule:",
-    "  min_expected_events: 5",
+    "min_expected_events_per_arm_per_year: 5",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

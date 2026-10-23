@@ -64,6 +64,7 @@ reference:
   - TTEPlan
   - TTEEnrollment
   - tte_stage
+  - tte_s0_flags
   - starts_with("tteplan_")
   - starts_with("tteenrollment_")
   - starts_with("skeleton_eligible")

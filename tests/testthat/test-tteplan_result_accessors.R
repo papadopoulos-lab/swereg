@@ -743,7 +743,7 @@ test_that("effect and decision fields carry no formatting", {
   expect_true(is.logical(e$irr_estimable))
 
   # The two decision columns are stored vocabulary, not rendered text. The
-  # horizon rule writes a status that starts with its prefix.
+  # minimum-events rule writes a status that starts with its prefix.
   expect_true(all(
     e$interval_status %in% c("ok", "spans null", "zero-event arm", NA) |
       startsWith(e$interval_status, swereg:::.HORIZON_STATUS_PREFIX)

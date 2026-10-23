@@ -1,4 +1,4 @@
-# Reporting the sparse_rule (#52) through the real pipeline.
+# Reporting the rare_condition_rule (#52) through the real pipeline.
 #
 # One run per file: the real s1 -> s2 -> s3 dispatch on the fixture of
 # helper-sparse_report.R, then plan$save(), tteplan_load() and
@@ -45,7 +45,7 @@ SPR_E2E_LABEL <- paste(
   "baseline in the smallest arm of the driving comparison)"
 )
 
-test_that("the loaded plan, the Sparse conditions sheet and the Attrition step-2 rows agree", {
+test_that("the loaded plan, the Rare conditions sheet and the Attrition step-2 rows agree", {
   e <- spr_e2e_get()
   d <- e$plan$get_sparse_decision()
   expect_identical(
@@ -56,8 +56,8 @@ test_that("the loaded plan, the Sparse conditions sheet and the Attrition step-2
   expect_identical(d$smallest[1], 0L)
   expect_true(d$smallest[2] >= 10L)
 
-  expect_true("Sparse conditions" %in% openxlsx::getSheetNames(e$path))
-  x <- spr_e2e_sheet("Sparse conditions")
+  expect_true("Rare conditions" %in% openxlsx::getSheetNames(e$path))
+  x <- spr_e2e_sheet("Rare conditions")
   expect_identical(x[[1]][5:6], d$label)
   expect_identical(x[[7]][5:6], d$decision)
   expect_identical(x[[4]][5:6], c("<10", as.character(d$smallest[2])))
@@ -91,7 +91,7 @@ test_that("Table 1 of the real run drops the excluded condition and names it in 
     t1[[1]][length(t1[[1]])],
     paste0(
       "Not shown: Prior rare condition B. The rare-condition rule made each ",
-      "of these conditions an exclusion criterion. See the Sparse ",
+      "of these conditions an exclusion criterion. See the Rare ",
       "conditions sheet."
     )
   )
@@ -148,7 +148,7 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
   }
 
   # Workbook.
-  x <- spr_e2e_sheet("Sparse conditions")
+  x <- spr_e2e_sheet("Rare conditions")
   excluded$sparse_sheet <- x[[1]][5:6][x[[7]][5:6] == "excluded"]
   ss <- spr_e2e_sheet("Study Specification")
   excluded$spec_sheet <- strsplit(
@@ -240,7 +240,7 @@ test_that("no text that states the rule says it never looked at outcomes", {
     "comparator draw and without follow-up outcomes"
   )
   txt <- spr_report_checklist(e$plan)
-  x <- spr_e2e_sheet("Sparse conditions")
+  x <- spr_e2e_sheet("Rare conditions")
   ss <- spr_e2e_sheet("Study Specification")
   pt <- openxlsx::read.xlsx(e$path, sheet = "Target trial protocol", startRow = 3L)
   states_rule <- list(

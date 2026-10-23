@@ -25,7 +25,7 @@ skip_if_not_installed("data.table")
     skeleton_files = "skel_001.qs2",
     global_max_isoyearweek = "2020-52"
   )
-  plan$spec$horizon_rule <- list(min_expected_events = 0)
+  plan$spec$min_expected_events_per_arm_per_year <- 0
   plan
 }
 

@@ -170,14 +170,14 @@
 #'
 #' @param enrollment_spec Enrollment spec list (includes seed, comparator_to_intervention_ratio,
 #'   design$person_id_var, enrollment_id).
-#' @param spec Parsed study spec. The worker reads `spec$sparse_rule` to
+#' @param spec Parsed study spec. The worker reads `spec$rare_condition_rule` to
 #'   remove the candidate columns from the tuples before the draw.
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames (used to
 #'   construct `s1a_pre_*` paths).
 #' @param sparse_exclusions The excluded conditions of the plan's frozen
-#'   sparse_rule decision, from `.tte_sparse_exclusions()`, or `NULL`. The
-#'   worker drops the person-trials that hold one, in the order of the spec,
+#'   rare_condition_rule decision, from `.tte_sparse_exclusions()`, or `NULL`.
+#'   The worker drops the person-trials that hold one, in the order of the spec,
 #'   before the draw. It appends one attrition step per condition. Every
 #'   enrollment gets the same table.
 #' @return `list(enrolled_ids = , counts = )`, matching the declared output
@@ -192,7 +192,7 @@
 ) {
   intervention <- enrollment_period_id <- criterion <- n_persons <-
     n_person_trials <-
-    n_intervention <- n_comparator <- NULL
+      n_intervention <- n_comparator <- NULL
 
   eid <- enrollment_spec$enrollment_id
   data.table::setDTthreads(enrollment_spec$n_threads)
@@ -206,13 +206,16 @@
   )
   missing_pre <- !file.exists(pre_paths)
   if (any(missing_pre)) {
-    stop(sprintf(
-      "s1c: %d/%d pre files missing for enrollment '%s'. First missing: %s",
-      sum(missing_pre),
-      length(pre_paths),
-      eid,
-      pre_paths[which(missing_pre)[1L]]
-    ), call. = FALSE)
+    stop(
+      sprintf(
+        "s1c: %d/%d pre files missing for enrollment '%s'. First missing: %s",
+        sum(missing_pre),
+        length(pre_paths),
+        eid,
+        pre_paths[which(missing_pre)[1L]]
+      ),
+      call. = FALSE
+    )
   }
 
   tuples_chunks <- vector("list", length(pre_paths))
@@ -227,9 +230,9 @@
   all_attrition <- data.table::rbindlist(attr_chunks, use.names = TRUE)
   rm(tuples_chunks, attr_chunks)
 
-  # Step 2 of the cohort flow: the sparse_rule exclusions, before the draw. The
-  # candidate columns then leave the tuples, so `enrolled_ids` keeps the
-  # column set it has without a sparse_rule.
+  # Step 2 of the cohort flow: the rare_condition_rule exclusions, before the
+  # draw. The candidate columns then leave the tuples, so `enrolled_ids` keeps
+  # the column set it has without a rare_condition_rule.
   sparse_attrition <- NULL
   if (!is.null(sparse_exclusions)) {
     dropped <- .s1c_drop_sparse_conditions(
@@ -242,7 +245,7 @@
     rm(dropped)
   }
   condition_cols <- intersect(
-    spec[["sparse_rule"]][["candidates"]],
+    spec[["rare_condition_rule"]][["candidates"]],
     names(all_tuples)
   )
   if (length(condition_cols) > 0L) {
@@ -370,13 +373,16 @@
   )
   missing_panels <- !file.exists(panel_paths)
   if (any(missing_panels)) {
-    stop(sprintf(
-      "s1e: %d/%d panel files missing for enrollment '%s'. First missing: %s",
-      sum(missing_panels),
-      length(panel_paths),
-      eid,
-      panel_paths[which(missing_panels)[1L]]
-    ), call. = FALSE)
+    stop(
+      sprintf(
+        "s1e: %d/%d panel files missing for enrollment '%s'. First missing: %s",
+        sum(missing_panels),
+        length(panel_paths),
+        eid,
+        panel_paths[which(missing_panels)[1L]]
+      ),
+      call. = FALSE
+    )
   }
 
   panels <- vector("list", length(panel_paths))

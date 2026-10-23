@@ -93,7 +93,7 @@ lc_write_spec <- function(enrollments = list(lc_enrollment()), env = parent.fram
       list(name = "Event A", implementation = list(variable = "osd_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    horizon_rule = list(min_expected_events = 0),
+    min_expected_events_per_arm_per_year = 0,
     confounders = list(
       list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     )

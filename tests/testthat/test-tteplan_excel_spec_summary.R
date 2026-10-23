@@ -5,7 +5,7 @@
 # registry data file.
 #
 # The spec is spr_report_spec() of helper-sparse_report.R, which carries a
-# sparse_rule, plus one exclusion criterion on an operation code variable.
+# rare_condition_rule, plus one exclusion criterion on an operation code variable.
 
 skip_if_not_installed("openxlsx")
 skip_if_not_installed("yaml")
@@ -263,7 +263,7 @@ test_that("a RegistryStudy over a data directory reads none of its files", {
   expect_true(SSX_ARROW %in% ss[[2]])
 })
 
-test_that("the workbook has no Sparse conditions sheet and states the rule as not decided", {
+test_that("the workbook has no Rare conditions sheet and states the rule as not decided", {
   root <- ssx_root()
   path <- ssx_spec_only(root, NULL)
   expect_identical(openxlsx::getSheetNames(path), SSX_SHEETS)

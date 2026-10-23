@@ -7,13 +7,16 @@
 #' Build path for a per-enrollment counts file.
 #' @noRd
 .enrollment_counts_path <- function(output_dir, prefix, eid) {
-  return(file.path(output_dir, paste0(prefix, "_enrollment_counts_", eid, ".qs2")))
+  return(file.path(
+    output_dir,
+    paste0(prefix, "_enrollment_counts_", eid, ".qs2")
+  ))
 }
 
 # --- s1 work directory + path constructors -----------------------------------
 #
 # Loop 1 splits into five sub-steps (s1a, s1b, s1c, s1d, s1e). s1b runs only
-# when the spec has a sparse_rule. Each sub-step runs in a subprocess
+# when the spec has a rare_condition_rule. Each sub-step runs in a subprocess
 # (parallel for skeleton-level work, single for enrollment-level and
 # study-level work) and communicates with the next sub-step via files in a
 # per-project work directory:

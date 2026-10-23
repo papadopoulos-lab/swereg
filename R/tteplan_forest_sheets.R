@@ -17,9 +17,10 @@
 #' The two interval headers state the study level `.s3_conf_level()`, the
 #' level s3 computed the stratum intervals at.
 #'
-#' An estimand that the horizon rule withheld reads `NE` in its stratum ratio
-#' and interval cells, and in its interaction-test cells on the `"all"` row.
-#' The writer reads the decision from `horizon_status` in `$get_estimates()`.
+#' An estimand that the minimum-events rule withheld reads `NE` in its stratum
+#' ratio and interval cells, and in its interaction-test cells on the `"all"`
+#' row. The writer reads the decision from `horizon_status` in
+#' `$get_estimates()`.
 #' @noRd
 .write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)

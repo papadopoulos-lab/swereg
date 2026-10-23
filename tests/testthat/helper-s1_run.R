@@ -24,7 +24,7 @@ tte_stamp_stages <- function(plan) {
   # without one. This record holds the decision "nothing withheld" and the
   # rule of the spec. It holds no window table and no status, so no sheet
   # changes. A record that is already there stays.
-  rule <- plan$spec$horizon_rule$min_expected_events
+  rule <- plan$spec$min_expected_events_per_arm_per_year
   for (k in names(plan$results_ett)) {
     plan$results_ett[[k]][["s1_run_id"]] <- id
     plan$results_ett[[k]][["s2_run_id"]] <- s2_id

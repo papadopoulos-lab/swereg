@@ -1,9 +1,9 @@
-# The horizon rule at s3 (phase 3 of the horizon-rule plan).
+# The minimum-events rule at s3 (phase 3 of the plan that added the rule).
 #
 # s3 cuts the follow-up of each ETT into 52-week windows. In each window the
-# expected events of an arm are the pooled weighted rate times that arm's
-# weighted person-years. A window passes when both arms reach
-# `horizon_rule$min_expected_events`. Beyond the first failing window, s3
+# expected events of an arm under the null are the pooled weighted rate times
+# that arm's weighted person-years. A window passes when both arms reach
+# `min_expected_events_per_arm_per_year`. Beyond the first failing window, s3
 # withholds the incidence rate ratio, the risk difference and the number
 # needed to treat of that estimand, and every exhibit prints `NE`.
 #
@@ -13,7 +13,7 @@
 #       rate, and swapping the arm labels keeps every pass/fail decision;
 #   (c) `$s3_analyze()` on a fixture with a thin intervention tail withholds
 #       the 2-window ETT and reports the 1-window ETT;
-#   (d) s3 stops on a spec without `horizon_rule`;
+#   (d) s3 stops on a spec without `min_expected_events_per_arm_per_year`;
 #   (e) a failed horizon computation stops s3, never warn-and-skip;
 #   (f) the read-back matrix over every place a withheld field reaches;
 #   (g) window edge cases;
@@ -110,7 +110,7 @@ test_that("(a) the window table matches a hand computation", {
   expect_identical(dec$fail_arm, "intervention")
   expect_identical(
     dec$status,
-    "below horizon rule: intervention arm, weeks 52-104"
+    "below minimum-events rule: intervention arm, weeks 52-104"
   )
   expect_true(startsWith(dec$status, swereg:::.HORIZON_STATUS_PREFIX))
 })
@@ -203,7 +203,7 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
   expect_identical(dec$reportable_weeks, 0)
   expect_identical(
     dec$status,
-    "below horizon rule: intervention arm, weeks 0-52"
+    "below minimum-events rule: intervention arm, weeks 0-52"
   )
 
   # Pass, fail, pass: the horizon ends at 52, not at the last window.
@@ -229,7 +229,7 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
   expect_identical(at0$pass, c(TRUE, TRUE, TRUE, TRUE))
   dec <- swereg:::.tte_horizon_decision(at10, list(min_expected_events = 10))
   expect_identical(dec$fail_arm, "both")
-  expect_identical(dec$status, "below horizon rule: both arms, weeks 0-52")
+  expect_identical(dec$status, "below minimum-events rule: both arms, weeks 0-52")
 
   # A missing weight, interval start or interval stop is an error.
   bad <- .hz_toy_a()[1L, w := NA_real_]
@@ -346,7 +346,7 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
         arms = list(intervention = "Treated", comparator = "Untreated")
       )
     )),
-    horizon_rule = list(min_expected_events = min_events)
+    min_expected_events_per_arm_per_year = min_events
   )
   tte_stamp_stages(plan)
   return(plan)
@@ -411,7 +411,7 @@ test_that("(c) s3 withholds the 2-window ETT and reports the 1-window ETT", {
   # ETT00002: window 2 fails on the intervention arm, in both estimands.
   w2 <- e[ett_id == "ETT00002"]
   expect_identical(nrow(w2), 3L)
-  status <- "below horizon rule: intervention arm, weeks 52-104"
+  status <- "below minimum-events rule: intervention arm, weeks 52-104"
   expect_identical(unique(w2$horizon_status), status)
   expect_equal(unique(w2$horizon_reportable_weeks), 52)
   expect_true(all(is.na(w2$irr)))
@@ -420,7 +420,7 @@ test_that("(c) s3 withholds the 2-window ETT and reports the 1-window ETT", {
   expect_true(all(is.na(rd2$rd)))
   expect_true(all(is.na(rd2$nnt)))
   expect_identical(unique(rd2$interval_status), status)
-  expect_match(fx$out, "horizon rule withheld 2 of 4", all = FALSE)
+  expect_match(fx$out, "minimum-events rule withheld 2 of 4", all = FALSE)
 
   # ETT00001: one window, which passes. Everything is reported.
   w1 <- e[ett_id == "ETT00001"]
@@ -436,7 +436,7 @@ test_that("(c) s3 withholds the 2-window ETT and reports the 1-window ETT", {
   expect_identical(x$pass, c(FALSE, FALSE))
   expect_lt(x[arm == "intervention"]$events_expected, 5)
   expect_gte(x[arm == "comparator"]$events_expected, 5)
-  expect_identical(unique(hw$min_expected_events), 5)
+  expect_identical(unique(hw$min_expected_events_per_arm_per_year), 5)
 })
 
 test_that("(h) the window person-years sum to the person-years of $rates()", {
@@ -477,10 +477,10 @@ test_that("(h) the window person-years sum to the person-years of $rates()", {
   }
 })
 
-test_that("(d) s3 stops on a spec without horizon_rule", {
+test_that("(d) s3 stops on a spec without the minimum-events key", {
   dir <- withr::local_tempdir()
   plan <- .hz_build(dir)
-  plan$spec$horizon_rule <- NULL
+  plan$spec$min_expected_events_per_arm_per_year <- NULL
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__HZ_DISPATCHED__"),
     .package = "swereg"
@@ -489,7 +489,7 @@ test_that("(d) s3 stops on a spec without horizon_rule", {
     plan$s3_analyze(output_dir = dir, n_workers = 1L),
     error = function(e) conditionMessage(e)
   )
-  expect_match(err, "horizon_rule", fixed = TRUE)
+  expect_match(err, "min_expected_events_per_arm_per_year", fixed = TRUE)
   expect_match(err, "$reload_spec()", fixed = TRUE)
   expect_false(grepl("__HZ_DISPATCHED__", err, fixed = TRUE))
 })
@@ -562,7 +562,11 @@ test_that("(e) a failed horizon computation stops s3, never warn-and-skip", {
     )),
     error = function(e) conditionMessage(e)
   )
-  expect_match(err, "ETT00001 has no horizon-rule decision", fixed = TRUE)
+  expect_match(
+    err,
+    "ETT00001 has no decision of the minimum-events rule",
+    fixed = TRUE
+  )
   expect_match(err, "per-protocol", fixed = TRUE)
   expect_false(isTRUE(plan$results_ett$ETT00001$horizon_pp$withheld == FALSE))
 })
@@ -571,12 +575,15 @@ test_that("(j) the writers stop when the stored rule differs from the spec", {
   .hz_skip()
   fx <- .hz_fixture()
   plan <- fx$plan
-  old <- plan$spec$horizon_rule
-  on.exit(plan$spec$horizon_rule <- old, add = TRUE)
-  plan$spec$horizon_rule <- list(min_expected_events = 6)
+  old <- plan$spec$min_expected_events_per_arm_per_year
+  on.exit(plan$spec$min_expected_events_per_arm_per_year <- old, add = TRUE)
+  plan$spec$min_expected_events_per_arm_per_year <- 6
   xlsx <- file.path(fx$dir, "stale.xlsx")
   expect_error(plan$export_tables(path = xlsx), "\\$s3_analyze\\(\\)")
-  expect_error(plan$export_tables(path = xlsx), "min_expected_events = 5")
+  expect_error(
+    plan$export_tables(path = xlsx),
+    "min_expected_events_per_arm_per_year = 5"
+  )
   expect_false(file.exists(xlsx))
   expect_error(
     plan$export(
@@ -590,7 +597,7 @@ test_that("(j) the writers stop when the stored rule differs from the spec", {
     "\\$s3_analyze\\(\\)"
   )
   # The rule the results were judged with passes.
-  plan$spec$horizon_rule <- old
+  plan$spec$min_expected_events_per_arm_per_year <- old
   expect_no_error(swereg:::.tte_assert_horizon_rule_current(plan, "x"))
 })
 
@@ -969,14 +976,14 @@ test_that("(l) the writers compare the stored rule exactly, with no tolerance", 
   .hz_skip()
   fx <- .hz_fixture()
   plan <- fx$plan
-  old <- plan$spec$horizon_rule
-  on.exit(plan$spec$horizon_rule <- old, add = TRUE)
+  old <- plan$spec$min_expected_events_per_arm_per_year
+  on.exit(plan$spec$min_expected_events_per_arm_per_year <- old, add = TRUE)
   expect_identical(
     plan$results_ett$ETT00001$horizon_pp$rule$min_expected_events,
     5
   )
   # all.equal() accepts this difference. identical() does not.
-  plan$spec$horizon_rule <- list(min_expected_events = 5 + 1e-10)
+  plan$spec$min_expected_events_per_arm_per_year <- 5 + 1e-10
   expect_true(isTRUE(all.equal(5, 5 + 1e-10)))
   xlsx <- file.path(fx$dir, "near.xlsx")
   expect_error(plan$export_tables(path = xlsx), "s3_analyze")
@@ -992,14 +999,11 @@ test_that("(m) the writers accept a record of the current rule", {
   .hz_skip()
   fx <- .hz_fixture()
   plan <- fx$plan
-  old <- plan$spec$horizon_rule
-  on.exit(plan$spec$horizon_rule <- old, add = TRUE)
+  old <- plan$spec$min_expected_events_per_arm_per_year
+  on.exit(plan$spec$min_expected_events_per_arm_per_year <- old, add = TRUE)
   # A YAML spec reads 5 as an integer. The writers compare it as a double.
-  for (rule in list(
-    list(min_expected_events = 5),
-    list(min_expected_events = 5L)
-  )) {
-    plan$spec$horizon_rule <- rule
+  for (rule in list(5, 5L)) {
+    plan$spec$min_expected_events_per_arm_per_year <- rule
     xlsx <- tempfile("current_", tmpdir = fx$dir, fileext = ".xlsx")
     expect_no_error(suppressMessages(suppressWarnings(
       plan$export_tables(path = xlsx)

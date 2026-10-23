@@ -1,7 +1,8 @@
-# The "Expected events" sheet of the results workbook. It shows the window
-# table of the horizon rule, one row per ETT, estimand and follow-up year.
+# The "Minimum events" sheet of the results workbook. It shows the window
+# table of the minimum-events rule, one row per ETT, estimand and follow-up
+# year.
 
-#' Column headers and Excel number formats of the `Expected events` sheet
+#' Column headers and Excel number formats of the `Minimum events` sheet
 #'
 #' The names are the headers, in sheet order. A value of `NA` leaves the
 #' column without a number format.
@@ -25,7 +26,7 @@
 )
 
 
-#' The rows of the `Expected events` sheet
+#' The rows of the `Minimum events` sheet
 #'
 #' Reads `$get_horizon_windows()`, which holds one row per window and arm, and
 #' puts the two arms of a window on one row. All counts are weighted, with the
@@ -54,7 +55,7 @@
   data.table::setkeyv(cmp, key)
   if (!identical(int[, key, with = FALSE], cmp[, key, with = FALSE])) {
     stop(
-      "Expected events sheet: a stored window lacks one of its two arms.",
+      "Minimum events sheet: a stored window lacks one of its two arms.",
       call. = FALSE
     )
   }
@@ -96,7 +97,7 @@
 }
 
 
-#' Write the `Expected events` sheet
+#' Write the `Minimum events` sheet
 #'
 #' Row 1 is the title, which names the threshold. Row 2 states how the sheet
 #' computes the expected events. The header is row 4. A plan with no stored
@@ -110,13 +111,13 @@
 .write_horizon_sheet <- function(wb, sheet_name, plan) {
   openxlsx::addWorksheet(wb, sheet_name)
   rows <- .horizon_sheet_rows(plan)
-  rule <- plan$spec$horizon_rule$min_expected_events
+  rule <- plan$spec[["min_expected_events_per_arm_per_year"]]
   openxlsx::writeData(
     wb,
     sheet_name,
     paste0(
-      "Expected events per arm and follow-up year (horizon rule, ",
-      "min_expected_events = ",
+      "Expected events per arm and follow-up year (minimum-events rule, ",
+      "min_expected_events_per_arm_per_year = ",
       if (is.null(rule)) "not set" else format(rule),
       ")"
     ),
@@ -134,10 +135,11 @@
     sheet_name,
     paste0(
       "All counts use the weight of the estimand. The expected events of an ",
-      "arm are the pooled weighted rate of both arms times the weighted ",
-      "person-years of that arm. A year passes when both arms reach ",
-      "min_expected_events. The pooled rate holds the observed events, so ",
-      "the decision depends on the outcome data."
+      "arm are computed under the null: the pooled weighted rate of both ",
+      "arms times the weighted person-years of that arm. A year passes when ",
+      "both arms reach min_expected_events_per_arm_per_year. The pooled rate ",
+      "holds the observed events, so the decision depends on the outcome ",
+      "data."
     ),
     startRow = 2L
   )
@@ -145,7 +147,10 @@
     openxlsx::writeData(
       wb,
       sheet_name,
-      "No stored result holds a horizon-rule window table. Run $s3_analyze().",
+      paste0(
+        "No stored result holds a window table of the minimum-events rule. ",
+        "Run $s3_analyze()."
+      ),
       startRow = 4L
     )
     return(invisible(NULL))

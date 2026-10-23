@@ -1,74 +1,59 @@
 # =============================================================================
-# The horizon_rule spec block
+# The min_expected_events_per_arm_per_year spec key
 # =============================================================================
-# Every spec MUST declare a `horizon_rule` block:
+# Every spec MUST declare the flat key of the minimum-events rule:
 #
-#   horizon_rule:
-#     min_expected_events: 5    # number >= 0, per arm, per follow-up year
+#   min_expected_events_per_arm_per_year: 5    # number >= 0
 #
-# `tteplan_read_spec()` refuses a spec without the block, through its vector
-# of required sections. `.tte_check_horizon_rule()` below checks the value.
-# The key gate in `R/tteplan_spec_schema.R` refuses any other key in the
-# block.
+# `tteplan_read_spec()` refuses a spec without the key, through its vector of
+# required sections. `.tte_check_horizon_rule()` below checks the value. The
+# key gate in `R/tteplan_spec_schema.R` refuses a mapping under the key, and
+# refuses the retired block `horizon_rule`.
 # =============================================================================
 
-#' Validate and normalise the horizon_rule block of a parsed specification
+#' Validate and normalise the minimum-events rule of a parsed specification
 #'
 #' `tteplan_read_spec()` calls it after its check of the required sections.
-#' That check refuses a spec without the block, so this function returns a spec
-#' without the block unchanged. It stops on a block that is empty, is not a
-#' mapping, or holds a bad `min_expected_events`. It returns the specification
-#' with `min_expected_events` as a double.
+#' That check refuses a spec without the key, so this function returns a spec
+#' without the key unchanged. It stops on a key with no value, or with a bad
+#' value. It returns the specification with
+#' `min_expected_events_per_arm_per_year` as a double.
 #'
 #' @param spec The parsed specification.
 #' @return `spec`.
 #' @noRd
 .tte_check_horizon_rule <- function(spec) {
-  if (!"horizon_rule" %in% names(spec)) {
+  if (!"min_expected_events_per_arm_per_year" %in% names(spec)) {
     return(spec)
   }
-  rule <- spec[["horizon_rule"]]
+  value <- spec[["min_expected_events_per_arm_per_year"]]
   # A key written with no value, or with an empty mapping, is a rule the
   # author started and did not finish.
-  if (length(rule) == 0L) {
+  if (length(value) == 0L) {
     stop(
-      "horizon_rule is present but empty. Give it min_expected_events, as in ",
-      "horizon_rule: {min_expected_events: 5}.",
-      call. = FALSE
-    )
-  }
-  if (!is.list(rule) || is.null(names(rule))) {
-    stop(
-      "horizon_rule MUST be a mapping with the one key min_expected_events.",
-      call. = FALSE
-    )
-  }
-  value <- rule[["min_expected_events"]]
-  if (is.null(value)) {
-    stop(
-      "horizon_rule has no min_expected_events. Give the minimum number of ",
-      "expected events per arm and per follow-up year, as in ",
-      "min_expected_events: 5.",
+      "min_expected_events_per_arm_per_year is present but has no value. ",
+      "Give it the minimum number of expected events per arm and per ",
+      "follow-up year, as in min_expected_events_per_arm_per_year: 5.",
       call. = FALSE
     )
   }
   .tte_check_min_expected_events(value)
-  spec[["horizon_rule"]] <- list(min_expected_events = as.numeric(value))
+  spec[["min_expected_events_per_arm_per_year"]] <- as.numeric(value)
   return(spec)
 }
 
-#' Stop unless min_expected_events is one finite number of at least 0
+#' Stop unless the minimum-events value is one finite number of at least 0
 #'
-#' Every message names `horizon_rule$min_expected_events`. A logical value is
-#' refused, because R would read `true` as 1.
+#' Every message names `min_expected_events_per_arm_per_year`. A logical value
+#' is refused, because R would read `true` as 1.
 #'
-#' @param value The parsed `horizon_rule$min_expected_events`.
+#' @param value The parsed `min_expected_events_per_arm_per_year`.
 #' @return `invisible(TRUE)`.
 #' @noRd
 .tte_check_min_expected_events <- function(value) {
   if (!is.numeric(value) || length(value) != 1L) {
     stop(
-      "horizon_rule$min_expected_events MUST be one number. It holds: ",
+      "min_expected_events_per_arm_per_year MUST be one number. It holds: ",
       paste(format(value), collapse = ", "),
       ".",
       call. = FALSE
@@ -76,7 +61,8 @@
   }
   if (!is.finite(value)) {
     stop(
-      "horizon_rule$min_expected_events MUST be a finite number. It holds: ",
+      "min_expected_events_per_arm_per_year MUST be a finite number. It ",
+      "holds: ",
       format(value),
       ".",
       call. = FALSE
@@ -84,7 +70,7 @@
   }
   if (value < 0) {
     stop(
-      "horizon_rule$min_expected_events MUST be at least 0. It holds: ",
+      "min_expected_events_per_arm_per_year MUST be at least 0. It holds: ",
       format(value),
       ".",
       call. = FALSE

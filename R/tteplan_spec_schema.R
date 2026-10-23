@@ -52,6 +52,24 @@
   "implementation$source_variable."
 )
 
+# `horizon_rule: {min_expected_events: k}` was the old form of the flat key
+# `min_expected_events_per_arm_per_year: k`. The number is unchanged.
+.TTE_SPEC_MSG_HORIZON_RULE <- paste0(
+  "That key is gone. Replace the block with the flat key ",
+  "min_expected_events_per_arm_per_year, and give it the number that ",
+  "min_expected_events held. The rule and its threshold are unchanged. Copy ",
+  "the spec to a new version for this change. Never edit a released spec ",
+  "version."
+)
+
+# `sparse_rule` was the old name of `rare_condition_rule`. Its three fields
+# keep their names.
+.TTE_SPEC_MSG_SPARSE_RULE <- paste0(
+  "That key is gone. Rename it to rare_condition_rule. Its fields min_n, ",
+  "decided_by and candidates are unchanged. Copy the spec to a new version ",
+  "for this change. Never edit a released spec version."
+)
+
 # A criterion written as direct children of `inclusion_criteria`, with no
 # `criteria` list around it.
 .TTE_SPEC_MSG_FLAT_CRITERION <- paste0(
@@ -113,15 +131,19 @@
       "enrollments",
       "exclusion_criteria",
       "follow_up",
-      "horizon_rule",
       "inclusion_criteria",
+      "min_expected_events_per_arm_per_year",
       "open_questions",
       "outcomes",
-      "sparse_rule",
+      "rare_condition_rule",
       "standing_methods",
       "study",
       "subgroups",
       "target_trial"
+    ),
+    legacy = c(
+      .tte_spec_legacy("horizon_rule", .TTE_SPEC_MSG_HORIZON_RULE),
+      .tte_spec_legacy("sparse_rule", .TTE_SPEC_MSG_SPARSE_RULE)
     )
   ),
 
@@ -280,17 +302,10 @@
     consumed = "variable"
   ),
 
-  # --- sparse rule -----------------------------------------------------------
+  # --- rare-condition rule ---------------------------------------------------
   # `R/tteplan_s1b_sparse.R` reads all three keys.
-  "$/sparse_rule" = list(
+  "$/rare_condition_rule" = list(
     consumed = c("candidates", "decided_by", "min_n")
-  ),
-
-  # --- horizon rule ----------------------------------------------------------
-  # `R/tteplan_horizon_rule.R` reads the one key. The window width is not a
-  # spec value, so the gate refuses a `window_weeks` key here.
-  "$/horizon_rule" = list(
-    consumed = "min_expected_events"
   ),
 
   # --- standing methods ------------------------------------------------------
@@ -592,4 +607,35 @@
     paste(findings, collapse = "\n"),
     call. = FALSE
   )
+}
+
+
+# -----------------------------------------------------------------------------
+# The rule keys of a plan saved by swereg 27.2.14 or earlier
+# -----------------------------------------------------------------------------
+
+#' Rename the two retired rule keys of a stored specification
+#'
+#' A plan saved by swereg 27.2.14 or earlier stores its specification with the
+#' keys `horizon_rule` and `sparse_rule`. [tteplan_load()] calls this function,
+#' so the loaded plan holds the same rule under the keys
+#' `min_expected_events_per_arm_per_year` and `rare_condition_rule`. The values
+#' do not change, so the plan's `sparse_rule_hash` still matches its rule.
+#'
+#' @param spec The stored specification, or `NULL`.
+#' @return `spec`, with each old key replaced by its new key.
+#' @noRd
+.tte_spec_rename_rule_keys <- function(spec) {
+  if (!is.list(spec)) {
+    return(spec)
+  }
+  if ("horizon_rule" %in% names(spec)) {
+    value <- spec[["horizon_rule"]][["min_expected_events"]]
+    spec[["horizon_rule"]] <- NULL
+    spec[["min_expected_events_per_arm_per_year"]] <- value
+  }
+  if ("sparse_rule" %in% names(spec)) {
+    names(spec)[names(spec) == "sparse_rule"] <- "rare_condition_rule"
+  }
+  return(spec)
 }

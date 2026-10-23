@@ -94,8 +94,7 @@ skip_if_not_installed("data.table")
     "      variable: os_x\n",
     "follow_up:\n",
     "  - weeks: 52\n",
-    "horizon_rule:\n",
-    "  min_expected_events: 0\n"
+    "min_expected_events_per_arm_per_year: 0\n"
   )
 }
 

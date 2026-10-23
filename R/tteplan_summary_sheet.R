@@ -67,8 +67,8 @@
 #' a usable ratio, and without a stored risk difference, has no row on the
 #' results sheet, so all its cells here are `NA`. The event counts and the
 #' risk difference show only when the results sheet carries its
-#' risk-difference columns. A ratio or a risk difference that the horizon rule
-#' withheld reads `NE`, and its event counts stay.
+#' risk-difference columns. A ratio or a risk difference that the minimum-events
+#' rule withheld reads `NE`, and its event counts stay.
 #'
 #' @param est A `$get_estimates()` table.
 #' @param ett_ids Character vector, the ETTs in sheet order.

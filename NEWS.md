@@ -1,3 +1,22 @@
+# swereg 27.2.15
+
+## Breaking changes
+
+* **The spec key `horizon_rule: {min_expected_events: k}` is now the flat key `min_expected_events_per_arm_per_year: k`, and `sparse_rule` is now `rare_condition_rule`.** `tteplan_read_spec()` and `tteplan_check_spec()` refuse the old keys, and the message names the new key. The rules and their numbers do not change.
+* **Every spec needs a new version for the renamed keys.** Copy the spec to a new version and rename the keys there. Never edit a released spec version.
+* **A plan MUST hold s3 results from 27.2.14 or later to export.** For results stored before 27.2.14, rerun the full `$s3_analyze()`. Results that 27.2.14 stored export correctly under 27.2.15: a withheld estimate still reads `NE`. `tteplan_load()` renames the two rule keys of the stored spec, so the s1 and s2 output stays valid.
+* **The horizon rule is now the minimum-events rule.** The workbook sheet `Expected events` is now `Minimum events`, and `Sparse conditions` is now `Rare conditions`. The status of a withheld estimand starts with `"below minimum-events rule"`, `$print_spec_summary()` prints `Minimum-events rule:`, and the column `min_expected_events` of `$get_horizon_windows()` is now `min_expected_events_per_arm_per_year`.
+
+## New features
+
+* **`$s3_feasibility()` applies the minimum-events rule after s2 and fits no outcome model.** Its decision equals the decision of `$s3_analyze()`. It writes `feasibility.xlsx` and `plan$feasibility`, and neither holds an event count, a rate or expected events after time zero. The Attrition sheet keeps the eligibility counts by arm, including exclusions for an outcome event before time zero.
+* **`tte_s0_flags()` reads the `--check` and `--feasibility` flags of a project's `s0_init.R`.** It stops on any other argument. swereg now imports optparse.
+* **`$slurm_job()` and `tte_stage()` accept the stage `"feasibility"`.** The job runs `$s3_feasibility()`, then saves the plan.
+
+## Documentation
+
+* **The OSF Inference criteria field, TARGET item 6h, the protocol table and `vignette("tte-methods")` say that the expected events are computed under the null.**
+
 # swereg 27.2.14
 
 ## Breaking changes

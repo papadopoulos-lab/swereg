@@ -31,7 +31,7 @@
 #' Writes the text of each field of the OSF Preregistration form whose content
 #' the study specification and swereg fix: the design, the sampling, the
 #' treatment strategies, the outcomes, the covariates, the eligibility
-#' criteria, the analysis, the horizon rule and the code list. Each fact
+#' criteria, the analysis, the minimum-events rule and the code list. Each fact
 #' appears in one field.
 #' The other fields point to it as `'Field/Subheading'`.
 #'
@@ -70,8 +70,8 @@
 #'   `Measured variables/Outcomes`, `Measured variables/Baseline covariates`,
 #'   `Statistical models`, `Transformations`, `Inference criteria`,
 #'   `Data inclusion and exclusion`, `Missing data`, `Other planned analysis`
-#'   and `Code list`. `Inference criteria` states the horizon rule from
-#'   `horizon_rule$min_expected_events`.
+#'   and `Code list`. `Inference criteria` states the minimum-events rule
+#'   from `min_expected_events_per_arm_per_year`.
 #'
 #' @examples
 #' spec_dir <- tempfile()
@@ -101,8 +101,7 @@
 #'     "      variable: osd_outcome",
 #'     "follow_up:",
 #'     "  - {label: 1 year, weeks: 52}",
-#'     "horizon_rule:",
-#'     "  min_expected_events: 5",
+#'     "min_expected_events_per_arm_per_year: 5",
 #'     "enrollments:",
 #'     "  - id: '01'",
 #'     "    name: A vs B",
@@ -137,7 +136,10 @@ tteplan_osf_text <- function(
   people = c("person", "persons")
 ) {
   if (!is.character(people) || length(people) != 2L || anyNA(people)) {
-    stop("`people` must be two strings: the singular and the plural noun.", call. = FALSE)
+    stop(
+      "`people` must be two strings: the singular and the plural noun.",
+      call. = FALSE
+    )
   }
   spec <- tteplan_read_spec(spec_path)
   ctx <- list(
@@ -204,7 +206,11 @@ tteplan_osf_text <- function(
 #' @noRd
 .osf_window <- function(impl) {
   w <- impl[["window"]]
-  if (is.character(w) && !w %in% c("lifetime_before_baseline", "lifetime_before_and_after_baseline")) {
+  if (
+    is.character(w) &&
+      !w %in%
+        c("lifetime_before_baseline", "lifetime_before_and_after_baseline")
+  ) {
     w <- impl[["window_weeks"]]
   }
   w <- w %||% impl[["window_weeks"]]
@@ -214,13 +220,22 @@ tteplan_osf_text <- function(
   if (identical(w, "lifetime_before_and_after_baseline")) {
     return("at any time before or after baseline")
   }
-  if (identical(w, "lifetime_before_baseline") || (is.numeric(w) && is.infinite(w))) {
+  if (
+    identical(w, "lifetime_before_baseline") ||
+      (is.numeric(w) && is.infinite(w))
+  ) {
     return("at any time before baseline")
   }
   w <- as.numeric(w)
   years <- w / 52
   if (years >= 1 && years == round(years)) {
-    return(if (years == 1) "in the year before baseline" else paste0("in the ", years, " years before baseline"))
+    return(
+      if (years == 1) {
+        "in the year before baseline"
+      } else {
+        paste0("in the ", years, " years before baseline")
+      }
+    )
   }
   return(paste0("in the ", w, " weeks before baseline"))
 }
@@ -232,7 +247,9 @@ tteplan_osf_text <- function(
 #' @param window Logical, whether to state the window.
 #' @noRd
 .osf_entry <- function(entry, window = TRUE) {
-  nm <- trimws(as.character(entry$name %||% .protocol_impl_variable(entry$implementation)))
+  nm <- trimws(as.character(
+    entry$name %||% .protocol_impl_variable(entry$implementation)
+  ))
   wp <- if (window) .osf_window(entry$implementation) else NULL
   return(paste0(nm, if (!is.null(wp)) paste0(", ", wp), "."))
 }
@@ -294,8 +311,12 @@ tteplan_osf_text <- function(
 .osf_arms <- function(enr) {
   arms <- enr$treatment$arms
   return(c(
-    intervention = as.character(arms$intervention %||% enr$treatment$implementation$intervention_value),
-    comparator = as.character(arms$comparator %||% enr$treatment$implementation$comparator_value)
+    intervention = as.character(
+      arms$intervention %||% enr$treatment$implementation$intervention_value
+    ),
+    comparator = as.character(
+      arms$comparator %||% enr$treatment$implementation$comparator_value
+    )
   ))
 }
 
@@ -306,7 +327,15 @@ tteplan_osf_text <- function(
   for (enr in ctx$spec$enrollments) {
     if (identical(as.character(enr$id), as.character(eid))) {
       a <- .osf_arms(enr)
-      return(paste0("comparison ", ctx$comparison[[as.character(eid)]], " (", a[["intervention"]], " versus ", a[["comparator"]], ")"))
+      return(paste0(
+        "comparison ",
+        ctx$comparison[[as.character(eid)]],
+        " (",
+        a[["intervention"]],
+        " versus ",
+        a[["comparator"]],
+        ")"
+      ))
     }
   }
   return(paste0("comparison ", eid))
@@ -324,7 +353,13 @@ tteplan_osf_text <- function(
   admin <- if (is.null(ctx$admin)) {
     "the administrative end of the data"
   } else {
-    paste0("the administrative end of the data, at the end of ISO week ", ctx$admin, " (", .osf_isoweek_sunday(ctx$admin), ")")
+    paste0(
+      "the administrative end of the data, at the end of ISO week ",
+      ctx$admin,
+      " (",
+      .osf_isoweek_sunday(ctx$admin),
+      ")"
+    )
   }
   tol <- vapply(
     ctx$spec$enrollments,
@@ -335,8 +370,13 @@ tteplan_osf_text <- function(
         return(NA_character_)
       }
       return(paste0(
-        "In ", .osf_comparison_label(ctx, e$id), ", the tolerance is ",
-        i, " weeks in the intervention arm and ", c, " weeks in the comparator arm."
+        "In ",
+        .osf_comparison_label(ctx, e$id),
+        ", the tolerance is ",
+        i,
+        " weeks in the intervention arm and ",
+        c,
+        " weeks in the comparator arm."
       ))
     },
     character(1)
@@ -345,26 +385,40 @@ tteplan_osf_text <- function(
   return(.osf_paragraphs(
     paste0(
       "The study emulates a sequence of target trials in register data. Calendar time from ISO year ",
-      yrs[[1L]], " to ISO year ", yrs[[2L]], " is cut into consecutive enrollment periods of ",
-      ctx$width, " weeks, and each enrollment period opens one trial. Eligibility is assessed in every week. A ",
-      ctx$one, " can enter more than one trial."
+      yrs[[1L]],
+      " to ISO year ",
+      yrs[[2L]],
+      " is cut into consecutive enrollment periods of ",
+      ctx$width,
+      " weeks, and each enrollment period opens one trial. Eligibility is assessed in every week. A ",
+      ctx$one,
+      " can enter more than one trial."
     ),
     paste0(
-      "Each ", ctx$one, " is assigned to a treatment strategy from the weeks of the enrollment period, as described under 'Measured variables/Exposures'."
+      "Each ",
+      ctx$one,
+      " is assigned to a treatment strategy from the weeks of the enrollment period, as described under 'Measured variables/Exposures'."
     ),
     paste0(
-      "Time zero is the first week after the enrollment period closes, in both arms. Only ", ctx$many,
+      "Time zero is the first week after the enrollment period closes, in both arms. Only ",
+      ctx$many,
       " who reach time zero under observation and free of every outcome listed under 'Measured variables/Outcomes' enter the trial."
     ),
     paste0(
       "Follow-up starts at time zero. It stops at the first of: the outcome; loss of observation, which is the first week after time zero without observation; ",
-      admin, "; and the end of the analysis horizon. Death censors follow-up, and no competing-risk model is fitted. The horizons are ",
-      .osf_and(horizons), "."
+      admin,
+      "; and the end of the analysis horizon. Death censors follow-up, and no competing-risk model is fitted. The horizons are ",
+      .osf_and(horizons),
+      "."
     ),
     paste0(
       "Under the per-protocol estimand, follow-up also stops at the first week that does not hold the assigned strategy, beyond the tolerance of the arm. A week with a missing treatment value counts as such a week. Under the intention-to-treat estimand, a deviation does not stop follow-up."
     ),
-    if (length(tol) > 0L) paste(tol, collapse = " ") else "The tolerance is 0 weeks in every arm, so the first such week is a deviation.",
+    if (length(tol) > 0L) {
+      paste(tol, collapse = " ")
+    } else {
+      "The tolerance is 0 weeks in every arm, so the first such week is a deviation."
+    },
     "The statistical analysis is described under 'Statistical models'."
   ))
 }
@@ -374,24 +428,42 @@ tteplan_osf_text <- function(
 .osf_sample_size <- function(ctx) {
   ratios <- vapply(
     ctx$spec$enrollments,
-    function(e) as.numeric(e$treatment$implementation$comparator_to_intervention_ratio),
+    function(e) {
+      as.numeric(e$treatment$implementation$comparator_to_intervention_ratio)
+    },
     numeric(1)
   )
   ratio_text <- if (length(unique(ratios)) == 1L) {
-    paste0(ratios[[1L]], " for each enrolled ", ctx$one, " in the intervention arm")
+    paste0(
+      ratios[[1L]],
+      " for each enrolled ",
+      ctx$one,
+      " in the intervention arm"
+    )
   } else {
     paste0(
-      "a number for each enrolled ", ctx$one, " in the intervention arm that depends on the comparison (",
-      paste0("comparison ", seq_along(ratios), ": ", ratios, collapse = "; "), ")"
+      "a number for each enrolled ",
+      ctx$one,
+      " in the intervention arm that depends on the comparison (",
+      paste0("comparison ", seq_along(ratios), ": ", ratios, collapse = "; "),
+      ")"
     )
   }
   return(.osf_paragraphs(
     paste0(
-      "In each comparison and each trial, every eligible ", ctx$one, " in the intervention arm is enrolled. Comparators are drawn at random from the eligible ",
-      ctx$many, " in the comparator arm: ", ratio_text, ", or all of them if the trial holds fewer. The draw is made within each trial and creates no matched sets, so no analysis conditions on matched sets."
+      "In each comparison and each trial, every eligible ",
+      ctx$one,
+      " in the intervention arm is enrolled. Comparators are drawn at random from the eligible ",
+      ctx$many,
+      " in the comparator arm: ",
+      ratio_text,
+      ", or all of them if the trial holds fewer. The draw is made within each trial and creates no matched sets, so no analysis conditions on matched sets."
     ),
     paste0(
-      "A ", ctx$one, " can enter several trials, so the number of person-trials can exceed the number of ", ctx$many,
+      "A ",
+      ctx$one,
+      " can enter several trials, so the number of person-trials can exceed the number of ",
+      ctx$many,
       ". The number of person-trials in each comparison follows from this rule and the data."
     )
   ))
@@ -405,18 +477,32 @@ tteplan_osf_text <- function(
     function(e) {
       a <- .osf_arms(e)
       d <- e$treatment$description
-      return(paste0(a[["intervention"]], " versus ", a[["comparator"]], ".", if (!is.null(d) && nzchar(trimws(d))) paste0(" ", trimws(d))))
+      return(paste0(
+        a[["intervention"]],
+        " versus ",
+        a[["comparator"]],
+        ".",
+        if (!is.null(d) && nzchar(trimws(d))) paste0(" ", trimws(d))
+      ))
     },
     character(1)
   )
   return(.osf_paragraphs(
-    paste0("The study has ", length(items), if (length(items) == 1L) " comparison" else " comparisons", ". Each compares an intervention strategy, named first, with a comparator strategy."),
+    paste0(
+      "The study has ",
+      length(items),
+      if (length(items) == 1L) " comparison" else " comparisons",
+      ". Each compares an intervention strategy, named first, with a comparator strategy."
+    ),
     .osf_numbered(items),
     paste0(
-      "Assignment uses only the weeks of the enrollment period in which the ", ctx$one,
-      " is eligible and holds one of the two compared strategies. A ", ctx$one,
+      "Assignment uses only the weeks of the enrollment period in which the ",
+      ctx$one,
+      " is eligible and holds one of the two compared strategies. A ",
+      ctx$one,
       " enters the intervention arm when at least one of those weeks holds the intervention strategy, and the comparator arm when all of them hold the comparator strategy. A ",
-      ctx$one, " with no such week does not enter that trial. Eligibility is assessed week by week, so a treatment started earlier in the enrollment period can make a later week ineligible."
+      ctx$one,
+      " with no such week does not enter that trial. Eligibility is assessed week by week, so a treatment started earlier in the enrollment period can make a later week ineligible."
     )
   ))
 }
@@ -428,7 +514,10 @@ tteplan_osf_text <- function(
     ctx$spec$outcomes,
     function(o) {
       d <- o$description
-      return(paste0(trimws(o$name), if (!is.null(d) && nzchar(trimws(d))) paste0(": ", trimws(d)) else "."))
+      return(paste0(
+        trimws(o$name),
+        if (!is.null(d) && nzchar(trimws(d))) paste0(": ", trimws(d)) else "."
+      ))
     },
     character(1)
   )
@@ -442,18 +531,29 @@ tteplan_osf_text <- function(
 #' @noRd
 .osf_covariates <- function(ctx) {
   confs <- ctx$spec$confounders
-  items <- vapply(confs, function(conf) .osf_entry(conf, window = isTRUE(conf$implementation$computed)), character(1))
-  sparse <- if (!is.null(ctx$spec$sparse_rule)) {
+  items <- vapply(
+    confs,
+    function(conf) {
+      .osf_entry(conf, window = isTRUE(conf$implementation$computed))
+    },
+    character(1)
+  )
+  sparse <- if (!is.null(ctx$spec$rare_condition_rule)) {
     "A rare condition can become an exclusion criterion instead of a covariate, by the rule under 'Data inclusion and exclusion'."
   }
   return(.osf_paragraphs(
     .osf_bullets(items),
     paste0(
-      "Each covariate is measured at the recruiting week: the first week of the enrollment period in which the ", ctx$one,
+      "Each covariate is measured at the recruiting week: the first week of the enrollment period in which the ",
+      ctx$one,
       " is eligible and holds one of the two compared strategies."
     ),
     paste0(
-      if (is.null(ctx$spec$sparse_rule)) "Every covariate" else "Every covariate that the rare-condition rule keeps",
+      if (is.null(ctx$spec$rare_condition_rule)) {
+        "Every covariate"
+      } else {
+        "Every covariate that the rare-condition rule keeps"
+      },
       " enters both weight models. The treatment weights use its value at the recruiting week. The censoring weights use its value in each follow-up interval, together with the time since time zero and calendar time. Calendar time does not enter the treatment weights. The outcome model holds no confounder. It adjusts for the trial, which is calendar time at time zero, as described under 'Statistical models'."
     ),
     sparse
@@ -467,18 +567,29 @@ tteplan_osf_text <- function(
   return(.osf_paragraphs(
     "Each comparison is analysed separately, for each outcome and each horizon.",
     paste0(
-      "The analysis uses the R package swereg, version ", ver, " at registration. The version used will be reported with the results. swereg carries out sequential target trial emulation as its methods article describes (",
-      .OSF_METHODS_URL, "). Any change to the method between registration and analysis will be recorded in the deviations log."
+      "The analysis uses the R package swereg, version ",
+      ver,
+      " at registration. The version used will be reported with the results. swereg carries out sequential target trial emulation as its methods article describes (",
+      .OSF_METHODS_URL,
+      "). Any change to the method between registration and analysis will be recorded in the deviations log."
     ),
     paste0(
-      "The analysis estimates the ", .osf_and(unname(.TTE_ESTIMANDS)),
+      "The analysis estimates the ",
+      .osf_and(unname(.TTE_ESTIMANDS)),
       " effects. The treatment weights are stabilized inverse probability of treatment weights, from a logistic regression of the assigned arm on the covariates. The per-protocol analysis adds stabilized inverse probability of censoring weights, from three models in each arm: loss of observation, deviation, and deviation at time zero. The intention-to-treat weight, and the per-protocol product of the treatment and censoring weights, are truncated at the 1st and 99th percentiles."
     ),
     paste0(
       "The outcome model is a weighted quasi-Poisson regression of the outcome on the treatment, the time since time zero and the trial, with a person-time offset. It holds no confounder, so the exponentiated treatment coefficient is the marginal incidence rate ratio. Standard errors are clustered on the ",
-      ctx$one, ", because a ", ctx$one, " can enter several trials. The absolute effect is the risk difference at the end of each horizon, with a percentile interval from ",
-      .S3_RD_N_BOOT, " bootstrap replicates that resample ", ctx$many, ". Each effect is reported with its ",
-      100 * .s3_conf_level(ctx$spec), "% confidence interval."
+      ctx$one,
+      ", because a ",
+      ctx$one,
+      " can enter several trials. The absolute effect is the risk difference at the end of each horizon, with a percentile interval from ",
+      .S3_RD_N_BOOT,
+      " bootstrap replicates that resample ",
+      ctx$many,
+      ". Each effect is reported with its ",
+      100 * .s3_conf_level(ctx$spec),
+      "% confidence interval."
     ),
     paste0(
       "Covariate balance is reported as standardized mean differences before and after weighting, together with the distribution of the weights."
@@ -493,7 +604,8 @@ tteplan_osf_text <- function(
   return(.osf_paragraphs(
     "In each comparison, the treatment is coded 1 for the intervention strategy and 0 for the comparator strategy. Each outcome is a binary indicator.",
     paste0(
-      "Follow-up is split into intervals of ", ctx$width,
+      "Follow-up is split into intervals of ",
+      ctx$width,
       " weeks from time zero. The outcome model and the loss and deviation censoring models carry the person-time of each interval as an offset. The treatment model and the time-zero censoring model are logistic regressions on one row per person-trial."
     ),
     "Covariates enter the weight models as main effects, with no interaction and no spline. A numeric covariate enters as one linear term, and a binary covariate as one term. A categorical covariate enters as indicator variables, with its first level as the reference; the choice of reference does not change the fitted weights. The categories are listed under 'Code list'.",
@@ -536,9 +648,17 @@ tteplan_osf_text <- function(
     if (length(own) == 0L) {
       return(character())
     }
-    return(paste0("In ", .osf_comparison_label(ctx, ctx$spec$enrollments[[k]]$id), " only: ", own))
+    return(paste0(
+      "In ",
+      .osf_comparison_label(ctx, ctx$spec$enrollments[[k]]$id),
+      " only: ",
+      own
+    ))
   }))
-  return(list(common = common %||% character(), specific = specific %||% character()))
+  return(list(
+    common = common %||% character(),
+    specific = specific %||% character()
+  ))
 }
 
 
@@ -549,12 +669,20 @@ tteplan_osf_text <- function(
   incl_enr <- .osf_split_common(ctx, .osf_enrollment_inclusion)
   incl <- c(
     paste0("Trial entry in ISO years ", yrs[[1L]], " to ", yrs[[2L]], "."),
-    vapply(spec$inclusion_criteria$criteria %||% list(), .osf_entry, character(1)),
+    vapply(
+      spec$inclusion_criteria$criteria %||% list(),
+      .osf_entry,
+      character(1)
+    ),
     incl_enr$common,
     incl_enr$specific
   )
   excl_enr <- .osf_split_common(ctx, function(enr) {
-    return(vapply(enr$additional_exclusion %||% list(), .osf_entry, character(1)))
+    return(vapply(
+      enr$additional_exclusion %||% list(),
+      .osf_entry,
+      character(1)
+    ))
   })
   excl <- c(
     vapply(spec$exclusion_criteria %||% list(), .osf_entry, character(1)),
@@ -571,32 +699,40 @@ tteplan_osf_text <- function(
     .osf_numbered(excl),
     .osf_sparse_rule(ctx),
     paste0(
-      "No ", ctx$one, " is excluded for an extreme value of a measured variable. Extreme weights are truncated, as described under 'Statistical models'."
+      "No ",
+      ctx$one,
+      " is excluded for an extreme value of a measured variable. Extreme weights are truncated, as described under 'Statistical models'."
     )
   ))
 }
 
 
-#' The horizon rule, as the paragraphs of the Inference criteria field
+#' The minimum-events rule, as the paragraphs of the Inference criteria field
 #'
-#' The text states `horizon_rule$min_expected_events`, which
+#' The text states `min_expected_events_per_arm_per_year`, which
 #' `tteplan_read_spec()` requires. With a threshold of 0, one sentence says
 #' that the rule withholds no estimate.
 #' @noRd
 .osf_inference <- function(ctx) {
-  value <- ctx$spec$horizon_rule$min_expected_events
+  value <- ctx$spec[["min_expected_events_per_arm_per_year"]]
   k <- format(value, trim = TRUE, scientific = FALSE)
   first <- paste0(
-    "A prespecified reporting rule, the horizon rule, requires at least ", k,
+    "A prespecified reporting rule, the minimum-events rule, requires at least ",
+    k,
     " expected events per arm in each year of follow-up"
   )
+  null_def <- "The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms."
   if (value == 0) {
-    return(paste0(first, ", so it withholds no estimate."))
+    return(paste0(first, ", so it withholds no estimate. ", null_def))
   }
   return(.osf_paragraphs(
     paste0(
-      first, ". Follow-up is cut into years of ", .HORIZON_WINDOW_WEEKS,
-      " weeks from time zero. The last year ends at the horizon, so it can be shorter. The expected events of an arm in a year are its weighted person-time multiplied by the pooled weighted event rate of both arms. The reportable horizon is the end of the last year before the first year that fails."
+      first,
+      ". Follow-up is cut into years of ",
+      .HORIZON_WINDOW_WEEKS,
+      " weeks from time zero. The last year ends at the horizon, so it can be shorter. ",
+      null_def,
+      " The reportable horizon is the end of the last year before the first year that fails."
     ),
     paste0(
       "When any year up to the horizon fails the rule, the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
@@ -610,18 +746,31 @@ tteplan_osf_text <- function(
 }
 
 
-#' The rare-condition rule, as a paragraph, or NULL without a sparse_rule
+#' The rare-condition rule, as a paragraph, or NULL without a
+#' rare_condition_rule
 #' @noRd
 .osf_sparse_rule <- function(ctx) {
-  rule <- ctx$spec$sparse_rule
+  rule <- ctx$spec$rare_condition_rule
   if (is.null(rule)) {
     return(NULL)
   }
-  drivers <- vapply(rule$decided_by, function(eid) .osf_comparison_label(ctx, eid), character(1))
+  drivers <- vapply(
+    rule$decided_by,
+    function(eid) .osf_comparison_label(ctx, eid),
+    character(1)
+  )
   return(paste0(
-    "Rare conditions: each covariate below is adjusted for only if at least ", rule$min_n, " ", ctx$many,
-    " hold the condition at baseline in the smaller arm of ", .osf_and(drivers), ". Otherwise ", ctx$many,
-    " with the condition are excluded from every comparison. The rule is ", .TTE_SPARSE_BASIS, ".\n\n",
+    "Rare conditions: each covariate below is adjusted for only if at least ",
+    rule$min_n,
+    " ",
+    ctx$many,
+    " hold the condition at baseline in the smaller arm of ",
+    .osf_and(drivers),
+    ". Otherwise ",
+    ctx$many,
+    " with the condition are excluded from every comparison. The rule is ",
+    .TTE_SPARSE_BASIS,
+    ".\n\n",
     .osf_bullets(.tte_sparse_candidate_names(list(spec = ctx$spec)))
   ))
 }
@@ -629,12 +778,17 @@ tteplan_osf_text <- function(
 
 #' @noRd
 .osf_other <- function(ctx) {
-  subs <- vapply(ctx$spec$subgroups %||% list(), function(g) trimws(as.character(g$name %||% g$implementation$variable)), character(1))
+  subs <- vapply(
+    ctx$spec$subgroups %||% list(),
+    function(g) trimws(as.character(g$name %||% g$implementation$variable)),
+    character(1)
+  )
   return(.osf_paragraphs(
     "The per-protocol analysis is repeated with untruncated weights, and the result is reported beside the truncated one.",
     if (length(subs) > 0L) {
       paste0(
-        "Subgroup analyses estimate the rate ratio within each level of ", .osf_and(subs),
+        "Subgroup analyses estimate the rate ratio within each level of ",
+        .osf_and(subs),
         ", with a Wald test of the interaction of each subgroup with treatment."
       )
     }
@@ -647,7 +801,8 @@ tteplan_osf_text <- function(
   return(.osf_paragraphs(
     paste0(
       "A missing covariate value at the recruiting week is replaced by one value drawn at random from the observed values of that covariate (single hot-deck imputation). During follow-up, a missing covariate value is carried forward from the last observed value of the person-trial. A missing treatment value removes that week from the assignment in the enrollment period. During follow-up it is handled as 'Study design' describes. The rules are those of section 1.8.7 of the methods article (",
-      .OSF_METHODS_URL, ")."
+      .OSF_METHODS_URL,
+      ")."
     ),
     if (length(ctx$spec$subgroups %||% list()) > 0L) {
       "A missing subgroup value removes the row from the analyses of that subgroup."
@@ -667,7 +822,9 @@ tteplan_osf_text <- function(
   out <- vapply(
     vars,
     function(v) {
-      return(if (v %in% names(ctx$codes)) ctx$codes[[v]] else "derived variable")
+      return(
+        if (v %in% names(ctx$codes)) ctx$codes[[v]] else "derived variable"
+      )
     },
     character(1)
   )
@@ -699,18 +856,36 @@ tteplan_osf_text <- function(
         if ((e$type %||% "") %in% c("age_range", "isoyear_range")) {
           next
         }
-        key <- paste(use, .osf_entry(e), .protocol_impl_variable(e$implementation))
+        key <- paste(
+          use,
+          .osf_entry(e),
+          .protocol_impl_variable(e$implementation)
+        )
         if (!key %in% names(entries)) {
           entries[[key]] <- e
           owners[[key]] <- character()
         }
-        owners[[key]] <- c(owners[[key]], as.character(ctx$comparison[[as.character(enr$id)]]))
+        owners[[key]] <- c(
+          owners[[key]],
+          as.character(ctx$comparison[[as.character(enr$id)]])
+        )
       }
     }
     for (key in names(entries)) {
       own <- unique(owners[[key]])
-      use_label <- if (length(own) == n_enr) label else paste0(label, " in comparison ", .osf_and(own))
-      out <- c(out, row(entries[[key]], use_label, .protocol_impl_variable(entries[[key]]$implementation)))
+      use_label <- if (length(own) == n_enr) {
+        label
+      } else {
+        paste0(label, " in comparison ", .osf_and(own))
+      }
+      out <- c(
+        out,
+        row(
+          entries[[key]],
+          use_label,
+          .protocol_impl_variable(entries[[key]]$implementation)
+        )
+      )
     }
   }
   return(out)
@@ -725,22 +900,53 @@ tteplan_osf_text <- function(
     codes <- .osf_codes(ctx, vars)
     cats <- unlist(categories)
     return(paste0(
-      "- ", .osf_one_line(entry$name %||% ""), " (", use, "). ",
-      if (identical(codes, "derived variable")) "Derived variable, no codes." else paste0("Codes: ", .osf_one_line(codes), "."),
+      "- ",
+      .osf_one_line(entry$name %||% ""),
+      " (",
+      use,
+      "). ",
+      if (identical(codes, "derived variable")) {
+        "Derived variable, no codes."
+      } else {
+        paste0("Codes: ", .osf_one_line(codes), ".")
+      },
       if (!is.null(wp)) paste0(" Window: ", wp, "."),
-      if (length(cats) > 0L) paste0(" Categories: ", .osf_one_line(paste(cats, collapse = ", ")), ".")
+      if (length(cats) > 0L) {
+        paste0(
+          " Categories: ",
+          .osf_one_line(paste(cats, collapse = ", ")),
+          "."
+        )
+      }
     ))
   }
   rows <- c(
-    lapply(spec$inclusion_criteria$criteria %||% list(), function(e) row(e, "inclusion", .protocol_impl_variable(e$implementation))),
-    lapply(spec$exclusion_criteria %||% list(), function(e) row(e, "exclusion", .protocol_impl_variable(e$implementation))),
+    lapply(spec$inclusion_criteria$criteria %||% list(), function(e) {
+      row(e, "inclusion", .protocol_impl_variable(e$implementation))
+    }),
+    lapply(spec$exclusion_criteria %||% list(), function(e) {
+      row(e, "exclusion", .protocol_impl_variable(e$implementation))
+    }),
     .osf_enrollment_code_rows(ctx, row),
     lapply(spec$confounders %||% list(), function(e) {
       computed <- isTRUE(e$implementation$computed)
-      vars <- if (computed) e$implementation$source_variable %||% .protocol_impl_variable(e$implementation) else .protocol_impl_variable(e$implementation)
-      return(row(e, "covariate", vars, window = computed, categories = e$categories))
+      vars <- if (computed) {
+        e$implementation$source_variable %||%
+          .protocol_impl_variable(e$implementation)
+      } else {
+        .protocol_impl_variable(e$implementation)
+      }
+      return(row(
+        e,
+        "covariate",
+        vars,
+        window = computed,
+        categories = e$categories
+      ))
     }),
-    lapply(spec$outcomes, function(e) row(e, "outcome", e$implementation$variable, window = FALSE))
+    lapply(spec$outcomes, function(e) {
+      row(e, "outcome", e$implementation$variable, window = FALSE)
+    })
   )
   return(.osf_paragraphs(
     paste(unlist(rows), collapse = "\n"),

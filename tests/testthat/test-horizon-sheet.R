@@ -1,7 +1,7 @@
-# The "Expected events" sheet of `$export_tables()`.
+# The "Minimum events" sheet of `$export_tables()`.
 #
-# The sheet holds one row per ETT, estimand and follow-up year of the horizon
-# rule. The test stores horizon records on the export fixture plan, runs the
+# The sheet holds one row per ETT, estimand and follow-up year of the
+# minimum-events rule. The test stores horizon records on the export fixture plan, runs the
 # real `$export_tables()`, and reads the sheet back with openxlsx. Every
 # expected value below is computed by hand from the toy panel.
 
@@ -32,7 +32,7 @@
 # ETT00005 (156 weeks). The parent merge of `$s3_analyze()` then applies them.
 .hs_plan <- function() {
   plan <- .xp_plan("new")
-  plan$spec$horizon_rule <- .hs_rule
+  plan$spec$min_expected_events_per_arm_per_year <- 2
   # `.xp_plan()` stamps each result with a record of its own rule, 0. The
   # record of this file holds the rule of this spec.
   for (id in names(plan$results_ett)) {
@@ -89,24 +89,28 @@
   "Reportable horizon (weeks)"
 )
 
-test_that("$export_tables() writes the Expected events sheet with hand-computed rows", {
+test_that("$export_tables() writes the Minimum events sheet with hand-computed rows", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
   path <- .hs_export(.hs_plan())
-  expect_true("Expected events" %in% openxlsx::getSheetNames(path))
+  expect_true("Minimum events" %in% openxlsx::getSheetNames(path))
 
   title <- openxlsx::read.xlsx(
     path,
-    sheet = "Expected events",
+    sheet = "Minimum events",
     colNames = FALSE,
     rows = 1L
   )[1, 1]
-  expect_match(title, "min_expected_events = 2", fixed = TRUE)
+  expect_match(
+    title,
+    "min_expected_events_per_arm_per_year = 2",
+    fixed = TRUE
+  )
 
   d <- openxlsx::read.xlsx(
     path,
-    sheet = "Expected events",
+    sheet = "Minimum events",
     startRow = 4,
     sep.names = " ",
     check.names = FALSE
@@ -186,7 +190,7 @@ test_that("$export_tables() writes the Expected events sheet with hand-computed 
   )
 })
 
-test_that("the Expected events sheet agrees with the PP results sheet decision", {
+test_that("the Minimum events sheet agrees with the PP results sheet decision", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
@@ -196,20 +200,20 @@ test_that("the Expected events sheet agrees with the PP results sheet decision",
   pp5 <- e[ett_id == "ETT00005" & estimand == "pp" & weights == "truncated"]
   expect_identical(
     pp5$horizon_status,
-    "below horizon rule: intervention arm, weeks 52-104"
+    "below minimum-events rule: intervention arm, weeks 52-104"
   )
   expect_true(is.na(pp5$irr))
   itt1 <- e[ett_id == "ETT00001" & estimand == "itt"]
   expect_identical(
     itt1$horizon_status,
-    "below horizon rule: both arms, weeks 0-52"
+    "below minimum-events rule: both arms, weeks 0-52"
   )
   pp1 <- e[ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"]
   expect_identical(pp1$horizon_status, swereg:::.HORIZON_STATUS_PASS)
   expect_true(is.finite(pp1$irr))
 
   toc <- openxlsx::read.xlsx(path, sheet = "Provenance", colNames = FALSE)
-  expect_true("Expected events" %in% unlist(toc))
+  expect_true("Minimum events" %in% unlist(toc))
 })
 
 test_that("a plan with no stored window table gets the sheet with one line", {
@@ -217,15 +221,18 @@ test_that("a plan with no stored window table gets the sheet with one line", {
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
   path <- .hs_export(.xp_plan("new"))
-  expect_true("Expected events" %in% openxlsx::getSheetNames(path))
+  expect_true("Minimum events" %in% openxlsx::getSheetNames(path))
   m <- openxlsx::read.xlsx(
     path,
-    sheet = "Expected events",
+    sheet = "Minimum events",
     colNames = FALSE,
     skipEmptyRows = FALSE
   )
   expect_identical(
     m[4, 1],
-    "No stored result holds a horizon-rule window table. Run $s3_analyze()."
+    paste0(
+      "No stored result holds a window table of the minimum-events rule. ",
+      "Run $s3_analyze()."
+    )
   )
 })

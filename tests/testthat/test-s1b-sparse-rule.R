@@ -1,4 +1,4 @@
-# The sparse_rule and the s1b step (#52), through the real s1 dispatch.
+# The rare_condition_rule and the s1b step (#52), through the real s1 dispatch.
 #
 # The rule decides once per study, from the s1a tuples of the driving
 # enrollments, before the comparator draw. The plan freezes the decision, and
@@ -18,7 +18,7 @@ skip_if_not_installed("withr")
 
 spr_runs <- new.env(parent = emptyenv())
 
-# `rule`: the three candidates, two of them rare. `none`: no sparse_rule.
+# `rule`: the three candidates, two of them rare. `none`: no rare_condition_rule.
 spr_get <- function(name) {
   if (is.null(spr_runs[[name]])) {
     rule <- if (identical(name, "rule")) spr_rule() else NULL
@@ -104,7 +104,7 @@ test_that("s1b excludes the rare conditions and adjusts for the common one", {
   expect_s3_class(d$decided_at, "POSIXct")
   expect_identical(
     r$plan$sparse_rule_hash,
-    swereg:::.tte_sparse_rule_hash(r$plan$spec$sparse_rule)
+    swereg:::.tte_sparse_rule_hash(r$plan$spec$rare_condition_rule)
   )
 })
 
@@ -217,7 +217,7 @@ spr_ref <- function() {
   )))
 }
 
-test_that("without a sparse_rule the enrollment counts equal 27.2.0's", {
+test_that("without a rare_condition_rule the enrollment counts equal 27.2.0's", {
   r <- spr_get("none")
   plain <- lapply(r$plan$enrollment_counts, function(ec) {
     return(lapply(ec, as.data.frame))
@@ -225,14 +225,14 @@ test_that("without a sparse_rule the enrollment counts equal 27.2.0's", {
   expect_identical(plain, spr_ref()$enrollment_counts)
 })
 
-test_that("without a sparse_rule the confounder sets equal 27.2.0's", {
+test_that("without a rare_condition_rule the confounder sets equal 27.2.0's", {
   r <- spr_get("none")
   expect_identical(r$plan$ett$confounder_vars, spr_ref()$confounder_vars)
   expect_null(r$plan$get_sparse_decision())
   expect_null(r$plan$sparse_rule_hash)
 })
 
-test_that("without a sparse_rule the s1a pre files carry 27.2.0's columns", {
+test_that("without a rare_condition_rule the s1a pre files carry 27.2.0's columns", {
   r <- spr_get("none")
   ref <- spr_ref()
   expect_identical(lapply(r$pre, function(p) names(p$tuples)), ref$tuple_cols)
@@ -579,7 +579,7 @@ test_that("the preregistration workbook and print show no decision of an s1 that
   expect_identical(f$plan$get_sparse_decision(), f$new_decision)
   expect_identical(
     f$plan$sparse_rule_hash,
-    swereg:::.tte_sparse_rule_hash(f$plan$spec$sparse_rule)
+    swereg:::.tte_sparse_rule_hash(f$plan$spec$rare_condition_rule)
   )
   pending <- "not decided yet (s1 has not completed for this rule)"
 

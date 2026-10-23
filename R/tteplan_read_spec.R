@@ -26,9 +26,11 @@
 #' Validation checks:
 #' \itemize{
 #'   \item Required sections: study, enrollments, outcomes, follow_up,
-#'     horizon_rule
-#'   \item `horizon_rule$min_expected_events` MUST be one finite number of at
-#'     least 0
+#'     min_expected_events_per_arm_per_year
+#'   \item `min_expected_events_per_arm_per_year` MUST be one finite number of
+#'     at least 0
+#'   \item The retired keys `horizon_rule` and `sparse_rule` are refused. The
+#'     message names the replacement key
 #'   \item `study$implementation$project_prefix` must exist
 #'   \item Each entry in `inclusion_criteria$criteria` must declare
 #'     `implementation$source_variable`, and must generate an eligibility
@@ -96,13 +98,13 @@
 #' It cannot check that a named column exists and is logical, because it reads
 #' no data. [tteplan_validate_spec()] runs that check against the skeleton.
 #'
-#' @section The sparse_rule:
+#' @section The rare_condition_rule:
 #'
-#' A spec MAY declare one `sparse_rule` block. It turns a rare baseline
-#' condition into an exclusion criterion of the whole study.
+#' A spec MAY declare one `rare_condition_rule` block. It turns a rare
+#' baseline condition into an exclusion criterion of the whole study.
 #'
 #' \preformatted{
-#' sparse_rule:
+#' rare_condition_rule:
 #'   min_n: 100
 #'   decided_by: ["03"]
 #'   candidates: [rd_no_osd_i63_everbefore]
@@ -127,20 +129,22 @@
 #' comparator draw and without follow-up outcomes. [TTEPlan] stores the
 #' decision in its `sparse_decision` field.
 #'
-#' @section The horizon_rule:
+#' @section The minimum-events rule:
 #'
-#' Every spec MUST declare one `horizon_rule` block. It holds one key.
+#' Every spec MUST declare the flat key
+#' `min_expected_events_per_arm_per_year`.
 #'
 #' \preformatted{
-#' horizon_rule:
-#'   min_expected_events: 5
+#' min_expected_events_per_arm_per_year: 5
 #' }
 #'
-#' `min_expected_events` is the minimum number of expected events per arm in
-#' each follow-up year. It MUST be one finite number of at least 0. The
-#' function refuses a missing block, an empty block and any other key in the
-#' block. `$reload_spec()` copies a changed value onto a cached plan, because
-#' the value does not change who is enrolled or how swereg weights them.
+#' The value is the minimum number of expected events per arm in each
+#' follow-up year. s3 computes the expected events under the null: the pooled
+#' weighted rate of both arms times the weighted person-years of the arm. The
+#' value MUST be one finite number of at least 0. The function refuses a
+#' missing key, an empty value and a mapping. `$reload_spec()` copies a
+#' changed value onto a cached plan, because the value does not change who is
+#' enrolled or how swereg weights them.
 #'
 #' @seealso [tteplan_check_spec()], which reports every problem as a row and
 #'   does not stop.
@@ -197,7 +201,7 @@ tteplan_read_spec <- function(spec_path) {
     "enrollments",
     "outcomes",
     "follow_up",
-    "horizon_rule"
+    "min_expected_events_per_arm_per_year"
   )
   missing <- setdiff(required_sections, names(spec))
   if (length(missing) > 0) {
@@ -588,8 +592,8 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
-  # The sparse_rule reads the variable names derived above, so it is checked
-  # after the confounders.
+  # The rare_condition_rule reads the variable names derived above, so it is
+  # checked after the confounders.
   spec <- .tte_check_sparse_rule(spec)
 
   # An exclusion on an outcome variable that reads the weeks after time zero
@@ -688,9 +692,7 @@ tteplan_read_spec <- function(spec_path) {
     if (is.null(x)) {
       stop(label, " is missing '", key, "'.", call. = FALSE)
     }
-    if (
-      !is.numeric(x) || length(x) != 1L || !is.finite(x) || x != round(x)
-    ) {
+    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x != round(x)) {
       stop(
         label,
         " has ",

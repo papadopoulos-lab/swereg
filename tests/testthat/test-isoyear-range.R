@@ -77,7 +77,7 @@ skip_if_not_installed("qs2")
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    horizon_rule = list(min_expected_events = 0)
+    min_expected_events_per_arm_per_year = 0
   ))
 }
 

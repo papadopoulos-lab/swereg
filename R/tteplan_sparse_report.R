@@ -1,10 +1,10 @@
 # =============================================================================
-# Reporting the frozen sparse_rule decision (#52)
+# Reporting the frozen rare_condition_rule decision (#52)
 # =============================================================================
 # Every output that names the population or the adjustment set reads the
 # decision through `.tte_sparse_report()`, which reads
 # `plan$get_sparse_decision()`. No output recomputes the decision. The outputs
-# are the Sparse conditions sheet, the Study Specification sheet, the
+# are the Rare conditions sheet, the Study Specification sheet, the
 # Enrollments and ETTs sheets, Table 1, the CONSORT labels, the TARGET
 # checklist (items 6a, 6g and 7) and the target trial protocol table.
 # =============================================================================
@@ -38,7 +38,7 @@
   "treatment, the time since time zero and the trial index."
 )
 
-#' The reporting view of the frozen sparse_rule decision
+#' The reporting view of the frozen rare_condition_rule decision
 #'
 #' Reads `plan$get_sparse_decision()`, and the spec only for the names of the
 #' confounders. A plan without the accessor, as a test's list plan, has no
@@ -116,7 +116,7 @@
 .tte_sparse_decision_is_current <- function(plan) {
   return(
     identical(
-      .tte_sparse_rule_hash(plan$spec[["sparse_rule"]]),
+      .tte_sparse_rule_hash(plan$spec[["rare_condition_rule"]]),
       plan$sparse_rule_hash
     ) &&
       .tte_s1_run_current(plan)
@@ -242,7 +242,7 @@
   return(ifelse(n < min_n, paste0("<", min_n), as.character(n)))
 }
 
-#' Write the "Sparse conditions" sheet
+#' Write the "Rare conditions" sheet
 #'
 #' One row per candidate. The smallest arm count shows as `<min_n` when it is
 #' below the threshold.
@@ -259,7 +259,7 @@
     return(invisible(FALSE))
   }
   d <- rpt$decision
-  sht <- "Sparse conditions"
+  sht <- "Rare conditions"
   arm_label <- function(eid, arm) {
     labels <- .lookup_arm_labels(plan$spec, eid)
     if (is.null(labels)) {
@@ -287,7 +287,7 @@
     wb,
     sht,
     paste0(
-      "Sparse conditions: the rare-condition rule of ",
+      "Rare conditions: the rare-condition rule of ",
       .tte_sparse_drivers(plan, rpt$decided_by),
       ", ",
       .TTE_SPARSE_BASIS
@@ -341,10 +341,10 @@
 #' @param plan A TTEPlan.
 #' @param st_header,st_label The styles of a header and of a label.
 #' @return A list of rows, each `list(a, b, sa, sb)`. Empty when the spec has
-#'   no `sparse_rule`.
+#'   no `rare_condition_rule`.
 #' @noRd
 .tte_sparse_spec_rows <- function(plan, st_header, st_label) {
-  rule <- plan$spec[["sparse_rule"]]
+  rule <- plan$spec[["rare_condition_rule"]]
   if (is.null(rule)) {
     return(list())
   }
@@ -352,7 +352,7 @@
     return(list(a = a, b = b, sa = sa, sb = NULL))
   }
   out <- list(
-    row("Rare-condition rule (sparse_rule)", NA_character_, st_header),
+    row("Rare-condition rule (rare_condition_rule)", NA_character_, st_header),
     row("Threshold (min_n):", as.character(rule$min_n)),
     row("Decided by:", .tte_sparse_drivers(plan, rule$decided_by)),
     row(
@@ -441,7 +441,7 @@
     "Not shown: ",
     .tte_sparse_join(rpt$excluded),
     ". The rare-condition rule made each of these conditions an exclusion ",
-    "criterion. See the Sparse conditions sheet."
+    "criterion. See the Rare conditions sheet."
   ))
 }
 
@@ -493,7 +493,7 @@
 #' The TARGET item 6a lines of the rule
 #' @noRd
 .tte_sparse_6a_lines <- function(plan) {
-  rule <- plan$spec[["sparse_rule"]]
+  rule <- plan$spec[["rare_condition_rule"]]
   if (is.null(rule)) {
     return(character())
   }
@@ -509,7 +509,10 @@
       "."
     ),
     if (is.null(rpt)) {
-      paste0("- Excluded under the rare-condition rule: ", .tte_sparse_pending(plan))
+      paste0(
+        "- Excluded under the rare-condition rule: ",
+        .tte_sparse_pending(plan)
+      )
     } else {
       paste0(
         "- Excluded under the rare-condition rule: ",
@@ -542,10 +545,10 @@
 #' `.tte_sparse_methods_text_pending()`.
 #'
 #' @return One string that ends in a space, or `""` when the spec has no
-#'   `sparse_rule`.
+#'   `rare_condition_rule`.
 #' @noRd
 .tte_sparse_methods_text <- function(plan) {
-  rule <- plan$spec[["sparse_rule"]]
+  rule <- plan$spec[["rare_condition_rule"]]
   if (is.null(rule)) {
     return("")
   }
@@ -601,7 +604,7 @@
 #' in the future tense and claim no count and no exclusion.
 #'
 #' @param plan A TTEPlan.
-#' @param rule The `sparse_rule` block of the spec.
+#' @param rule The `rare_condition_rule` block of the spec.
 #' @return One string that ends in a space.
 #' @noRd
 .tte_sparse_methods_text_pending <- function(plan, rule) {
@@ -643,10 +646,10 @@
 #'
 #' @param plan A TTEPlan.
 #' @param where One of `"specification"`, `"emulation"` and `"analysis"`.
-#' @return A character vector, empty when the spec has no `sparse_rule`.
+#' @return A character vector, empty when the spec has no `rare_condition_rule`.
 #' @noRd
 .tte_sparse_protocol_lines <- function(plan, where) {
-  rule <- plan$spec[["sparse_rule"]]
+  rule <- plan$spec[["rare_condition_rule"]]
   if (is.null(rule)) {
     return(character())
   }
@@ -669,7 +672,7 @@
         paste0(
           "Not eligible under the rare-condition rule: ",
           .tte_sparse_join(rpt$excluded),
-          " (see the Sparse conditions sheet)"
+          " (see the Rare conditions sheet)"
         ),
         .tte_sparse_protocol_rule(plan, rule, length(rpt$excluded) > 0L),
         paste0(
@@ -693,7 +696,7 @@
 #' How the rule chose the exclusions, for the protocol emulation cell
 #'
 #' @param plan A TTEPlan.
-#' @param rule The `sparse_rule` block of the spec.
+#' @param rule The `rare_condition_rule` block of the spec.
 #' @param excluded `TRUE` when the rule excluded at least one condition.
 #' @return One line of text.
 #' @noRd

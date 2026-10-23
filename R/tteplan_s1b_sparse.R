@@ -1,9 +1,9 @@
 # =============================================================================
-# The sparse_rule and the s1b step (#52)
+# The rare_condition_rule and the s1b step (#52)
 # =============================================================================
-# A study MAY declare a `sparse_rule` block:
+# A study MAY declare a `rare_condition_rule` block:
 #
-#   sparse_rule:
+#   rare_condition_rule:
 #     min_n: 100
 #     decided_by: ["01"]
 #     candidates: [rd_no_osd_i63_everbefore, rd_no_osd_i21_everbefore]
@@ -36,7 +36,7 @@
 #' @noRd
 .tte_sparse_stop_unquoted <- function(value) {
   stop(
-    "sparse_rule$decided_by holds the unquoted value ",
+    "rare_condition_rule$decided_by holds the unquoted value ",
     paste(format(value), collapse = ", "),
     ". YAML reads an unquoted 01 as the integer 1, so the id is lost. Quote ",
     "every enrollment id, as in decided_by: [\"01\"].",
@@ -83,7 +83,8 @@
   return(out)
 }
 
-#' Validate and normalise the sparse_rule block of a parsed specification
+#' Validate and normalise the rare_condition_rule block of a parsed
+#' specification
 #'
 #' `tteplan_read_spec()` calls it after it derives the variable name of each
 #' computed confounder. It stops on a block that cannot run, and returns the
@@ -94,12 +95,12 @@
 #' @return `spec`.
 #' @noRd
 .tte_check_sparse_rule <- function(spec) {
-  rule <- spec[["sparse_rule"]]
+  rule <- spec[["rare_condition_rule"]]
   # A key written with no value, or with an empty mapping, is a rule the
   # author started and did not finish. Only an absent key means no rule.
-  if ("sparse_rule" %in% names(spec) && length(rule) == 0L) {
+  if ("rare_condition_rule" %in% names(spec) && length(rule) == 0L) {
     stop(
-      "sparse_rule is present but empty. Give it min_n, decided_by and ",
+      "rare_condition_rule is present but empty. Give it min_n, decided_by and ",
       "candidates, or delete the key.",
       call. = FALSE
     )
@@ -109,7 +110,7 @@
   }
   if (!is.list(rule) || is.null(names(rule))) {
     stop(
-      "sparse_rule MUST be a mapping with the keys min_n, decided_by and ",
+      "rare_condition_rule MUST be a mapping with the keys min_n, decided_by and ",
       "candidates.",
       call. = FALSE
     )
@@ -118,7 +119,7 @@
   decided_by <- rule[["decided_by"]]
   if (length(decided_by) == 0L) {
     stop(
-      "sparse_rule has no decided_by. Name the enrollments whose counts ",
+      "rare_condition_rule has no decided_by. Name the enrollments whose counts ",
       "decide the rule, as in decided_by: [\"01\"]. Without it a small test ",
       "enrollment could decide the population of the whole study.",
       call. = FALSE
@@ -126,11 +127,11 @@
   }
   decided_by <- .tte_sparse_strings(decided_by, .tte_sparse_stop_unquoted)
   if (anyNA(decided_by) || !all(nzchar(decided_by))) {
-    stop("sparse_rule$decided_by holds an empty id.", call. = FALSE)
+    stop("rare_condition_rule$decided_by holds an empty id.", call. = FALSE)
   }
   if (anyDuplicated(decided_by) > 0L) {
     stop(
-      "sparse_rule$decided_by names an enrollment twice: ",
+      "rare_condition_rule$decided_by names an enrollment twice: ",
       paste(unique(decided_by[duplicated(decided_by)]), collapse = ", "),
       ".",
       call. = FALSE
@@ -146,7 +147,7 @@
   unknown <- setdiff(decided_by, ids)
   if (length(unknown) > 0L) {
     stop(
-      "sparse_rule$decided_by names an enrollment the spec does not declare: ",
+      "rare_condition_rule$decided_by names an enrollment the spec does not declare: ",
       paste(unknown, collapse = ", "),
       ". The declared enrollment ids are: ",
       paste(ids, collapse = ", "),
@@ -161,13 +162,13 @@
   candidates <- rule[["candidates"]]
   if (length(candidates) == 0L) {
     stop(
-      "sparse_rule$candidates MUST name at least one computed confounder.",
+      "rare_condition_rule$candidates MUST name at least one computed confounder.",
       call. = FALSE
     )
   }
   candidates <- .tte_sparse_strings(candidates, function(value) {
     stop(
-      "sparse_rule$candidates MUST hold variable names. It holds: ",
+      "rare_condition_rule$candidates MUST hold variable names. It holds: ",
       paste(format(value), collapse = ", "),
       ".",
       call. = FALSE
@@ -175,7 +176,7 @@
   })
   if (anyDuplicated(candidates) > 0L) {
     stop(
-      "sparse_rule$candidates names a variable twice: ",
+      "rare_condition_rule$candidates names a variable twice: ",
       paste(unique(candidates[duplicated(candidates)]), collapse = ", "),
       ".",
       call. = FALSE
@@ -185,7 +186,7 @@
   bad <- setdiff(candidates, computed)
   if (length(bad) > 0L) {
     stop(
-      "sparse_rule$candidates names a variable that is not a computed ",
+      "rare_condition_rule$candidates names a variable that is not a computed ",
       "confounder of this spec: ",
       paste(bad, collapse = ", "),
       ". Each candidate MUST be the implementation$variable of a confounder ",
@@ -196,7 +197,7 @@
     )
   }
 
-  spec[["sparse_rule"]] <- list(
+  spec[["rare_condition_rule"]] <- list(
     min_n = as.integer(min_n),
     decided_by = decided_by,
     candidates = candidates
@@ -212,13 +213,13 @@
 #' clauses use `isTRUE()`, so each clause refuses only its own class and an NA
 #' value reaches none of them.
 #'
-#' @param min_n The parsed `sparse_rule$min_n`.
+#' @param min_n The parsed `rare_condition_rule$min_n`.
 #' @return `invisible(TRUE)`.
 #' @noRd
 .tte_check_sparse_min_n <- function(min_n) {
   refuse <- function(why) {
     stop(
-      "sparse_rule$min_n MUST be one whole number from 1 to ",
+      "rare_condition_rule$min_n MUST be one whole number from 1 to ",
       .Machine$integer.max,
       ". It ",
       why,
@@ -255,9 +256,9 @@
   return(invisible(TRUE))
 }
 
-#' Hash a sparse_rule over its three fields
+#' Hash a rare_condition_rule over its three fields
 #'
-#' @param rule The normalised `spec$sparse_rule`, or `NULL`.
+#' @param rule The normalised `spec$rare_condition_rule`, or `NULL`.
 #' @return A string, or `NULL` when `rule` is `NULL`.
 #' @noRd
 .tte_sparse_rule_hash <- function(rule) {
@@ -274,7 +275,8 @@
   ))
 }
 
-#' Stop when the spec's sparse_rule differs from the rule of the decision
+#' Stop when the spec's rare_condition_rule differs from the rule of the
+#' decision
 #'
 #' The plan stores the hash of the rule that s1b decided under. s1c, s2 and s3
 #' call this before any work, so a decision never applies to a rule it was
@@ -285,13 +287,13 @@
 #' @return `invisible(TRUE)`.
 #' @noRd
 .tte_assert_sparse_decision_current <- function(plan, where) {
-  now <- .tte_sparse_rule_hash(plan$spec[["sparse_rule"]])
+  now <- .tte_sparse_rule_hash(plan$spec[["rare_condition_rule"]])
   if (identical(now, plan$sparse_rule_hash)) {
     return(invisible(TRUE))
   }
   stop(
     where,
-    ": the sparse_rule in plan$spec does not match the rule of the frozen ",
+    ": the rare_condition_rule in plan$spec does not match the rule of the frozen ",
     "decision. The hash covers min_n, decided_by and candidates. Re-run s1: ",
     "its step s1b decides again from the current rule.",
     call. = FALSE
@@ -586,7 +588,7 @@
 #' The confounder entry of each candidate, in the order of `candidates`
 #' @noRd
 .tte_sparse_condition_entries <- function(spec) {
-  vars <- spec[["sparse_rule"]][["candidates"]]
+  vars <- spec[["rare_condition_rule"]][["candidates"]]
   if (length(vars) == 0L) {
     return(list())
   }
@@ -598,7 +600,7 @@
       }
     }
     stop(
-      "sparse_rule candidate '",
+      "rare_condition_rule candidate '",
       v,
       "' is not a computed confounder of the spec.",
       call. = FALSE
@@ -645,7 +647,7 @@
 #' @param tuples The eligible, landmark-qualified tuples of one enrollment.
 #' @param skeleton The skeleton the tuples came from.
 #' @param pid The person id column.
-#' @param vars The candidate variables. Empty without a sparse_rule.
+#' @param vars The candidate variables. Empty without a rare_condition_rule.
 #' @return The tuples. The caller MUST assign them.
 #' @noRd
 .s1a_attach_sparse_baseline <- function(tuples, skeleton, pid, vars) {
@@ -735,7 +737,7 @@
           eid,
           "' carry no baseline column for: ",
           paste(absent, collapse = ", "),
-          ". s1a writes them only when the spec has a sparse_rule.",
+          ". s1a writes them only when the spec has a rare_condition_rule.",
           call. = FALSE
         )
       }
@@ -785,7 +787,7 @@
 #' Turn the s1b counts into the frozen decision table
 #'
 #' @param counts The `counts` table of `.s1b_worker()`.
-#' @param rule The normalised `spec$sparse_rule`.
+#' @param rule The normalised `spec$rare_condition_rule`.
 #' @param labels The confounder name of each candidate, named by variable.
 #' @param decided_at When the decision step ran.
 #' @return One row per candidate, in the order of `candidates`. The columns are
@@ -866,23 +868,25 @@
   dev_path,
   p
 ) {
-  rule <- .tte_check_sparse_rule(spec)[["sparse_rule"]]
+  rule <- .tte_check_sparse_rule(spec)[["rare_condition_rule"]]
   absent <- setdiff(rule[["decided_by"]], enrollment_ids)
   if (length(absent) > 0L) {
     stop(
-      "s1b: sparse_rule$decided_by names an enrollment the plan does not ",
+      "s1b: rare_condition_rule$decided_by names an enrollment the plan does not ",
       "run: ",
       paste(absent, collapse = ", "),
       ".",
       call. = FALSE
     )
   }
-  items <- list(s1b_decide = list(
-    enrollment_specs = all_es[match(rule[["decided_by"]], enrollment_ids)],
-    work_dir = work_dir,
-    skel_basenames = skel_basenames,
-    condition_vars = rule[["candidates"]]
-  ))
+  items <- list(
+    s1b_decide = list(
+      enrollment_specs = all_es[match(rule[["decided_by"]], enrollment_ids)],
+      work_dir = work_dir,
+      skel_basenames = skel_basenames,
+      condition_vars = rule[["candidates"]]
+    )
+  )
   outputs <- list(s1b_decide = c(counts = .s1b_counts_path(work_dir)))
   .batch_run_and_write(
     target = .batch_target("swereg", ".s1b_worker"),
@@ -1023,7 +1027,7 @@
       stop(
         "s1c: the s1a tuples carry no baseline column '",
         v,
-        "'. s1a writes it only when the spec has a sparse_rule.",
+        "'. s1a writes it only when the spec has a rare_condition_rule.",
         call. = FALSE
       )
     }

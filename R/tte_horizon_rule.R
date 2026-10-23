@@ -1,12 +1,13 @@
 # =============================================================================
-# The horizon rule at s3: expected events per follow-up year, and withholding
+# The minimum-events rule at s3: expected events per follow-up year, and
+# withholding
 # =============================================================================
 # s3 cuts the follow-up of each ETT into follow-up years of
 # `.HORIZON_WINDOW_WEEKS` weeks. The last window ends at the ETT's
 # `follow_up` and can be partial. In each window, the expected events of an
-# arm are the pooled weighted rate of both arms times the weighted
-# person-time of that arm. A window passes when both arms reach
-# `horizon_rule$min_expected_events`.
+# arm are computed under the null: the pooled weighted rate of both arms
+# times the weighted person-time of that arm. A window passes when both arms
+# reach `min_expected_events_per_arm_per_year`.
 #
 # The reportable horizon is the end of the last window before the first
 # failing window. When a window fails, s3 withholds the incidence rate
@@ -27,7 +28,10 @@
 
 # The start of every `interval_status` and `horizon_status` value that the
 # rule writes for a withheld estimand. Match it with `startsWith()`.
-.HORIZON_STATUS_PREFIX <- "below horizon rule"
+.HORIZON_STATUS_PREFIX <- "below minimum-events rule"
+
+# The status text that swereg 27.2.14 stored for a withheld estimand.
+.HORIZON_STATUS_PREFIX_LEGACY <- "below horizon rule"
 
 # The `horizon_status` of an estimand whose windows all pass.
 .HORIZON_STATUS_PASS <- "all windows pass"
@@ -45,14 +49,21 @@
 )
 
 
-#' Is a stored status a horizon-rule status?
+#' Is a stored status a status of the minimum-events rule?
+#'
+#' A result that swereg 27.2.14 stored carries the legacy prefix. It counts
+#' as withheld too, so its estimates still read `NE` on export.
 #'
 #' @param status Character vector, `NULL` allowed.
 #' @return A logical vector as long as `status`. `NA` gives `FALSE`.
 #' @noRd
 .tte_horizon_withheld <- function(status) {
   status <- as.character(status)
-  return(!is.na(status) & startsWith(status, .HORIZON_STATUS_PREFIX))
+  return(
+    !is.na(status) &
+      (startsWith(status, .HORIZON_STATUS_PREFIX) |
+        startsWith(status, .HORIZON_STATUS_PREFIX_LEGACY))
+  )
 }
 
 
@@ -66,7 +77,7 @@
 .tte_horizon_col <- function(data, col, what) {
   if (!col %in% names(data)) {
     stop(
-      "horizon rule: the ",
+      "minimum-events rule: the ",
       what,
       " column '",
       col,
@@ -78,7 +89,7 @@
   bad <- sum(!is.finite(x))
   if (bad > 0L) {
     stop(
-      "horizon rule: the ",
+      "minimum-events rule: the ",
       what,
       " column '",
       col,
@@ -94,7 +105,8 @@
 
 #' Weighted person-time, events and expected events per window and arm
 #'
-#' The window table of the horizon rule, for one ETT and one weight. Rows are
+#' The window table of the minimum-events rule, for one ETT and one weight.
+#' Rows are
 #' half-open `(tstart, tstop]`. In each window, a row adds its weight times
 #' the weeks of its interval inside the window, divided by 52.25, to the
 #' weighted person-years. Its event counts in the window that holds its
@@ -108,8 +120,9 @@
 #' @param weight_col Character(1), the weight column of the estimand.
 #' @param follow_up Numeric(1), the follow-up of the ETT, in weeks. The last
 #'   window ends here.
-#' @param rule The `horizon_rule` block of the spec, a list holding
-#'   `min_expected_events`.
+#' @param rule A list holding `min_expected_events`, the value of the spec
+#'   key `min_expected_events_per_arm_per_year`. The stored horizon record
+#'   keeps this field name, so a plan saved by swereg 27.2.14 still loads.
 #' @param treatment_var Character(1), the arm column. `TRUE` is the
 #'   intervention arm.
 #' @param tstart_var,tstop_var,event_var Character(1), the column names of
@@ -133,14 +146,14 @@
   follow_up <- suppressWarnings(as.numeric(follow_up))
   if (length(follow_up) != 1L || !is.finite(follow_up) || follow_up <= 0) {
     stop(
-      "horizon rule: follow_up MUST be one finite number of weeks above 0.",
+      "minimum-events rule: follow_up MUST be one finite number of weeks above 0.",
       call. = FALSE
     )
   }
   if (!is.list(rule) || is.null(rule[["min_expected_events"]])) {
     stop(
-      "horizon rule: the rule MUST be the horizon_rule block of the spec, ",
-      "with min_expected_events.",
+      "minimum-events rule: the rule MUST be a list that holds ",
+      "min_expected_events.",
       call. = FALSE
     )
   }
@@ -148,7 +161,7 @@
   min_events <- as.numeric(rule[["min_expected_events"]])
   if (!treatment_var %in% names(data)) {
     stop(
-      "horizon rule: the arm column '",
+      "minimum-events rule: the arm column '",
       treatment_var,
       "' is not in the panel.",
       call. = FALSE
@@ -157,7 +170,7 @@
   arm <- as.logical(data[[treatment_var]])
   if (anyNA(arm)) {
     stop(
-      "horizon rule: the arm column '",
+      "minimum-events rule: the arm column '",
       treatment_var,
       "' holds a missing value.",
       call. = FALSE
@@ -201,7 +214,8 @@
 #' Decide the reportable horizon from a window table
 #'
 #' @param windows The table `.tte_horizon_windows()` returns.
-#' @param rule The `horizon_rule` block it was computed with.
+#' @param rule The rule it was computed with, a list holding
+#'   `min_expected_events`.
 #' @return A named list. `reportable_weeks` is the end of the last window
 #'   before the first failing window. It is 0 when the first window fails,
 #'   and the follow-up when no window fails. `withheld` is `TRUE` when a
@@ -387,7 +401,7 @@
         stop(
           "s3_analyze(): ETT ",
           eid,
-          " has no horizon-rule decision for the ",
+          " has no decision of the minimum-events rule for the ",
           .TTE_ESTIMANDS[[est]],
           " estimand. Its risk-difference worker failed or was skipped, ",
           "so its estimates cannot be reported. Fix the cause and rerun ",
@@ -405,25 +419,27 @@
 }
 
 
-#' Stop unless the spec carries a valid horizon_rule
+#' Stop unless the spec carries a valid min_expected_events_per_arm_per_year
 #'
 #' @param spec `plan$spec`.
 #' @param where Character(1), the method name for the message.
-#' @return The rule, a list holding `min_expected_events`.
+#' @return The rule, a list holding `min_expected_events`. That is the field
+#'   name of the stored horizon record.
 #' @noRd
 .tte_assert_horizon_rule_present <- function(spec, where) {
-  rule <- spec$horizon_rule
-  if (is.null(rule) || is.null(rule$min_expected_events)) {
+  value <- spec[["min_expected_events_per_arm_per_year"]]
+  if (is.null(value)) {
     stop(
       where,
-      ": the plan's spec has no horizon_rule. s3 needs it to decide the ",
-      "reportable horizon. Add horizon_rule: {min_expected_events: 5} to ",
-      "the spec file and call $reload_spec().",
+      ": the plan's spec has no min_expected_events_per_arm_per_year. s3 ",
+      "needs it to decide the reportable horizon. Add ",
+      "min_expected_events_per_arm_per_year: 5 to the spec file and call ",
+      "$reload_spec().",
       call. = FALSE
     )
   }
-  .tte_check_min_expected_events(rule$min_expected_events)
-  return(list(min_expected_events = as.numeric(rule$min_expected_events)))
+  .tte_check_min_expected_events(value)
+  return(list(min_expected_events = as.numeric(value)))
 }
 
 
@@ -431,16 +447,17 @@
 #'
 #' Each horizon record holds a decision and the rule that made it. The
 #' writers stop when a stored ETT result has no such record for an estimand.
-#' A result stored before swereg 27.2.14 has none. They also stop when a
-#' recorded `min_expected_events` is not `identical()` to the spec value, with
-#' both values as doubles and no tolerance.
+#' A result stored before swereg 27.2.14 has none. They also stop when the
+#' recorded `rule$min_expected_events` is not `identical()` to the spec value
+#' `min_expected_events_per_arm_per_year`, with both values as doubles and no
+#' tolerance.
 #'
 #' @param plan A `TTEPlan`.
 #' @param where Character(1), the method name for the message.
 #' @return `invisible(TRUE)`.
 #' @noRd
 .tte_assert_horizon_rule_current <- function(plan, where) {
-  want <- plan$spec$horizon_rule$min_expected_events
+  want <- plan$spec[["min_expected_events_per_arm_per_year"]]
   want <- if (is.numeric(want) && length(want) == 1L) as.numeric(want) else NULL
   absent <- character(0)
   stale <- character(0)
@@ -466,7 +483,7 @@
       where,
       ": ",
       length(absent),
-      " stored ETT estimand(s) hold no horizon-rule decision: ",
+      " stored ETT estimand(s) hold no decision of the minimum-events rule: ",
       paste(utils::head(absent, 5L), collapse = ", "),
       ". A result stored before swereg 27.2.14 holds none. Rerun ",
       "$s3_analyze() to apply the current rule.",
@@ -480,10 +497,14 @@
       length(unique(stale)),
       " ETT(s) (",
       paste(utils::head(unique(stale), 5L), collapse = ", "),
-      ") were judged with horizon_rule$min_expected_events = ",
+      ") were judged with min_expected_events_per_arm_per_year = ",
       paste(format(sort(unique(seen)), digits = 15L), collapse = ", "),
       ", and the spec holds ",
-      if (is.null(want)) "no horizon_rule" else format(want, digits = 15L),
+      if (is.null(want)) {
+        "no min_expected_events_per_arm_per_year"
+      } else {
+        format(want, digits = 15L)
+      },
       ". Rerun $s3_analyze() to apply the current rule.",
       call. = FALSE
     )
@@ -519,10 +540,13 @@
   }
   n <- length(ett_ids) * length(.TTE_ESTIMANDS)
   if (length(hits) == 0L) {
-    cat(sprintf("s3: the horizon rule withheld none of %d ETT estimands.\n", n))
+    cat(sprintf(
+      "s3: the minimum-events rule withheld none of %d ETT estimands.\n",
+      n
+    ))
   } else {
     cat(sprintf(
-      "s3: the horizon rule withheld %d of %d ETT estimands (reportable weeks): %s\n",
+      "s3: the minimum-events rule withheld %d of %d ETT estimands (reportable weeks): %s\n",
       length(hits),
       n,
       paste(hits, collapse = ", ")

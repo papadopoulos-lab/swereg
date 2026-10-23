@@ -48,6 +48,8 @@ tteplan_load <- function(path) {
     "sparse_decision",
     "sparse_rule_hash",
     "s1_run_id",
+    # Set by $s3_feasibility(). A plan saved before 27.2.15 has none.
+    "feasibility",
     # New fields added by the CandidatePath migration
     "spec_version",
     "dir_tteplan_cp",
@@ -60,6 +62,10 @@ tteplan_load <- function(path) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
   }
+  # A plan saved by 27.2.14 or earlier holds the two retired rule keys.
+  plan$spec <- .tte_spec_rename_rule_keys(plan$spec)
+  # It also holds statuses with the legacy prefix of the minimum-events rule.
+  plan$results_ett <- .tte_rename_legacy_statuses(plan$results_ett)
 
   # Schema-version guard -- fails loudly on pre-migration plans with a
   # pointer at the renamer + s0_init re-run.
@@ -180,4 +186,48 @@ tteplan_locate_and_load <- function(
 registrystudy_load <- function(candidate_dir_meta) {
   dir <- first_existing_path(candidate_dir_meta, "dir_meta")
   return(qs2_read(file.path(dir, "registrystudy.qs2")))
+}
+
+
+#' Rewrite the legacy status prefix in stored results
+#'
+#' swereg 27.2.14 started each withheld status with
+#' `.HORIZON_STATUS_PREFIX_LEGACY`. This helper replaces that prefix with
+#' `.HORIZON_STATUS_PREFIX`. It changes the `interval_status` column of each
+#' stored table, and the `status` field of each `horizon_<estimand>` record.
+#'
+#' @param results_ett `plan$results_ett`.
+#' @return `results_ett`, with no status that starts with the legacy prefix.
+#' @noRd
+.tte_rename_legacy_statuses <- function(results_ett) {
+  old <- .HORIZON_STATUS_PREFIX_LEGACY
+  swap <- function(v) {
+    hit <- is.character(v) & !is.na(v) & startsWith(as.character(v), old)
+    v[hit] <- paste0(.HORIZON_STATUS_PREFIX, substring(v[hit], nchar(old) + 1L))
+    return(v)
+  }
+  for (id in names(results_ett)) {
+    res <- results_ett[[id]]
+    if (!is.list(res)) {
+      next
+    }
+    for (s in names(res)) {
+      x <- res[[s]]
+      if (data.table::is.data.table(x) && "interval_status" %in% names(x)) {
+        x <- data.table::copy(x)
+        data.table::set(
+          x,
+          j = "interval_status",
+          value = swap(x$interval_status)
+        )
+        res[[s]] <- x
+      } else if (
+        startsWith(s, "horizon_") && is.list(x) && is.character(x$status)
+      ) {
+        res[[s]]$status <- swap(x$status)
+      }
+    }
+    results_ett[[id]] <- res
+  }
+  return(results_ett)
 }

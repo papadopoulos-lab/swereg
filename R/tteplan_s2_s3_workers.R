@@ -376,7 +376,8 @@
 #'   carries it because batchit demands every formal on every item. The
 #'   `irr`, `risk_difference`, `irr_by_subgroup` and
 #'   `effect_modification_test` methods read it.
-#' @param horizon_rule The `horizon_rule` block of the spec, or `NULL`. The
+#' @param horizon_rule The minimum-events rule of the spec, a list holding
+#'   `min_expected_events`, or `NULL`. The
 #'   `risk_difference` method reads it, with `follow_up`, and returns the
 #'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. The
 #'   parent passes both on every item. A direct call without them returns no
@@ -509,9 +510,9 @@
     } else {
       paste0("rd_", sub("^analysis_weight_", "", weight_col))
     }
-    # The horizon rule, OUTSIDE `safe_call()`. An error here stops the item,
-    # and the item error stops `$s3_analyze()`. A skip envelope in its place
-    # would let the parent report estimates no rule has judged.
+    # The minimum-events rule, OUTSIDE `safe_call()`. An error here stops the
+    # item, and the item error stops `$s3_analyze()`. A skip envelope in its
+    # place would let the parent report estimates no rule has judged.
     horizon <- NULL
     if (!is.null(horizon_rule)) {
       design <- enrollment$design

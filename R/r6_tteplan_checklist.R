@@ -10,9 +10,9 @@
 #' description, auto-filled content from the swereg spec where available,
 #' and `[FILL IN]` placeholders for PI completion.
 #'
-#' Item 6h states the horizon rule from `spec$horizon_rule`. The method
-#' stops, and names `$s3_analyze()`, when a stored result was judged with a
-#' `horizon_rule` other than the one in `spec$horizon_rule`.
+#' Item 6h states the minimum-events rule from
+#' `spec$min_expected_events_per_arm_per_year`. The method stops, and names
+#' `$s3_analyze()`, when a stored result was judged with another value.
 #'
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_target_checklist", function() {

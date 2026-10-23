@@ -1,9 +1,9 @@
 # Generate the no-rule reference for test-s1b-sparse-rule.R.
 #
-# The reference is what s1 wrote BEFORE the sparse_rule existed, for the
-# fixture plan of tests/testthat/helper-sparse_rule.R without a sparse_rule
-# block. It was generated from commit 4a9889c0, the phase-11 rename, which
-# runs the 27.2.0 s1 under the renamed stage names:
+# The reference is what s1 wrote BEFORE the rare-condition rule existed, for
+# the fixture plan of tests/testthat/helper-sparse_rule.R without a
+# rare_condition_rule block. It was generated from commit 4a9889c0, the
+# phase-11 rename, which runs the 27.2.0 s1 under the renamed stage names:
 #
 #   mkdir /tmp/swereg-head
 #   git archive 4a9889c0 | tar -x -C /tmp/swereg-head

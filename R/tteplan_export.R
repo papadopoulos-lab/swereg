@@ -155,9 +155,9 @@
   toc_names <- c(toc_names, "Study Specification")
   toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
 
-  # --- Sparse conditions sheet (only with a sparse_rule decision) ---
+  # --- Rare conditions sheet (only with a rare_condition_rule decision) ---
   if (isTRUE(.write_sparse_conditions_sheet(wb, plan))) {
-    toc_names <- c(toc_names, "Sparse conditions")
+    toc_names <- c(toc_names, "Rare conditions")
     toc_desc <- c(toc_desc, "The rare-condition rule: counts and decision")
   }
 
@@ -290,12 +290,12 @@
     "All ETTs - intention-to-treat rates and IRRs"
   )
 
-  # --- Expected events sheet (the horizon-rule window table) ---
-  .write_horizon_sheet(wb, "Expected events", plan)
-  toc_names <- c(toc_names, "Expected events")
+  # --- Minimum events sheet (the window table of the minimum-events rule) ---
+  .write_horizon_sheet(wb, "Minimum events", plan)
+  toc_names <- c(toc_names, "Minimum events")
   toc_desc <- c(
     toc_desc,
-    "Horizon rule - expected events per arm and follow-up year"
+    "Minimum-events rule - expected events per arm and follow-up year"
   )
 
   # --- Weight-truncation robustness (supplementary, all ETTs) ---
@@ -930,8 +930,8 @@
     paths <- character(0)
     id_ett <- as.character(ett_row$ett_id[1])
     curves <- plan$get_curves()
-    # The horizon rule: both curves stop at the reportable horizon, and a grey
-    # band covers the rest of the follow-up.
+    # The minimum-events rule: both curves stop at the reportable horizon, and a
+    # grey band covers the rest of the follow-up.
     est_all <- plan$get_estimates()
     arms <- .tte_arm_labels_resolved(
       .lookup_arm_labels(plan$spec, spec$enrollment)

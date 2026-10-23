@@ -1,4 +1,4 @@
-# Fixtures for the reporting tests of the sparse_rule (test-sparse-report.R).
+# Fixtures for the reporting tests of the rare_condition_rule (test-sparse-report.R).
 #
 # The study is the fixture of helper-sparse_rule.R with two candidates:
 # osd_rare_b (4 holders, all in the comparator arm, so the intervention arm of
@@ -122,7 +122,7 @@ spr_report_list_after <- function(lines, prefix) {
   hit <- grep(prefix, lines, fixed = TRUE, value = TRUE)[1L]
   at <- regexpr(prefix, hit, fixed = TRUE)
   rest <- substr(hit, at + nchar(prefix), nchar(hit))
-  rest <- sub(" \\(see the Sparse conditions sheet\\)$", "", rest)
+  rest <- sub(" \\(see the Rare conditions sheet\\)$", "", rest)
   rest <- sub("\\.?\\s*$", "", rest)
   return(strsplit(rest, ", ", fixed = TRUE)[[1L]])
 }
