@@ -429,7 +429,9 @@ tteplan_osf_text <- function(
   ratios <- vapply(
     ctx$spec$enrollments,
     function(e) {
-      as.numeric(e$treatment$implementation$comparator_to_intervention_ratio)
+      return(as.numeric(
+        e$treatment$implementation$comparator_to_intervention_ratio
+      ))
     },
     numeric(1)
   )
@@ -534,7 +536,7 @@ tteplan_osf_text <- function(
   items <- vapply(
     confs,
     function(conf) {
-      .osf_entry(conf, window = isTRUE(conf$implementation$computed))
+      return(.osf_entry(conf, window = isTRUE(conf$implementation$computed)))
     },
     character(1)
   )
@@ -922,10 +924,10 @@ tteplan_osf_text <- function(
   }
   rows <- c(
     lapply(spec$inclusion_criteria$criteria %||% list(), function(e) {
-      row(e, "inclusion", .protocol_impl_variable(e$implementation))
+      return(row(e, "inclusion", .protocol_impl_variable(e$implementation)))
     }),
     lapply(spec$exclusion_criteria %||% list(), function(e) {
-      row(e, "exclusion", .protocol_impl_variable(e$implementation))
+      return(row(e, "exclusion", .protocol_impl_variable(e$implementation)))
     }),
     .osf_enrollment_code_rows(ctx, row),
     lapply(spec$confounders %||% list(), function(e) {
@@ -945,7 +947,7 @@ tteplan_osf_text <- function(
       ))
     }),
     lapply(spec$outcomes, function(e) {
-      row(e, "outcome", e$implementation$variable, window = FALSE)
+      return(row(e, "outcome", e$implementation$variable, window = FALSE))
     })
   )
   return(.osf_paragraphs(
