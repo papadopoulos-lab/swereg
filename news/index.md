@@ -1,5 +1,20 @@
 # Changelog
 
+## swereg 27.2.17
+
+### Bug fixes
+
+- **[`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  says that each enrollment period opens one trial in each comparison**,
+  when the spec has more than one comparison. It said “one trial”, which
+  is false for a study with several comparisons.
+- **The minimum-events text of
+  [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  says that the survival curve is still reported** for a withheld
+  estimand, as
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  states.
+
 ## swereg 27.2.16
 
 ### Bug fixes
