@@ -1,3 +1,10 @@
+# swereg 27.2.17
+
+## Bug fixes
+
+* **`tteplan_osf_text()` says that each enrollment period opens one trial in each comparison**, when the spec has more than one comparison. It said "one trial", which is false for a study with several comparisons.
+* **The minimum-events text of `tteplan_osf_text()` says that the survival curve is still reported** for a withheld estimand, as `vignette("tte-methods")` states.
+
 # swereg 27.2.16
 
 ## Bug fixes

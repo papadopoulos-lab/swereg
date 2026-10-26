@@ -140,6 +140,21 @@ test_that("a criterion shared by some comparisons is stated once, naming each", 
   expect_match(x, "In comparison 1 (Drug A versus Drug B) only: Age 50 to 59 years.", fixed = TRUE)
 })
 
+test_that("with several comparisons, each enrollment period opens one trial per comparison", {
+  x <- osf_text(osf_write_spec())[["Study design"]]
+  expect_match(x, "each enrollment period opens one trial in each comparison.", fixed = TRUE)
+  one <- osf_spec_lines()
+  one <- one[seq_len(which(one == "  - id: '02'") - 1L)]
+  y <- osf_text(osf_write_spec(one))[["Study design"]]
+  expect_match(y, "each enrollment period opens one trial.", fixed = TRUE)
+})
+
+test_that("the minimum-events rule says the survival curve is still reported", {
+  lines <- sub("min_expected_events_per_arm_per_year: 0", "min_expected_events_per_arm_per_year: 5", osf_spec_lines(), fixed = TRUE)
+  x <- osf_text(osf_write_spec(lines))[["Inference criteria"]]
+  expect_match(x, "Events, person-time, rates and the survival curve are still reported.", fixed = TRUE)
+})
+
 test_that("the rare-condition rule sits in the eligibility field, and the covariates point to it", {
   osf <- osf_text(osf_write_spec())
   expect_match(osf[["Data inclusion and exclusion"]], "at least 10 persons hold the condition at baseline in the smaller arm of comparison 1 (Drug A versus Drug B)", fixed = TRUE)

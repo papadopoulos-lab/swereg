@@ -390,7 +390,9 @@ tteplan_osf_text <- function(
       yrs[[2L]],
       " is cut into consecutive enrollment periods of ",
       ctx$width,
-      " weeks, and each enrollment period opens one trial. Eligibility is assessed in every week. A ",
+      " weeks, and each enrollment period opens one trial",
+      if (length(ctx$spec$enrollments) > 1L) " in each comparison",
+      ". Eligibility is assessed in every week. A ",
       ctx$one,
       " can enter more than one trial."
     ),
@@ -757,7 +759,7 @@ tteplan_osf_text <- function(
       if (length(ctx$spec$subgroups %||% list()) > 0L) {
         " Its subgroup rate ratios and interaction tests are withheld too."
       },
-      " Events, person-time and rates are still reported."
+      " Events, person-time, rates and the survival curve are still reported."
     ),
     "Which years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
   ))
