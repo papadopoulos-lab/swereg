@@ -128,6 +128,18 @@ test_that("a criterion shared by every comparison is stated once; an own one nam
   expect_identical(lengths(regmatches(x, gregexpr("ISO years 2012 to 2018", x))), 1L)
 })
 
+test_that("a criterion shared by some comparisons is stated once, naming each", {
+  lines <- osf_spec_lines()
+  first <- which(lines == "  - id: '02'")
+  third <- lines[first:length(lines)]
+  third[1L] <- "  - id: '03'"
+  third <- sub("Drug D}", "Drug E}", third, fixed = TRUE)
+  x <- osf_text(osf_write_spec(c(lines, third)))[["Data inclusion and exclusion"]]
+  expect_match(x, "In comparison 2 and 3 only: No prior Drug C", fixed = TRUE)
+  expect_identical(lengths(regmatches(x, gregexpr("No prior Drug C", x))), 1L)
+  expect_match(x, "In comparison 1 (Drug A versus Drug B) only: Age 50 to 59 years.", fixed = TRUE)
+})
+
 test_that("the rare-condition rule sits in the eligibility field, and the covariates point to it", {
   osf <- osf_text(osf_write_spec())
   expect_match(osf[["Data inclusion and exclusion"]], "at least 10 persons hold the condition at baseline in the smaller arm of comparison 1 (Drug A versus Drug B)", fixed = TRUE)

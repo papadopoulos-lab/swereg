@@ -1,3 +1,9 @@
+# swereg 27.2.16
+
+## Bug fixes
+
+* **`tteplan_osf_text()` states a criterion that several comparisons share once.** Under 'Data inclusion and exclusion', a criterion held by some comparisons but not all was repeated once per comparison. It is now one item, for example "In comparison 1, 2 and 3 only: ...". A criterion held by one comparison still names that comparison and its arms.
+
 # swereg 27.2.15
 
 ## Breaking changes

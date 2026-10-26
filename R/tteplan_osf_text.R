@@ -636,27 +636,43 @@ tteplan_osf_text <- function(
 }
 
 
-#' Criteria that every enrollment shares, and those of each enrollment
+#' Criteria that every enrollment shares, and those of some enrollments
+#'
+#' A criterion that only some enrollments hold is stated once. With one
+#' owner it names that comparison and its arms; with several it lists their
+#' numbers.
 #'
 #' @param ctx The context list.
 #' @param f A function from an enrollment to its criteria sentences.
 #' @return A list with `common` and `specific`, both character vectors.
 #' @noRd
 .osf_split_common <- function(ctx, f) {
-  per <- lapply(ctx$spec$enrollments, f)
+  enrs <- ctx$spec$enrollments
+  per <- lapply(enrs, f)
   common <- Reduce(intersect, per)
-  specific <- unlist(lapply(seq_along(per), function(k) {
-    own <- setdiff(per[[k]], common)
-    if (length(own) == 0L) {
-      return(character())
-    }
-    return(paste0(
-      "In ",
-      .osf_comparison_label(ctx, ctx$spec$enrollments[[k]]$id),
-      " only: ",
-      own
-    ))
-  }))
+  own <- lapply(per, setdiff, common)
+  sentences <- unique(unlist(own))
+  specific <- vapply(
+    sentences,
+    function(x) {
+      k <- which(vapply(own, function(o) x %in% o, logical(1)))
+      where <- if (length(k) == 1L) {
+        .osf_comparison_label(ctx, enrs[[k]]$id)
+      } else {
+        paste0(
+          "comparison ",
+          .osf_and(vapply(
+            enrs[k],
+            function(e) as.character(ctx$comparison[[as.character(e$id)]]),
+            character(1)
+          ))
+        )
+      }
+      return(paste0("In ", where, " only: ", x))
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
   return(list(
     common = common %||% character(),
     specific = specific %||% character()
