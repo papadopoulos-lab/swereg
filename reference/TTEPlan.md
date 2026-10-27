@@ -471,12 +471,14 @@ person-years stay. The method stops, and names `$s3_analyze()`, when a
 stored result was judged with a `min_expected_events_per_arm_per_year`
 other than the one in the spec.
 
-The `Minimum events` sheet holds one row per ETT, estimand and follow-up
-year of the minimum-events rule. Each row gives the weighted
-person-years and the pooled weighted rate. It also gives the expected
-and observed weighted events of each arm, whether the year passes, and
-the reportable horizon. The sheet shows why the rule withheld an
-estimate.
+The `Minimum events (Y or -)` and `Minimum events (#)` sheets follow the
+Rare conditions sheet. Both hold one row per outcome and comparison and
+one column per follow-up horizon, for the per-protocol estimand. The
+first shows Y when the estimate is reported and - when the
+minimum-events rule withheld it. The second shows the largest cut, of 1,
+2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
+intention-to-treat estimand follows the per-protocol decision.
+`$get_horizon_windows()` returns the year-by-year detail.
 
 The workbook carries no forest plot. The `PP results` and `ITT results`
 sheets already report every emulated trial with counts, rates, ratios,
@@ -712,11 +714,17 @@ needs them. It drops `events_weighted`, `rate_pooled` and
 The decision depends on the observed events, through the pooled rate.
 Neither `self$feasibility` nor `feasibility.xlsx` holds an event count,
 a rate or expected events after time zero, or an effect estimate. The
-Attrition sheet keeps the eligibility counts by arm, including people
-excluded for an outcome event before time zero.
+record keeps `max_passing_cut`: the largest cut of a coarse grid at
+which the estimand passes. The Attrition sheet keeps the eligibility
+counts by arm, including people excluded for an outcome event before
+time zero.
+
+The intention-to-treat record of each ETT takes the decision of its
+per-protocol record, as in `$s3_analyze()`.
 
 The method writes `feasibility.xlsx` to `self$dir_results`, the
-directory of `$export_tables()`. The workbook holds these sheets:
+directory of `$export_tables()`. The workbook holds these sheets, in
+this order:
 
 - Study Specification:
 
@@ -727,6 +735,16 @@ directory of `$export_tables()`. The workbook holds these sheets:
   The sheet of `$export_tables()`. It is absent when the plan holds no
   rare-condition decision.
 
+- Minimum events (Y or -):
+
+  One row per outcome and comparison, one column per follow-up horizon.
+  Y: the per-protocol estimate is reported. -: it is withheld.
+
+- Minimum events (#):
+
+  The same layout. Each cell is the largest cut of 1, 2, 3, 4, 5, 10 and
+  20 at which the estimate is reported.
+
 - Attrition:
 
   The table of `$get_attrition()`.
@@ -736,11 +754,6 @@ directory of `$export_tables()`. The workbook holds these sheets:
   The unweighted baseline table of each enrollment. One panel reads the
   s1 raw file, before imputation. The other reads the smallest s2
   analysis file of the enrollment.
-
-- Minimum events:
-
-  One row per ETT, estimand and follow-up year, with the weighted
-  person-years of each arm and the decision.
 
 The method stops when the spec has no
 `min_expected_events_per_arm_per_year`. It also stops unless s1
@@ -754,8 +767,9 @@ The plan, invisibly. `self$feasibility` is a list:
 
   A list keyed by ETT id, then by estimand (`pp`, `itt`). Each record
   holds `rule`, `weight_col`, `follow_up`, `windows`,
-  `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm` and
-  `status`.
+  `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm`,
+  `status` and `max_passing_cut`. The `itt` record also holds
+  `decided_by = "pp"`.
 
 - s1_run_id:
 

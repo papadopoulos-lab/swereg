@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,26 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.0" id="swereg-2730">swereg 27.3.0<a class="anchor" aria-label="anchor" href="#swereg-2730"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-27-3-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-3-0"></a></h3>
+<ul><li>
+<strong>The intention-to-treat estimate follows the per-protocol decision of the minimum-events rule.</strong> It is reported exactly when the per-protocol estimate of the same ETT is, to the same reportable horizon. Before, each estimand was judged on its own weights. The horizon record of the intention-to-treat estimand holds <code>decided_by = "pp"</code>. <code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop on results stored before 27.3.0, and the message names <code>$s3_analyze()</code>. Rerun s3 for each project; s1 and s2 output stays valid.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-3-0">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-0"></a></h3>
+<ul><li>
+<strong>Two wide Minimum events sheets replace the long one</strong>, in both <code>tables.xlsx</code> and <code>feasibility.xlsx</code>. Each has one row per outcome and comparison, outcome first, and one column per follow-up horizon, for the per-protocol estimand. <code>Minimum events (Y or -)</code> shows Y on a blue fill when the estimate is reported and - on a red fill when it is withheld. <code>Minimum events (#)</code> shows the largest cut, of 1, 2, 3, 4, 5, 10 and 20 expected events per arm per year, at which the estimate is still reported, so a different cut can be read without a rerun. Neither sheet shows an event count, a rate or expected events. <code>$get_horizon_windows()</code> still returns the year-by-year detail.</li>
+<li>The Minimum events sheets stop when two ETTs share an outcome name, an enrollment and a follow-up, because they would share one cell.</li>
+<li>
+<strong>Every horizon record holds <code>max_passing_cut</code></strong>, the largest cut of that grid at which the estimand passes.</li>
+<li>
+<strong>Sheet order.</strong> Both Minimum events sheets follow the Rare conditions sheet. <code>feasibility.xlsx</code> holds Study Specification, Rare conditions, the two Minimum events sheets, Attrition and Table 1, in that order.</li>
+<li>
+<code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> says that the intention-to-treat estimate follows the per-protocol decision.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.2.17" id="swereg-27217">swereg 27.2.17<a class="anchor" aria-label="anchor" href="#swereg-27217"></a></h2>
 <div class="section level3">

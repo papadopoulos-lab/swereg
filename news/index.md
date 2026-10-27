@@ -1,5 +1,42 @@
 # Changelog
 
+## swereg 27.3.0
+
+### Breaking changes
+
+- **The intention-to-treat estimate follows the per-protocol decision of
+  the minimum-events rule.** It is reported exactly when the
+  per-protocol estimate of the same ETT is, to the same reportable
+  horizon. Before, each estimand was judged on its own weights. The
+  horizon record of the intention-to-treat estimand holds
+  `decided_by = "pp"`. `$export()`, `$export_tables()` and
+  `$print_target_checklist()` stop on results stored before 27.3.0, and
+  the message names `$s3_analyze()`. Rerun s3 for each project; s1 and
+  s2 output stays valid.
+
+### New features
+
+- **Two wide Minimum events sheets replace the long one**, in both
+  `tables.xlsx` and `feasibility.xlsx`. Each has one row per outcome and
+  comparison, outcome first, and one column per follow-up horizon, for
+  the per-protocol estimand. `Minimum events (Y or -)` shows Y on a blue
+  fill when the estimate is reported and - on a red fill when it is
+  withheld. `Minimum events (#)` shows the largest cut, of 1, 2, 3, 4,
+  5, 10 and 20 expected events per arm per year, at which the estimate
+  is still reported, so a different cut can be read without a rerun.
+  Neither sheet shows an event count, a rate or expected events.
+  `$get_horizon_windows()` still returns the year-by-year detail.
+- The Minimum events sheets stop when two ETTs share an outcome name, an
+  enrollment and a follow-up, because they would share one cell.
+- **Every horizon record holds `max_passing_cut`**, the largest cut of
+  that grid at which the estimand passes.
+- **Sheet order.** Both Minimum events sheets follow the Rare conditions
+  sheet. `feasibility.xlsx` holds Study Specification, Rare conditions,
+  the two Minimum events sheets, Attrition and Table 1, in that order.
+- [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  says that the intention-to-treat estimate follows the per-protocol
+  decision.
+
 ## swereg 27.2.17
 
 ### Bug fixes

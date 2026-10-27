@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.2.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -957,6 +957,10 @@ person-time, rates and the stored survival curves are still reported.
 The per-protocol decision uses the truncated product weight. It also
 covers the untruncated per-protocol IRR of 1.9, which is a sensitivity
 estimate of the same estimand.</p>
+<p>The rule decides the per-protocol estimand. The intention-to-treat
+estimand of the same ETT follows that decision: it is reported exactly
+when the per-protocol estimand is, to the same reportable horizon. One
+decision then holds for both estimands of a comparison.</p>
 <p>Which years pass depends on the observed events, through the pooled
 rate. So the decision is not independent of the outcome. The rule is a
 prespecified reporting rule. It does not guarantee the precision of an
@@ -3884,10 +3888,13 @@ is the package constant <code>.HORIZON_WINDOW_WEEKS</code>, 52 weeks.
 The risk-difference work item of <code>$s3_analyze()</code> computes the
 years outside <code>safe_call()</code>, and the parent merge stops when
 an ETT has no decision. The records are stored as
-<code>horizon_pp</code> and <code>horizon_itt</code>.
-<code>$get_horizon_windows()</code> returns the years, and the
-<code>Minimum events</code> sheet of <code>$export_tables()</code> shows
-them. <code>$get_estimates()</code> carries
+<code>horizon_pp</code> and <code>horizon_itt</code>, and
+<code>.tte_horizon_follow_pp()</code> gives <code>horizon_itt</code> the
+per-protocol decision. <code>$get_horizon_windows()</code> returns the
+years. The <code>Minimum events (Y or -)</code> and
+<code>Minimum events (#)</code> sheets of <code>$export_tables()</code>
+show the per-protocol decision and the largest passing cut.
+<code>$get_estimates()</code> carries
 <code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
 <code>$export()</code>, <code>$export_tables()</code> and
 <code>$print_target_checklist()</code> stop when a stored result was
