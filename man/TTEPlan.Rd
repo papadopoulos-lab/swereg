@@ -363,11 +363,14 @@ The method stops, and names \verb{$s3_analyze()}, when a stored result was
 judged with a \code{min_expected_events_per_arm_per_year} other than the one in
 the spec.
 
-The \verb{Minimum events} sheet holds one row per ETT, estimand and follow-up
-year of the minimum-events rule. Each row gives the weighted person-years
-and the pooled weighted rate. It also gives the expected and observed
-weighted events of each arm, whether the year passes, and the reportable
-horizon. The sheet shows why the rule withheld an estimate.
+The \verb{Minimum events (Y or -)} and \verb{Minimum events (#)} sheets follow the
+Rare conditions sheet. Both hold one row per outcome and comparison and
+one column per follow-up horizon, for the per-protocol estimand. The
+first shows Y when the estimate is reported and - when the
+minimum-events rule withheld it. The second shows the largest cut, of 1,
+2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
+intention-to-treat estimand follows the per-protocol decision.
+\verb{$get_horizon_windows()} returns the year-by-year detail.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
@@ -556,21 +559,29 @@ Each window keeps \code{window_lo}, \code{window_hi}, \code{arm}, \code{py_weigh
 The decision depends on the observed events, through the pooled rate.
 Neither \code{self$feasibility} nor \code{feasibility.xlsx} holds an event count, a
 rate or expected events after time zero, or an effect estimate. The
+record keeps \code{max_passing_cut}: the largest cut of a coarse grid at which
+the estimand passes. The
 Attrition sheet keeps the eligibility counts by arm, including people
 excluded for an outcome event before time zero.
 
+The intention-to-treat record of each ETT takes the decision of its
+per-protocol record, as in \verb{$s3_analyze()}.
+
 The method writes \code{feasibility.xlsx} to \code{self$dir_results}, the directory
-of \verb{$export_tables()}. The workbook holds these sheets:
+of \verb{$export_tables()}. The workbook holds these sheets, in this order:
 \describe{
 \item{Study Specification}{The sheet of \verb{$export_tables()}.}
 \item{Rare conditions}{The sheet of \verb{$export_tables()}. It is absent when
 the plan holds no rare-condition decision.}
+\item{Minimum events (Y or -)}{One row per outcome and comparison, one
+column per follow-up horizon. Y: the per-protocol estimate is
+reported. -: it is withheld.}
+\item{Minimum events (#)}{The same layout. Each cell is the largest cut
+of 1, 2, 3, 4, 5, 10 and 20 at which the estimate is reported.}
 \item{Attrition}{The table of \verb{$get_attrition()}.}
 \item{Table 1}{The unweighted baseline table of each enrollment. One
 panel reads the s1 raw file, before imputation. The other reads the
 smallest s2 analysis file of the enrollment.}
-\item{Minimum events}{One row per ETT, estimand and follow-up year, with
-the weighted person-years of each arm and the decision.}
 }
 
 The method stops when the spec has no
@@ -582,8 +593,9 @@ and s2 wrote every analysis file after that s1 run.
 \describe{
 \item{records}{A list keyed by ETT id, then by estimand (\code{pp}, \code{itt}).
 Each record holds \code{rule}, \code{weight_col}, \code{follow_up}, \code{windows},
-\code{reportable_weeks}, \code{withheld}, \code{fail_lo}, \code{fail_hi}, \code{fail_arm} and
-\code{status}.}
+\code{reportable_weeks}, \code{withheld}, \code{fail_lo}, \code{fail_hi}, \code{fail_arm},
+\code{status} and \code{max_passing_cut}. The \code{itt} record also holds
+\code{decided_by = "pp"}.}
 \item{s1_run_id}{The s1 run of the analysis files.}
 \item{swereg_version}{The swereg version that ran the method.}
 \item{computed_at}{When the method ran.}

@@ -33,11 +33,14 @@
 #' judged with a `min_expected_events_per_arm_per_year` other than the one in
 #' the spec.
 #'
-#' The `Minimum events` sheet holds one row per ETT, estimand and follow-up
-#' year of the minimum-events rule. Each row gives the weighted person-years
-#' and the pooled weighted rate. It also gives the expected and observed
-#' weighted events of each arm, whether the year passes, and the reportable
-#' horizon. The sheet shows why the rule withheld an estimate.
+#' The `Minimum events (Y or -)` and `Minimum events (#)` sheets follow the
+#' Rare conditions sheet. Both hold one row per outcome and comparison and
+#' one column per follow-up horizon, for the per-protocol estimand. The
+#' first shows Y when the estimate is reported and - when the
+#' minimum-events rule withheld it. The second shows the largest cut, of 1,
+#' 2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
+#' intention-to-treat estimand follows the per-protocol decision.
+#' `$get_horizon_windows()` returns the year-by-year detail.
 #'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,

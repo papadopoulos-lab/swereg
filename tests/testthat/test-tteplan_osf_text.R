@@ -153,6 +153,7 @@ test_that("the minimum-events rule says the survival curve is still reported", {
   lines <- sub("min_expected_events_per_arm_per_year: 0", "min_expected_events_per_arm_per_year: 5", osf_spec_lines(), fixed = TRUE)
   x <- osf_text(osf_write_spec(lines))[["Inference criteria"]]
   expect_match(x, "Events, person-time, rates and the survival curve are still reported.", fixed = TRUE)
+  expect_match(x, "The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.", fixed = TRUE)
 })
 
 test_that("the rare-condition rule sits in the eligibility field, and the covariates point to it", {

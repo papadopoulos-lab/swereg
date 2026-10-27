@@ -1303,3 +1303,16 @@
   }
   return(.acc_bind(rows, .ACC_SCHEMA$horizon_windows))
 }
+
+
+#' The horizon records of one estimand of the stored s3 results
+#'
+#' @param plan A TTEPlan.
+#' @param estimand Character(1), `"pp"` or `"itt"`.
+#' @return A list keyed by ETT id. Each element is the stored horizon record,
+#'   or `NULL` when the result holds none.
+#' @noRd
+.acc_horizon_records <- function(plan, estimand) {
+  slot <- paste0("horizon_", estimand)
+  return(lapply(plan$results_ett, function(res) .acc_slot(res, slot)))
+}

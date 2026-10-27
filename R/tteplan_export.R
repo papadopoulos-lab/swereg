@@ -161,6 +161,15 @@
     toc_desc <- c(toc_desc, "The rare-condition rule: counts and decision")
   }
 
+  # --- Minimum events sheets (per-protocol decision, wide) ---
+  .write_minimum_events_sheets(wb, plan, .acc_horizon_records(plan, "pp"))
+  toc_names <- c(toc_names, .SHEET_MIN_EVENTS_YN, .SHEET_MIN_EVENTS_CUT)
+  toc_desc <- c(
+    toc_desc,
+    "Minimum-events rule - per-protocol estimates reported (Y) or withheld (-)",
+    "Minimum-events rule - the largest cut at which each estimate is reported"
+  )
+
   # --- Target trial protocol sheet ---
   # One sheet documents ONE ETT, so the caller names it through
   # `protocol_ett_id`. Without it, prefer any ETT of the Table 1
@@ -288,14 +297,6 @@
   toc_desc <- c(
     toc_desc,
     "All ETTs - intention-to-treat rates and IRRs"
-  )
-
-  # --- Minimum events sheet (the window table of the minimum-events rule) ---
-  .write_horizon_sheet(wb, "Minimum events", plan)
-  toc_names <- c(toc_names, "Minimum events")
-  toc_desc <- c(
-    toc_desc,
-    "Minimum-events rule - expected events per arm and follow-up year"
   )
 
   # --- Weight-truncation robustness (supplementary, all ETTs) ---

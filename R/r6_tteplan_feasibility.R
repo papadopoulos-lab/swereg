@@ -42,7 +42,8 @@
   "fail_lo",
   "fail_hi",
   "fail_arm",
-  "status"
+  "status",
+  "max_passing_cut"
 )
 
 #' @include r6_tteplan.R
@@ -66,21 +67,29 @@
 #' The decision depends on the observed events, through the pooled rate.
 #' Neither `self$feasibility` nor `feasibility.xlsx` holds an event count, a
 #' rate or expected events after time zero, or an effect estimate. The
+#' record keeps `max_passing_cut`: the largest cut of a coarse grid at which
+#' the estimand passes. The
 #' Attrition sheet keeps the eligibility counts by arm, including people
 #' excluded for an outcome event before time zero.
 #'
+#' The intention-to-treat record of each ETT takes the decision of its
+#' per-protocol record, as in `$s3_analyze()`.
+#'
 #' The method writes `feasibility.xlsx` to `self$dir_results`, the directory
-#' of `$export_tables()`. The workbook holds these sheets:
+#' of `$export_tables()`. The workbook holds these sheets, in this order:
 #' \describe{
 #'   \item{Study Specification}{The sheet of `$export_tables()`.}
 #'   \item{Rare conditions}{The sheet of `$export_tables()`. It is absent when
 #'     the plan holds no rare-condition decision.}
+#'   \item{Minimum events (Y or -)}{One row per outcome and comparison, one
+#'     column per follow-up horizon. Y: the per-protocol estimate is
+#'     reported. -: it is withheld.}
+#'   \item{Minimum events (#)}{The same layout. Each cell is the largest cut
+#'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate is reported.}
 #'   \item{Attrition}{The table of `$get_attrition()`.}
 #'   \item{Table 1}{The unweighted baseline table of each enrollment. One
 #'     panel reads the s1 raw file, before imputation. The other reads the
 #'     smallest s2 analysis file of the enrollment.}
-#'   \item{Minimum events}{One row per ETT, estimand and follow-up year, with
-#'     the weighted person-years of each arm and the decision.}
 #' }
 #'
 #' The method stops when the spec has no
@@ -99,8 +108,9 @@
 #'   \describe{
 #'     \item{records}{A list keyed by ETT id, then by estimand (`pp`, `itt`).
 #'       Each record holds `rule`, `weight_col`, `follow_up`, `windows`,
-#'       `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm` and
-#'       `status`.}
+#'       `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm`,
+#'       `status` and `max_passing_cut`. The `itt` record also holds
+#'       `decided_by = "pp"`.}
 #'     \item{s1_run_id}{The s1 run of the analysis files.}
 #'     \item{swereg_version}{The swereg version that ran the method.}
 #'     \item{computed_at}{When the method ran.}
@@ -204,6 +214,13 @@ TTEPlan$set(
       records[[m$ett_id]][[m$estimand]] <- rec
     }
 
+    for (eid in names(records)) {
+      records[[eid]]$itt <- .tte_horizon_follow_pp(
+        records[[eid]]$pp,
+        records[[eid]]$itt
+      )
+    }
+
     self$feasibility <- list(
       records = records,
       s1_run_id = self$s1_run_id,
@@ -273,58 +290,6 @@ TTEPlan$set(
 }
 
 
-#' The rows of the `Minimum events` sheet of the feasibility workbook
-#'
-#' One row per ETT, estimand and window. The two arms of a window share a row.
-#'
-#' @param plan A TTEPlan whose `feasibility` field is set.
-#' @return A data.frame. It has no rows when the plan holds no record.
-#' @noRd
-.feasibility_sheet_rows <- function(plan) {
-  ett <- plan$ett
-  weeks <- function(x) format(x, trim = TRUE, scientific = FALSE)
-  rows <- list()
-  for (eid in names(plan$feasibility$records)) {
-    k <- match(eid, ett$ett_id)
-    for (est in names(plan$feasibility$records[[eid]])) {
-      rec <- plan$feasibility$records[[eid]][[est]]
-      w <- rec$windows
-      int <- w[w$arm == "intervention"]
-      cmp <- w[w$arm == "comparator"]
-      cmp <- cmp[match(int$window_lo, cmp$window_lo)]
-      rows[[length(rows) + 1L]] <- data.frame(
-        ETT = eid,
-        Enrollment = .enrollment_label(plan, ett$enrollment_id[k]),
-        Outcome = ett$outcome_name[k],
-        `Follow-up (weeks)` = rec$follow_up,
-        Estimand = unname(.TTE_ESTIMANDS[est]),
-        Weight = rec$weight_col,
-        `Window (weeks)` = paste0(
-          weeks(int$window_lo),
-          "-",
-          weeks(int$window_hi)
-        ),
-        `PY (int)` = int$py_weighted,
-        `PY (cmp)` = cmp$py_weighted,
-        # Both arms must pass, whatever the row semantics of the window table.
-        `Window passes` = ifelse(int$pass & cmp$pass, "yes", "no"),
-        `Reportable horizon (weeks)` = rec$reportable_weeks,
-        Withheld = ifelse(rec$withheld, "yes", "no"),
-        Status = rec$status,
-        check.names = FALSE,
-        stringsAsFactors = FALSE
-      )
-    }
-  }
-  if (length(rows) == 0L) {
-    return(data.frame())
-  }
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  return(out)
-}
-
-
 #' Write the feasibility workbook
 #'
 #' @param plan A TTEPlan whose `feasibility` field is set.
@@ -344,6 +309,11 @@ TTEPlan$set(
 
   .write_spec_summary(wb, plan)
   .write_sparse_conditions_sheet(wb, plan)
+  .write_minimum_events_sheets(
+    wb,
+    plan,
+    lapply(plan$feasibility$records, function(r) r$pp)
+  )
 
   sht <- "Attrition"
   openxlsx::addWorksheet(wb, sht)
@@ -397,38 +367,6 @@ TTEPlan$set(
     }
   }
   openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(50, 16))
-
-  sht <- "Minimum events"
-  openxlsx::addWorksheet(wb, sht)
-  openxlsx::writeData(
-    wb,
-    sht,
-    paste0(
-      "Minimum-events rule before any outcome model ",
-      "(min_expected_events_per_arm_per_year = ",
-      format(plan$spec[["min_expected_events_per_arm_per_year"]]),
-      ")"
-    )
-  )
-  openxlsx::addStyle(wb, sht, bold, rows = 1L, cols = 1L)
-  openxlsx::writeData(
-    wb,
-    sht,
-    paste0(
-      "Person-years use the weight of the estimand. A year passes when the ",
-      "expected events under the null reach the threshold in both arms. The ",
-      "decision depends on the observed events, through the pooled rate. ",
-      "This sheet holds no event count, rate or expected events."
-    ),
-    startRow = 2L
-  )
-  rows <- .feasibility_sheet_rows(plan)
-  if (nrow(rows) == 0L) {
-    openxlsx::writeData(wb, sht, "(no ETT)", startRow = 4L)
-  } else {
-    openxlsx::writeData(wb, sht, rows, startRow = 4L, headerStyle = header)
-    openxlsx::freezePane(wb, sht, firstActiveRow = 5L)
-  }
 
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   return(invisible(path))

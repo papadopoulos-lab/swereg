@@ -160,6 +160,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".acc_ett_labels" = "accessor module",
   ".acc_subgroups" = "accessor module",
   ".acc_horizon_windows" = "accessor module",
+  ".acc_horizon_records" = "accessor module",
   ".tteplan_fill_summary" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
@@ -304,6 +305,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   ),
   `.tte_assert_horizon_rule_current` = c(
     "for (eid in names(plan$results_ett)) {",
+    "itt <- plan$results_ett[[eid]][[\"horizon_itt\"]]",
     "rec <- plan$results_ett[[eid]][[paste0(\"horizon_\","
   ),
   `TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp` = c(

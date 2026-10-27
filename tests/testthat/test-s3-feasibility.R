@@ -15,10 +15,12 @@
 # of one 52-week window each. Two changes follow that run.
 #   * ETT00002 loses its `file_analysis_itt`, as on a grid from before that
 #     column existed. Both methods then derive the ITT path from the PP path.
-#   * The threshold becomes the largest, over ETT and estimand, of the
-#     smallest expected events of an arm. The ETT estimand that holds that
-#     value passes with one arm exactly at the threshold, because a window
-#     passes at `>=`. Every estimand with a smaller minimum fails.
+#   * The threshold becomes the largest, over the per-protocol estimand of
+#     each ETT, of the smallest expected events of an arm. The rule decides
+#     the per-protocol estimand, and the intention-to-treat estimand follows.
+#     The ETT that holds that value passes with one arm exactly at the
+#     threshold, because a window passes at `>=`. Every ETT with a smaller
+#     minimum fails.
 # The windows do not depend on the threshold, so the s3 run inside the helper
 # gives the expected events that pick it.
 
@@ -112,7 +114,7 @@
     use.names = FALSE
   ))
   threshold <- max(vapply(
-    wins,
+    wins[grepl(" pp$", names(wins))],
     function(w) min(w$events_expected),
     numeric(1)
   ))
@@ -316,6 +318,20 @@ test_that("$s3_analyze() reads no plan$feasibility", {
 })
 
 
+test_that("the feasibility intention-to-treat record follows the per-protocol decision", {
+  .fz_skip()
+  fx <- .fz_fixture()
+  for (eid in names(fx$feas$records)) {
+    pp <- fx$feas$records[[eid]]$pp
+    itt <- fx$feas$records[[eid]]$itt
+    expect_identical(itt$decided_by, "pp")
+    for (f in swereg:::.HORIZON_DECISION_FIELDS) {
+      expect_identical(itt[[f]], pp[[f]])
+    }
+  }
+})
+
+
 # ---- 2. no outcome after time zero -------------------------------------------
 
 test_that("no stored window table holds an event, rate or expected-events column", {
@@ -343,14 +359,16 @@ test_that("no sheet of feasibility.xlsx names a stripped column", {
     c(
       "Study Specification",
       "Rare conditions",
+      "Minimum events (Y or -)",
+      "Minimum events (#)",
       "Attrition",
-      "Table 1",
-      "Minimum events"
+      "Table 1"
     )
   )
-  me <- .fz_sheet(fx$xlsx, "Minimum events", "ETT")
-  expect_false(any(grepl("event|rate", names(me), ignore.case = TRUE)))
-  expect_identical(nrow(me), 4L)
+  for (sh in c("Minimum events (Y or -)", "Minimum events (#)")) {
+    me <- .fz_sheet(fx$xlsx, sh, "Outcome")
+    expect_false(any(grepl("event|rate", names(me), ignore.case = TRUE)))
+  }
   cells <- .fz_cells(fx$xlsx)
   for (s in names(cells)) {
     expect_length(intersect(cells[[s]], .FZ_STRIPPED), 0L)
@@ -559,19 +577,14 @@ test_that("a window that only the comparator fails reads 'no' and matches s3's r
   expect_identical(fz_rec$reportable_weeks, s3_rec$reportable_weeks)
   expect_identical(fz_rec$reportable_weeks, 52)
 
-  # The sheet reads 'no' for window 2. It MUST also read 'no' when the window
-  # table carries one pass value per arm, as an arm-level rule would write
-  # it: the intervention row TRUE and the comparator row FALSE.
-  per_arm <- data.table::copy(fz_rec)
-  per_arm$windows <- data.table::copy(fz_rec$windows)
-  per_arm$windows[, pass := s3_rec$windows$events_expected >= 0.3]
-  expect_identical(
-    per_arm$windows[window_lo == 52]$pass,
-    c(TRUE, FALSE)
+  # The wide sheets show the decision of the record: withheld, and withheld
+  # even at the smallest cut of the grid, because the comparator arm holds
+  # fewer than 1 expected event in window 2.
+  wide <- swereg:::.minimum_events_wide(
+    .fz_cmp_plan(fz_rec),
+    list(ETT00001 = fz_rec)
   )
-  for (r in list(window = fz_rec, arm = per_arm)) {
-    rows <- swereg:::.feasibility_sheet_rows(.fz_cmp_plan(r))
-    expect_identical(rows$`Window (weeks)`, c("0-52", "52-104"))
-    expect_identical(rows$`Window passes`, c("yes", "no"))
-  }
+  expect_identical(wide$yn[1, ncol(wide$yn)], "-")
+  expect_identical(wide$cut[1, ncol(wide$cut)], "-")
+  expect_true(is.na(fz_rec$max_passing_cut))
 })

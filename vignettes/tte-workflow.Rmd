@@ -630,8 +630,9 @@ already wrote the `event` column for the active outcome, and
 ## Feasibility after s2: `$s3_feasibility()`
 
 `$s3_feasibility()` runs after s2 and before s3. It applies the
-minimum-events rule of `vignette("tte-methods")` to each estimand of each
-ETT, and it fits no outcome model. Use it to choose the comparisons and the
+minimum-events rule of `vignette("tte-methods")` to the per-protocol estimand
+of each ETT, and it fits no outcome model. The intention-to-treat estimand
+follows the per-protocol decision. Use it to choose the comparisons and the
 horizons before you register the study.
 
 ```r
@@ -642,10 +643,18 @@ plan$save()
 The method reads the analysis file, weight, follow-up and threshold that
 `$s3_analyze()` reads, through the same code. Its decision is therefore the
 decision s3 makes. It stores the decision in `plan$feasibility` and writes
-`feasibility.xlsx` to `plan$dir_results`. The workbook holds four or five
-sheets: Study Specification, Rare conditions, Attrition, an unweighted
-Table 1 and Minimum events. The Rare conditions sheet appears only when the
-spec carries `rare_condition_rule`.
+`feasibility.xlsx` to `plan$dir_results`. The workbook holds five or six
+sheets, in this order: Study Specification, Rare conditions, Minimum events
+(Y or -), Minimum events (#), Attrition and an unweighted Table 1. The Rare
+conditions sheet appears only when the spec carries `rare_condition_rule`.
+
+The two Minimum events sheets hold one row per outcome and comparison and one
+column per follow-up horizon, for the per-protocol estimand. Minimum events
+(Y or -) shows Y when the estimate is reported and - when it is withheld.
+Minimum events (#) shows the largest cut, of 1, 2, 3, 4, 5, 10 and 20
+expected events per arm per year, at which the estimate is still reported.
+Read a different cut from it without a rerun. `$export_tables()` writes the
+same two sheets, after Rare conditions.
 
 Neither output holds an event count, a rate or expected events after time
 zero, and neither holds an effect estimate. The Attrition sheet keeps the

@@ -36,6 +36,23 @@
 # The `horizon_status` of an estimand whose windows all pass.
 .HORIZON_STATUS_PASS <- "all windows pass"
 
+# The cuts that `max_passing_cut` reports: the largest of them at which an
+# estimand would still pass. A coarse grid, so the workbooks never show the
+# expected events themselves.
+.HORIZON_CUT_GRID <- c(1, 2, 3, 4, 5, 10, 20)
+
+# The decision fields of a horizon record. The intention-to-treat record
+# takes these from the per-protocol record.
+.HORIZON_DECISION_FIELDS <- c(
+  "reportable_weeks",
+  "withheld",
+  "fail_lo",
+  "fail_hi",
+  "fail_arm",
+  "status",
+  "max_passing_cut"
+)
+
 # The result slots of each estimand that the rule withholds. The subgroup
 # and interaction-test slots end in `_pp` or `_itt`, and
 # `.tte_horizon_withhold()` finds them by that suffix.
@@ -222,10 +239,13 @@
 #'   window fails. `fail_lo` and `fail_hi` name the first failing window.
 #'   `fail_arm` names the arm that failed it: `"intervention"`,
 #'   `"comparator"` or `"both"`. The three are `NA` when no window fails.
-#'   `status` is the `horizon_status`.
+#'   `status` is the `horizon_status`. `max_passing_cut` is the largest cut
+#'   of `.HORIZON_CUT_GRID` at which every window would pass, or `NA` when
+#'   none would.
 #' @noRd
 .tte_horizon_decision <- function(windows, rule) {
   min_events <- as.numeric(rule[["min_expected_events"]])
+  max_passing_cut <- .tte_horizon_max_passing_cut(windows$events_expected)
   win <- unique(windows[, c("window_lo", "window_hi", "pass"), with = FALSE])
   fail <- which(!win$pass)
   if (length(fail) == 0L) {
@@ -235,7 +255,8 @@
       fail_lo = NA_real_,
       fail_hi = NA_real_,
       fail_arm = NA_character_,
-      status = .HORIZON_STATUS_PASS
+      status = .HORIZON_STATUS_PASS,
+      max_passing_cut = max_passing_cut
     ))
   }
   first <- win[fail[1L]]
@@ -257,8 +278,47 @@
       weeks(first$window_lo),
       "-",
       weeks(first$window_hi)
-    )
+    ),
+    max_passing_cut = max_passing_cut
   ))
+}
+
+
+#' The largest cut of the grid at which every window would pass
+#'
+#' A window passes at cut k when the expected events of both arms reach k.
+#' So every window passes at k exactly when the smallest expected events
+#' reach k.
+#'
+#' @param events_expected Numeric vector, the expected events of every window
+#'   and arm.
+#' @return Numeric(1), a value of `.HORIZON_CUT_GRID`, or `NA` when the
+#'   smallest expected events are below the smallest cut.
+#' @noRd
+.tte_horizon_max_passing_cut <- function(events_expected) {
+  ok <- .HORIZON_CUT_GRID[.HORIZON_CUT_GRID <= min(events_expected)]
+  if (length(ok) == 0L) {
+    return(NA_real_)
+  }
+  return(max(ok))
+}
+
+
+#' Give the intention-to-treat record the per-protocol decision
+#'
+#' The intention-to-treat estimate of an ETT is reported exactly when its
+#' per-protocol estimate is, to the same horizon. The record keeps its own
+#' window table, and `decided_by` is `"pp"`.
+#'
+#' @param pp,itt The horizon records of the two estimands of one ETT.
+#' @return `itt`, with the decision fields of `pp`.
+#' @noRd
+.tte_horizon_follow_pp <- function(pp, itt) {
+  for (f in .HORIZON_DECISION_FIELDS) {
+    itt[f] <- list(pp[[f]])
+  }
+  itt$decided_by <- "pp"
+  return(itt)
 }
 
 
@@ -386,7 +446,8 @@
 #' The parent merge of `$s3_analyze()` calls it after it stores every worker
 #' return. It stops when an ETT of the run has no horizon record for an
 #' estimand. A failed or skipped RD worker can then never leave reported
-#' estimates behind.
+#' estimates behind. The intention-to-treat record then takes the
+#' per-protocol decision, through `.tte_horizon_follow_pp()`.
 #'
 #' @param results_ett `plan$results_ett`.
 #' @param ett_ids Character vector, the ETTs this run computed.
@@ -409,6 +470,10 @@
           call. = FALSE
         )
       }
+    }
+    res$horizon_itt <- .tte_horizon_follow_pp(res$horizon_pp, res$horizon_itt)
+    for (est in names(.TTE_ESTIMANDS)) {
+      rec <- res[[paste0("horizon_", est)]]
       if (rec$withheld) {
         res <- .tte_horizon_withhold(res, est, rec)
       }
@@ -450,7 +515,9 @@
 #' A result stored before swereg 27.2.14 has none. They also stop when the
 #' recorded `rule$min_expected_events` is not `identical()` to the spec value
 #' `min_expected_events_per_arm_per_year`, with both values as doubles and no
-#' tolerance.
+#' tolerance. They stop, too, when an intention-to-treat record was decided
+#' on its own, as before swereg 27.3.0, rather than by the per-protocol
+#' decision.
 #'
 #' @param plan A `TTEPlan`.
 #' @param where Character(1), the method name for the message.
@@ -462,7 +529,12 @@
   absent <- character(0)
   stale <- character(0)
   seen <- numeric(0)
+  own_itt <- character(0)
   for (eid in names(plan$results_ett)) {
+    itt <- plan$results_ett[[eid]][["horizon_itt"]]
+    if (is.list(itt) && !identical(itt$decided_by, "pp")) {
+      own_itt <- c(own_itt, eid)
+    }
     for (est in names(.TTE_ESTIMANDS)) {
       rec <- plan$results_ett[[eid]][[paste0("horizon_", est)]]
       got <- if (is.list(rec)) rec$rule$min_expected_events else NULL
@@ -487,6 +559,19 @@
       paste(utils::head(absent, 5L), collapse = ", "),
       ". A result stored before swereg 27.2.14 holds none. Rerun ",
       "$s3_analyze() to apply the current rule.",
+      call. = FALSE
+    )
+  }
+  if (length(own_itt) > 0L) {
+    stop(
+      where,
+      ": the stored intention-to-treat results of ",
+      length(own_itt),
+      " ETT(s) (",
+      paste(utils::head(own_itt, 5L), collapse = ", "),
+      ") were judged on their own, as before swereg 27.3.0. The ",
+      "intention-to-treat estimate now follows the per-protocol decision. ",
+      "Rerun $s3_analyze() to apply it.",
       call. = FALSE
     )
   }

@@ -23,7 +23,9 @@ tte_stamp_stages <- function(plan) {
   # s3 also stores a horizon record for each estimand, and the writers stop
   # without one. This record holds the decision "nothing withheld" and the
   # rule of the spec. It holds no window table and no status, so no sheet
-  # changes. A record that is already there stays.
+  # changes. The intention-to-treat record carries the per-protocol decision,
+  # as `.s3_apply_horizon_rule()` writes it. A record that is already there
+  # stays.
   rule <- plan$spec$min_expected_events_per_arm_per_year
   for (k in names(plan$results_ett)) {
     plan$results_ett[[k]][["s1_run_id"]] <- id
@@ -33,8 +35,12 @@ tte_stamp_stages <- function(plan) {
       if (!is.null(rule) && is.null(plan$results_ett[[k]][[slot]])) {
         plan$results_ett[[k]][[slot]] <- list(
           rule = list(min_expected_events = as.numeric(rule)),
-          withheld = FALSE
+          withheld = FALSE,
+          max_passing_cut = max(swereg:::.HORIZON_CUT_GRID)
         )
+        if (est == "itt") {
+          plan$results_ett[[k]][[slot]]$decided_by <- "pp"
+        }
       }
     }
   }

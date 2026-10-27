@@ -761,6 +761,7 @@ tteplan_osf_text <- function(
       },
       " Events, person-time, rates and the survival curve are still reported."
     ),
+    "The rule is applied to the per-protocol estimate. The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.",
     "Which years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
   ))
 }
