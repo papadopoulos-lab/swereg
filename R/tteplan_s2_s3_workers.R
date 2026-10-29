@@ -377,7 +377,8 @@
 #'   `irr`, `risk_difference`, `irr_by_subgroup` and
 #'   `effect_modification_test` methods read it.
 #' @param horizon_rule The minimum-events rule of the spec, a list holding
-#'   `min_expected_events`, or `NULL`. The
+#'   `min_expected_events` and `exempt`, or `NULL`. `exempt` is the
+#'   exemption of the ETT's enrollment, from `.tte_s3_resolve_ett()`. The
 #'   `risk_difference` method reads it, with `follow_up`, and returns the
 #'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. The
 #'   parent passes both on every item. A direct call without them returns no

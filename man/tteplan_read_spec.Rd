@@ -57,6 +57,13 @@ with a missing or bad \code{id}
 repeated id and the positions of the enrollments that carry it
 \item An enrollment MAY set \code{family}, one non-empty character string.
 When one enrollment sets it, every enrollment MUST set it
+\item An enrollment MAY set \code{minimum_events_rule_exempt}, one logical
+(\code{true} or \code{false}). An enrollment without the key is not exempt. The
+error names the enrollment id of a value that is not one logical.
+The specification exempts an enrollment from the minimum-events rule
+with \code{true}. s3 still computes the rule for its ETTs, and the Minimum
+events sheets show that verdict. The rule then withholds none of its
+estimates
 \item Computed confounders must have \code{implementation$source_variable}
 }
 

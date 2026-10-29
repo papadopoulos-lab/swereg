@@ -4,10 +4,10 @@
 # intention-to-treat estimate follows the per-protocol decision, so it needs
 # no column of its own.
 #
-# "Minimum events (Y or -)" shows the decision at the spec's cut. "Minimum
-# events (#)" shows the largest cut of `.HORIZON_CUT_GRID` at which the
-# estimate is still reported, so a different cut can be read without a
-# rerun. Neither sheet shows an event count, a rate or expected events.
+# "Minimum events (Y or -)" shows the verdict of the rule at the spec's cut.
+# "Minimum events (#)" shows the largest cut of `.HORIZON_CUT_GRID` at which
+# the estimate still passes the rule, so a different cut can be read without
+# a rerun. Neither sheet shows an event count, a rate or expected events.
 
 #' The sheet names. Excel does not allow "/" in a sheet name.
 #' @noRd
@@ -32,7 +32,10 @@
 #'   or `"-"`. A cell without an ETT record is `NA`, and `Outcome` is `NA`
 #'   below the first row of each outcome. `withheld` is a logical matrix with the shape of the horizon
 #'   columns, `NA` where an ETT has no record. `table` has no rows when the
-#'   plan has no ETT.
+#'   plan has no ETT. Every cell shows the computed verdict of the rule, also
+#'   for an exempt enrollment. The `Comparison` of an enrollment that the
+#'   spec exempts ends with `" (exempt)"`. `any_exempt` is `TRUE` when at
+#'   least one enrollment of a row is exempt.
 #' @noRd
 .minimum_events_wide <- function(plan, records) {
   ett <- plan$ett
@@ -63,6 +66,9 @@
       }
       num_col[r] <- match(eid, enr_ids)
       cmp_col[r] <- .enrollment_label(plan, eid)
+      if (.tte_enrollment_rule_exempt(plan$spec, eid)) {
+        cmp_col[r] <- paste0(cmp_col[r], " (exempt)")
+      }
       for (j in seq_along(weeks)) {
         k <- which(
           ett$enrollment_id == eid &
@@ -123,7 +129,17 @@
     colnames(m) <- label
     return(cbind(base, as.data.frame(m, stringsAsFactors = FALSE)))
   }
-  return(list(yn = as_table(yn), cut = as_table(cut), withheld = withheld))
+  any_exempt <- any(vapply(
+    enr_ids,
+    function(eid) .tte_enrollment_rule_exempt(plan$spec, eid),
+    logical(1)
+  ))
+  return(list(
+    yn = as_table(yn),
+    cut = as_table(cut),
+    withheld = withheld,
+    any_exempt = n > 0L && any_exempt
+  ))
 }
 
 
@@ -214,6 +230,11 @@
 
 #' Write the two Minimum events sheets
 #'
+#' The cells and the fills show the verdict of the rule. The title and the
+#' note of the "Minimum events (Y or -)" sheet say so. When an enrollment
+#' of the sheet is exempt, the note of each sheet ends with one sentence on
+#' the exemption.
+#'
 #' @param wb An openxlsx workbook.
 #' @param plan A TTEPlan.
 #' @param records A list keyed by ETT id: the per-protocol horizon record of
@@ -224,16 +245,24 @@
   k <- plan$spec[["min_expected_events_per_arm_per_year"]]
   k <- if (is.null(k)) "not set" else format(k, trim = TRUE)
   wide <- .minimum_events_wide(plan, records)
+  exempt_note <- if (isTRUE(wide$any_exempt)) {
+    paste0(
+      " Exempt: the specification exempts this comparison; its estimates ",
+      "are reported whatever the rule decides."
+    )
+  }
   .write_minimum_events_one(
     wb,
     .SHEET_MIN_EVENTS_YN,
-    "Minimum-events rule: per-protocol estimates reported (Y) or withheld (-)",
+    "Minimum-events rule: per-protocol estimates pass (Y) or fail (-) the rule",
     paste0(
       "Y: at least ",
       k,
       " expected events per arm in every follow-up year up to the horizon. ",
-      "-: withheld. The intention-to-treat estimate follows the per-protocol ",
-      "decision."
+      "-: fails the rule; the estimate is withheld unless the comparison is ",
+      "exempt. The intention-to-treat estimate follows the per-protocol ",
+      "decision.",
+      exempt_note
     ),
     wide$yn,
     wide$withheld
@@ -241,16 +270,17 @@
   .write_minimum_events_one(
     wb,
     .SHEET_MIN_EVENTS_CUT,
-    "Minimum-events rule: the largest cut at which each per-protocol estimate is reported",
+    "Minimum-events rule: the largest cut at which each per-protocol estimate passes the rule",
     paste0(
       "Each cell is the largest cut, from ",
       paste(format(.HORIZON_CUT_GRID, trim = TRUE), collapse = ", "),
-      " expected events per arm per follow-up year, at which the estimate is ",
-      "reported. -: withheld even at ",
+      " expected events per arm per follow-up year, at which the estimate ",
+      "passes the rule. -: fails the rule even at ",
       format(min(.HORIZON_CUT_GRID), trim = TRUE),
       ". The fill shows the decision at the current cut, ",
       k,
-      "."
+      ".",
+      exempt_note
     ),
     wide$cut,
     wide$withheld

@@ -732,6 +732,13 @@ tteplan_osf_text <- function(
 #' The text states `min_expected_events_per_arm_per_year`, which
 #' `tteplan_read_spec()` requires. With a threshold of 0, one sentence says
 #' that the rule withholds no estimate.
+#'
+#' When the spec exempts an enrollment, the withholding sentence carries
+#' ", except in an exempt comparison,". The sentence of
+#' `.tte_exempt_rule_sentence()` then names the exempt enrollments, after
+#' the sentences that start with "Its", so "Its" still refers to the
+#' estimand. With a threshold of 0 the sentence ends the text. Without an
+#' exempt enrollment the text is the text of swereg 27.3.0.
 #' @noRd
 .osf_inference <- function(ctx) {
   value <- ctx$spec[["min_expected_events_per_arm_per_year"]]
@@ -742,8 +749,14 @@ tteplan_osf_text <- function(
     " expected events per arm in each year of follow-up"
   )
   null_def <- "The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms."
+  exempt <- .tte_exempt_rule_sentence(ctx$spec)
   if (value == 0) {
-    return(paste0(first, ", so it withholds no estimate. ", null_def))
+    return(paste0(
+      first,
+      ", so it withholds no estimate. ",
+      null_def,
+      if (!is.null(exempt)) paste0(" ", exempt)
+    ))
   }
   return(.osf_paragraphs(
     paste0(
@@ -755,10 +768,13 @@ tteplan_osf_text <- function(
       " The reportable horizon is the end of the last year before the first year that fails."
     ),
     paste0(
-      "When any year up to the horizon fails the rule, the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
+      "When any year up to the horizon fails the rule,",
+      if (!is.null(exempt)) " except in an exempt comparison,",
+      " the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
       if (length(ctx$spec$subgroups %||% list()) > 0L) {
         " Its subgroup rate ratios and interaction tests are withheld too."
       },
+      if (!is.null(exempt)) paste0(" ", exempt),
       " Events, person-time, rates and the survival curve are still reported."
     ),
     "The rule is applied to the per-protocol estimate. The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.",

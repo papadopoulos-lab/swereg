@@ -55,6 +55,13 @@
 #'     repeated id and the positions of the enrollments that carry it
 #'   \item An enrollment MAY set `family`, one non-empty character string.
 #'     When one enrollment sets it, every enrollment MUST set it
+#'   \item An enrollment MAY set `minimum_events_rule_exempt`, one logical
+#'     (`true` or `false`). An enrollment without the key is not exempt. The
+#'     error names the enrollment id of a value that is not one logical.
+#'     The specification exempts an enrollment from the minimum-events rule
+#'     with `true`. s3 still computes the rule for its ETTs, and the Minimum
+#'     events sheets show that verdict. The rule then withholds none of its
+#'     estimates
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -597,9 +604,9 @@ tteplan_read_spec <- function(spec_path) {
   spec <- .tte_check_sparse_rule(spec)
 
   # An exclusion on an outcome variable that reads the weeks after time zero
-  # selects on the follow-up outcome. This check, the family check and the
-  # enrollment id check below run last, in this order, and
-  # `tteplan_check_spec()` relies on that order.
+  # selects on the follow-up outcome. This check, the family check, the
+  # exemption check and the enrollment id check below run last, in this
+  # order, and `tteplan_check_spec()` relies on that order.
   outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
   if (length(outcome_selecting) > 0L) {
     stop(.tte_outcome_selecting_message(outcome_selecting), call. = FALSE)
@@ -607,6 +614,10 @@ tteplan_read_spec <- function(spec_path) {
   family_found <- .tte_enrollment_family_problems(spec)
   if (length(family_found) > 0L) {
     stop(.tte_enrollment_family_message(family_found), call. = FALSE)
+  }
+  exempt_found <- .tte_enrollment_exempt_problems(spec)
+  if (length(exempt_found) > 0L) {
+    stop(.tte_enrollment_exempt_message(exempt_found), call. = FALSE)
   }
   # `$reload_spec()` and the Summary sheet look an enrollment up by its id, and
   # take the first match. A repeated id hides every later enrollment.

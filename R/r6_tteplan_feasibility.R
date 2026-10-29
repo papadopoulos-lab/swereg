@@ -43,7 +43,8 @@
   "fail_hi",
   "fail_arm",
   "status",
-  "max_passing_cut"
+  "max_passing_cut",
+  "exempt"
 )
 
 #' @include r6_tteplan.R
@@ -82,10 +83,12 @@
 #'   \item{Rare conditions}{The sheet of `$export_tables()`. It is absent when
 #'     the plan holds no rare-condition decision.}
 #'   \item{Minimum events (Y or -)}{One row per outcome and comparison, one
-#'     column per follow-up horizon. Y: the per-protocol estimate is
-#'     reported. -: it is withheld.}
+#'     column per follow-up horizon. Y: the per-protocol estimate passes the
+#'     rule. -: it fails the rule, and the estimate is withheld unless the
+#'     comparison is exempt. The comparison of an exempt enrollment ends with
+#'     ` (exempt)`.}
 #'   \item{Minimum events (#)}{The same layout. Each cell is the largest cut
-#'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate is reported.}
+#'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
 #'   \item{Attrition}{The table of `$get_attrition()`.}
 #'   \item{Table 1}{The unweighted baseline table of each enrollment. One
 #'     panel reads the s1 raw file, before imputation. The other reads the
@@ -109,7 +112,10 @@
 #'     \item{records}{A list keyed by ETT id, then by estimand (`pp`, `itt`).
 #'       Each record holds `rule`, `weight_col`, `follow_up`, `windows`,
 #'       `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm`,
-#'       `status` and `max_passing_cut`. The `itt` record also holds
+#'       `status`, `max_passing_cut` and `exempt`. `exempt` is `TRUE` when the
+#'       spec sets `minimum_events_rule_exempt: true` on the enrollment of the
+#'       ETT. `withheld` then still holds the verdict of the rule, and `$s3_analyze()`
+#'       will withhold none of the estimates. The `itt` record also holds
 #'       `decided_by = "pp"`.}
 #'     \item{s1_run_id}{The s1 run of the analysis files.}
 #'     \item{swereg_version}{The swereg version that ran the method.}
@@ -138,7 +144,7 @@ TTEPlan$set(
     items <- list()
     item_map <- list()
     for (i in seq_len(nrow(ett))) {
-      r <- .tte_s3_resolve_ett(ett, i, output_dir, horizon_rule)
+      r <- .tte_s3_resolve_ett(ett, i, output_dir, horizon_rule, self$spec)
       for (est in names(r$estimands)) {
         items[[length(items) + 1L]] <- list(
           analysis_path = r$estimands[[est]]$path,
@@ -375,17 +381,23 @@ TTEPlan$set(
 
 #' Name every ETT estimand that the rule would withhold, on stdout
 #'
+#' An estimand of an exempt enrollment is never named as withheld. When the
+#' records hold one, a second line names each such estimand as exempt.
+#'
 #' @param records `plan$feasibility$records`.
 #' @return `invisible(NULL)`.
 #' @noRd
 .feasibility_report <- function(records) {
   hits <- character(0)
+  exempt <- character(0)
   n <- 0L
   for (eid in names(records)) {
     for (est in names(records[[eid]])) {
       n <- n + 1L
       rec <- records[[eid]][[est]]
-      if (isTRUE(rec$withheld)) {
+      if (isTRUE(rec$exempt)) {
+        exempt <- c(exempt, paste0(eid, " (", est, ")"))
+      } else if (isTRUE(rec$withheld)) {
         hits <- c(
           hits,
           paste0(eid, " (", est, ", ", rec$reportable_weeks, " w)")
@@ -404,6 +416,14 @@ TTEPlan$set(
       length(hits),
       n,
       paste(hits, collapse = ", ")
+    ))
+  }
+  if (length(exempt) > 0L) {
+    cat(sprintf(
+      "feasibility: the specification exempts %d of %d ETT estimands from the minimum-events rule, so the rule would withhold none of their estimates: %s\n",
+      length(exempt),
+      n,
+      paste(exempt, collapse = ", ")
     ))
   }
   return(invisible(NULL))

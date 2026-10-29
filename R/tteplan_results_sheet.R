@@ -179,6 +179,13 @@
 #' The checklist calls `.tte_assert_horizon_rule_current()` first, so every
 #' stored result was judged with this value.
 #'
+#' When the spec exempts an enrollment, the withholding sentence carries
+#' ", except in an exempt comparison,". The sentence of
+#' `.tte_exempt_rule_sentence()` then names the exempt enrollments. It
+#' follows the subgroup sentence, so "Its" in that sentence still refers to
+#' the estimand. With a threshold of 0 the sentence ends the text. Without an
+#' exempt enrollment the text is the text of swereg 27.3.0.
+#'
 #' @param spec `plan$spec`. It MUST carry
 #'   `min_expected_events_per_arm_per_year`.
 #' @return A character(1) of whole sentences, separated by spaces. With
@@ -200,8 +207,14 @@
     "its weighted person-time multiplied by the pooled weighted event rate ",
     "of both arms."
   )
+  exempt <- .tte_exempt_rule_sentence(spec)
   if (value == 0) {
-    return(paste0(first, ", so it withheld no estimate. ", null_def))
+    return(paste0(
+      first,
+      ", so it withheld no estimate. ",
+      null_def,
+      if (!is.null(exempt)) paste0(" ", exempt)
+    ))
   }
   return(paste0(
     first,
@@ -211,12 +224,15 @@
     " weeks from time zero, and the last year ended at the horizon. ",
     null_def,
     " ",
-    "When any year failed the rule, the incidence rate ratio, risk ",
+    "When any year failed the rule, ",
+    if (!is.null(exempt)) "except in an exempt comparison, ",
+    "the incidence rate ratio, risk ",
     "difference and number needed to treat of that estimand were not ",
     "reported. ",
     if (length(spec$subgroups %||% list()) > 0L) {
       "Its subgroup rate ratios and interaction tests were withheld too. "
     },
+    if (!is.null(exempt)) paste0(exempt, " "),
     "Events, person-time and rates were still reported. ",
     "Which years passed depended on the observed events, through the pooled ",
     "rate. ",

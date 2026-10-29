@@ -170,6 +170,7 @@
       "family",
       "id",
       "intervention_tolerance_weeks",
+      "minimum_events_rule_exempt",
       "name",
       "observed_var",
       "treatment"

@@ -166,8 +166,8 @@
   toc_names <- c(toc_names, .SHEET_MIN_EVENTS_YN, .SHEET_MIN_EVENTS_CUT)
   toc_desc <- c(
     toc_desc,
-    "Minimum-events rule - per-protocol estimates reported (Y) or withheld (-)",
-    "Minimum-events rule - the largest cut at which each estimate is reported"
+    "Minimum-events rule - per-protocol estimates pass (Y) or fail (-) the rule",
+    "Minimum-events rule - the largest cut at which each estimate passes the rule"
   )
 
   # --- Target trial protocol sheet ---

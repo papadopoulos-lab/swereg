@@ -1,3 +1,9 @@
+# swereg 27.3.1
+
+## New features
+
+* **An enrollment MAY set `minimum_events_rule_exempt: true`.** The minimum-events rule then withholds none of its estimates, and s3 still stores the verdict of the rule. The Minimum events sheets show that verdict with ` (exempt)` after the comparison, and the generated methods text names the exempt comparison. A changed key stops the writers until `$s3_analyze()` reruns; s1 and s2 output stays valid.
+
 # swereg 27.3.0
 
 ## Breaking changes

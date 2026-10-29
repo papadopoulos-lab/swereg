@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the nine
+#'     \item{`kind`}{The problem kind. The Details section lists the ten
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports nine kinds of problem:
+#' The checker reports ten kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -52,6 +52,10 @@
 #'     When one enrollment sets `family`, every enrollment MUST set it. The
 #'     checker writes one row for each bad value, and one row that names the
 #'     enrollments without a `family`.}
+#'   \item{`enrollment_rule_exempt`}{An enrollment sets
+#'     `minimum_events_rule_exempt` to a value that is not one logical, `true`
+#'     or `false`. The checker writes one row for each such enrollment, and
+#'     the message names the enrollment id.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
 #'     message is the message of that error.}
 #' }
@@ -87,9 +91,7 @@
 #' tteplan_check_spec(spec_path)
 #' unlink(spec_dir, recursive = TRUE)
 tteplan_check_spec <- function(spec_path) {
-  if (
-    !is.character(spec_path) || length(spec_path) != 1L || is.na(spec_path)
-  ) {
+  if (!is.character(spec_path) || length(spec_path) != 1L || is.na(spec_path)) {
     stop("spec_path must be one file path.", call. = FALSE)
   }
 
@@ -114,6 +116,8 @@ tteplan_check_spec <- function(spec_path) {
   rows <- c(rows, outcome_rows)
   family_found <- .tte_enrollment_family_problems(spec)
   rows <- c(rows, .tte_check_spec_family(family_found))
+  exempt_found <- .tte_enrollment_exempt_problems(spec)
+  rows <- c(rows, .tte_check_spec_exempt(exempt_found))
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -127,8 +131,9 @@ tteplan_check_spec <- function(spec_path) {
     )
     # `tteplan_read_spec()` stops on a missing or bad enrollment id before it
     # reads the enrollments. It stops on the outcome-selecting exclusions,
-    # then on the enrollment families, then on the repeated enrollment ids,
-    # as its last three stops. The rows above already report each finding.
+    # then on the enrollment families, then on the bad exemption values, then
+    # on the repeated enrollment ids, as its last four stops. The rows above
+    # already report each finding.
     if (
       length(id_value_rows) > 0L &&
         identical(read_error, .tte_enrollment_id_message(id_value_rows))
@@ -149,6 +154,12 @@ tteplan_check_spec <- function(spec_path) {
     if (
       length(family_found) > 0L &&
         identical(read_error, .tte_enrollment_family_message(family_found))
+    ) {
+      read_error <- NULL
+    }
+    if (
+      length(exempt_found) > 0L &&
+        identical(read_error, .tte_enrollment_exempt_message(exempt_found))
     ) {
       read_error <- NULL
     }
@@ -514,15 +525,21 @@ tteplan_check_spec <- function(spec_path) {
   exclusions <- .tte_check_spec_get(spec, "exclusion_criteria")
   if (.tte_spec_is_sequence(exclusions)) {
     for (i in seq_along(exclusions)) {
-      found <- c(found, .tte_outcome_selecting_one(
-        exclusions[[i]],
-        paste0(
-          "exclusion_criteria[", i, "] '",
-          .tte_spec_scalar_at(exclusions[[i]], "name"), "'"
-        ),
-        "$/exclusion_criteria[]/implementation/window",
-        out
-      ))
+      found <- c(
+        found,
+        .tte_outcome_selecting_one(
+          exclusions[[i]],
+          paste0(
+            "exclusion_criteria[",
+            i,
+            "] '",
+            .tte_spec_scalar_at(exclusions[[i]], "name"),
+            "'"
+          ),
+          "$/exclusion_criteria[]/implementation/window",
+          out
+        )
+      )
     }
   }
   enrollments <- .tte_check_spec_get(spec, "enrollments")
@@ -535,17 +552,25 @@ tteplan_check_spec <- function(spec_path) {
       next
     }
     for (j in seq_along(extra)) {
-      found <- c(found, .tte_outcome_selecting_one(
-        extra[[j]],
-        paste0(
-          "enrollments[", i, "] '",
-          .tte_spec_scalar_at(enrollments[[i]], "id"),
-          "' additional_exclusion[", j, "] '",
-          .tte_spec_scalar_at(extra[[j]], "name"), "'"
-        ),
-        "$/enrollments[]/additional_exclusion[]/implementation/window",
-        out
-      ))
+      found <- c(
+        found,
+        .tte_outcome_selecting_one(
+          extra[[j]],
+          paste0(
+            "enrollments[",
+            i,
+            "] '",
+            .tte_spec_scalar_at(enrollments[[i]], "id"),
+            "' additional_exclusion[",
+            j,
+            "] '",
+            .tte_spec_scalar_at(extra[[j]], "name"),
+            "'"
+          ),
+          "$/enrollments[]/additional_exclusion[]/implementation/window",
+          out
+        )
+      )
     }
   }
   return(found)
@@ -565,7 +590,10 @@ tteplan_check_spec <- function(spec_path) {
     return(NULL)
   }
   vars <- lapply(outcomes, function(o) {
-    return(.tte_spec_vars(.tte_check_spec_get(o, c("implementation", "variable"))))
+    return(.tte_spec_vars(.tte_check_spec_get(
+      o,
+      c("implementation", "variable")
+    )))
   })
   nm <- vapply(outcomes, .tte_spec_scalar_at, character(1), "name")
   nm[is.na(nm)] <- vapply(vars[is.na(nm)], paste, character(1), collapse = ", ")
@@ -608,19 +636,22 @@ tteplan_check_spec <- function(spec_path) {
     if (length(shared) == 0L) {
       next
     }
-    rows <- c(rows, list(list(
-      path = path,
-      message = paste0(
-        label,
-        " has the window lifetime_before_and_after_baseline on '",
-        paste(shared, collapse = "', '"),
-        "', which is the variable of outcome '",
-        out$names[k],
-        "'. That window reads the weeks after time zero, so the criterion ",
-        "excludes each person who has the outcome during follow-up. Use ",
-        "lifetime_before_baseline, or a window that ends before time zero."
-      )
-    )))
+    rows <- c(
+      rows,
+      list(list(
+        path = path,
+        message = paste0(
+          label,
+          " has the window lifetime_before_and_after_baseline on '",
+          paste(shared, collapse = "', '"),
+          "', which is the variable of outcome '",
+          out$names[k],
+          "'. That window reads the weeks after time zero, so the criterion ",
+          "excludes each person who has the outcome during follow-up. Use ",
+          "lifetime_before_baseline, or a window that ends before time zero."
+        )
+      ))
+    )
   }
   return(rows)
 }
@@ -706,8 +737,11 @@ tteplan_check_spec <- function(spec_path) {
     seq_along(enrollments),
     function(i) {
       return(paste0(
-        "enrollments[", i, "] '",
-        .tte_spec_scalar_at(enrollments[[i]], "id"), "'"
+        "enrollments[",
+        i,
+        "] '",
+        .tte_spec_scalar_at(enrollments[[i]], "id"),
+        "'"
       ))
     },
     character(1)
@@ -727,31 +761,37 @@ tteplan_check_spec <- function(spec_path) {
       !is.na(value) &&
       nzchar(trimws(value))
     if (!ok) {
-      found <- c(found, list(list(
-        path = "$/enrollments[]/family",
-        message = paste0(
-          label[i],
-          " has family ",
-          .tte_spec_value_show(value),
-          ". family MUST be one non-empty character string. Quote a ",
-          "value that YAML reads as a number or a logical."
-        )
-      )))
+      found <- c(
+        found,
+        list(list(
+          path = "$/enrollments[]/family",
+          message = paste0(
+            label[i],
+            " has family ",
+            .tte_spec_value_show(value),
+            ". family MUST be one non-empty character string. Quote a ",
+            "value that YAML reads as a number or a logical."
+          )
+        ))
+      )
     }
   }
   if (any(has_family) && !all(has_family)) {
-    found <- c(found, list(list(
-      path = "$/enrollments[]/family",
-      message = paste0(
-        paste(label[!has_family], collapse = ", "),
-        " set no family, and ",
-        sum(has_family),
-        " of ",
-        length(has_family),
-        " enrollments set one. When one enrollment sets family, every ",
-        "enrollment MUST set it."
-      )
-    )))
+    found <- c(
+      found,
+      list(list(
+        path = "$/enrollments[]/family",
+        message = paste0(
+          paste(label[!has_family], collapse = ", "),
+          " set no family, and ",
+          sum(has_family),
+          " of ",
+          length(has_family),
+          " enrollments set one. When one enrollment sets family, every ",
+          "enrollment MUST set it."
+        )
+      ))
+    )
   }
   return(found)
 }
@@ -800,5 +840,91 @@ tteplan_check_spec <- function(spec_path) {
 .tte_check_spec_family <- function(found) {
   return(lapply(found, function(f) {
     return(.tte_check_spec_row(f$path, "enrollment_family", f$message))
+  }))
+}
+
+
+#' Every bad value of the `minimum_events_rule_exempt` key of the enrollments
+#'
+#' The key is optional. When an enrollment sets it, the value MUST be one
+#' logical, `true` or `false`. A number, a string, `NA`, a null value and a
+#' value of length other than 1 are bad. The finder reads the parsed
+#' specification before or after `tteplan_read_spec()` normalises it, and
+#' never stops on a bad shape.
+#'
+#' @param spec The parsed specification.
+#' @return A list with one element per bad value. Each element holds `path`,
+#'   the normalised key path, and `message`, which names the enrollment id
+#'   and the key.
+#' @noRd
+.tte_enrollment_exempt_problems <- function(spec) {
+  enrollments <- .tte_check_spec_get(spec, "enrollments")
+  if (!.tte_spec_is_sequence(enrollments) || length(enrollments) == 0L) {
+    return(list())
+  }
+  key <- "minimum_events_rule_exempt"
+  found <- list()
+  for (i in seq_along(enrollments)) {
+    e <- enrollments[[i]]
+    if (!is.list(e) || !key %in% names(e)) {
+      next
+    }
+    value <- e[[key]]
+    if (is.logical(value) && length(value) == 1L && !is.na(value)) {
+      next
+    }
+    shown <- if (is.atomic(value) && length(value) == 1L && is.na(value)) {
+      "NA"
+    } else {
+      .tte_spec_value_show(value)
+    }
+    found <- c(
+      found,
+      list(list(
+        path = paste0("$/enrollments[]/", key),
+        message = paste0(
+          "enrollments[",
+          i,
+          "] '",
+          .tte_spec_scalar_at(e, "id"),
+          "' has ",
+          key,
+          " ",
+          shown,
+          ". ",
+          key,
+          " MUST be one logical: true or false."
+        )
+      ))
+    )
+  }
+  return(found)
+}
+
+
+#' The error message of the `minimum_events_rule_exempt` findings
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param found A list from `.tte_enrollment_exempt_problems()`.
+#' @return A character scalar.
+#' @noRd
+.tte_enrollment_exempt_message <- function(found) {
+  return(paste(
+    vapply(found, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
+}
+
+
+#' Rows for every bad value of the `minimum_events_rule_exempt` key
+#'
+#' @param found A list from `.tte_enrollment_exempt_problems()`.
+#' @return A list of rows of kind `enrollment_rule_exempt`.
+#' @noRd
+.tte_check_spec_exempt <- function(found) {
+  return(lapply(found, function(f) {
+    return(.tte_check_spec_row(f$path, "enrollment_rule_exempt", f$message))
   }))
 }

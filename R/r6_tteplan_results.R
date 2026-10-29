@@ -65,6 +65,11 @@ TTEPlan$set("public", "results_summary", function() {
 #' `NA`, and `interval_status` holds the same text. A result stored before the
 #' rule gives `NA` in both columns.
 #'
+#' An ETT of an enrollment that sets `minimum_events_rule_exempt: true` has
+#' the `horizon_status` `"exempt from minimum-events rule"`. Its estimates
+#' are reported, and `horizon_reportable_weeks` is its follow-up, whatever
+#' the rule decided. `$get_horizon_windows()` keeps the computed decision.
+#'
 #' The number needed to treat carries its interval. `nnt` is the point
 #' estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
 #' stored. Both bounds are `NA` where `interval_status` reads
@@ -290,6 +295,13 @@ TTEPlan$set("public", "get_subgroups", function() {
 #' `horizon_status`.
 #' The method computes nothing. A result stored before the rule gives no
 #' rows.
+#'
+#' The table is the diagnostic of the rule. For an ETT of an enrollment that
+#' sets `minimum_events_rule_exempt: true`, `pass` and
+#' `horizon_reportable_weeks` still hold the computed decision, and
+#' `horizon_status` reads `"exempt from minimum-events rule"`. The rule
+#' withholds none of its estimates. `$get_estimates()` gives the reporting
+#' horizon, which is then the follow-up of the ETT.
 #'
 #' @return A data.table with columns `ett_id`, `estimand`, `weight_col`,
 #'   `min_expected_events_per_arm_per_year`, `window_lo`, `window_hi`, `arm`,

@@ -366,10 +366,12 @@ the spec.
 The \verb{Minimum events (Y or -)} and \verb{Minimum events (#)} sheets follow the
 Rare conditions sheet. Both hold one row per outcome and comparison and
 one column per follow-up horizon, for the per-protocol estimand. The
-first shows Y when the estimate is reported and - when the
-minimum-events rule withheld it. The second shows the largest cut, of 1,
-2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
-intention-to-treat estimand follows the per-protocol decision.
+first shows Y when the estimate passes the minimum-events rule and - when
+it fails the rule. A failed estimate is withheld unless its comparison is
+exempt, and an exempt comparison ends with \code{ (exempt)}. The second shows
+the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the estimate still
+passes the rule. The intention-to-treat estimand follows the per-protocol
+decision.
 \verb{$get_horizon_windows()} returns the year-by-year detail.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
@@ -574,10 +576,12 @@ of \verb{$export_tables()}. The workbook holds these sheets, in this order:
 \item{Rare conditions}{The sheet of \verb{$export_tables()}. It is absent when
 the plan holds no rare-condition decision.}
 \item{Minimum events (Y or -)}{One row per outcome and comparison, one
-column per follow-up horizon. Y: the per-protocol estimate is
-reported. -: it is withheld.}
+column per follow-up horizon. Y: the per-protocol estimate passes the
+rule. -: it fails the rule, and the estimate is withheld unless the
+comparison is exempt. The comparison of an exempt enrollment ends with
+\code{ (exempt)}.}
 \item{Minimum events (#)}{The same layout. Each cell is the largest cut
-of 1, 2, 3, 4, 5, 10 and 20 at which the estimate is reported.}
+of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
 \item{Attrition}{The table of \verb{$get_attrition()}.}
 \item{Table 1}{The unweighted baseline table of each enrollment. One
 panel reads the s1 raw file, before imputation. The other reads the
@@ -594,7 +598,10 @@ and s2 wrote every analysis file after that s1 run.
 \item{records}{A list keyed by ETT id, then by estimand (\code{pp}, \code{itt}).
 Each record holds \code{rule}, \code{weight_col}, \code{follow_up}, \code{windows},
 \code{reportable_weeks}, \code{withheld}, \code{fail_lo}, \code{fail_hi}, \code{fail_arm},
-\code{status} and \code{max_passing_cut}. The \code{itt} record also holds
+\code{status}, \code{max_passing_cut} and \code{exempt}. \code{exempt} is \code{TRUE} when the
+spec sets \code{minimum_events_rule_exempt: true} on the enrollment of the
+ETT. \code{withheld} then still holds the verdict of the rule, and \verb{$s3_analyze()}
+will withhold none of the estimates. The \code{itt} record also holds
 \code{decided_by = "pp"}.}
 \item{s1_run_id}{The s1 run of the analysis files.}
 \item{swereg_version}{The swereg version that ran the method.}
@@ -769,6 +776,11 @@ stay. The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
 \verb{$get_horizon_windows()} returns its window table. Which windows pass depends
 on the observed events, through the pooled rate.
 
+An enrollment that sets \code{minimum_events_rule_exempt: true} is exempt. The
+method computes and stores the decision of its ETTs as for any ETT, and
+withholds none of their estimates. Their \code{horizon_status} reads
+\code{"exempt from minimum-events rule"}.
+
 The method stops when the spec has no
 \code{min_expected_events_per_arm_per_year}. It also stops when an ETT of the
 run has no horizon decision for an estimand.
@@ -940,6 +952,11 @@ weightings of the per-protocol estimand share one decision. A
 withheld estimand. Its ratio, risk difference and number needed to treat are
 \code{NA}, and \code{interval_status} holds the same text. A result stored before the
 rule gives \code{NA} in both columns.
+
+An ETT of an enrollment that sets \code{minimum_events_rule_exempt: true} has
+the \code{horizon_status} \code{"exempt from minimum-events rule"}. Its estimates
+are reported, and \code{horizon_reportable_weeks} is its follow-up, whatever
+the rule decided. \verb{$get_horizon_windows()} keeps the computed decision.
 
 The number needed to treat carries its interval. \code{nnt} is the point
 estimate, and \code{nnt_lo} and \code{nnt_hi} are the bounds \verb{$s3_analyze()}
@@ -1214,6 +1231,13 @@ Each row repeats the record it came from: \code{weight_col},
 \code{horizon_status}.
 The method computes nothing. A result stored before the rule gives no
 rows.
+
+The table is the diagnostic of the rule. For an ETT of an enrollment that
+sets \code{minimum_events_rule_exempt: true}, \code{pass} and
+\code{horizon_reportable_weeks} still hold the computed decision, and
+\code{horizon_status} reads \code{"exempt from minimum-events rule"}. The rule
+withholds none of its estimates. \verb{$get_estimates()} gives the reporting
+horizon, which is then the follow-up of the ETT.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_horizon_windows()}

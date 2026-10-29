@@ -792,7 +792,11 @@
 #' @param spec Parsed spec list. It MUST carry
 #'   `min_expected_events_per_arm_per_year`.
 #' @return A character(1). With `min_expected_events_per_arm_per_year` 0, the
-#'   line says that the rule withholds no estimate.
+#'   line says that the rule withholds no estimate. When the spec exempts an
+#'   enrollment, the withholding sentence carries ", except in an exempt
+#'   comparison,", and the sentence of `.tte_exempt_rule_sentence()` ends the
+#'   line. With a threshold of 0 that sentence also ends the line. Without an
+#'   exempt enrollment the line is the line of swereg 27.3.0.
 #' @noRd
 .protocol_horizon_rule_line <- function(spec) {
   .tte_assert_horizon_rule_present(spec, "the target trial protocol")
@@ -805,16 +809,24 @@
     "the null as the pooled weighted event rate of both arms times the ",
     "weighted person-years of the arm"
   )
+  exempt <- .tte_exempt_rule_sentence(spec)
   if (value == 0) {
-    return(paste0(first, ", so no estimate is withheld"))
+    return(paste0(
+      first,
+      ", so no estimate is withheld",
+      if (!is.null(exempt)) paste0(". ", exempt)
+    ))
   }
   return(paste0(
     first,
     ". Follow-up years are ",
     .HORIZON_WINDOW_WEEKS,
-    " weeks from time zero. When any year up to the horizon fails, the rate ",
+    " weeks from time zero. When any year up to the horizon fails, ",
+    if (!is.null(exempt)) "except in an exempt comparison, ",
+    "the rate ",
     "ratio, risk difference and number needed to treat of that estimand ",
-    "read NE"
+    "read NE",
+    if (!is.null(exempt)) paste0(". ", exempt)
   ))
 }
 

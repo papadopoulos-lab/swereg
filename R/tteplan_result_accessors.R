@@ -625,7 +625,16 @@
       n_boot = .acc_num1(rd_row, "n_boot"),
       seed = .acc_num1(rd_row, "seed"),
       conf_level = .acc_num1(rd_row, "conf_level"),
-      horizon_reportable_weeks = .acc_num1(horizon, "reportable_weeks"),
+      # An exempt ETT is reported to its full follow-up, whatever the rule
+      # decided. The record keeps the computed horizon for the rule
+      # diagnostic of `$get_horizon_windows()`.
+      horizon_reportable_weeks = if (
+        is.list(horizon) && isTRUE(horizon$exempt)
+      ) {
+        .acc_num1(horizon, "follow_up")
+      } else {
+        .acc_num1(horizon, "reportable_weeks")
+      },
       horizon_status = .acc_chr1(horizon, "status")
     ))
   })
@@ -1261,7 +1270,10 @@
 #' `$s3_analyze()` stores one record per ETT and estimand, as `horizon_pp`
 #' and `horizon_itt`. This accessor stacks their window tables and repeats
 #' the rule and the decision of the record on each row. A result without a
-#' record gives no rows.
+#' record gives no rows. `horizon_reportable_weeks` is the computed
+#' `reportable_weeks` of the record, also for an exempt ETT, so the table
+#' stays the diagnostic of the rule. `.acc_estimate_rows()` gives the
+#' reporting horizon.
 #'
 #' @param plan A TTEPlan.
 #' @return A data.table with the `horizon_windows` schema.

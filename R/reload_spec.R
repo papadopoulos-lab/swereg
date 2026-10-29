@@ -381,6 +381,13 @@
 #' labels. A `family` that one spec sets and the other omits is a label
 #' change too.
 #'
+#' `minimum_events_rule_exempt` is cosmetic. It decides which estimates s3
+#' reports. It does not change who is enrolled, how swereg weights them or
+#' which events it counts, so s1 and s2 output stays valid. s3 MUST rerun,
+#' and the writers stop until it does. The function compares the key as
+#' `isTRUE()`, so a key that one spec omits and the other sets to `false` is
+#' no change.
+#'
 #' Four keys are definitions: the two additional criteria containers, the
 #' treatment implementation, the observation encoding and both arm tolerances.
 #' Each one decides who is enrolled, or when swereg censors them. A cached run
@@ -466,6 +473,15 @@
         o_new[["family"]]
       )
     }
+    a <- isTRUE(o_old[["minimum_events_rule_exempt"]])
+    b <- isTRUE(o_new[["minimum_events_rule_exempt"]])
+    if (!identical(a, b)) {
+      pc(
+        sprintf("enrollments[%s]$minimum_events_rule_exempt", id),
+        a,
+        paste0(b, " (rerun $s3_analyze(); s1 and s2 output stays valid)")
+      )
+    }
     if (!identical(o_old$treatment$description, o_new$treatment$description)) {
       pc(
         sprintf("enrollments[%s]$treatment$description", id),
@@ -502,6 +518,7 @@
         "id",
         "name",
         "family",
+        "minimum_events_rule_exempt",
         "observed_var",
         "intervention_tolerance_weeks",
         "comparator_tolerance_weeks",
@@ -684,6 +701,10 @@
     if (!identical(e_old[["family"]], e_new[["family"]])) {
       e_old[["family"]] <- e_new[["family"]]
     }
+    k <- "minimum_events_rule_exempt"
+    if (!identical(e_old[[k]], e_new[[k]])) {
+      e_old[[k]] <- e_new[[k]]
+    }
     if (!identical(e_old$treatment$description, e_new$treatment$description)) {
       e_old$treatment$description <- e_new$treatment$description
     }
@@ -714,7 +735,7 @@
 #' 4. `confounders[<var>]$name`, `$categories`, `$codes` and `$rationale`
 #' 5. `subgroups[<var>]$name`
 #' 6. `standing_methods`, `target_trial` and `open_questions`, each whole
-#' 7. `enrollments[<id>]$name` and `$family`
+#' 7. `enrollments[<id>]$name`, `$family` and `$minimum_events_rule_exempt`
 #' 8. `enrollments[<id>]$treatment$description`
 #' 9. `enrollments[<id>]$treatment$arms$intervention` and `$comparator`
 #' 10. `min_expected_events_per_arm_per_year`. A plan saved before

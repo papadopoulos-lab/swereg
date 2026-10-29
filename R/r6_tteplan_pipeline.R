@@ -767,6 +767,11 @@ TTEPlan$set(
 #' `$get_horizon_windows()` returns its window table. Which windows pass depends
 #' on the observed events, through the pooled rate.
 #'
+#' An enrollment that sets `minimum_events_rule_exempt: true` is exempt. The
+#' method computes and stores the decision of its ETTs as for any ETT, and
+#' withholds none of their estimates. Their `horizon_status` reads
+#' `"exempt from minimum-events rule"`.
+#'
 #' The method stops when the spec has no
 #' `min_expected_events_per_arm_per_year`. It also stops when an ETT of the
 #' run has no horizon decision for an estimand.
@@ -957,7 +962,13 @@ TTEPlan$set(
       for (i in seq_len(n_ett)) {
         # The analysis file, weight, follow-up and rule of each estimand.
         # `$s3_feasibility()` resolves them through the same helper.
-        r <- .tte_s3_resolve_ett(ett_todo, i, output_dir, horizon_rule)
+        r <- .tte_s3_resolve_ett(
+          ett_todo,
+          i,
+          output_dir,
+          horizon_rule,
+          self$spec
+        )
         est_s3 <- r$estimands
 
         # The summary and the unweighted rates. This call carries no estimand
@@ -1328,14 +1339,20 @@ TTEPlan$set(
 #' @param output_dir Character(1), from `.tte_s3_output_dir()`.
 #' @param rule The minimum-events rule, from
 #'   `.tte_assert_horizon_rule_present()`.
+#' @param spec `plan$spec`. The function reads the exemption of the ETT's
+#'   enrollment there, through `.tte_enrollment_rule_exempt()`. Both callers
+#'   pass it. The default `NULL` exempts no enrollment.
 #' @return A list: `ett_id`, `follow_up` (numeric, in weeks), `rule` and
-#'   `estimands`. `estimands` is keyed by estimand and subset by
+#'   `estimands`. `rule` is the input rule with `exempt` added: `TRUE` when
+#'   the spec sets `minimum_events_rule_exempt: true` on the enrollment of
+#'   the ETT, and `FALSE` otherwise. `estimands` is keyed by estimand and subset by
 #'   `.TTE_ESTIMANDS`. Each element holds `path`, the analysis file s2 wrote
 #'   for that estimand, and `weight`, the baseline weight column. It also holds
 #'   `ratio_calls` and `rd_slot`, which only s3 reads.
 #' @noRd
-.tte_s3_resolve_ett <- function(ett, i, output_dir, rule) {
+.tte_s3_resolve_ett <- function(ett, i, output_dir, rule, spec = NULL) {
   apath <- file.path(output_dir, ett$file_analysis[i])
+  rule$exempt <- .tte_enrollment_rule_exempt(spec, ett$enrollment_id[i])
 
   # Intention-to-treat reads the ITT analysis file s2 wrote. An old grid
   # without file_analysis_itt falls back to deriving that path from the

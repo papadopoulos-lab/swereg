@@ -405,6 +405,7 @@ rsi_full_spec <- function(variant = "sentinel") {
       id = "01",
       name = "Enrollment 01",
       family = "Main",
+      minimum_events_rule_exempt = FALSE,
       observed_var = obs,
       intervention_tolerance_weeks = 0L,
       comparator_tolerance_weeks = 0L,
@@ -588,6 +589,9 @@ RSI_LEAF_SIDE <- c(
   # who is enrolled and when swereg censors them.
   "$/enrollments[]/name" = "cosmetic",
   "$/enrollments[]/family" = "cosmetic",
+  # The exemption decides which estimates s3 reports, as the minimum-events
+  # value does. s1 and s2 output stays valid.
+  "$/enrollments[]/minimum_events_rule_exempt" = "cosmetic",
   "$/enrollments[]/treatment/description" = "cosmetic",
   "$/enrollments[]/treatment/arms/comparator" = "cosmetic",
   "$/enrollments[]/treatment/arms/intervention" = "cosmetic",

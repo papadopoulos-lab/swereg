@@ -36,10 +36,12 @@
 #' The `Minimum events (Y or -)` and `Minimum events (#)` sheets follow the
 #' Rare conditions sheet. Both hold one row per outcome and comparison and
 #' one column per follow-up horizon, for the per-protocol estimand. The
-#' first shows Y when the estimate is reported and - when the
-#' minimum-events rule withheld it. The second shows the largest cut, of 1,
-#' 2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
-#' intention-to-treat estimand follows the per-protocol decision.
+#' first shows Y when the estimate passes the minimum-events rule and - when
+#' it fails the rule. A failed estimate is withheld unless its comparison is
+#' exempt, and an exempt comparison ends with ` (exempt)`. The second shows
+#' the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the estimate still
+#' passes the rule. The intention-to-treat estimand follows the per-protocol
+#' decision.
 #' `$get_horizon_windows()` returns the year-by-year detail.
 #'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`

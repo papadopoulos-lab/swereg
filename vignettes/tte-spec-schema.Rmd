@@ -234,6 +234,30 @@ the `Family` column of the Summary sheet. `$reload_spec()` applies a new
 - Some enrollments set `family`, and others do not. When one enrollment sets
   it, every enrollment MUST set it.
 
+# The minimum-events exemption
+
+An enrollment MAY set `minimum_events_rule_exempt`, one logical. With `true`,
+the minimum-events rule withholds no estimate of that comparison. An
+enrollment without the key is not exempt.
+
+```yaml
+enrollments:
+  - id: "18"
+    name: "Statin initiation vs none"
+    minimum_events_rule_exempt: true
+```
+
+s3 still computes the rule for each ETT of the enrollment and stores its
+verdict. The Minimum events sheets show that verdict, and the comparison name
+ends with ` (exempt)`. `$reload_spec()` applies a changed value as a cosmetic
+change, so s1 and s2 output stays valid. `$export()`, `$export_tables()` and
+`$print_target_checklist()` then stop until `$s3_analyze()` reruns.
+
+`tteplan_read_spec()` stops, and `tteplan_check_spec()` reports a row of kind
+`enrollment_rule_exempt`, when the value is not one logical. A number, a
+string, a null value, `NA` and a sequence are refused, and the message names
+the enrollment id.
+
 # What you see when a key is refused
 
 `tteplan_read_spec()` reports every refused key in one message, and reads no

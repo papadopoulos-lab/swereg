@@ -17,6 +17,10 @@
 # The decision depends on the observed events through the pooled rate. It
 # is a prespecified reporting rule. It is not a precision guarantee.
 #
+# An enrollment that sets `minimum_events_rule_exempt: true` is exempt. s3
+# computes and stores the decision of its ETTs, and withholds none of their
+# estimates. Their status is `.HORIZON_STATUS_EXEMPT`.
+#
 # The RD worker item of `.s3_ett_dispatch()` computes the window table
 # outside `safe_call()`, so an error stops the item. The parent merge in
 # `$s3_analyze()` calls `.s3_apply_horizon_rule()`, which stops when an ETT
@@ -36,6 +40,11 @@
 # The `horizon_status` of an estimand whose windows all pass.
 .HORIZON_STATUS_PASS <- "all windows pass"
 
+# The `horizon_status` of every estimand of an ETT whose enrollment sets
+# `minimum_events_rule_exempt: true`. It does not start with
+# `.HORIZON_STATUS_PREFIX`, so `.tte_horizon_withheld()` reads it as reported.
+.HORIZON_STATUS_EXEMPT <- "exempt from minimum-events rule"
+
 # The cuts that `max_passing_cut` reports: the largest of them at which an
 # estimand would still pass. A coarse grid, so the workbooks never show the
 # expected events themselves.
@@ -50,7 +59,8 @@
   "fail_hi",
   "fail_arm",
   "status",
-  "max_passing_cut"
+  "max_passing_cut",
+  "exempt"
 )
 
 # The result slots of each estimand that the rule withholds. The subgroup
@@ -64,6 +74,74 @@
   ),
   itt = list(irr = "irr_itt", rd = "rd_itt", curve = "rd_curve_itt")
 )
+
+
+#' Does the spec exempt an enrollment from the minimum-events rule?
+#'
+#' An enrollment is exempt when it sets `minimum_events_rule_exempt: true`.
+#' An enrollment without the key, and an id that the spec does not hold, are
+#' not exempt. `tteplan_read_spec()` refuses every value that is not one
+#' logical.
+#'
+#' @param spec `plan$spec`, or `NULL`.
+#' @param enrollment_id The enrollment id, compared as text.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_enrollment_rule_exempt <- function(spec, enrollment_id) {
+  if (length(enrollment_id) != 1L || is.na(enrollment_id)) {
+    return(FALSE)
+  }
+  for (enr in spec$enrollments %||% list()) {
+    if (identical(as.character(enr$id), as.character(enrollment_id))) {
+      return(isTRUE(enr[["minimum_events_rule_exempt"]]))
+    }
+  }
+  return(FALSE)
+}
+
+
+#' The names of the enrollments that the spec exempts, in spec order
+#'
+#' An exempt enrollment without a `name` is named by its id.
+#'
+#' @param spec `plan$spec`.
+#' @return A character vector, empty when no enrollment is exempt.
+#' @noRd
+.tte_exempt_enrollment_names <- function(spec) {
+  out <- character(0)
+  for (enr in spec$enrollments %||% list()) {
+    if (isTRUE(enr[["minimum_events_rule_exempt"]])) {
+      nm <- enr$name
+      ok <- is.character(nm) && length(nm) == 1L && !is.na(nm) && nzchar(nm)
+      out <- c(out, if (ok) nm else as.character(enr$id))
+    }
+  }
+  return(out)
+}
+
+
+#' The sentence of the generated prose that names the exempt enrollments
+#'
+#' TARGET item 6h, the OSF Inference criteria field and the Analysis plan
+#' row of the protocol table each carry it after their withholding sentence.
+#'
+#' @param spec `plan$spec`.
+#' @return A character(1) that ends with a full stop, or `NULL` when no
+#'   enrollment is exempt.
+#' @noRd
+.tte_exempt_rule_sentence <- function(spec) {
+  nm <- .tte_exempt_enrollment_names(spec)
+  if (length(nm) == 0L) {
+    return(NULL)
+  }
+  return(paste0(
+    "The specification exempts ",
+    .osf_and(nm),
+    " from the rule, so the rule withholds none of ",
+    if (length(nm) == 1L) "its" else "their",
+    " estimates."
+  ))
+}
 
 
 #' Is a stored status a status of the minimum-events rule?
@@ -328,10 +406,23 @@
 #' record holds the rule that made the decision, so the writers can refuse a
 #' result that a different rule judged.
 #'
-#' @param data,weight_col,follow_up,rule,treatment_var,tstart_var,tstop_var
+#' The record keeps the computed decision of the rule for every ETT:
+#' `reportable_weeks`, `withheld`, the `fail_*` fields and `max_passing_cut`.
+#' `rule$exempt` and `exempt` are `TRUE` when the rule holds `exempt = TRUE`,
+#' that is, when the spec exempts the enrollment of the ETT. An exempt record
+#' then has the status `.HORIZON_STATUS_EXEMPT`, which carries no
+#' `.HORIZON_STATUS_PREFIX`. A record that is not exempt has `exempt = FALSE`.
+#' Its `rule` holds no `exempt`, and its status is the status of
+#' `.tte_horizon_decision()`. So it is the record of swereg 27.3.0 with one
+#' more field.
+#'
+#' @param data,weight_col,follow_up,treatment_var,tstart_var,tstop_var
 #'   As for `.tte_horizon_windows()`.
-#' @return A named list: `rule`, `weight_col`, `follow_up`, `windows`, and the
-#'   fields of `.tte_horizon_decision()`.
+#' @param rule A list holding `min_expected_events` and, optionally,
+#'   `exempt`. A missing `exempt` counts as `FALSE`.
+#' @return A named list: `rule` (`min_expected_events`, and `exempt = TRUE`
+#'   for an exempt record), `weight_col`, `follow_up`, `windows`, the fields
+#'   of `.tte_horizon_decision()`, and `exempt`.
 #' @noRd
 .tte_horizon_record <- function(
   data,
@@ -351,14 +442,28 @@
     tstart_var,
     tstop_var
   )
+  exempt <- isTRUE(rule$exempt)
+  decision <- .tte_horizon_decision(windows, rule)
+  if (exempt) {
+    decision$status <- .HORIZON_STATUS_EXEMPT
+  }
+  decision$exempt <- exempt
+  # The rule of a record that is not exempt is the rule of swereg 27.3.0.
+  # `.tte_assert_horizon_rule_current()` reads a missing `exempt` as FALSE.
+  stored_rule <- list(
+    min_expected_events = as.numeric(rule$min_expected_events)
+  )
+  if (exempt) {
+    stored_rule$exempt <- TRUE
+  }
   return(c(
     list(
-      rule = list(min_expected_events = as.numeric(rule$min_expected_events)),
+      rule = stored_rule,
       weight_col = weight_col,
       follow_up = as.numeric(follow_up),
       windows = windows
     ),
-    .tte_horizon_decision(windows, rule)
+    decision
   ))
 }
 
@@ -449,6 +554,10 @@
 #' estimates behind. The intention-to-treat record then takes the
 #' per-protocol decision, through `.tte_horizon_follow_pp()`.
 #'
+#' It withholds an estimand when its record has `withheld = TRUE` and is not
+#' exempt. An exempt record keeps `withheld = TRUE` when the rule fails, and
+#' the function withholds none of its estimates.
+#'
 #' @param results_ett `plan$results_ett`.
 #' @param ett_ids Character vector, the ETTs this run computed.
 #' @return `results_ett`, with every withheld estimand withheld.
@@ -474,7 +583,7 @@
     res$horizon_itt <- .tte_horizon_follow_pp(res$horizon_pp, res$horizon_itt)
     for (est in names(.TTE_ESTIMANDS)) {
       rec <- res[[paste0("horizon_", est)]]
-      if (rec$withheld) {
+      if (rec$withheld && !isTRUE(rec$exempt)) {
         res <- .tte_horizon_withhold(res, est, rec)
       }
     }
@@ -519,6 +628,13 @@
 #' on its own, as before swereg 27.3.0, rather than by the per-protocol
 #' decision.
 #'
+#' They also stop when a stored record's `rule$exempt` differs from the
+#' current exemption of its ETT. The function finds the enrollment of each
+#' ETT in `plan$ett$enrollment_id`, and reads `minimum_events_rule_exempt` of
+#' that enrollment in `plan$spec`. A record without `rule$exempt`, as swereg
+#' 27.3.0 stored it, counts as not exempt. So a result of a spec without the
+#' key stays current.
+#'
 #' @param plan A `TTEPlan`.
 #' @param where Character(1), the method name for the message.
 #' @return `invisible(TRUE)`.
@@ -530,7 +646,18 @@
   stale <- character(0)
   seen <- numeric(0)
   own_itt <- character(0)
+  flipped <- character(0)
+  ett_enrollment <- stats::setNames(
+    as.character(plan$ett$enrollment_id),
+    as.character(plan$ett$ett_id)
+  )
   for (eid in names(plan$results_ett)) {
+    enr <- if (eid %in% names(ett_enrollment)) {
+      ett_enrollment[[eid]]
+    } else {
+      NA_character_
+    }
+    want_exempt <- .tte_enrollment_rule_exempt(plan$spec, enr)
     itt <- plan$results_ett[[eid]][["horizon_itt"]]
     if (is.list(itt) && !identical(itt$decided_by, "pp")) {
       own_itt <- c(own_itt, eid)
@@ -548,8 +675,25 @@
         stale <- c(stale, eid)
         seen <- c(seen, as.numeric(got))
       }
+      got_exempt <- isTRUE(rec$rule$exempt)
+      if (!identical(got_exempt, want_exempt)) {
+        flipped <- c(
+          flipped,
+          paste0(
+            eid,
+            " (enrollment ",
+            enr,
+            ": stored ",
+            tolower(got_exempt),
+            ", spec ",
+            tolower(want_exempt),
+            ")"
+          )
+        )
+      }
     }
   }
+  flipped <- unique(flipped)
   if (length(absent) > 0L) {
     stop(
       where,
@@ -594,6 +738,18 @@
       call. = FALSE
     )
   }
+  if (length(flipped) > 0L) {
+    stop(
+      where,
+      ": the stored results of ",
+      length(flipped),
+      " ETT(s) were judged with another minimum_events_rule_exempt than ",
+      "the spec now gives their enrollment: ",
+      paste(utils::head(flipped, 5L), collapse = ", "),
+      ". Rerun $s3_analyze() to apply the current exemption.",
+      call. = FALSE
+    )
+  }
   return(invisible(TRUE))
 }
 
@@ -601,7 +757,9 @@
 #' Name every withheld estimand of an s3 run on stdout
 #'
 #' The worker output reaches nobody, so the driver states the decision in the
-#' job log.
+#' job log. An estimand of an exempt enrollment is never named as withheld.
+#' When the run holds one, a second line names each such estimand as exempt.
+#' A run without an exempt estimand prints the one line of swereg 27.3.0.
 #'
 #' @param results_ett `plan$results_ett`.
 #' @param ett_ids Character vector, the ETTs this run computed.
@@ -612,10 +770,13 @@
     return(invisible(NULL))
   }
   hits <- character(0)
+  exempt <- character(0)
   for (eid in ett_ids) {
     for (est in names(.TTE_ESTIMANDS)) {
       rec <- results_ett[[eid]][[paste0("horizon_", est)]]
-      if (isTRUE(rec$withheld)) {
+      if (isTRUE(rec$exempt)) {
+        exempt <- c(exempt, paste0(eid, " (", est, ")"))
+      } else if (isTRUE(rec$withheld)) {
         hits <- c(
           hits,
           paste0(eid, " (", est, ", ", rec$reportable_weeks, " w)")
@@ -635,6 +796,14 @@
       length(hits),
       n,
       paste(hits, collapse = ", ")
+    ))
+  }
+  if (length(exempt) > 0L) {
+    cat(sprintf(
+      "s3: the specification exempts %d of %d ETT estimands from the minimum-events rule, so the rule withheld none of their estimates: %s\n",
+      length(exempt),
+      n,
+      paste(exempt, collapse = ", ")
     ))
   }
   return(invisible(NULL))
