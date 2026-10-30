@@ -130,6 +130,7 @@
       "confounders",
       "enrollments",
       "exclusion_criteria",
+      "feasibility_follow_up_weeks",
       "follow_up",
       "inclusion_criteria",
       "min_expected_events_per_arm_per_year",

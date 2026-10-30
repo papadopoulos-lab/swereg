@@ -33,6 +33,11 @@
 #'   the comparator arm (default: 0L).
 #' @param argset Named list with age_group, age_min, age_max (and optional
 #'   person_id_var, outcome_description).
+#' @param feasibility_horizon Logical(1), `FALSE` by default. `TRUE` marks a
+#'   feasibility-horizon ETT. s2 builds it as any other ETT, s3 computes only
+#'   the minimum-events rule for it, and only the Minimum events sheets show
+#'   it. The spec key `feasibility_follow_up_weeks` adds these ETTs. See
+#'   [tteplan_read_spec()].
 TTEPlan$set(
   "public",
   "add_one_ett",
@@ -48,8 +53,16 @@ TTEPlan$set(
     observed_var = NULL,
     intervention_tolerance_weeks = 0L,
     comparator_tolerance_weeks = 0L,
-    argset = list()
+    argset = list(),
+    feasibility_horizon = FALSE
   ) {
+    if (
+      !is.logical(feasibility_horizon) ||
+        length(feasibility_horizon) != 1L ||
+        is.na(feasibility_horizon)
+    ) {
+      stop("feasibility_horizon must be TRUE or FALSE", call. = FALSE)
+    }
     outcome_description <- argset$outcome_description %||% NA_character_
     outcome_role <- argset$outcome_role %||% NA_character_
     age_group <- argset$age_group
@@ -214,7 +227,8 @@ TTEPlan$set(
       eligible_var = elig,
       observed_var = list(observed_var),
       intervention_tolerance_weeks = intervention_tolerance_weeks,
-      comparator_tolerance_weeks = comparator_tolerance_weeks
+      comparator_tolerance_weeks = comparator_tolerance_weeks,
+      feasibility_horizon = feasibility_horizon
     )
 
     if (is.null(self$ett)) {
@@ -249,6 +263,10 @@ TTEPlan$set(
 #'       plan was built from a spec.}
 #'     \item{seed}{Integer. It makes the comparator draw reproducible.
 #'       Present when the plan was built from a spec.}
+#'     \item{reported_follow_up_time}{Integer, the longest follow-up of the
+#'       reported ETTs of the enrollment, in weeks. Present only when the
+#'       enrollment holds a feasibility-horizon ETT. `design$follow_up_time`
+#'       is then the feasibility horizon.}
 #'   }
 TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
   enrollment_ids <- unique(self$ett$enrollment_id)
@@ -320,6 +338,16 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
   }
   if ("seed" %in% names(self$ett)) {
     result$seed <- first$seed
+  }
+  # With a feasibility horizon, `follow_up_time` covers it, so s1 enrolls
+  # past the longest reported follow-up. s1e truncates the weights and counts
+  # the fill over the rows the reported ETTs reach, so it needs that length.
+  horizon_only <- "feasibility_horizon" %in%
+    names(rows) &&
+    any(rows$feasibility_horizon %in% TRUE)
+  if (horizon_only) {
+    reported <- rows$follow_up[!(rows$feasibility_horizon %in% TRUE)]
+    result$reported_follow_up_time <- as.integer(max(reported))
   }
 
   return(result)

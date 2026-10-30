@@ -2,6 +2,17 @@
 # export_tables helpers (internal)
 # =============================================================================
 
+#' The clock that the Provenance sheet reads for "Exported at"
+#'
+#' One seam for the export time, so a test can pin it and compare two
+#' workbooks cell by cell.
+#'
+#' @return `Sys.time()`.
+#' @noRd
+.export_timestamp <- function() {
+  return(Sys.time())
+}
+
 #' @noRd
 .write_provenance <- function(wb, plan) {
   openxlsx::addWorksheet(wb, "Provenance")
@@ -29,7 +40,7 @@
     return(format(x, "%Y-%m-%d %H:%M:%S"))
   }
 
-  add("Exported at", format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
+  add("Exported at", format(.export_timestamp(), "%Y-%m-%d %H:%M:%S"))
   add("Project", plan$project_prefix)
   if (!is.null(spec)) {
     add("Study title", spec$study$title)
@@ -57,8 +68,9 @@
   }
   add("Admin censoring (isoyearweek)", plan$global_max_isoyearweek)
   add("Period width (weeks)", as.character(plan$period_width))
-  add("Enrollments", as.character(length(unique(plan$ett$enrollment_id))))
-  add("ETTs", as.character(nrow(plan$ett)))
+  reported <- .plan_ett_reported(plan)
+  add("Enrollments", as.character(length(unique(reported$enrollment_id))))
+  add("ETTs", as.character(nrow(reported)))
   add("", "")
   add("R version", R.version.string)
   add("swereg version (export)", as.character(utils::packageVersion("swereg")))
@@ -831,7 +843,7 @@
     return(NULL)
   }
   protocol_ett_id <- as.character(protocol_ett_id)[1L]
-  if (!protocol_ett_id %in% plan$ett$ett_id) {
+  if (!protocol_ett_id %in% .plan_ett_reported(plan)$ett_id) {
     warning(
       "protocol_ett_id is not an ETT id of this plan (ignored): ",
       protocol_ett_id,

@@ -542,7 +542,13 @@
   )
 
   # 6h: Analysis plan
-  ipcw_settings <- .target_6h_ipcw_settings(.plan_ipcw_pp_options(plan))
+  # A feasibility-horizon ETT reports nothing, so item 6h does not name it.
+  ipcw_opts <- .plan_ipcw_pp_options(plan)
+  feasibility_ids <- .plan_ett_feasibility_ids(plan)
+  if (length(feasibility_ids) > 0L) {
+    ipcw_opts <- ipcw_opts[!names(ipcw_opts) %in% feasibility_ids]
+  }
+  ipcw_settings <- .target_6h_ipcw_settings(ipcw_opts)
   item(
     "6",
     "h",
@@ -1196,7 +1202,12 @@
     return(invisible(plan))
   }
 
+  # A feasibility-horizon ETT gets no row, as in `$get_estimates()`.
+  feasibility_ids <- .plan_ett_feasibility_ids(plan)
   rows <- lapply(names(plan$results_ett), function(ett_id) {
+    if (ett_id %in% feasibility_ids) {
+      return(NULL)
+    }
     r <- plan$results_ett[[ett_id]]
     n_events <- if (!is.null(r$summary)) r$summary$n_events else NA
     irr_status <- if (is.null(r$irr_pp_trunc)) {

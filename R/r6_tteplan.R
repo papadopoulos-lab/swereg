@@ -103,7 +103,10 @@ TTEPlan <- R6::R6Class(
     #'   `s1_run_id` of the plan. The column `s2_run_id` holds the id of the
     #'   s2 run that wrote the analysis files. It follows the same rules as
     #'   `s1_run_id`, and it changes on every s2 run. s3 copies it into each
-    #'   result it stores.
+    #'   result it stores. The logical column `feasibility_horizon` is `TRUE`
+    #'   on each ETT that the spec key `feasibility_follow_up_weeks` adds, and
+    #'   `FALSE` on every other ETT. [tteplan_load()] gives a plan saved
+    #'   without the column the value `FALSE` on every ETT.
     ett = NULL,
     #' @field skeleton_files Character vector of skeleton file paths.
     skeleton_files = NULL,
@@ -433,3 +436,73 @@ TTEPlan <- R6::R6Class(
     .schema_version = NULL
   )
 )
+
+
+#' The ETTs a plan reports
+#'
+#' A feasibility-horizon ETT holds `feasibility_horizon = TRUE` in
+#' `plan$ett`. The spec key `feasibility_follow_up_weeks` adds it, and s3
+#' computes only the minimum-events rule for it. Every reporting consumer of
+#' `plan$ett` reads the rows this function returns. The Minimum events sheets
+#' and `$s3_feasibility()` read `plan$ett` itself, so they show the
+#' feasibility horizon.
+#'
+#' @param plan A `TTEPlan`, or a list with the element `ett`.
+#' @return `plan$ett` without its feasibility-horizon ETTs. It is `plan$ett`
+#'   itself when `plan$ett` is `NULL`, has no `feasibility_horizon` column, or
+#'   holds no feasibility-horizon ETT. A plan without the column reports
+#'   every ETT.
+#' @noRd
+.plan_ett_reported <- function(plan) {
+  ett <- plan$ett
+  if (is.null(ett) || !"feasibility_horizon" %in% names(ett)) {
+    return(ett)
+  }
+  keep <- !(ett[["feasibility_horizon"]] %in% TRUE)
+  if (all(keep)) {
+    return(ett)
+  }
+  return(ett[keep])
+}
+
+
+#' The ids of the feasibility-horizon ETTs of a plan
+#'
+#' The ETT ids of `plan$ett` that `.plan_ett_reported()` drops. A consumer
+#' that iterates over stored results by ETT id removes these ids.
+#'
+#' @param plan A `TTEPlan`, or a list with the element `ett`.
+#' @return A character vector, empty when the plan holds no
+#'   feasibility-horizon ETT.
+#' @noRd
+.plan_ett_feasibility_ids <- function(plan) {
+  ett <- plan$ett
+  if (is.null(ett) || !"ett_id" %in% names(ett)) {
+    return(character(0))
+  }
+  return(setdiff(
+    as.character(ett$ett_id),
+    as.character(.plan_ett_reported(plan)$ett_id)
+  ))
+}
+
+
+#' Whether one ETT of a grid gets the horizon records and nothing else
+#'
+#' `$s3_analyze()` calls it for each ETT it runs. A feasibility-horizon ETT
+#' gets one horizon item per estimand and no estimate. The test file
+#' test-s3-feasibility.R requires that the body of `$s3_analyze()` never
+#' names the feasibility step, so the column is read here.
+#'
+#' @param ett The ETT grid, or a subset of its rows.
+#' @param i Integer(1), the row of `ett`.
+#' @return `TRUE` when the row holds `feasibility_horizon = TRUE`, and
+#'   `FALSE` otherwise, also when `ett` has no such column.
+#' @noRd
+.tte_ett_horizon_only <- function(ett, i) {
+  return(
+    "feasibility_horizon" %in%
+      names(ett) &&
+      isTRUE(ett[["feasibility_horizon"]][i])
+  )
+}

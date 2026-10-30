@@ -17,7 +17,8 @@
 #' failed. `"OK"` names a stored result.
 #'
 #' It reports on the CACHE and never on a number. A caller that wants the
-#' numbers calls `$get_estimates()`.
+#' numbers calls `$get_estimates()`. A feasibility-horizon ETT gets no row,
+#' as in `$get_estimates()`.
 TTEPlan$set("public", "results_summary", function() {
   return(.plan_results_summary(self))
 })
@@ -56,6 +57,12 @@ TTEPlan$set("public", "results_summary", function() {
 #' `$get_curves()`, `$get_baselines()`, `$get_attrition()`,
 #' `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 #' takes no argument, and each computes nothing.
+#'
+#' A feasibility-horizon ETT, one that the spec key
+#' `feasibility_follow_up_weeks` adds, gets no row from this method,
+#' `$get_curves()`, `$get_subgroups()` or `$get_horizon_windows()`. s3
+#' stores its two horizon records and no estimate. The Minimum events sheets
+#' of `$export_tables()` are the only output that shows its decision.
 #'
 #' `horizon_reportable_weeks` and `horizon_status` READ the decision of the
 #' minimum-events rule that `$s3_analyze()` stored for the estimand. Both
@@ -303,6 +310,9 @@ TTEPlan$set("public", "get_subgroups", function() {
 #' withholds none of its estimates. `$get_estimates()` gives the reporting
 #' horizon, which is then the follow-up of the ETT.
 #'
+#' A feasibility-horizon ETT gets no row. Its decision shows only in the
+#' Minimum events sheets.
+#'
 #' @return A data.table with columns `ett_id`, `estimand`, `weight_col`,
 #'   `min_expected_events_per_arm_per_year`, `window_lo`, `window_hi`, `arm`,
 #'   `py_weighted`, `events_weighted`, `rate_pooled`, `events_expected`, `pass`,
@@ -333,7 +343,8 @@ TTEPlan$set("public", "get_horizon_windows", function() {
 #' works from s0 on.
 #'
 #' @param ett_id Character(1), the emulated trial the table documents.
-#'   `NULL` takes the first ETT in the grid.
+#'   `NULL` takes the first ETT in the grid. A feasibility-horizon ETT is
+#'   not in the grid this method reads, so its id stops as an unknown id.
 #' @return A data.table with 7 rows and 3 character columns.
 TTEPlan$set("public", "get_protocol_table", function(ett_id = NULL) {
   return(.build_protocol_table(self$spec, .protocol_context(self, ett_id)))
@@ -342,7 +353,8 @@ TTEPlan$set("public", "get_protocol_table", function(ett_id = NULL) {
 #' @description Recompute baseline characteristic tables in-process.
 #'
 #' Reads each enrollment's smallest analysis file (and the raw file when
-#' present) from disk and re-runs the new `swereg_table1` engine. Used to
+#' present) from disk and re-runs the new `swereg_table1` engine. The file
+#' is one of a reported ETT, never one of a feasibility-horizon ETT. Used to
 #' refresh stale results after upgrading swereg, without re-running the
 #' full `$s3_analyze()` pipeline.
 #'
@@ -414,6 +426,8 @@ TTEPlan$set(
       "recompute_baselines()",
       ett$ett_id[ett$enrollment_id %in% enrollment_ids]
     )
+    # The file it reads is one of a reported ETT, as in `$s3_analyze()`.
+    ett <- .plan_ett_reported(self)
     n_recomputed <- 0L
     n_skipped <- 0L
     for (eid in enrollment_ids) {

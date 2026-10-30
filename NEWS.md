@@ -3,6 +3,7 @@
 ## New features
 
 * **An enrollment MAY set `minimum_events_rule_exempt: true`.** The minimum-events rule then withholds none of its estimates, and s3 still stores the verdict of the rule. The Minimum events sheets show that verdict with ` (exempt)` after the comparison, and the generated methods text names the exempt comparison. A changed key stops the writers until `$s3_analyze()` reruns; s1 and s2 output stays valid.
+* **The optional spec key `feasibility_follow_up_weeks` adds a feasibility horizon.** When it is longer than every `follow_up`, each enrollment and outcome gets one more ETT of that length. s3 computes only the minimum-events rule for it, and only the two Minimum events sheets show it. `$reload_spec()` treats a change of the key as structural.
 
 # swereg 27.3.0
 

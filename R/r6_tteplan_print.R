@@ -3,6 +3,9 @@
 
 #' @include r6_tteplan.R
 #' @description Print the TTEPlan object.
+#'
+#' The ETT grid it prints holds the reported ETTs. A feasibility-horizon ETT,
+#' one that the spec key `feasibility_follow_up_weeks` adds, is not printed.
 #' @param ... Ignored.
 TTEPlan$set("public", "print", function(...) {
   cat("<TTEPlan>", self$project_prefix, "\n")
@@ -23,13 +26,14 @@ TTEPlan$set("public", "print", function(...) {
       "\n"
     )
   }
-  if (is.null(self$ett) || nrow(self$ett) == 0) {
+  ett <- .plan_ett_reported(self)
+  if (is.null(ett) || nrow(ett) == 0) {
     cat("  ETTs: (none)\n")
   } else {
     n_enrollments <- length(self)
-    n_etts <- nrow(self$ett)
-    n_outcomes <- length(unique(self$ett$outcome_var))
-    n_follow_up <- length(unique(self$ett$follow_up))
+    n_etts <- nrow(ett)
+    n_outcomes <- length(unique(ett$outcome_var))
+    n_follow_up <- length(unique(ett$follow_up))
     n_skeletons <- length(self$skeleton_files)
 
     # Skeleton file count line (before ETT summary)
@@ -59,7 +63,7 @@ TTEPlan$set("public", "print", function(...) {
     ))
 
     # Enrollment grid
-    enroll_grid <- self$ett[,
+    enroll_grid <- ett[,
       .(
         max_follow_up = paste0(max(follow_up), "w"),
         n_ett = .N
@@ -70,7 +74,7 @@ TTEPlan$set("public", "print", function(...) {
     print(enroll_grid, row.names = FALSE, class = FALSE)
 
     # ETT grid
-    ett_grid <- self$ett[, .(
+    ett_grid <- ett[, .(
       ett_id,
       outcome_name = fifelse(
         nchar(outcome_name) > 45,

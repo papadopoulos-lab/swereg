@@ -64,6 +64,18 @@ The specification exempts an enrollment from the minimum-events rule
 with \code{true}. s3 still computes the rule for its ETTs, and the Minimum
 events sheets show that verdict. The rule then withholds none of its
 estimates
+\item The spec MAY set the top-level key \code{feasibility_follow_up_weeks},
+one positive whole number of weeks. A logical, a string, \code{NA}, 0, a
+fraction and a value of length other than 1 stop, and the error names
+the key. When the value is longer than every \code{follow_up} horizon, the
+ETT grid gets one more follow-up of that length for every enrollment
+and outcome. s2 builds these feasibility-horizon ETTs as any other
+ETT. s3 computes only the minimum-events rule for them, and only the
+Minimum events sheets show them. s1 enrolls each enrollment to the
+feasibility horizon. It truncates \code{ipw} and counts the fill over the
+rows up to the longest reported follow-up, as it does without the
+key. A value that is not longer than every \code{follow_up}
+horizon adds no ETT
 \item Computed confounders must have \code{implementation$source_variable}
 }
 

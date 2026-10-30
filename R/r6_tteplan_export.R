@@ -44,6 +44,12 @@
 #' decision.
 #' `$get_horizon_windows()` returns the year-by-year detail.
 #'
+#' The two Minimum events sheets are the only sheets that show a
+#' feasibility-horizon ETT, one that the spec key
+#' `feasibility_follow_up_weeks` adds. Its follow-up gets its own column.
+#' Every other sheet, `results.qs2` and `$get_horizon_windows()` leave it
+#' out.
+#'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,
 #' risk differences and intervals. A forest image repeated a subset of those

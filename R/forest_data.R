@@ -128,9 +128,10 @@
     }
 
     # `outcome_description` is spec-driven and lives on the ETT grid.
-    ett_row <- plan$ett[ett_id == eid][1]
+    reported <- .plan_ett_reported(plan)
+    ett_row <- reported[ett_id == eid][1]
     outcome_description <- if (
-      nrow(ett_row) > 0L && "outcome_description" %in% names(plan$ett)
+      nrow(ett_row) > 0L && "outcome_description" %in% names(reported)
     ) {
       ett_row$outcome_description
     } else {

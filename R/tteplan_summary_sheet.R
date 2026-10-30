@@ -182,7 +182,7 @@
 #' @noRd
 .write_summary_sheet <- function(wb, plan, sheet_name = "Summary") {
   openxlsx::addWorksheet(wb, sheet_name)
-  ett <- plan$ett
+  ett <- .plan_ett_reported(plan)
   if (is.null(ett)) {
     ett <- data.table::data.table(
       ett_id = character(0),

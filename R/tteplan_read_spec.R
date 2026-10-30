@@ -62,6 +62,18 @@
 #'     with `true`. s3 still computes the rule for its ETTs, and the Minimum
 #'     events sheets show that verdict. The rule then withholds none of its
 #'     estimates
+#'   \item The spec MAY set the top-level key `feasibility_follow_up_weeks`,
+#'     one positive whole number of weeks. A logical, a string, `NA`, 0, a
+#'     fraction and a value of length other than 1 stop, and the error names
+#'     the key. When the value is longer than every `follow_up` horizon, the
+#'     ETT grid gets one more follow-up of that length for every enrollment
+#'     and outcome. s2 builds these feasibility-horizon ETTs as any other
+#'     ETT. s3 computes only the minimum-events rule for them, and only the
+#'     Minimum events sheets show them. s1 enrolls each enrollment to the
+#'     feasibility horizon. It truncates `ipw` and counts the fill over the
+#'     rows up to the longest reported follow-up, as it does without the
+#'     key. A value that is not longer than every `follow_up`
+#'     horizon adds no ETT
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -605,8 +617,9 @@ tteplan_read_spec <- function(spec_path) {
 
   # An exclusion on an outcome variable that reads the weeks after time zero
   # selects on the follow-up outcome. This check, the family check, the
-  # exemption check and the enrollment id check below run last, in this
-  # order, and `tteplan_check_spec()` relies on that order.
+  # exemption check, the feasibility horizon check and the enrollment id
+  # check below run last, in this order, and `tteplan_check_spec()` relies
+  # on that order.
   outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
   if (length(outcome_selecting) > 0L) {
     stop(.tte_outcome_selecting_message(outcome_selecting), call. = FALSE)
@@ -618,6 +631,18 @@ tteplan_read_spec <- function(spec_path) {
   exempt_found <- .tte_enrollment_exempt_problems(spec)
   if (length(exempt_found) > 0L) {
     stop(.tte_enrollment_exempt_message(exempt_found), call. = FALSE)
+  }
+  feasibility_found <- .tte_feasibility_follow_up_problems(spec)
+  if (length(feasibility_found) > 0L) {
+    stop(
+      .tte_feasibility_follow_up_message(feasibility_found),
+      call. = FALSE
+    )
+  }
+  if (!is.null(spec[["feasibility_follow_up_weeks"]])) {
+    spec[["feasibility_follow_up_weeks"]] <- as.integer(
+      spec[["feasibility_follow_up_weeks"]]
+    )
   }
   # `$reload_spec()` and the Summary sheet look an enrollment up by its id, and
   # take the first match. A repeated id hides every later enrollment.

@@ -193,12 +193,13 @@
 }
 
 
-#' Classify the two criteria containers, the follow-up grid and the
-#' rare_condition_rule.
+#' Classify the two criteria containers, the follow-up grid, the feasibility
+#' horizon and the rare_condition_rule.
 #'
 #' Each one decides who enters the study, or for how long swereg follows them.
 #' A cached result cannot be refreshed with a new value, so every change inside
-#' the four blocks is structural.
+#' the five blocks is structural. `feasibility_follow_up_weeks` adds ETTs to
+#' the grid and changes the s2 output.
 #'
 #' @noRd
 .ds_diff_definitions <- function(old, new, ps) {
@@ -210,6 +211,11 @@
   }
   if (!identical(old$follow_up, new$follow_up)) {
     ps("follow_up", old$follow_up, new$follow_up)
+  }
+  a <- old[["feasibility_follow_up_weeks"]]
+  b <- new[["feasibility_follow_up_weeks"]]
+  if (!identical(a, b)) {
+    ps("feasibility_follow_up_weeks", a, b)
   }
   # The rare_condition_rule decides who is enrolled and which confounders stay.
   # Each field is a definition the frozen decision was made under.
@@ -540,6 +546,7 @@
   "confounders",
   "enrollments",
   "exclusion_criteria",
+  "feasibility_follow_up_weeks",
   "follow_up",
   "inclusion_criteria",
   "min_expected_events_per_arm_per_year",

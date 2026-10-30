@@ -117,7 +117,10 @@ change it. s3 refuses an ETT whose value differs from the current
 \code{s1_run_id} of the plan. The column \code{s2_run_id} holds the id of the
 s2 run that wrote the analysis files. It follows the same rules as
 \code{s1_run_id}, and it changes on every s2 run. s3 copies it into each
-result it stores.}
+result it stores. The logical column \code{feasibility_horizon} is \code{TRUE}
+on each ETT that the spec key \code{feasibility_follow_up_weeks} adds, and
+\code{FALSE} on every other ETT. \code{\link[=tteplan_load]{tteplan_load()}} gives a plan saved
+without the column the value \code{FALSE} on every ETT.}
 
     \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
 
@@ -373,6 +376,12 @@ the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the estimate still
 passes the rule. The intention-to-treat estimand follows the per-protocol
 decision.
 \verb{$get_horizon_windows()} returns the year-by-year detail.
+
+The two Minimum events sheets are the only sheets that show a
+feasibility-horizon ETT, one that the spec key
+\code{feasibility_follow_up_weeks} adds. Its follow-up gets its own column.
+Every other sheet, \code{results.qs2} and \verb{$get_horizon_windows()} leave it
+out.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
@@ -781,6 +790,15 @@ method computes and stores the decision of its ETTs as for any ETT, and
 withholds none of their estimates. Their \code{horizon_status} reads
 \code{"exempt from minimum-events rule"}.
 
+A feasibility-horizon ETT, one with \code{feasibility_horizon = TRUE} in
+\verb{$ett}, gets one work item per estimand. Each item computes the horizon
+record of its estimand through the same \code{.tte_horizon_record()} call as
+the RD item. The intention-to-treat record then takes the per-protocol
+decision. The method stores no estimate for the ETT: no summary, rate,
+ratio, risk difference, number needed to treat, survival curve or
+subgroup result. The enrollment loop reads an analysis file of a reported
+ETT.
+
 The method stops when the spec has no
 \code{min_expected_events_per_arm_per_year}. It also stops when an ETT of the
 run has no horizon decision for an estimand.
@@ -840,6 +858,9 @@ are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
 \if{latex}{\out{\hypertarget{method-TTEPlan-print}{}}}
 \subsection{\code{TTEPlan$print()}}{
   Print the TTEPlan object.
+
+The ETT grid it prints holds the reported ETTs. A feasibility-horizon ETT,
+one that the spec key \code{feasibility_follow_up_weeks} adds, is not printed.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print(...)}
@@ -898,7 +919,8 @@ a slot the plan does not hold. \code{"SKIP: <reason>"} names a worker that
 failed. \code{"OK"} names a stored result.
 
 It reports on the CACHE and never on a number. A caller that wants the
-numbers calls \verb{$get_estimates()}.
+numbers calls \verb{$get_estimates()}. A feasibility-horizon ETT gets no row,
+as in \verb{$get_estimates()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$results_summary()}
@@ -944,6 +966,12 @@ Six sibling methods return the other stored results in the same shape:
 \verb{$get_curves()}, \verb{$get_baselines()}, \verb{$get_attrition()},
 \verb{$get_matching()}, \verb{$get_subgroups()} and \verb{$get_horizon_windows()}. Each
 takes no argument, and each computes nothing.
+
+A feasibility-horizon ETT, one that the spec key
+\code{feasibility_follow_up_weeks} adds, gets no row from this method,
+\verb{$get_curves()}, \verb{$get_subgroups()} or \verb{$get_horizon_windows()}. s3
+stores its two horizon records and no estimate. The Minimum events sheets
+of \verb{$export_tables()} are the only output that shows its decision.
 
 \code{horizon_reportable_weeks} and \code{horizon_status} READ the decision of the
 minimum-events rule that \verb{$s3_analyze()} stored for the estimand. Both
@@ -1238,6 +1266,9 @@ sets \code{minimum_events_rule_exempt: true}, \code{pass} and
 \code{horizon_status} reads \code{"exempt from minimum-events rule"}. The rule
 withholds none of its estimates. \verb{$get_estimates()} gives the reporting
 horizon, which is then the follow-up of the ETT.
+
+A feasibility-horizon ETT gets no row. Its decision shows only in the
+Minimum events sheets.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_horizon_windows()}
@@ -1284,7 +1315,8 @@ works from s0 on.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{ett_id}}{Character(1), the emulated trial the table documents.
-\code{NULL} takes the first ETT in the grid.}
+\code{NULL} takes the first ETT in the grid. A feasibility-horizon ETT is
+not in the grid this method reads, so its id stops as an unknown id.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1300,7 +1332,8 @@ works from s0 on.
   Recompute baseline characteristic tables in-process.
 
 Reads each enrollment's smallest analysis file (and the raw file when
-present) from disk and re-runs the new \code{swereg_table1} engine. Used to
+present) from disk and re-runs the new \code{swereg_table1} engine. The file
+is one of a reported ETT, never one of a feasibility-horizon ETT. Used to
 refresh stale results after upgrading swereg, without re-running the
 full \verb{$s3_analyze()} pipeline.
 
@@ -1469,7 +1502,8 @@ re-enrollment for each outcome/follow-up combo.
   observed_var = NULL,
   intervention_tolerance_weeks = 0L,
   comparator_tolerance_weeks = 0L,
-  argset = list()
+  argset = list(),
+  feasibility_horizon = FALSE
 )}
     \if{html}{\out{</div>}}
   }
@@ -1495,6 +1529,11 @@ the intervention arm (default: 0L).}
 the comparator arm (default: 0L).}
       \item{\code{argset}}{Named list with age_group, age_min, age_max (and optional
 person_id_var, outcome_description).}
+      \item{\code{feasibility_horizon}}{Logical(1), \code{FALSE} by default. \code{TRUE} marks a
+feasibility-horizon ETT. s2 builds it as any other ETT, s3 computes only
+the minimum-events rule for it, and only the Minimum events sheets show
+it. The spec key \code{feasibility_follow_up_weeks} adds these ETTs. See
+\code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1534,6 +1573,10 @@ capped at the comparators that trial holds. Present when the
 plan was built from a spec.}
 \item{seed}{Integer. It makes the comparator draw reproducible.
 Present when the plan was built from a spec.}
+\item{reported_follow_up_time}{Integer, the longest follow-up of the
+reported ETTs of the enrollment, in weeks. Present only when the
+enrollment holds a feasibility-horizon ETT. \code{design$follow_up_time}
+is then the feasibility horizon.}
 }
   }
 }

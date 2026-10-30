@@ -671,11 +671,15 @@
 
 
 #' Every stored effect estimate, one row per ETT, estimand and weighting.
+#'
+#' A feasibility-horizon ETT gets no row. `.plan_ett_feasibility_ids()` names
+#' them.
 #' @param plan A TTEPlan.
 #' @return A data.table with the `estimates` schema.
 #' @noRd
 .acc_estimates <- function(plan) {
   ett_ids <- names(plan$results_ett)
+  ett_ids <- setdiff(ett_ids, .plan_ett_feasibility_ids(plan))
   if (is.null(ett_ids) || length(ett_ids) == 0L) {
     return(.acc_empty(.ACC_SCHEMA$estimates))
   }
@@ -772,11 +776,14 @@
 
 #' Every stored survival curve, one row per ETT, estimand, weighting, arm and
 #' stop time.
+#'
+#' A feasibility-horizon ETT gets no row.
 #' @param plan A TTEPlan.
 #' @return A data.table with the `curves` schema.
 #' @noRd
 .acc_curves <- function(plan) {
   ett_ids <- names(plan$results_ett)
+  ett_ids <- setdiff(ett_ids, .plan_ett_feasibility_ids(plan))
   if (is.null(ett_ids) || length(ett_ids) == 0L) {
     return(.acc_empty(.ACC_SCHEMA$curves))
   }
@@ -1216,11 +1223,14 @@
 #' `ratio_of_irrs` is `NA` unless the subgroup variable has exactly two levels.
 #' `$effect_modification_test()` reports a ratio for a binary subgroup only.
 #'
+#' A feasibility-horizon ETT gets no row.
+#'
 #' @param plan A TTEPlan.
 #' @return A data.table with the `subgroups` schema.
 #' @noRd
 .acc_subgroups <- function(plan) {
   ett_ids <- names(plan$results_ett)
+  ett_ids <- setdiff(ett_ids, .plan_ett_feasibility_ids(plan))
   if (is.null(ett_ids) || length(ett_ids) == 0L) {
     return(.acc_empty(.ACC_SCHEMA$subgroups))
   }
@@ -1273,14 +1283,16 @@
 #' record gives no rows. `horizon_reportable_weeks` is the computed
 #' `reportable_weeks` of the record, also for an exempt ETT, so the table
 #' stays the diagnostic of the rule. `.acc_estimate_rows()` gives the
-#' reporting horizon.
+#' reporting horizon. A feasibility-horizon ETT gets no row. Only the Minimum
+#' events sheets show its decision, through `.acc_horizon_records()`.
 #'
 #' @param plan A TTEPlan.
 #' @return A data.table with the `horizon_windows` schema.
 #' @noRd
 .acc_horizon_windows <- function(plan) {
   rows <- list()
-  for (id in names(plan$results_ett)) {
+  feasibility_ids <- .plan_ett_feasibility_ids(plan)
+  for (id in setdiff(names(plan$results_ett), feasibility_ids)) {
     for (est in names(.TTE_ESTIMANDS)) {
       rec <- .acc_slot(plan$results_ett[[id]], paste0("horizon_", est))
       win <- rec$windows
@@ -1318,6 +1330,9 @@
 
 
 #' The horizon records of one estimand of the stored s3 results
+#'
+#' The Minimum events sheets read it. It returns the record of every stored
+#' ETT, a feasibility-horizon ETT included.
 #'
 #' @param plan A TTEPlan.
 #' @param estimand Character(1), `"pp"` or `"itt"`.

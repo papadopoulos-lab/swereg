@@ -66,6 +66,9 @@ tteplan_load <- function(path) {
   plan$spec <- .tte_spec_rename_rule_keys(plan$spec)
   # It also holds statuses with the legacy prefix of the minimum-events rule.
   plan$results_ett <- .tte_rename_legacy_statuses(plan$results_ett)
+  # A plan saved by 27.3.0 or earlier has no feasibility-horizon column. None
+  # of its ETTs is a feasibility-horizon ETT.
+  plan$ett <- .tte_ett_backfill_feasibility(plan$ett)
 
   # Schema-version guard -- fails loudly on pre-migration plans with a
   # pointer at the renamer + s0_init re-run.
@@ -230,4 +233,24 @@ registrystudy_load <- function(candidate_dir_meta) {
     results_ett[[id]] <- res
   }
   return(results_ett)
+}
+
+
+#' Give an ETT grid without a `feasibility_horizon` column that column
+#'
+#' A plan saved by swereg 27.3.0 or earlier has no `feasibility_horizon`
+#' column in `plan$ett`. Every ETT of such a plan is an ETT of the spec, so
+#' the column is `FALSE` on every row.
+#'
+#' @param ett `plan$ett`, or `NULL`.
+#' @return `ett` unchanged when it is `NULL` or already holds the column.
+#'   Otherwise a copy of `ett` with the column added.
+#' @noRd
+.tte_ett_backfill_feasibility <- function(ett) {
+  if (is.null(ett) || "feasibility_horizon" %in% names(ett)) {
+    return(ett)
+  }
+  ett <- data.table::copy(ett)
+  data.table::set(ett, j = "feasibility_horizon", value = rep(FALSE, nrow(ett)))
+  return(ett)
 }

@@ -13,7 +13,8 @@
 #' @noRd
 .plan_results_object <- function(plan) {
   baselines <- plan$get_baselines()
-  eids <- unique(as.character(plan$ett$enrollment_id))
+  reported <- .plan_ett_reported(plan)
+  eids <- unique(as.character(reported$enrollment_id))
   enrollments <- data.table::rbindlist(lapply(eids, function(eid) {
     arms <- .lookup_arm_labels(plan$spec, eid)
     arm <- function(which) {
@@ -34,7 +35,7 @@
       n_baseline_comparator = n_arm("n_baseline_comparator")
     ))
   }))
-  s2 <- .tte_s2_run_of(plan$ett)
+  s2 <- .tte_s2_run_of(reported)
   return(list(
     estimates = plan$get_estimates(),
     curves = plan$get_curves(),

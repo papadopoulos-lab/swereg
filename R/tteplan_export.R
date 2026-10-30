@@ -94,7 +94,9 @@
     )
   }
 
-  ett <- plan$ett
+  # The reported ETTs. Only the Minimum events sheets read the
+  # feasibility-horizon ETTs, through `.acc_horizon_records()`.
+  ett <- .plan_ett_reported(plan)
   enrollment_ids <- unique(ett$enrollment_id)
 
   protocol_ett_id <- .plan_protocol_ett_id(plan, protocol_ett_id)
@@ -324,9 +326,9 @@
 
   # --- Effect modification sheet (only if any subgroups are configured) ---
   has_subgroups <- "subgroup_vars" %in%
-    names(plan$ett) &&
+    names(ett) &&
     any(vapply(
-      plan$ett$subgroup_vars,
+      ett$subgroup_vars,
       function(x) length(x) > 0L,
       logical(1)
     ))
@@ -605,6 +607,11 @@
 #' @noRd
 .plan_computing_versions <- function(plan) {
   results <- c(plan$results_enrollment, plan$results_ett)
+  # A feasibility-horizon ETT reports nothing, so its stamps are not shown.
+  feasibility_ids <- .plan_ett_feasibility_ids(plan)
+  if (length(feasibility_ids) > 0L) {
+    results <- results[!names(results) %in% feasibility_ids]
+  }
   pick <- function(key) {
     v <- unlist(
       lapply(results, function(r) {
@@ -846,7 +853,7 @@
     # `==` drops an NA on either side. An ETT with no age group stores NA,
     # so NA in the spec MUST match NA in the ETT grid.
     spec_age <- spec$age_group
-    ett_row <- plan$ett[
+    ett_row <- .plan_ett_reported(plan)[
       enrollment_id == spec$enrollment &
         outcome_var == spec$outcome &
         follow_up == spec$follow_up &
@@ -1078,7 +1085,8 @@
     if (length(keep_ids) == 0L) {
       stop("forest 'exposures' resolved to zero ETT ids", call. = FALSE)
     }
-    missing_ids <- setdiff(keep_ids, plan$ett$ett_id)
+    reported <- .plan_ett_reported(plan)
+    missing_ids <- setdiff(keep_ids, reported$ett_id)
     if (length(missing_ids) > 0L) {
       stop(
         "forest 'exposures' contains unknown ETT ids: ",
@@ -1094,7 +1102,7 @@
       )
       default_label <- "{outcome_name}"
     } else if (identical(group_by, "outcome")) {
-      keep_groups <- plan$ett$outcome_name[match(keep_ids, plan$ett$ett_id)]
+      keep_groups <- reported$outcome_name[match(keep_ids, reported$ett_id)]
       keep_exposures <- rep(
         names(spec$exposures),
         times = lengths(spec$exposures)
@@ -1110,7 +1118,7 @@
       ord <- order(
         match(
           keep_groups,
-          unique(c(spec_outcome_names, plan$ett$outcome_name))
+          unique(c(spec_outcome_names, reported$outcome_name))
         ),
         seq_along(keep_ids)
       )

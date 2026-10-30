@@ -365,7 +365,8 @@
 #'
 #' @param analysis_path Path to the analysis .qs2 file.
 #' @param method Character: "summary_and_rates", "rates", "irr",
-#'   "risk_difference", "irr_by_subgroup", or "effect_modification_test".
+#'   "risk_difference", "horizon", "irr_by_subgroup", or
+#'   "effect_modification_test".
 #' @param weight_col Character, weight column name ("" for unweighted).
 #' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
@@ -381,7 +382,9 @@
 #'   exemption of the ETT's enrollment, from `.tte_s3_resolve_ett()`. The
 #'   `risk_difference` method reads it, with `follow_up`, and returns the
 #'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. The
-#'   parent passes both on every item. A direct call without them returns no
+#'   `horizon` method returns that record alone, and stops without a rule.
+#'   s3 calls it for a feasibility-horizon ETT. The parent passes both on
+#'   every item. A direct `risk_difference` call without them returns no
 #'   record.
 #' @param follow_up Numeric(1), the follow-up of the ETT in weeks, or `NULL`.
 #' @return The method result (data.table, list, etc.).
@@ -452,6 +455,26 @@
     ))
   }
 
+  # The horizon record of the estimand on `weight_col`. The `risk_difference`
+  # and `horizon` methods both compute it here, so a feasibility-horizon ETT
+  # and every other ETT get the record from the same call.
+  horizon_of <- function() {
+    design <- enrollment$design
+    return(.tte_horizon_record(
+      enrollment$data,
+      weight_col,
+      follow_up,
+      horizon_rule,
+      design$treatment_var,
+      design$tstart_var,
+      design$tstop_var
+    ))
+  }
+  horizon_slot <- paste0(
+    "horizon_",
+    if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
+  )
+
   # Always return a named list so the caller can merge with:
   #   for (k in names(res)) self$results_ett[[eid]][[k]] <- res[[k]]
   if (method == "summary_and_rates") {
@@ -516,16 +539,7 @@
     # place would let the parent report estimates no rule has judged.
     horizon <- NULL
     if (!is.null(horizon_rule)) {
-      design <- enrollment$design
-      horizon <- .tte_horizon_record(
-        enrollment$data,
-        weight_col,
-        follow_up,
-        horizon_rule,
-        design$treatment_var,
-        design$tstart_var,
-        design$tstop_var
-      )
+      horizon <- horizon_of()
     }
     curve <- safe_call(
       \() {
@@ -550,10 +564,22 @@
     )
     out <- .s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var)
     if (!is.null(horizon)) {
-      est <- if (identical(slot, "rd_itt")) "itt" else "pp"
-      out[[paste0("horizon_", est)]] <- horizon
+      out[[horizon_slot]] <- horizon
     }
     return(out)
+  } else if (method == "horizon") {
+    # A feasibility-horizon ETT: the horizon record of one estimand and no
+    # estimate. Outside `safe_call()` for the reason above. ITT weights on
+    # ipw_trunc -> horizon_itt; PP weights -> horizon_pp.
+    if (is.null(horizon_rule)) {
+      stop(
+        "The horizon method of ",
+        ett_id,
+        " needs the minimum-events rule, and the item carries none.",
+        call. = FALSE
+      )
+    }
+    return(setNames(list(horizon_of()), horizon_slot))
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
     suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"

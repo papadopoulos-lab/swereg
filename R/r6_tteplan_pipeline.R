@@ -772,6 +772,15 @@ TTEPlan$set(
 #' withholds none of their estimates. Their `horizon_status` reads
 #' `"exempt from minimum-events rule"`.
 #'
+#' A feasibility-horizon ETT, one with `feasibility_horizon = TRUE` in
+#' `$ett`, gets one work item per estimand. Each item computes the horizon
+#' record of its estimand through the same `.tte_horizon_record()` call as
+#' the RD item. The intention-to-treat record then takes the per-protocol
+#' decision. The method stores no estimate for the ETT: no summary, rate,
+#' ratio, risk difference, number needed to treat, survival curve or
+#' subgroup result. The enrollment loop reads an analysis file of a reported
+#' ETT.
+#'
 #' The method stops when the spec has no
 #' `min_expected_events_per_arm_per_year`. It also stops when an ETT of the
 #' run has no horizon decision for an estimand.
@@ -970,6 +979,24 @@ TTEPlan$set(
           self$spec
         )
         est_s3 <- r$estimands
+
+        # A feasibility-horizon ETT: the horizon record of each estimand, and
+        # no other item.
+        if (.tte_ett_horizon_only(ett_todo, i)) {
+          for (est in names(est_s3)) {
+            all_items[[length(all_items) + 1L]] <- s3_item(
+              est_s3[[est]]$path,
+              r,
+              "horizon",
+              est_s3[[est]]$weight
+            )
+            item_map[[length(item_map) + 1L]] <- list(
+              ett_i = i,
+              slot = paste0("horizon_", est)
+            )
+          }
+          next
+        }
 
         # The summary and the unweighted rates. This call carries no estimand
         # and it reads the analysis file of the first estimand the constant
@@ -1298,8 +1325,9 @@ TTEPlan$set(
 
 #' The baseline work item of one enrollment, for s3 and the feasibility step
 #'
-#' The item reads the smallest analysis file of the enrollment and its raw
-#' file.
+#' The item reads the smallest analysis file of the reported ETTs of the
+#' enrollment, and its raw file. A feasibility-horizon ETT is not reported,
+#' so its analysis file is never read here.
 #'
 #' @param plan A `TTEPlan`.
 #' @param eid Character(1), the enrollment id.
@@ -1309,7 +1337,7 @@ TTEPlan$set(
 #'   `s2_run`, the s2 run id of the analysis file the item reads.
 #' @noRd
 .tte_s3_enrollment_item <- function(plan, eid, output_dir, n_threads) {
-  ett <- plan$ett
+  ett <- .plan_ett_reported(plan)
   enr_rows <- ett[ett$enrollment_id == eid]
   analysis_files <- file.path(output_dir, enr_rows$file_analysis)
   sizes <- file.size(analysis_files)

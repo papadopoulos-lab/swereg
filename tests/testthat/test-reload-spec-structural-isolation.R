@@ -391,6 +391,7 @@ rsi_full_spec <- function(variant = "sentinel") {
       )
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
+    feasibility_follow_up_weeks = 260L,
     outcomes = list(list(
       name = "Event A",
       description = "The first event of type A",
@@ -637,6 +638,9 @@ RSI_LEAF_SIDE <- c(
   # Follow-up. Each entry names one follow-up window of the ETT grid.
   "$/follow_up[]/label" = "structural",
   "$/follow_up[]/weeks" = "structural",
+
+  # Feasibility horizon. It adds ETTs to the grid and changes the s2 output.
+  "$/feasibility_follow_up_weeks" = "structural",
 
   # Global inclusion. The container decides who enters the study.
   "$/inclusion_criteria/criteria[]/implementation/computed" = "structural",

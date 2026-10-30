@@ -5,7 +5,7 @@
 #' is available.
 #' @noRd
 .build_treatment_legend <- function(plan, ett_ids = NULL) {
-  ett <- plan$ett
+  ett <- .plan_ett_reported(plan)
   if (!is.null(ett_ids)) {
     ett <- ett[ett$ett_id %in% ett_ids]
   }

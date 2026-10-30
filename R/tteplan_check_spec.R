@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the ten
+#'     \item{`kind`}{The problem kind. The Details section lists the eleven
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports ten kinds of problem:
+#' The checker reports eleven kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -56,6 +56,9 @@
 #'     `minimum_events_rule_exempt` to a value that is not one logical, `true`
 #'     or `false`. The checker writes one row for each such enrollment, and
 #'     the message names the enrollment id.}
+#'   \item{`feasibility_follow_up_weeks`}{The top-level key
+#'     `feasibility_follow_up_weeks` is not one positive whole number of
+#'     weeks. The checker writes one row, and the message names the key.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
 #'     message is the message of that error.}
 #' }
@@ -118,6 +121,8 @@ tteplan_check_spec <- function(spec_path) {
   rows <- c(rows, .tte_check_spec_family(family_found))
   exempt_found <- .tte_enrollment_exempt_problems(spec)
   rows <- c(rows, .tte_check_spec_exempt(exempt_found))
+  feasibility_found <- .tte_feasibility_follow_up_problems(spec)
+  rows <- c(rows, .tte_check_spec_feasibility_follow_up(feasibility_found))
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -132,8 +137,9 @@ tteplan_check_spec <- function(spec_path) {
     # `tteplan_read_spec()` stops on a missing or bad enrollment id before it
     # reads the enrollments. It stops on the outcome-selecting exclusions,
     # then on the enrollment families, then on the bad exemption values, then
-    # on the repeated enrollment ids, as its last four stops. The rows above
-    # already report each finding.
+    # on a bad feasibility_follow_up_weeks, then on the repeated enrollment
+    # ids, as its last five stops. The rows above already report each
+    # finding.
     if (
       length(id_value_rows) > 0L &&
         identical(read_error, .tte_enrollment_id_message(id_value_rows))
@@ -160,6 +166,15 @@ tteplan_check_spec <- function(spec_path) {
     if (
       length(exempt_found) > 0L &&
         identical(read_error, .tte_enrollment_exempt_message(exempt_found))
+    ) {
+      read_error <- NULL
+    }
+    if (
+      length(feasibility_found) > 0L &&
+        identical(
+          read_error,
+          .tte_feasibility_follow_up_message(feasibility_found)
+        )
     ) {
       read_error <- NULL
     }
@@ -926,5 +941,85 @@ tteplan_check_spec <- function(spec_path) {
 .tte_check_spec_exempt <- function(found) {
   return(lapply(found, function(f) {
     return(.tte_check_spec_row(f$path, "enrollment_rule_exempt", f$message))
+  }))
+}
+
+
+#' Every bad value of the top-level key `feasibility_follow_up_weeks`
+#'
+#' The key is optional. When the spec sets it, the value MUST be one positive
+#' whole number of weeks, as every other duration of the spec is. A logical,
+#' a string, `NA` and a null value are bad. So are 0, a negative number, a
+#' fraction, an infinite number and a value of length other than 1. The
+#' finder never stops on a bad shape.
+#'
+#' @param spec The parsed specification.
+#' @return A list with zero elements or one. The element holds `path`, the
+#'   normalised key path, and `message`, which names the key.
+#' @noRd
+.tte_feasibility_follow_up_problems <- function(spec) {
+  key <- "feasibility_follow_up_weeks"
+  if (!is.list(spec) || !key %in% names(spec)) {
+    return(list())
+  }
+  value <- spec[[key]]
+  if (
+    is.numeric(value) &&
+      length(value) == 1L &&
+      is.finite(value) &&
+      value > 0 &&
+      value == round(value)
+  ) {
+    return(list())
+  }
+  shown <- if (is.atomic(value) && length(value) == 1L && is.na(value)) {
+    "NA"
+  } else {
+    .tte_spec_value_show(value)
+  }
+  return(list(list(
+    path = paste0("$/", key),
+    message = paste0(
+      key,
+      " has the value ",
+      shown,
+      ". ",
+      key,
+      " MUST be one positive whole number of weeks, for example ",
+      key,
+      ": 260."
+    )
+  )))
+}
+
+
+#' The error message of the `feasibility_follow_up_weeks` finding
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param found A list from `.tte_feasibility_follow_up_problems()`.
+#' @return A character scalar.
+#' @noRd
+.tte_feasibility_follow_up_message <- function(found) {
+  return(paste(
+    vapply(found, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
+}
+
+
+#' Rows for a bad value of the `feasibility_follow_up_weeks` key
+#'
+#' @param found A list from `.tte_feasibility_follow_up_problems()`.
+#' @return A list of rows of kind `feasibility_follow_up_weeks`.
+#' @noRd
+.tte_check_spec_feasibility_follow_up <- function(found) {
+  return(lapply(found, function(f) {
+    return(.tte_check_spec_row(
+      f$path,
+      "feasibility_follow_up_weeks",
+      f$message
+    ))
   }))
 }

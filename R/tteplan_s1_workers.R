@@ -394,10 +394,16 @@
 
   qs2_write_atomic(trial, .batch_where_to_write_output("raw"), nthreads = 1L)
 
+  # The rows the reported ETTs reach, or NULL for every row. A feasibility
+  # horizon enrolls past the longest reported follow-up. The fill summary and
+  # the weight bounds read only these rows, so they equal those of the plan
+  # without the horizon.
+  reported_rows <- .s1e_reported_rows(trial, enrollment_spec)
+
   # The aggregates of the RAW panel. `tteenrollment_fill_summary()` subtracts
   # the filled aggregates from these, so it MUST read the panel `file_raw`
   # holds. Take them here, before the imputation and the fill change it.
-  agg_raw <- tteenrollment_fill_aggregates(trial)
+  agg_raw <- tteenrollment_fill_aggregates(.s1e_rows_view(trial, reported_rows))
 
   if (!is.null(impute_fn)) {
     # Imputation is name-list driven, so it MUST be handed the entry-window
@@ -415,11 +421,114 @@
   # imputation, which supplies the entry-window seed value, and before the
   # weights.
   trial$s1b_fill_followup_confounders()
-  trial$fill_summary <- tteenrollment_fill_summary(agg_raw, trial)
+  # The imputation, the fill and the weights MAY reorder the rows, so the
+  # reported rows are found again before each read.
+  trial$fill_summary <- tteenrollment_fill_summary(
+    agg_raw,
+    .s1e_rows_view(trial, .s1e_reported_rows(trial, enrollment_spec))
+  )
 
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
+  trial <- .s1e_truncate_on_reported_rows(
+    trial,
+    .s1e_reported_rows(trial, enrollment_spec)
+  )
 
   qs2_write_atomic(trial, .batch_where_to_write_output("imp"), nthreads = 1L)
   return(invisible(NULL))
+}
+
+
+#' The panel rows of an enrollment that its reported ETTs reach
+#'
+#' `$enrollment_spec()` sets `reported_follow_up_time` when the enrollment
+#' holds a feasibility-horizon ETT. s1 then enrolls to the feasibility
+#' horizon. The reported ETTs reach the rows up to the end of the follow-up
+#' interval that holds the longest reported follow-up. That end is the
+#' longest stop the panel holds without the feasibility horizon, because each
+#' panel row is one whole interval of `period_width` weeks.
+#'
+#' @param trial The pooled trial-level [TTEEnrollment] of one enrollment.
+#' @param enrollment_spec The enrollment spec from `$enrollment_spec()`.
+#' @return Integer row indices of `trial$data`, or NULL when every row counts:
+#'   no `reported_follow_up_time`, or no row beyond it.
+#' @noRd
+.s1e_reported_rows <- function(trial, enrollment_spec) {
+  reported <- enrollment_spec$reported_follow_up_time
+  if (is.null(reported)) {
+    return(NULL)
+  }
+  design <- trial$design
+  width <- design$period_width
+  cut <- ceiling(as.numeric(reported) / width) * width
+  tstop <- trial$data[[design$tstop_var]]
+  if (all(tstop <= cut)) {
+    return(NULL)
+  }
+  return(which(tstop <= cut))
+}
+
+
+#' A trial that holds only some rows of another, for the fill aggregates
+#'
+#' @param trial A trial-level [TTEEnrollment].
+#' @param rows Integer row indices from `.s1e_reported_rows()`, or NULL.
+#' @return `trial` itself when `rows` is NULL. Otherwise a new trial-level
+#'   [TTEEnrollment] over a copy of those rows, with the same design.
+#' @noRd
+.s1e_rows_view <- function(trial, rows) {
+  if (is.null(rows)) {
+    return(trial)
+  }
+  return(TTEEnrollment$new(
+    trial$data[rows],
+    trial$design,
+    data_level = "trial",
+    own_data = TRUE
+  ))
+}
+
+
+#' Truncate `ipw` with the bounds of the reported rows
+#'
+#' `$s3_truncate_weights()` takes its bounds from every row. With a
+#' feasibility horizon the panel holds rows that only the feasibility horizon
+#' reaches, so those bounds differ from the bounds of the plan without it.
+#' This function takes the bounds from the reported rows instead. It runs
+#' `$s3_truncate_weights()` on a trial of those rows, so the quantiles and
+#' their levels stay those of the estimator. Every row of `trial` is then
+#' clipped to those bounds, as `$s3_truncate_weights()` clips them.
+#'
+#' The bounds are the range of the truncated weights of the reported rows.
+#' A clip at a quantile reaches that quantile, so the range is the pair of
+#' quantiles.
+#'
+#' The estimator file R/r6_tteenrollment_weighting.R is not changed, so the
+#' validation evidence stays valid for it.
+#'
+#' @param trial The trial-level [TTEEnrollment] after
+#'   `$s3_truncate_weights(weight_cols = "ipw")`.
+#' @param rows Integer row indices from `.s1e_reported_rows()`, or NULL.
+#' @return `trial`. Its `ipw_trunc` is unchanged when `rows` is NULL.
+#' @noRd
+.s1e_truncate_on_reported_rows <- function(trial, rows) {
+  if (is.null(rows)) {
+    return(trial)
+  }
+  view <- .s1e_rows_view(trial, rows)
+  view$s3_truncate_weights(weight_cols = "ipw")
+  clipped <- view$data[["ipw_trunc"]]
+  bounds <- if (all(is.na(clipped))) {
+    c(NA_real_, NA_real_)
+  } else {
+    range(clipped, na.rm = TRUE)
+  }
+  ipw <- trial$data[["ipw"]]
+  data.table::set(
+    trial$data,
+    j = "ipw_trunc",
+    value = pmin(pmax(ipw, bounds[1L]), bounds[2L])
+  )
+  return(trial)
 }

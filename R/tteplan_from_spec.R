@@ -247,6 +247,11 @@ tteplan_from_spec_and_registrystudy <- function(
 #' [tteplan_from_spec_and_registrystudy()] and
 #' [tteplan_excel_spec_summary()] both build their grid here.
 #'
+#' When `.tte_follow_up_grid()` adds a feasibility horizon, a second pass
+#' adds one feasibility-horizon ETT for each enrollment and outcome, in the
+#' same nesting order. Their ETT ids follow the ids of the spec's own ETTs, so
+#' the spec's own ETTs keep the ids of a grid without the key.
+#'
 #' @param plan A [TTEPlan] with no ETTs.
 #' @param spec A spec list from [tteplan_read_spec()].
 #' @return The plan, invisibly. The plan is changed in place.
@@ -272,7 +277,18 @@ tteplan_from_spec_and_registrystudy <- function(
     NULL
   }
 
-  for (enrollment in spec$enrollments) {
+  # The spec's own follow-up horizons, then the feasibility horizon of
+  # `feasibility_follow_up_weeks` when it is longer than every one of them.
+  grid <- .tte_follow_up_grid(spec)
+  feasible <- vapply(
+    grid,
+    function(fu) isTRUE(fu$feasibility_horizon),
+    logical(1)
+  )
+
+  # One ETT per outcome and follow-up of one enrollment, then the treatment
+  # implementation on every ETT of that enrollment.
+  add_enrollment <- function(enrollment, follow_ups) {
     # Extract age range from additional_inclusion
     age_min <- NULL
     age_max <- NULL
@@ -296,7 +312,7 @@ tteplan_from_spec_and_registrystudy <- function(
     }
 
     for (outcome in spec$outcomes) {
-      for (fu in spec$follow_up) {
+      for (fu in follow_ups) {
         plan$add_one_ett(
           enrollment_id = enrollment$id,
           outcome_var = outcome$implementation$variable_combined,
@@ -315,7 +331,8 @@ tteplan_from_spec_and_registrystudy <- function(
             age_max = age_max,
             outcome_description = outcome$description %||% NA_character_,
             outcome_role = outcome$role %||% NA_character_
-          )
+          ),
+          feasibility_horizon = isTRUE(fu$feasibility_horizon)
         )
       }
     }
@@ -329,9 +346,66 @@ tteplan_from_spec_and_registrystudy <- function(
       comparator_to_intervention_ratio := impl$comparator_to_intervention_ratio
     ]
     plan$ett[rows, seed := impl$seed]
+    return(invisible(NULL))
+  }
+
+  for (enrollment in spec$enrollments) {
+    add_enrollment(enrollment, grid[!feasible])
+  }
+  if (any(feasible)) {
+    for (enrollment in spec$enrollments) {
+      add_enrollment(enrollment, grid[feasible])
+    }
   }
 
   return(invisible(plan))
+}
+
+
+#' The follow-up horizons of the ETT grid of a spec
+#'
+#' The spec's own `follow_up` entries, in spec order. When the spec sets
+#' `feasibility_follow_up_weeks` to W, and W is longer than every follow-up
+#' of the spec, one entry follows them:
+#' \itemize{
+#'   \item `weeks` is W;
+#'   \item `label` is `"<W/52> years"` when W is a multiple of 52, `"1 year"`
+#'     for 52, and `"<W> weeks"` otherwise;
+#'   \item `feasibility_horizon` is `TRUE`.
+#' }
+#' Otherwise the spec adds no entry.
+#'
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @return A list of follow-up entries. Each holds `label` and `weeks`. The
+#'   feasibility horizon also holds `feasibility_horizon = TRUE`.
+#' @noRd
+.tte_follow_up_grid <- function(spec) {
+  fu <- spec$follow_up %||% list()
+  w <- spec[["feasibility_follow_up_weeks"]]
+  if (is.null(w)) {
+    return(fu)
+  }
+  longest <- max(
+    vapply(fu, function(f) as.numeric(f$weeks), numeric(1)),
+    -Inf
+  )
+  if (as.numeric(w) <= longest) {
+    return(fu)
+  }
+  years <- as.numeric(w) / 52
+  label <- if (as.numeric(w) %% 52 == 0) {
+    paste(format(years, trim = TRUE), if (years == 1) "year" else "years")
+  } else {
+    paste(format(as.numeric(w), trim = TRUE), "weeks")
+  }
+  return(c(
+    fu,
+    list(list(
+      label = label,
+      weeks = as.integer(w),
+      feasibility_horizon = TRUE
+    ))
+  ))
 }
 
 

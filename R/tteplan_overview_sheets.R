@@ -4,7 +4,8 @@
 #' @noRd
 .write_enrollment_overview <- function(wb, plan) {
   openxlsx::addWorksheet(wb, "Enrollments")
-  enrollment_ids <- unique(plan$ett$enrollment_id)
+  ett <- .plan_ett_reported(plan)
+  enrollment_ids <- unique(ett$enrollment_id)
   baselines <- plan$get_baselines()
   rows <- lapply(enrollment_ids, function(eid) {
     label <- .enrollment_label(plan, eid)
@@ -16,16 +17,14 @@
       comparator = NA,
       ratio = NA
     )
-    row <- plan$ett[plan$ett$enrollment_id == eid][1]
-    if (
-      "treatment_impl" %in% names(plan$ett) && !is.null(row$treatment_impl[[1]])
-    ) {
+    row <- ett[ett$enrollment_id == eid][1]
+    if ("treatment_impl" %in% names(ett) && !is.null(row$treatment_impl[[1]])) {
       impl <- row$treatment_impl[[1]]
       tx_info$variable <- impl$variable %||% NA
       tx_info$intervention <- impl$intervention_value %||% NA
       tx_info$comparator <- impl$comparator_value %||% NA
     }
-    if ("comparator_to_intervention_ratio" %in% names(plan$ett)) {
+    if ("comparator_to_intervention_ratio" %in% names(ett)) {
       tx_info$ratio <- row$comparator_to_intervention_ratio
     }
     return(data.table::data.table(
@@ -51,8 +50,9 @@
   # row carries it. A trial that stored no estimate at all yields no row and
   # therefore no count.
   est <- plan$get_estimates()
-  rows <- lapply(seq_len(nrow(plan$ett)), function(i) {
-    r <- plan$ett[i]
+  ett <- .plan_ett_reported(plan)
+  rows <- lapply(seq_len(nrow(ett)), function(i) {
+    r <- ett[i]
     ett_id <- r$ett_id
     hit <- which(est$ett_id == ett_id)
     return(data.table::data.table(

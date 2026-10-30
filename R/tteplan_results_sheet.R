@@ -363,7 +363,7 @@
     row_ptr <- row_ptr + 2L
   }
 
-  ett <- plan$ett
+  ett <- .plan_ett_reported(plan)
   if (is.null(ett) || nrow(ett) == 0L) {
     openxlsx::writeData(
       wb,
