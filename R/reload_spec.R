@@ -199,7 +199,9 @@
 #' Each one decides who enters the study, or for how long swereg follows them.
 #' A cached result cannot be refreshed with a new value, so every change inside
 #' the five blocks is structural. `feasibility_follow_up_weeks` adds ETTs to
-#' the grid and changes the s2 output.
+#' the grid and changes the s2 output. A changed `follow_up` can also add or
+#' remove a horizon-only ETT. That ETT is the next whole year of a follow-up
+#' that is not a whole number of years.
 #'
 #' @noRd
 .ds_diff_definitions <- function(old, new, ps) {

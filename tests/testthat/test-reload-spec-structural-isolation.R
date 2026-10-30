@@ -390,7 +390,11 @@ rsi_full_spec <- function(variant = "sentinel") {
         window = "lifetime_before_baseline"
       )
     )),
-    follow_up = list(list(label = "1 year", weeks = 52L)),
+    follow_up = list(list(
+      label = "1 year",
+      weeks = 52L,
+      only_enrollments = "01"
+    )),
     feasibility_follow_up_weeks = 260L,
     outcomes = list(list(
       name = "Event A",
@@ -636,7 +640,9 @@ RSI_LEAF_SIDE <- c(
   "$/exclusion_criteria[]/rationale" = "structural",
 
   # Follow-up. Each entry names one follow-up window of the ETT grid.
+  # `only_enrollments` decides which enrollments get ETTs for the window.
   "$/follow_up[]/label" = "structural",
+  "$/follow_up[]/only_enrollments" = "structural",
   "$/follow_up[]/weeks" = "structural",
 
   # Feasibility horizon. It adds ETTs to the grid and changes the s2 output.

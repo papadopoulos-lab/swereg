@@ -4,8 +4,10 @@
 #' @include r6_tteplan.R
 #' @description Print the TTEPlan object.
 #'
-#' The ETT grid it prints holds the reported ETTs. A feasibility-horizon ETT,
-#' one that the spec key `feasibility_follow_up_weeks` adds, is not printed.
+#' The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
+#' printed. The spec key `feasibility_follow_up_weeks` adds one, and a
+#' follow-up that is not a whole number of years adds one at its next whole
+#' year.
 #' @param ... Ignored.
 TTEPlan$set("public", "print", function(...) {
   cat("<TTEPlan>", self$project_prefix, "\n")
@@ -54,13 +56,19 @@ TTEPlan$set("public", "print", function(...) {
       cat(sprintf("  Skeleton files: %d\n", n_skeletons))
     }
 
-    cat(sprintf(
-      "  %d outcome(s) x %d follow-up x %d enrollment(s) = %d ETT(s)\n",
-      n_outcomes,
-      n_follow_up,
-      n_enrollments,
-      n_etts
-    ))
+    # `only_enrollments` gives some enrollments fewer horizons. The grid is
+    # then not the full product, and the line shows the count alone.
+    if (n_etts == n_outcomes * n_follow_up * n_enrollments) {
+      cat(sprintf(
+        "  %d outcome(s) x %d follow-up x %d enrollment(s) = %d ETT(s)\n",
+        n_outcomes,
+        n_follow_up,
+        n_enrollments,
+        n_etts
+      ))
+    } else {
+      cat(sprintf("  %d ETT(s)\n", n_etts))
+    }
 
     # Enrollment grid
     enroll_grid <- ett[,
@@ -266,18 +274,30 @@ TTEPlan$set("public", "print_spec_summary", function() {
   # Follow-up
   cat(bold("Follow-up:"), "\n")
   for (fu in spec$follow_up) {
-    cat(sprintf("  - %s (%d weeks)\n", fu$label, fu$weeks))
+    cat(sprintf(
+      "  - %s (%d weeks)%s\n",
+      fu$label,
+      fu$weeks,
+      .tte_follow_up_scope(fu)
+    ))
   }
   # The feasibility horizon of `feasibility_follow_up_weeks`, when the key
-  # adds ETTs. s3 computes only the minimum-events rule for them.
-  for (fu in .tte_follow_up_grid(spec)) {
-    if (isTRUE(fu$feasibility_horizon)) {
-      cat(sprintf(
-        "  - Feasibility horizon: %s (%d weeks), minimum-events rule only\n",
-        fu$label,
-        fu$weeks
-      ))
+  # adds ETTs. s3 computes only the minimum-events rule for them. With
+  # `only_enrollments`, some enrollments MAY not get it.
+  feas <- .tte_feasibility_enrollments(spec)
+  if (!is.null(feas)) {
+    all_ids <- vapply(spec$enrollments, function(e) as.character(e$id), "")
+    scope <- if (setequal(feas$ids, all_ids)) {
+      ""
+    } else {
+      .tte_follow_up_scope(list(only_enrollments = feas$ids))
     }
+    cat(sprintf(
+      "  - Feasibility horizon: %s (%d weeks), minimum-events rule only%s\n",
+      feas$fu$label,
+      feas$fu$weeks,
+      scope
+    ))
   }
   cat("\n")
 

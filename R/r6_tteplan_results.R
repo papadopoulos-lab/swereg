@@ -58,9 +58,10 @@ TTEPlan$set("public", "results_summary", function() {
 #' `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 #' takes no argument, and each computes nothing.
 #'
-#' A feasibility-horizon ETT, one that the spec key
-#' `feasibility_follow_up_weeks` adds, gets no row from this method,
-#' `$get_curves()`, `$get_subgroups()` or `$get_horizon_windows()`. s3
+#' A horizon-only ETT gets no row from this method,
+#' `$get_curves()`, `$get_subgroups()` or `$get_horizon_windows()`. The spec
+#' key `feasibility_follow_up_weeks` adds one, and a follow-up that is not a
+#' whole number of years adds one at its next whole year. s3
 #' stores its two horizon records and no estimate. The Minimum events sheets
 #' of `$export_tables()` are the only output that shows its decision.
 #'

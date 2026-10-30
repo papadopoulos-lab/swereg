@@ -183,8 +183,11 @@
 #' ", except in an exempt comparison,". The sentence of
 #' `.tte_exempt_rule_sentence()` then names the exempt enrollments. It
 #' follows the subgroup sentence, so "Its" in that sentence still refers to
-#' the estimand. With a threshold of 0 the sentence ends the text. Without an
-#' exempt enrollment the text is the text of swereg 27.3.0.
+#' the estimand. With a threshold of 0 the sentence ends the text.
+#'
+#' The text states the rule for a horizon that was not a whole number of
+#' years. Without an exempt enrollment, the text is the text of
+#' swereg 27.3.0. Only the sentence on the partial last year differs.
 #'
 #' @param spec `plan$spec`. It MUST carry
 #'   `min_expected_events_per_arm_per_year`.
@@ -221,7 +224,9 @@
     ". ",
     "Follow-up was cut into years of ",
     .HORIZON_WINDOW_WEEKS,
-    " weeks from time zero, and the last year ended at the horizon. ",
+    " weeks from time zero. If a horizon was not a whole number of years, ",
+    "its estimate was reported when the estimate at the next whole year ",
+    "passed the rule. ",
     null_def,
     " ",
     "When any year failed the rule, ",

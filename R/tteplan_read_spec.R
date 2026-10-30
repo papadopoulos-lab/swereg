@@ -65,15 +65,25 @@
 #'   \item The spec MAY set the top-level key `feasibility_follow_up_weeks`,
 #'     one positive whole number of weeks. A logical, a string, `NA`, 0, a
 #'     fraction and a value of length other than 1 stop, and the error names
-#'     the key. When the value is longer than every `follow_up` horizon, the
-#'     ETT grid gets one more follow-up of that length for every enrollment
-#'     and outcome. s2 builds these feasibility-horizon ETTs as any other
-#'     ETT. s3 computes only the minimum-events rule for them, and only the
-#'     Minimum events sheets show them. s1 enrolls each enrollment to the
+#'     the key. The value MAY be longer than every `follow_up` horizon of an
+#'     enrollment. The ETT grid then gets one more follow-up of that length
+#'     for that enrollment and every outcome. s2 builds these feasibility-horizon
+#'     ETTs as any other ETT. s3 computes only the minimum-events rule for
+#'     them, and only the Minimum events sheets show them. s1 enrolls each enrollment to the
 #'     feasibility horizon. It truncates `ipw` and counts the fill over the
 #'     rows up to the longest reported follow-up, as it does without the
 #'     key. A value that is not longer than every `follow_up`
-#'     horizon adds no ETT
+#'     horizon of an enrollment adds no ETT to that enrollment
+#'   \item A `follow_up` entry MAY set `only_enrollments`, a list of
+#'     enrollment ids. The horizon then applies only to those enrollments,
+#'     and an entry without the key applies to every enrollment. A single id
+#'     is a list of one. An empty list, an element that is not a string, a
+#'     repeated id and an id that names no enrollment stop. The error names
+#'     the follow-up label and the bad value
+#'   \item A `follow_up` that is not a whole number of years takes the
+#'     minimum-events decision of the next whole year of the same enrollment
+#'     and outcome. When the enrollment has no follow-up of that length, the
+#'     ETT grid adds one, and s3 computes only the rule for it
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -617,8 +627,8 @@ tteplan_read_spec <- function(spec_path) {
 
   # An exclusion on an outcome variable that reads the weeks after time zero
   # selects on the follow-up outcome. This check, the family check, the
-  # exemption check, the feasibility horizon check and the enrollment id
-  # check below run last, in this order, and `tteplan_check_spec()` relies
+  # exemption check, the feasibility horizon check, the only_enrollments
+  # check and the enrollment id check below run last, in this order, and `tteplan_check_spec()` relies
   # on that order.
   outcome_selecting <- .tte_outcome_selecting_exclusions(spec)
   if (length(outcome_selecting) > 0L) {
@@ -638,6 +648,10 @@ tteplan_read_spec <- function(spec_path) {
       .tte_feasibility_follow_up_message(feasibility_found),
       call. = FALSE
     )
+  }
+  only_found <- .tte_follow_up_only_enrollments_problems(spec)
+  if (length(only_found) > 0L) {
+    stop(.tte_only_enrollments_message(only_found), call. = FALSE)
   }
   if (!is.null(spec[["feasibility_follow_up_weeks"]])) {
     spec[["feasibility_follow_up_weeks"]] <- as.integer(

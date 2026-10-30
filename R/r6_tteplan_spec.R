@@ -36,8 +36,10 @@
 #' @param feasibility_horizon Logical(1), `FALSE` by default. `TRUE` marks a
 #'   feasibility-horizon ETT. s2 builds it as any other ETT, s3 computes only
 #'   the minimum-events rule for it, and only the Minimum events sheets show
-#'   it. The spec key `feasibility_follow_up_weeks` adds these ETTs. See
-#'   [tteplan_read_spec()].
+#'   it. The spec key `feasibility_follow_up_weeks` adds these ETTs. The grid
+#'   also adds one at the next whole year of a follow-up that is not a whole
+#'   number of years. It adds none where the enrollment already has an ETT of
+#'   that length. See [tteplan_read_spec()].
 TTEPlan$set(
   "public",
   "add_one_ett",
@@ -265,8 +267,9 @@ TTEPlan$set(
 #'       Present when the plan was built from a spec.}
 #'     \item{reported_follow_up_time}{Integer, the longest follow-up of the
 #'       reported ETTs of the enrollment, in weeks. Present only when the
-#'       enrollment holds a feasibility-horizon ETT. `design$follow_up_time`
-#'       is then the feasibility horizon.}
+#'       enrollment holds a horizon-only ETT: the feasibility horizon, or the
+#'       whole year that decides a part-year horizon. `design$follow_up_time`
+#'       then covers the horizon-only ETTs too.}
 #'   }
 TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
   enrollment_ids <- unique(self$ett$enrollment_id)
@@ -339,7 +342,7 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
   if ("seed" %in% names(self$ett)) {
     result$seed <- first$seed
   }
-  # With a feasibility horizon, `follow_up_time` covers it, so s1 enrolls
+  # With a horizon-only ETT, `follow_up_time` covers it, so s1 enrolls
   # past the longest reported follow-up. s1e truncates the weights and counts
   # the fill over the rows the reported ETTs reach, so it needs that length.
   horizon_only <- "feasibility_horizon" %in%

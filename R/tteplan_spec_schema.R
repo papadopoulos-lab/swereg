@@ -244,8 +244,10 @@
   ),
 
   # --- follow-up -------------------------------------------------------------
+  # `only_enrollments` names the enrollments that a horizon applies to. A
+  # horizon without it applies to every enrollment.
   "$/follow_up[]" = list(
-    consumed = c("label", "weeks")
+    consumed = c("label", "only_enrollments", "weeks")
   ),
 
   # --- inclusion criteria ----------------------------------------------------

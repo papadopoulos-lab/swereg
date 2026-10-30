@@ -51,8 +51,9 @@
 #' the shortest longer ETT. A year that no ETT of the row reaches is empty.
 #'
 #' The two Minimum events sheets are the only sheets that show a
-#' feasibility-horizon ETT, one that the spec key
-#' `feasibility_follow_up_weeks` adds. Its years get columns.
+#' horizon-only ETT. The spec key `feasibility_follow_up_weeks` adds one, and
+#' a follow-up that is not a whole number of years adds one at its next whole
+#' year. Its years get columns.
 #' Every other sheet, `results.qs2` and `$get_horizon_windows()` leave it
 #' out.
 #'

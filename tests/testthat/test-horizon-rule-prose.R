@@ -87,7 +87,7 @@ test_that("TARGET item 6h states the minimum-events value from the spec, per arm
   x <- hrp_target_6h(5)
   expect_match(
     x,
-    "Follow-up was cut into years of 52 weeks from time zero, and the last year ended at the horizon.",
+    "Follow-up was cut into years of 52 weeks from time zero. If a horizon was not a whole number of years, its estimate was reported when the estimate at the next whole year passed the rule.",
     fixed = TRUE
   )
   expect_match(

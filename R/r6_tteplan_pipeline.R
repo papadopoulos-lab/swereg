@@ -1244,10 +1244,12 @@ TTEPlan$set(
       }
       rm(all_results)
       # The horizon decisions, after every worker return is stored. It stops
-      # when an ETT of this run has no decision for an estimand.
+      # when an ETT of this run has no decision for an estimand. A part-year
+      # ETT reads the decision of its source ETT in the grid.
       self$results_ett <- .s3_apply_horizon_rule(
         self$results_ett,
-        ett_todo$ett_id
+        ett_todo$ett_id,
+        self$ett
       )
     }
 

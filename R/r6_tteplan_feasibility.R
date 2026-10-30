@@ -75,7 +75,9 @@
 #' excluded for an outcome event before time zero.
 #'
 #' The intention-to-treat record of each ETT takes the decision of its
-#' per-protocol record, as in `$s3_analyze()`.
+#' per-protocol record, as in `$s3_analyze()`. Some ETTs have a follow-up
+#' that is not a whole number of years. The per-protocol record of such an ETT
+#' first takes the decision of the ETT at the next whole year.
 #'
 #' The method writes `feasibility.xlsx` to `self$dir_results`, the directory
 #' of `$export_tables()`. `$export_tables()` also writes it, from the s3
@@ -225,7 +227,22 @@ TTEPlan$set(
       records[[m$ett_id]][[m$estimand]] <- rec
     }
 
-    for (eid in names(records)) {
+    # A part-year ETT takes the per-protocol decision of its source ETT, as
+    # in `$s3_analyze()`. Pass 1 covers every other ETT, and pass 2 the
+    # part-year ETTs.
+    sources <- .tte_horizon_sources(ett)
+    part <- names(records) %in% names(sources)
+    for (eid in c(names(records)[!part], names(records)[part])) {
+      src <- sources[[eid]]
+      if (!is.null(src)) {
+        records[[eid]]$pp <- .tte_horizon_from_source(
+          records[[eid]]$pp,
+          records[[src$ett_id]]$pp,
+          eid,
+          src,
+          where
+        )
+      }
       records[[eid]]$itt <- .tte_horizon_follow_pp(
         records[[eid]]$pp,
         records[[eid]]$itt

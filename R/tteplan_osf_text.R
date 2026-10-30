@@ -342,6 +342,75 @@ tteplan_osf_text <- function(
 }
 
 
+#' The comparisons each restricted horizon applies to, as OSF text
+#'
+#' Horizons that name the same set of comparisons share one sentence, in the
+#' order of their first horizon in the spec.
+#'
+#' @param ctx The OSF context.
+#' @return `""` when no horizon has `only_enrollments`. Otherwise one
+#'   sentence per set of comparisons, each after a space: " The 3- and 5-year
+#'   horizons apply only to comparison 1 (A versus B)."
+#' @noRd
+.osf_horizon_scope <- function(ctx) {
+  restricted <- Filter(
+    function(f) !is.null(f[["only_enrollments"]]),
+    ctx$spec$follow_up %||% list()
+  )
+  if (length(restricted) == 0L) {
+    return("")
+  }
+  ids <- lapply(restricted, function(f) {
+    return(as.character(unlist(f[["only_enrollments"]])))
+  })
+  keys <- vapply(ids, function(x) paste(sort(x), collapse = "\r"), "")
+  out <- ""
+  for (k in unique(keys)) {
+    group <- which(keys == k)
+    comparisons <- vapply(
+      ids[[group[1]]],
+      function(eid) .osf_comparison_label(ctx, eid),
+      character(1)
+    )
+    out <- paste0(
+      out,
+      " The ",
+      .osf_horizon_subject(vapply(
+        restricted[group],
+        function(f) as.character(f$label),
+        character(1)
+      )),
+      if (length(group) == 1L) " horizon applies" else " horizons apply",
+      " only to ",
+      .osf_and(unname(comparisons)),
+      "."
+    )
+  }
+  return(out)
+}
+
+
+#' The horizon labels of one OSF sentence, in adjective form
+#'
+#' A label of the form "<n> year" or "<n> years" becomes "<n>-year". Several
+#' such labels share one "year": "3- and 5-year". Any other label is used as
+#' the spec gives it.
+#'
+#' @param labels Character vector, the `label` of each horizon.
+#' @return A character scalar.
+#' @noRd
+.osf_horizon_subject <- function(labels) {
+  pattern <- "^([0-9]+(\\.[0-9]+)?) years?$"
+  is_year <- grepl(pattern, labels)
+  n <- sub(pattern, "\\1", labels)
+  if (all(is_year) && length(labels) > 1L) {
+    k <- length(labels)
+    return(.osf_and(c(paste0(n[-k], "-"), paste0(n[k], "-year"))))
+  }
+  return(.osf_and(ifelse(is_year, paste0(n, "-year"), labels)))
+}
+
+
 #' @noRd
 .osf_study_design <- function(ctx) {
   yrs <- ctx$spec$inclusion_criteria$isoyears
@@ -411,7 +480,8 @@ tteplan_osf_text <- function(
       admin,
       "; and the end of the analysis horizon. Death censors follow-up, and no competing-risk model is fitted. The horizons are ",
       .osf_and(horizons),
-      "."
+      ".",
+      .osf_horizon_scope(ctx)
     ),
     paste0(
       "Under the per-protocol estimand, follow-up also stops at the first week that does not hold the assigned strategy, beyond the tolerance of the arm. A week with a missing treatment value counts as such a week. Under the intention-to-treat estimand, a deviation does not stop follow-up."
@@ -569,7 +639,11 @@ tteplan_osf_text <- function(
 .osf_models <- function(ctx) {
   ver <- as.character(utils::packageVersion("swereg"))
   return(.osf_paragraphs(
-    "Each comparison is analysed separately, for each outcome and each horizon.",
+    paste0(
+      "Each comparison is analysed separately, for each outcome and each horizon",
+      if (.tte_follow_up_restricted(ctx$spec)) " that applies to it",
+      "."
+    ),
     paste0(
       "The analysis uses the R package swereg, version ",
       ver,
@@ -737,8 +811,15 @@ tteplan_osf_text <- function(
 #' ", except in an exempt comparison,". The sentence of
 #' `.tte_exempt_rule_sentence()` then names the exempt enrollments, after
 #' the sentences that start with "Its", so "Its" still refers to the
-#' estimand. With a threshold of 0 the sentence ends the text. Without an
-#' exempt enrollment the text is the text of swereg 27.3.0.
+#' estimand. With a threshold of 0 the sentence ends the text.
+#'
+#' The first paragraph states the rule for a horizon that is not a whole
+#' number of years. The sentences of `.osf_part_year_sentences()` follow it.
+#' With a threshold of 0, neither appears. That omission is deliberate: the
+#' rule then withholds no estimate, so a part-year horizon needs no sentence
+#' (Richard, 2026-10-30). Without an exempt enrollment and without a
+#' part-year horizon, the text is the text of swereg 27.3.0. Only the sentence
+#' on the partial last year differs.
 #' @noRd
 .osf_inference <- function(ctx) {
   value <- ctx$spec[["min_expected_events_per_arm_per_year"]]
@@ -763,7 +844,8 @@ tteplan_osf_text <- function(
       first,
       ". Follow-up is cut into years of ",
       .HORIZON_WINDOW_WEEKS,
-      " weeks from time zero. The last year ends at the horizon, so it can be shorter. ",
+      " weeks from time zero. If a horizon is not a whole number of years, its estimate is reported when the estimate at the next whole year passes the rule. ",
+      .osf_part_year_sentences(ctx$spec),
       null_def,
       " The reportable horizon is the end of the last year before the first year that fails."
     ),
@@ -780,6 +862,56 @@ tteplan_osf_text <- function(
     "The rule is applied to the per-protocol estimate. The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.",
     "Which years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
   ))
+}
+
+
+#' One sentence for each part-year horizon of the spec
+#'
+#' A part-year horizon is a follow-up that is not a multiple of 52 weeks. Each
+#' sentence names it and the next whole year, as "The 6-month estimate is
+#' reported when the 1-year estimate passes the rule. ". The whole year takes
+#' the label of the spec follow-up of that length, and otherwise `"1 year"`
+#' or `"<k> years"`.
+#'
+#' @param spec The spec list.
+#' @return A character(1): the sentences, each followed by a space, or `""`
+#'   when the spec has no part-year horizon.
+#' @noRd
+.osf_part_year_sentences <- function(spec) {
+  width <- .HORIZON_WINDOW_WEEKS
+  fu <- spec$follow_up %||% list()
+  weeks <- vapply(fu, function(f) as.numeric(f$weeks), numeric(1))
+  labels <- vapply(fu, function(f) as.character(f$label), character(1))
+  # "6 months" reads as "the 6-month estimate", and any other label as "the
+  # estimate at <label>".
+  estimate <- function(label) {
+    m <- regmatches(label, regexec("^([0-9.]+) (week|month|year)s?$", label))
+    m <- m[[1L]]
+    if (length(m) == 3L) {
+      return(paste0(m[2L], "-", m[3L], " estimate"))
+    }
+    return(paste("estimate at", label))
+  }
+  out <- character(0)
+  for (i in which(weeks %% width != 0)) {
+    whole <- ceiling(weeks[i] / width) * width
+    years <- whole / width
+    label <- labels[match(whole, weeks)]
+    if (is.na(label)) {
+      label <- paste(years, if (years == 1) "year" else "years")
+    }
+    out <- c(
+      out,
+      paste0(
+        "The ",
+        estimate(labels[i]),
+        " is reported when the ",
+        estimate(label),
+        " passes the rule. "
+      )
+    )
+  }
+  return(paste(unique(out), collapse = ""))
 }
 
 

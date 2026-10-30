@@ -118,9 +118,13 @@ change it. s3 refuses an ETT whose value differs from the current
 s2 run that wrote the analysis files. It follows the same rules as
 \code{s1_run_id}, and it changes on every s2 run. s3 copies it into each
 result it stores. The logical column \code{feasibility_horizon} is \code{TRUE}
-on each ETT that the spec key \code{feasibility_follow_up_weeks} adds, and
-\code{FALSE} on every other ETT. \code{\link[=tteplan_load]{tteplan_load()}} gives a plan saved
-without the column the value \code{FALSE} on every ETT.}
+on each horizon-only ETT, and \code{FALSE} on every other ETT. The spec
+key \code{feasibility_follow_up_weeks} adds a horizon-only ETT. The grid
+also adds one at the next whole year of a follow-up that is not a
+whole number of years. It adds none where the enrollment already has
+an ETT of that length.
+\code{\link[=tteplan_load]{tteplan_load()}} gives a plan saved without the column the value
+\code{FALSE} on every ETT.}
 
     \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
 
@@ -384,8 +388,9 @@ decision of that ETT. Another year shows the decision up to that year of
 the shortest longer ETT. A year that no ETT of the row reaches is empty.
 
 The two Minimum events sheets are the only sheets that show a
-feasibility-horizon ETT, one that the spec key
-\code{feasibility_follow_up_weeks} adds. Its years get columns.
+horizon-only ETT. The spec key \code{feasibility_follow_up_weeks} adds one, and
+a follow-up that is not a whole number of years adds one at its next whole
+year. Its years get columns.
 Every other sheet, \code{results.qs2} and \verb{$get_horizon_windows()} leave it
 out.
 
@@ -586,7 +591,9 @@ Attrition sheet keeps the eligibility counts by arm, including people
 excluded for an outcome event before time zero.
 
 The intention-to-treat record of each ETT takes the decision of its
-per-protocol record, as in \verb{$s3_analyze()}.
+per-protocol record, as in \verb{$s3_analyze()}. Some ETTs have a follow-up
+that is not a whole number of years. The per-protocol record of such an ETT
+first takes the decision of the ETT at the next whole year.
 
 The method writes \code{feasibility.xlsx} to \code{self$dir_results}, the directory
 of \verb{$export_tables()}. \verb{$export_tables()} also writes it, from the s3
@@ -873,8 +880,10 @@ are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
 \subsection{\code{TTEPlan$print()}}{
   Print the TTEPlan object.
 
-The ETT grid it prints holds the reported ETTs. A feasibility-horizon ETT,
-one that the spec key \code{feasibility_follow_up_weeks} adds, is not printed.
+The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
+printed. The spec key \code{feasibility_follow_up_weeks} adds one, and a
+follow-up that is not a whole number of years adds one at its next whole
+year.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print(...)}
@@ -981,9 +990,10 @@ Six sibling methods return the other stored results in the same shape:
 \verb{$get_matching()}, \verb{$get_subgroups()} and \verb{$get_horizon_windows()}. Each
 takes no argument, and each computes nothing.
 
-A feasibility-horizon ETT, one that the spec key
-\code{feasibility_follow_up_weeks} adds, gets no row from this method,
-\verb{$get_curves()}, \verb{$get_subgroups()} or \verb{$get_horizon_windows()}. s3
+A horizon-only ETT gets no row from this method,
+\verb{$get_curves()}, \verb{$get_subgroups()} or \verb{$get_horizon_windows()}. The spec
+key \code{feasibility_follow_up_weeks} adds one, and a follow-up that is not a
+whole number of years adds one at its next whole year. s3
 stores its two horizon records and no estimate. The Minimum events sheets
 of \verb{$export_tables()} are the only output that shows its decision.
 
@@ -1546,8 +1556,10 @@ person_id_var, outcome_description).}
       \item{\code{feasibility_horizon}}{Logical(1), \code{FALSE} by default. \code{TRUE} marks a
 feasibility-horizon ETT. s2 builds it as any other ETT, s3 computes only
 the minimum-events rule for it, and only the Minimum events sheets show
-it. The spec key \code{feasibility_follow_up_weeks} adds these ETTs. See
-\code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
+it. The spec key \code{feasibility_follow_up_weeks} adds these ETTs. The grid
+also adds one at the next whole year of a follow-up that is not a whole
+number of years. It adds none where the enrollment already has an ETT of
+that length. See \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1589,8 +1601,9 @@ plan was built from a spec.}
 Present when the plan was built from a spec.}
 \item{reported_follow_up_time}{Integer, the longest follow-up of the
 reported ETTs of the enrollment, in weeks. Present only when the
-enrollment holds a feasibility-horizon ETT. \code{design$follow_up_time}
-is then the feasibility horizon.}
+enrollment holds a horizon-only ETT: the feasibility horizon, or the
+whole year that decides a part-year horizon. \code{design$follow_up_time}
+then covers the horizon-only ETTs too.}
 }
   }
 }

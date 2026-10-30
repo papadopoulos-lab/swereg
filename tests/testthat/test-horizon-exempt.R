@@ -714,6 +714,27 @@ HX_PROTOCOL_27_3_0 <- "Minimum-events rule: at least 5 expected events per arm i
 HX_OSF_27_3_0 <- "A prespecified reporting rule, the minimum-events rule, requires at least 5 expected events per arm in each year of follow-up. Follow-up is cut into years of 52 weeks from time zero. The last year ends at the horizon, so it can be shorter. The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms. The reportable horizon is the end of the last year before the first year that fails.\n\nWhen any year up to the horizon fails the rule, the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable. Its subgroup rate ratios and interaction tests are withheld too. Events, person-time, rates and the survival curve are still reported.\n\nThe rule is applied to the per-protocol estimate. The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.\n\nWhich years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
 HX_OSF_27_3_0_NO_SG <- "A prespecified reporting rule, the minimum-events rule, requires at least 5 expected events per arm in each year of follow-up. Follow-up is cut into years of 52 weeks from time zero. The last year ends at the horizon, so it can be shorter. The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms. The reportable horizon is the end of the last year before the first year that fails.\n\nWhen any year up to the horizon fails the rule, the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable. Events, person-time, rates and the survival curve are still reported.\n\nThe rule is applied to the per-protocol estimate. The intention-to-treat estimate is reported exactly when the per-protocol estimate is, to the same horizon.\n\nWhich years pass depends on the observed events, through the pooled rate. The rule is a reporting rule and does not guarantee precision or coverage."
 
+# swereg 27.3.2 replaced the sentence of each text on the partial last year
+# (swereg#62). Each string below is its 27.3.0 string with that one change.
+.hx_2732 <- function(x) {
+  x <- sub(
+    ", and the last year ended at the horizon.",
+    ". If a horizon was not a whole number of years, its estimate was reported when the estimate at the next whole year passed the rule.",
+    x,
+    fixed = TRUE
+  )
+  return(sub(
+    "The last year ends at the horizon, so it can be shorter.",
+    "If a horizon is not a whole number of years, its estimate is reported when the estimate at the next whole year passes the rule.",
+    x,
+    fixed = TRUE
+  ))
+}
+HX_TARGET <- .hx_2732(HX_TARGET_27_3_0)
+HX_TARGET_NO_SG <- .hx_2732(HX_TARGET_27_3_0_NO_SG)
+HX_OSF <- .hx_2732(HX_OSF_27_3_0)
+HX_OSF_NO_SG <- .hx_2732(HX_OSF_27_3_0_NO_SG)
+
 HX_SUBGROUPS <- list(list(
   name = "Age group",
   implementation = list(variable = "rd_agegroup")
@@ -783,7 +804,7 @@ HX_TWO <- "The specification exempts Treated vs control 01 and Treated vs contro
 test_that("(e) TARGET 6h names the exempt enrollment and qualifies its withholding sentence", {
   plan <- .hx_prose_plan(list(NULL, TRUE))
   want <- paste0(
-    "A prespecified reporting rule, the minimum-events rule, required at least 5 expected events per arm in each year of follow-up. Follow-up was cut into years of 52 weeks from time zero, and the last year ended at the horizon. The expected events of an arm in a year were computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms. ",
+    "A prespecified reporting rule, the minimum-events rule, required at least 5 expected events per arm in each year of follow-up. Follow-up was cut into years of 52 weeks from time zero. If a horizon was not a whole number of years, its estimate was reported when the estimate at the next whole year passed the rule. The expected events of an arm in a year were computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms. ",
     "When any year failed the rule, except in an exempt comparison, the incidence rate ratio, risk difference and number needed to treat of that estimand were not reported. Its subgroup rate ratios and interaction tests were withheld too. ",
     HX_ONE,
     " Events, person-time and rates were still reported. Which years passed depended on the observed events, through the pooled rate. The rule was a reporting rule and did not guarantee precision or coverage."
@@ -808,7 +829,7 @@ test_that("(e) the OSF text names the exempt enrollment and qualifies its withho
   want <- sub(
     "When any year up to the horizon fails the rule, the estimates",
     "When any year up to the horizon fails the rule, except in an exempt comparison, the estimates",
-    HX_OSF_27_3_0,
+    HX_OSF,
     fixed = TRUE
   )
   want <- sub(
@@ -817,7 +838,7 @@ test_that("(e) the OSF text names the exempt enrollment and qualifies its withho
     want,
     fixed = TRUE
   )
-  expect_false(identical(want, HX_OSF_27_3_0))
+  expect_false(identical(want, HX_OSF))
   expect_identical(.hx_osf(list(NULL, TRUE)), want)
   expect_match(.hx_osf(list(TRUE, TRUE)), HX_TWO, fixed = TRUE)
 })
@@ -838,19 +859,24 @@ test_that("(e) the protocol table names the exempt enrollment and qualifies its 
   )
 })
 
-test_that("(e) with no exempt enrollment each text equals its 27.3.0 string", {
+test_that("(e) with no exempt enrollment each text equals its 27.3.0 string, but for the part-year sentence", {
+  # Each replacement took place.
+  expect_false(identical(HX_TARGET, HX_TARGET_27_3_0))
+  expect_false(identical(HX_TARGET_NO_SG, HX_TARGET_27_3_0_NO_SG))
+  expect_false(identical(HX_OSF, HX_OSF_27_3_0))
+  expect_false(identical(HX_OSF_NO_SG, HX_OSF_27_3_0_NO_SG))
   for (exempt in list(list(NULL, NULL), list(FALSE, FALSE))) {
     lab <- if (is.null(exempt[[1L]])) "absent" else "false"
     plan <- .hx_prose_plan(exempt)
     expect_identical(
       swereg:::.plan_horizon_rule_text(plan$spec),
-      HX_TARGET_27_3_0,
+      HX_TARGET,
       info = lab
     )
     expect_identical(
       lengths(regmatches(
         .hx_target_6h(plan),
-        gregexpr(HX_TARGET_27_3_0, .hx_target_6h(plan), fixed = TRUE)
+        gregexpr(HX_TARGET, .hx_target_6h(plan), fixed = TRUE)
       )),
       1L,
       info = lab
@@ -859,14 +885,14 @@ test_that("(e) with no exempt enrollment each text equals its 27.3.0 string", {
       swereg:::.plan_horizon_rule_text(
         .hx_prose_plan(exempt, subgroups = FALSE)$spec
       ),
-      HX_TARGET_27_3_0_NO_SG,
+      HX_TARGET_NO_SG,
       info = lab
     )
     expect_identical(.hx_protocol_line(plan), HX_PROTOCOL_27_3_0, info = lab)
-    expect_identical(.hx_osf(exempt), HX_OSF_27_3_0, info = lab)
+    expect_identical(.hx_osf(exempt), HX_OSF, info = lab)
     expect_identical(
       .hx_osf(exempt, subgroups = FALSE),
-      HX_OSF_27_3_0_NO_SG,
+      HX_OSF_NO_SG,
       info = lab
     )
   }

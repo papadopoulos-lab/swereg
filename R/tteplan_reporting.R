@@ -382,7 +382,13 @@
     parts <- vapply(
       spec$follow_up,
       function(fu) {
-        return(paste0(fu$label, " (", fu$weeks, " weeks)"))
+        return(paste0(
+          fu$label,
+          " (",
+          fu$weeks,
+          " weeks)",
+          .tte_follow_up_scope(fu)
+        ))
       },
       character(1)
     )

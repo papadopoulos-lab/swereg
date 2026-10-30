@@ -104,9 +104,13 @@ TTEPlan <- R6::R6Class(
     #'   s2 run that wrote the analysis files. It follows the same rules as
     #'   `s1_run_id`, and it changes on every s2 run. s3 copies it into each
     #'   result it stores. The logical column `feasibility_horizon` is `TRUE`
-    #'   on each ETT that the spec key `feasibility_follow_up_weeks` adds, and
-    #'   `FALSE` on every other ETT. [tteplan_load()] gives a plan saved
-    #'   without the column the value `FALSE` on every ETT.
+    #'   on each horizon-only ETT, and `FALSE` on every other ETT. The spec
+    #'   key `feasibility_follow_up_weeks` adds a horizon-only ETT. The grid
+    #'   also adds one at the next whole year of a follow-up that is not a
+    #'   whole number of years. It adds none where the enrollment already has
+    #'   an ETT of that length.
+    #'   [tteplan_load()] gives a plan saved without the column the value
+    #'   `FALSE` on every ETT.
     ett = NULL,
     #' @field skeleton_files Character vector of skeleton file paths.
     skeleton_files = NULL,
@@ -440,9 +444,10 @@ TTEPlan <- R6::R6Class(
 
 #' The ETTs a plan reports
 #'
-#' A feasibility-horizon ETT holds `feasibility_horizon = TRUE` in
-#' `plan$ett`. The spec key `feasibility_follow_up_weeks` adds it, and s3
-#' computes only the minimum-events rule for it. Every reporting consumer of
+#' A horizon-only ETT holds `feasibility_horizon = TRUE` in `plan$ett`. The
+#' spec key `feasibility_follow_up_weeks` adds one. A follow-up that is not a
+#' whole number of years adds one at its next whole year. s3 computes only
+#' the minimum-events rule for it. Every reporting consumer of
 #' `plan$ett` reads the rows this function returns. The Minimum events sheets
 #' and `$s3_feasibility()` read `plan$ett` itself, so they show the
 #' feasibility horizon.

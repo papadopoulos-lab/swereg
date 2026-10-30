@@ -361,6 +361,11 @@
     outcome_name = as.character(row$outcome_name),
     follow_up_weeks = weeks,
     follow_up_label = fu_label,
+    # The reported horizons of this ETT's own enrollment, in grid order.
+    # `only_enrollments` can give another enrollment other horizons.
+    grid_weeks = unique(as.numeric(
+      ett$follow_up[as.character(ett$enrollment_id) == eid]
+    )),
     # The assignment row names the stratum of the comparator draw, and the
     # stratum is the enrollment period. Its width comes from the plan.
     period_width = plan$period_width,
@@ -499,7 +504,11 @@
       labels <- vapply(
         spec[["follow_up"]],
         function(f) {
-          return(as.character(f[["label"]] %||% paste0(f[["weeks"]], " weeks")))
+          label <- as.character(
+            f[["label"]] %||% paste0(f[["weeks"]], " weeks")
+          )
+          scope <- .tte_follow_up_scope(f, " (only ")
+          return(if (nzchar(scope)) paste0(label, scope, ")") else label)
         },
         character(1)
       )
@@ -690,11 +699,18 @@
       .protocol_variable_label(ctx$outcome_var, var_names)
     ),
     follow_up_period = {
-      weeks <- vapply(
-        spec[["follow_up"]],
-        function(f) as.numeric(f[["weeks"]]),
-        numeric(1)
-      )
+      # A restricted spec lists the horizons of this ETT's own enrollment,
+      # from `plan$ett`. An unrestricted spec keeps the 27.3.1 line, which
+      # reads the spec, also for a plan whose ETT table was built by hand.
+      weeks <- if (.tte_follow_up_restricted(spec)) {
+        ctx$grid_weeks
+      } else {
+        vapply(
+          spec[["follow_up"]],
+          function(f) as.numeric(f[["weeks"]]),
+          numeric(1)
+        )
+      }
       c(
         .TTE_TIME_ZERO_DEFINITION,
         paste0(

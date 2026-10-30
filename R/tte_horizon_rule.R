@@ -17,6 +17,12 @@
 # The decision depends on the observed events through the pooled rate. It
 # is a prespecified reporting rule. It is not a precision guarantee.
 #
+# A part-year ETT has a follow-up that is not a multiple of 52 weeks. Its
+# per-protocol decision is the decision of its source ETT: the ETT of the same
+# enrollment and outcome at the next whole year. The grid holds that ETT, as
+# a horizon-only ETT when the spec has no follow-up of that length. The record
+# of the part-year ETT keeps its own window table.
+#
 # An enrollment that sets `minimum_events_rule_exempt: true` is exempt. s3
 # computes and stores the decision of its ETTs, and withholds none of their
 # estimates. Their status is `.HORIZON_STATUS_EXEMPT`.
@@ -583,6 +589,108 @@
 }
 
 
+#' The source ETT of each part-year ETT of a grid
+#'
+#' A part-year ETT has a `follow_up` that is not a multiple of
+#' `.HORIZON_WINDOW_WEEKS`. Its source ETT has the same `enrollment_id` and
+#' `outcome_name`, and a `follow_up` of the next whole year.
+#'
+#' @param ett The ETT grid, `plan$ett`, or `NULL`.
+#' @return A list keyed by the id of each part-year ETT, empty for `NULL`.
+#'   Each element holds three fields. `ett_id` is the id of the source ETT,
+#'   or `NA` when the grid holds none. `weeks` is the follow-up of the next
+#'   whole year. `follow_up` is the follow-up of the part-year ETT.
+#' @noRd
+.tte_horizon_sources <- function(ett) {
+  out <- list()
+  if (is.null(ett) || nrow(ett) == 0L) {
+    return(out)
+  }
+  width <- .HORIZON_WINDOW_WEEKS
+  fu <- as.numeric(ett$follow_up)
+  for (i in which(fu %% width != 0)) {
+    weeks <- ceiling(fu[i] / width) * width
+    k <- which(
+      ett$enrollment_id == ett$enrollment_id[i] &
+        ett$outcome_name == ett$outcome_name[i] &
+        fu == weeks
+    )
+    out[[as.character(ett$ett_id[i])]] <- list(
+      ett_id = if (length(k) == 1L) {
+        as.character(ett$ett_id[k])
+      } else {
+        NA_character_
+      },
+      weeks = weeks,
+      follow_up = fu[i]
+    )
+  }
+  return(out)
+}
+
+
+#' Give the per-protocol record of a part-year ETT the decision of its source
+#'
+#' Every field of `.HORIZON_DECISION_FIELDS` comes from the per-protocol
+#' record of the source ETT. So `by_year`, `max_passing_cut`, `fail_lo`,
+#' `fail_hi`, `fail_arm` and `status` describe the source follow-up, and
+#' `decided_by_ett` and `decided_by_weeks` say so. Only `reportable_weeks`
+#' is clipped, to the follow-up of the part-year ETT. The record keeps its own
+#' `rule`, `weight_col`, `follow_up` and `windows`.
+#'
+#' @param rec The per-protocol horizon record of the part-year ETT.
+#' @param src The per-protocol horizon record of the source ETT, or `NULL`.
+#' @param eid Character(1), the id of the part-year ETT.
+#' @param source One element of `.tte_horizon_sources()`.
+#' @param where Character(1), the method name for the message.
+#' @return `rec`, with the decision of the source.
+#' @noRd
+.tte_horizon_from_source <- function(rec, src, eid, source, where) {
+  w <- if (is.list(src)) src$withheld else NULL
+  if (!is.logical(w) || length(w) != 1L || is.na(w)) {
+    stop(
+      where,
+      ": ETT ",
+      eid,
+      " has a follow-up of ",
+      source$follow_up,
+      " weeks, which is not a whole number of years. Its estimate is ",
+      "reported when the minimum-events rule passes at ",
+      source$weeks,
+      " weeks, in ",
+      if (is.na(source$ett_id)) {
+        paste0(
+          "an ETT of the same enrollment and outcome. The ETT grid holds no ",
+          "such ETT. Rebuild the plan from the spec"
+        )
+      } else {
+        paste0(
+          "ETT ",
+          source$ett_id,
+          ". The plan holds no decision of the rule for ETT ",
+          source$ett_id,
+          ". Run $s3_analyze() on ETT ",
+          source$ett_id,
+          " first"
+        )
+      },
+      ".",
+      call. = FALSE
+    )
+  }
+  for (f in .HORIZON_DECISION_FIELDS) {
+    rec[f] <- list(src[[f]])
+  }
+  rec$reportable_weeks <- min(
+    as.numeric(src$reportable_weeks),
+    source$follow_up
+  )
+  rec$decided_by_ett <- source$ett_id
+  rec$decided_by_weeks <- source$weeks
+  return(rec)
+}
+
+
 #' Apply the horizon decisions of an s3 run to the stored results
 #'
 #' The parent merge of `$s3_analyze()` calls it after it stores every worker
@@ -591,16 +699,28 @@
 #' estimates behind. The intention-to-treat record then takes the
 #' per-protocol decision, through `.tte_horizon_follow_pp()`.
 #'
+#' A part-year ETT of `ett_ids` first takes the per-protocol decision of its
+#' source ETT, through `.tte_horizon_from_source()`. The function reads the
+#' source in the whole of `results_ett`, so the source MAY come from an
+#' earlier run. It runs two passes. Pass 1 applies the rule to every ETT of
+#' `ett_ids` that is not part-year. Pass 2 applies it to the part-year ETTs.
+#'
 #' It withholds an estimand when its record has `withheld = TRUE` and is not
 #' exempt. An exempt record keeps `withheld = TRUE` when the rule fails, and
 #' the function withholds none of its estimates.
 #'
 #' @param results_ett `plan$results_ett`.
 #' @param ett_ids Character vector, the ETTs this run computed.
+#' @param ett The ETT grid, `plan$ett`. `$s3_analyze()` passes it. The
+#'   default `NULL` holds no part-year ETT, for a caller that builds the
+#'   records by hand.
 #' @return `results_ett`, with every withheld estimand withheld.
 #' @noRd
-.s3_apply_horizon_rule <- function(results_ett, ett_ids) {
-  for (eid in ett_ids) {
+.s3_apply_horizon_rule <- function(results_ett, ett_ids, ett = NULL) {
+  sources <- .tte_horizon_sources(ett)
+  part <- ett_ids %in% names(sources)
+  # Pass 1, then pass 2. The source of a part-year ETT is never part-year.
+  for (eid in c(ett_ids[!part], ett_ids[part])) {
     res <- results_ett[[eid]]
     for (est in names(.TTE_ESTIMANDS)) {
       rec <- res[[paste0("horizon_", est)]]
@@ -616,6 +736,16 @@
           call. = FALSE
         )
       }
+    }
+    src <- sources[[eid]]
+    if (!is.null(src)) {
+      res$horizon_pp <- .tte_horizon_from_source(
+        res$horizon_pp,
+        results_ett[[src$ett_id]]$horizon_pp,
+        eid,
+        src,
+        "s3_analyze()"
+      )
     }
     res$horizon_itt <- .tte_horizon_follow_pp(res$horizon_pp, res$horizon_itt)
     for (est in names(.TTE_ESTIMANDS)) {
@@ -654,6 +784,70 @@
 }
 
 
+#' The part-year results that do not hold the current decision of their source
+#'
+#' For each part-year ETT of `ett` with a stored result, the function checks
+#' the per-protocol record. It MUST hold `decided_by_ett`, and that MUST be
+#' the source ETT of `.tte_horizon_sources(ett)`. Every field of
+#' `.HORIZON_DECISION_FIELDS` except `reportable_weeks` MUST equal the field
+#' of the stored per-protocol record of the source, in both estimands.
+#'
+#' @param results `plan$results_ett`.
+#' @param ett `plan$ett`.
+#' @return A character vector, one element per failing ETT: its id and the
+#'   reason. It is empty when every part-year result is current.
+#' @noRd
+.tte_horizon_source_problems <- function(results, ett) {
+  sources <- .tte_horizon_sources(ett)
+  same <- function(a, b) {
+    if (is.data.frame(a) && is.data.frame(b)) {
+      return(identical(as.list(a), as.list(b)))
+    }
+    return(identical(a, b))
+  }
+  fields <- setdiff(.HORIZON_DECISION_FIELDS, "reportable_weeks")
+  out <- character(0)
+  for (eid in intersect(names(sources), names(results))) {
+    src <- sources[[eid]]
+    got <- results[[eid]]$horizon_pp$decided_by_ett
+    want <- results[[src$ett_id]]$horizon_pp
+    why <- if (is.null(got)) {
+      "it names no source ETT"
+    } else if (!identical(as.character(got), src$ett_id)) {
+      paste0(
+        "it names ETT ",
+        got,
+        ", and the source ETT is ",
+        if (is.na(src$ett_id)) "absent from the grid" else src$ett_id
+      )
+    } else {
+      stale <- vapply(
+        fields,
+        function(f) {
+          return(
+            !same(results[[eid]]$horizon_pp[[f]], want[[f]]) ||
+              !same(results[[eid]]$horizon_itt[[f]], want[[f]])
+          )
+        },
+        logical(1)
+      )
+      if (any(stale)) {
+        paste0(
+          "its ",
+          paste(fields[stale], collapse = ", "),
+          " differ from ETT ",
+          src$ett_id
+        )
+      }
+    }
+    if (!is.null(why)) {
+      out <- c(out, paste0(eid, " (", why, ")"))
+    }
+  }
+  return(out)
+}
+
+
 #' Stop unless every stored result holds a decision of the current rule
 #'
 #' Each horizon record holds a decision and the rule that made it. The
@@ -671,6 +865,10 @@
 #' that enrollment in `plan$spec`. A record without `rule$exempt`, as swereg
 #' 27.3.0 stored it, counts as not exempt. So a result of a spec without the
 #' key stays current.
+#'
+#' They also stop when the stored result of a part-year ETT does not hold the
+#' current decision of its source ETT, through
+#' `.tte_horizon_source_problems()`.
 #'
 #' @param plan A `TTEPlan`.
 #' @param where Character(1), the method name for the message.
@@ -731,6 +929,7 @@
     }
   }
   flipped <- unique(flipped)
+  source_bad <- .tte_horizon_source_problems(plan$results_ett, plan$ett)
   if (length(absent) > 0L) {
     stop(
       where,
@@ -753,6 +952,19 @@
       ") were judged on their own, as before swereg 27.3.0. The ",
       "intention-to-treat estimate now follows the per-protocol decision. ",
       "Rerun $s3_analyze() to apply it.",
+      call. = FALSE
+    )
+  }
+  if (length(source_bad) > 0L) {
+    stop(
+      where,
+      ": the stored results of ",
+      length(source_bad),
+      " ETT(s) with a follow-up that is not a whole number of years do not ",
+      "hold the current decision of their source ETT, the ETT at the next ",
+      "whole year: ",
+      paste(utils::head(source_bad, 5L), collapse = ", "),
+      ". Rerun $s3_analyze() to apply it.",
       call. = FALSE
     )
   }

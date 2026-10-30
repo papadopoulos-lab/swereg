@@ -555,7 +555,7 @@
   # -- Follow-up ------------------------------------------------------------
   add_header("Follow-up")
   for (fu in spec$follow_up) {
-    add_kv(fu$label, paste0(fu$weeks, " weeks"))
+    add_kv(fu$label, paste0(fu$weeks, " weeks", .tte_follow_up_scope(fu)))
   }
   # The three censoring models of `s6_ipcw_pp()`, in the order it fits them.
   add_kv(

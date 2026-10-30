@@ -51,7 +51,11 @@ skip_if_not_installed("qs2")
     for (trial in 1:2) {
       ev <- stats::rbinom(n_intervals, 1L, h)
       first <- which(ev == 1L)
-      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_intervals)
+      keep <- if (length(first) > 0L) {
+        seq_len(first[1])
+      } else {
+        seq_len(n_intervals)
+      }
       rows[[length(rows) + 1L]] <- data.table::data.table(
         id = persons[k],
         enrollment_person_trial_id = paste0(persons[k], "_t", trial),
@@ -106,14 +110,20 @@ skip_if_not_installed("qs2")
     d <- .abs_panel(n_persons, n_intervals, cell$h_int, cell$h_cmp, cell$seed)
     enr <- swereg::TTEEnrollment$new(d, design, data_level = "trial")
     qs2::qs_save(enr, file.path(output_dir, sprintf("analysis_%03d.qs2", k)))
-    qs2::qs_save(enr, file.path(output_dir, sprintf("analysis_itt_%03d.qs2", k)))
+    qs2::qs_save(
+      enr,
+      file.path(output_dir, sprintf("analysis_itt_%03d.qs2", k))
+    )
   }
   ett <- data.table::data.table(
     enrollment_id = "01",
     ett_id = ids,
     outcome_var = "osd_a",
     outcome_name = "Outcome A",
-    follow_up = 24L,
+    # A whole year. A follow-up that is not a whole number of years needs the
+    # ETT of its next whole year in the grid (swereg#62). The panel ends at
+    # week 24, so the minimum-events rule is the only reader of this value.
+    follow_up = 52L,
     age_min = 50L,
     age_max = 59L,
     age_group = "50_59",
@@ -417,11 +427,15 @@ test_that("s3 emits exactly two risk-difference work items per ETT", {
   # The ITT item reads the ITT panel. Reading the PP panel under the ITT
   # weight would report a per-protocol quantity under an ITT heading.
   itt <- rd_items[weights == "ipw_trunc"]
-  expect_true(all(grepl("analysis_itt_", vapply(
-    itt,
-    function(it) basename(it$analysis_path),
-    character(1)
-  ), fixed = TRUE)))
+  expect_true(all(grepl(
+    "analysis_itt_",
+    vapply(
+      itt,
+      function(it) basename(it$analysis_path),
+      character(1)
+    ),
+    fixed = TRUE
+  )))
 
   # Every formal of the target, named on every item -- the contract
   # .batch_run enforces at the far end.
@@ -454,7 +468,9 @@ test_that("the risk-difference item survives the real batch worker boundary", {
     results = file.path(root, "results"),
     meta = file.path(root, "meta")
   )
-  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  for (d in dirs) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
   skel_path <- file.path(dirs$tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel_path)
   ttm_write_spec(
@@ -477,7 +493,9 @@ test_that("the risk-difference item survives the real batch worker boundary", {
     {
       plan$s1_generate_enrollments_and_ipw(
         n_workers = 1L,
-        swereg_dev_path = dev_path, check_skeletons = FALSE)
+        swereg_dev_path = dev_path,
+        check_skeletons = FALSE
+      )
       plan$s2_generate_analysis_files_and_ipcw_pp(
         n_workers = 1L,
         swereg_dev_path = dev_path

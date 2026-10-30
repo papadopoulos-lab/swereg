@@ -16,7 +16,7 @@ character columns:
 \item{\code{path}}{The normalised key path of the problem, for example
 \verb{$/study/implementation/version}. A problem with the whole file has
 the path \code{$}.}
-\item{\code{kind}}{The problem kind. The Details section lists the eleven
+\item{\code{kind}}{The problem kind. The Details section lists the twelve
 kinds.}
 \item{\code{message}}{What is wrong, and the repair where swereg knows it.}
 }
@@ -28,7 +28,7 @@ It never stops on a bad specification, so a caller can check many files in
 one pass.
 }
 \details{
-The checker reports eleven kinds of problem:
+The checker reports twelve kinds of problem:
 \describe{
 \item{\code{unreadable}}{The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
@@ -65,6 +65,11 @@ the message names the enrollment id.}
 \item{\code{feasibility_follow_up_weeks}}{The top-level key
 \code{feasibility_follow_up_weeks} is not one positive whole number of
 weeks. The checker writes one row, and the message names the key.}
+\item{\code{follow_up_only_enrollments}}{A \code{follow_up} entry sets
+\code{only_enrollments} to a bad value. The value MUST be a non-empty
+list of enrollment ids. A single id is a list of one. The list MUST
+NOT repeat an id, and each string MUST be the \code{id} of an enrollment.
+The checker writes one row for each bad entry. The message names the follow-up label and the bad value.}
 \item{\code{read_error}}{\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops after its key gate. The
 message is the message of that error.}
 }

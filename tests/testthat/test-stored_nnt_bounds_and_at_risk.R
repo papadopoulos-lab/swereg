@@ -47,7 +47,11 @@ skip_if_not_installed("data.table")
     for (trial in 1:2) {
       ev <- stats::rbinom(n_intervals, 1L, h)
       first <- which(ev == 1L)
-      keep <- if (length(first) > 0L) seq_len(first[1]) else seq_len(n_intervals)
+      keep <- if (length(first) > 0L) {
+        seq_len(first[1])
+      } else {
+        seq_len(n_intervals)
+      }
       rows[[length(rows) + 1L]] <- data.table::data.table(
         id = persons[k],
         enrollment_person_trial_id = paste0(persons[k], "_t", trial),
@@ -413,7 +417,11 @@ test_that("the survival figure draws from storage with no analysis file", {
     outcome_var = "osd_a",
     outcome_name = "Outcome A",
     outcome_role = "primary",
-    follow_up = 16L,
+    # A whole year. A follow-up that is not a whole number of years needs the
+    # ETT of its next whole year in the grid (swereg#62). The panel ends at
+    # week 16, and the stored results come from workers that take no
+    # follow-up.
+    follow_up = 52L,
     age_min = 50L,
     age_max = 59L,
     age_group = "50_59",
@@ -493,7 +501,7 @@ test_that("the survival figure draws from storage with no analysis file", {
   type = "survival",
   enrollment = "01",
   outcome = "osd_a",
-  follow_up = 16L,
+  follow_up = 52L,
   age_group = "50_59",
   estimands = "pp",
   label = "surv"

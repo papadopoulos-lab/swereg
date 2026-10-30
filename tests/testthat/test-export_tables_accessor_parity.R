@@ -294,8 +294,9 @@ test_that("images match on inventory, dimensions and renderer input", {
     ".s3_horizon_report(self$results_ett, ett_todo$ett_id)"
   ),
   `.s3_apply_horizon_rule` = c(
-    "function (results_ett, ett_ids)",
+    "function (results_ett, ett_ids, ett = NULL)",
     "res <- results_ett[[eid]]",
+    "results_ett[[src$ett_id]]$horizon_pp, eid, src,",
     "results_ett[[eid]] <- res",
     "return(results_ett)"
   ),
@@ -306,7 +307,8 @@ test_that("images match on inventory, dimensions and renderer input", {
   `.tte_assert_horizon_rule_current` = c(
     "for (eid in names(plan$results_ett)) {",
     "itt <- plan$results_ett[[eid]][[\"horizon_itt\"]]",
-    "rec <- plan$results_ett[[eid]][[paste0(\"horizon_\","
+    "rec <- plan$results_ett[[eid]][[paste0(\"horizon_\",",
+    "source_bad <- .tte_horizon_source_problems(plan$results_ett,"
   ),
   `TTEPlan$public_methods$s2_generate_analysis_files_and_ipcw_pp` = c(
     "self$results_enrollment <- NULL",
@@ -638,7 +640,9 @@ test_that("supported states keep their content", {
   # Find the row by its step name rather than pinning an index. The index
   # moves whenever the fixture gains a criterion, and the claim here is
   # about the analysis_dataset row, not about where it happens to sit.
-  analysis_row <- which(as.character(s$Attrition_01[["C1"]]) == "analysis_dataset")
+  analysis_row <- which(
+    as.character(s$Attrition_01[["C1"]]) == "analysis_dataset"
+  )
   expect_length(analysis_row, 1L)
   expect_identical(cell(s$Attrition_01, analysis_row, "C4"), "1000")
 

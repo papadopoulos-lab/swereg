@@ -15,14 +15,14 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the eleven
+#'     \item{`kind`}{The problem kind. The Details section lists the twelve
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports eleven kinds of problem:
+#' The checker reports twelve kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
@@ -59,6 +59,11 @@
 #'   \item{`feasibility_follow_up_weeks`}{The top-level key
 #'     `feasibility_follow_up_weeks` is not one positive whole number of
 #'     weeks. The checker writes one row, and the message names the key.}
+#'   \item{`follow_up_only_enrollments`}{A `follow_up` entry sets
+#'     `only_enrollments` to a bad value. The value MUST be a non-empty
+#'     list of enrollment ids. A single id is a list of one. The list MUST
+#'     NOT repeat an id, and each string MUST be the `id` of an enrollment.
+#'     The checker writes one row for each bad entry. The message names the follow-up label and the bad value.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
 #'     message is the message of that error.}
 #' }
@@ -123,6 +128,8 @@ tteplan_check_spec <- function(spec_path) {
   rows <- c(rows, .tte_check_spec_exempt(exempt_found))
   feasibility_found <- .tte_feasibility_follow_up_problems(spec)
   rows <- c(rows, .tte_check_spec_feasibility_follow_up(feasibility_found))
+  only_found <- .tte_follow_up_only_enrollments_problems(spec)
+  rows <- c(rows, .tte_check_spec_only_enrollments(only_found))
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -137,8 +144,8 @@ tteplan_check_spec <- function(spec_path) {
     # `tteplan_read_spec()` stops on a missing or bad enrollment id before it
     # reads the enrollments. It stops on the outcome-selecting exclusions,
     # then on the enrollment families, then on the bad exemption values, then
-    # on a bad feasibility_follow_up_weeks, then on the repeated enrollment
-    # ids, as its last five stops. The rows above already report each
+    # on a bad feasibility_follow_up_weeks, then on a bad only_enrollments,
+    # then on the repeated enrollment ids, as its last six stops. The rows above already report each
     # finding.
     if (
       length(id_value_rows) > 0L &&
@@ -175,6 +182,12 @@ tteplan_check_spec <- function(spec_path) {
           read_error,
           .tte_feasibility_follow_up_message(feasibility_found)
         )
+    ) {
+      read_error <- NULL
+    }
+    if (
+      length(only_found) > 0L &&
+        identical(read_error, .tte_only_enrollments_message(only_found))
     ) {
       read_error <- NULL
     }
@@ -1019,6 +1032,142 @@ tteplan_check_spec <- function(spec_path) {
     return(.tte_check_spec_row(
       f$path,
       "feasibility_follow_up_weeks",
+      f$message
+    ))
+  }))
+}
+
+
+#' Every bad value of the `only_enrollments` key of the follow-up entries
+#'
+#' The key is optional. When a `follow_up` entry sets it, the value MUST be a
+#' non-empty list of enrollment ids. A single id is a list of one: YAML reads
+#' `only_enrollments: M01` and `only_enrollments: [M01]` as one value, so the
+#' finder accepts both. The list MUST NOT repeat an id, and each string MUST
+#' be the `id` of an enrollment. The finder never stops on a bad shape.
+#'
+#' @param spec The parsed specification.
+#' @return A list with one element per bad entry. Each element holds `path`,
+#'   the normalised key path, and `message`, which names the follow-up label
+#'   and the bad value.
+#' @noRd
+.tte_follow_up_only_enrollments_problems <- function(spec) {
+  follow_up <- .tte_check_spec_get(spec, "follow_up")
+  if (!.tte_spec_is_sequence(follow_up)) {
+    return(list())
+  }
+  key <- "only_enrollments"
+  enrollments <- .tte_check_spec_get(spec, "enrollments")
+  ids <- if (.tte_spec_is_sequence(enrollments)) {
+    vapply(enrollments, .tte_spec_scalar_at, character(1), "id")
+  } else {
+    character(0)
+  }
+  found <- list()
+  for (i in seq_along(follow_up)) {
+    f <- follow_up[[i]]
+    if (!is.list(f) || !key %in% names(f)) {
+      next
+    }
+    problem <- .tte_only_enrollments_problem(f[[key]], ids)
+    if (is.null(problem)) {
+      next
+    }
+    found <- c(
+      found,
+      list(list(
+        path = paste0("$/follow_up[]/", key),
+        message = paste0(
+          "follow_up[",
+          i,
+          "] '",
+          .tte_spec_scalar_at(f, "label"),
+          "' has ",
+          key,
+          " ",
+          .tte_only_enrollments_show(f[[key]]),
+          ". ",
+          problem,
+          " ",
+          key,
+          " MUST be a non-empty list of enrollment ids, each id once ",
+          "(a single id is a list of one)."
+        )
+      ))
+    )
+  }
+  return(found)
+}
+
+
+#' What is wrong with one `only_enrollments` value
+#'
+#' @param value The parsed value of the key.
+#' @param ids Character vector, the enrollment ids of the specification.
+#' @return `NULL` for a good value, or a sentence that names the problem.
+#' @noRd
+.tte_only_enrollments_problem <- function(value, ids) {
+  if (!is.character(value) || length(value) == 0L || anyNA(value)) {
+    return("The value is not a non-empty list of strings.")
+  }
+  dup <- unique(value[duplicated(value)])
+  if (length(dup) > 0L) {
+    return(paste0("It repeats the id '", paste(dup, collapse = "', '"), "'."))
+  }
+  unknown <- setdiff(value, ids)
+  if (length(unknown) > 0L) {
+    return(paste0(
+      "No enrollment has the id '",
+      paste(unknown, collapse = "', '"),
+      "'."
+    ))
+  }
+  return(NULL)
+}
+
+
+#' Show an `only_enrollments` value in a message
+#'
+#' @param value The parsed value of the key.
+#' @return A character scalar. An atomic vector shows as `[a, b]`.
+#' @noRd
+.tte_only_enrollments_show <- function(value) {
+  if (is.atomic(value) && length(value) > 0L && !anyNA(value)) {
+    return(paste0("[", paste(as.character(value), collapse = ", "), "]"))
+  }
+  if (is.list(value) && length(value) == 0L) {
+    return("[]")
+  }
+  return(.tte_spec_value_show(value))
+}
+
+
+#' The error message of the `only_enrollments` findings
+#'
+#' `tteplan_read_spec()` stops with this message. `tteplan_check_spec()`
+#' compares its `read_error` against it, so one finding never gives two rows.
+#'
+#' @param found A list from `.tte_follow_up_only_enrollments_problems()`.
+#' @return A character scalar.
+#' @noRd
+.tte_only_enrollments_message <- function(found) {
+  return(paste(
+    vapply(found, `[[`, character(1), "message"),
+    collapse = "\n"
+  ))
+}
+
+
+#' Rows for every bad value of the `only_enrollments` key
+#'
+#' @param found A list from `.tte_follow_up_only_enrollments_problems()`.
+#' @return A list of rows of kind `follow_up_only_enrollments`.
+#' @noRd
+.tte_check_spec_only_enrollments <- function(found) {
+  return(lapply(found, function(f) {
+    return(.tte_check_spec_row(
+      f$path,
+      "follow_up_only_enrollments",
       f$message
     ))
   }))

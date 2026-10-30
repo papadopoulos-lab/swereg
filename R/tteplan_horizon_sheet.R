@@ -99,7 +99,9 @@
 #'   `" (exempt)"`. `any_exempt` is `TRUE` when at least one enrollment of a
 #'   row is exempt. `any_longer` is `TRUE` when at least one cell reads the
 #'   `by_year` of a longer ETT. `feasibility_weeks` is the longest follow-up
-#'   of a feasibility-horizon ETT, or `NA` when the plan has none.
+#'   of a feasibility-horizon ETT, or `NA` when the plan has none. A
+#'   horizon-only ETT of `.tte_ceiling_follow_ups()` does not count there.
+#'   `ceiling_note` is the note of `.minimum_events_ceilings()`.
 #' @noRd
 .minimum_events_wide <- function(plan, records) {
   ett <- plan$ett
@@ -121,6 +123,10 @@
   } else {
     rep(FALSE, nrow(ett))
   }
+  # A horizon-only ETT is either the feasibility horizon or the whole year
+  # that decides a part-year horizon.
+  ceilings <- .minimum_events_ceilings(plan, is_feas)
+  is_feas[ceilings$rows] <- FALSE
 
   # Every record of an ETT of the plan MUST carry `max_passing_cut` and a
   # per-year table.
@@ -239,7 +245,59 @@
     withheld = withheld,
     any_exempt = n > 0L && any_exempt,
     any_longer = any_longer,
-    feasibility_weeks = if (any(is_feas)) max(ett_fu[is_feas]) else NA_real_
+    feasibility_weeks = if (any(is_feas)) max(ett_fu[is_feas]) else NA_real_,
+    ceiling_note = ceilings$note
+  ))
+}
+
+
+#' The horizon-only ETTs that decide a part-year horizon
+#'
+#' `.tteplan_add_spec_etts()` adds them through `.tte_ceiling_follow_ups()`.
+#' A horizon-only ETT is one of them when its follow-up is a whole year that
+#' `.tte_ceiling_follow_ups()` returns for its enrollment.
+#'
+#' @param plan A TTEPlan.
+#' @param is_feas Logical, `TRUE` on each horizon-only row of `plan$ett`.
+#' @return A list. `rows` holds the row numbers of those ETTs in `plan$ett`.
+#'   `note` holds one sentence per whole year, or is `NULL` when the plan has
+#'   no such ETT.
+#' @noRd
+.minimum_events_ceilings <- function(plan, is_feas) {
+  ett <- plan$ett
+  rows <- integer(0)
+  decides <- list()
+  for (i in which(is_feas)) {
+    for (fu in .tte_ceiling_follow_ups(plan$spec, ett$enrollment_id[i])) {
+      if (fu$weeks == as.numeric(ett$follow_up[i])) {
+        rows <- c(rows, i)
+        key <- as.character(fu$weeks)
+        decides[[key]] <- sort(unique(c(decides[[key]], fu$decides)))
+      }
+    }
+  }
+  weeks <- function(x) {
+    return(paste0(format(x, trim = TRUE, scientific = FALSE), "-week"))
+  }
+  note <- vapply(
+    names(decides),
+    function(key) {
+      return(paste0(
+        "The ",
+        weeks(as.numeric(key)),
+        " follow-up is the whole year that decides the ",
+        .osf_and(weeks(decides[[key]])),
+        " follow-up; no estimate is reported for the ",
+        weeks(as.numeric(key)),
+        " follow-up."
+      ))
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+  return(list(
+    rows = rows,
+    note = if (length(note) > 0L) paste(note, collapse = " ")
   ))
 }
 
@@ -341,11 +399,12 @@
 #' of the sheet is exempt, the note of each sheet ends with one sentence on
 #' the exemption.
 #'
-#' Row 3 of each sheet explains the year columns, and it is empty when
-#' neither of its two sentences applies. The first sentence appears when a
-#' cell reads the `by_year` table of a longer ETT. The second appears when
-#' the plan holds a feasibility-horizon ETT, and it names the weeks of that
-#' horizon.
+#' Row 3 of each sheet explains the year columns, and it is empty when none
+#' of its sentences applies. The first sentence appears when a cell reads the
+#' `by_year` table of a longer ETT. The second appears when the plan holds a
+#' feasibility-horizon ETT, and it names the weeks of that horizon. Then one
+#' sentence follows for each whole year that the grid adds to decide a
+#' part-year horizon. It names that whole year and the part-year horizons.
 #'
 #' @param wb An openxlsx workbook.
 #' @param plan A TTEPlan.
@@ -372,7 +431,8 @@
         " weeks (feasibility_follow_up_weeks); no estimate is reported for ",
         "them."
       )
-    }
+    },
+    wide$ceiling_note
   )
   if (!is.null(year_note)) {
     year_note <- paste(year_note, collapse = " ")

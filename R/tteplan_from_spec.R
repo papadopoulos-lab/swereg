@@ -242,15 +242,21 @@ tteplan_from_spec_and_registrystudy <- function(
 #' Add the full ETT grid of a spec to a plan
 #'
 #' One ETT for each enrollment, outcome and follow-up horizon of the spec, in
-#' that nesting order. Each ETT row also carries the treatment implementation,
+#' that nesting order. A horizon with `only_enrollments` gives ETTs only to the
+#' enrollments it names. A dropped ETT takes no ETT id. Each ETT row also carries the treatment implementation,
 #' the comparator-to-intervention ratio and the seed of its enrollment.
 #' [tteplan_from_spec_and_registrystudy()] and
 #' [tteplan_excel_spec_summary()] both build their grid here.
 #'
-#' When `.tte_follow_up_grid()` adds a feasibility horizon, a second pass
-#' adds one feasibility-horizon ETT for each enrollment and outcome, in the
-#' same nesting order. Their ETT ids follow the ids of the spec's own ETTs, so
+#' `.tte_follow_up_grid()` MAY add a feasibility horizon to an enrollment. A
+#' second pass then adds one feasibility-horizon ETT for each such enrollment
+#' and each outcome, in the same nesting order. Their ETT ids follow the ids of the spec's own ETTs, so
 #' the spec's own ETTs keep the ids of a grid without the key.
+#'
+#' A third pass adds the horizon-only ETTs of `.tte_ceiling_follow_ups()`.
+#' Each is the whole year that decides a part-year horizon of an enrollment
+#' whose grid does not hold that year. Their ETT ids follow every other ETT
+#' id.
 #'
 #' @param plan A [TTEPlan] with no ETTs.
 #' @param spec A spec list from [tteplan_read_spec()].
@@ -277,14 +283,15 @@ tteplan_from_spec_and_registrystudy <- function(
     NULL
   }
 
-  # The spec's own follow-up horizons, then the feasibility horizon of
+  # The follow-up horizons of one enrollment, then the feasibility horizon of
   # `feasibility_follow_up_weeks` when it is longer than every one of them.
-  grid <- .tte_follow_up_grid(spec)
-  feasible <- vapply(
-    grid,
-    function(fu) isTRUE(fu$feasibility_horizon),
-    logical(1)
-  )
+  # `feasible = TRUE` keeps only the feasibility horizon, and `FALSE` drops it.
+  enrollment_grid <- function(enrollment, feasible) {
+    return(Filter(
+      function(fu) isTRUE(fu$feasibility_horizon) == feasible,
+      .tte_follow_up_grid(spec, enrollment$id)
+    ))
+  }
 
   # One ETT per outcome and follow-up of one enrollment, then the treatment
   # implementation on every ETT of that enrollment.
@@ -309,6 +316,10 @@ tteplan_from_spec_and_registrystudy <- function(
         "' has no age_range in additional_inclusion",
         call. = FALSE
       )
+    }
+    # `only_enrollments` can leave an enrollment without a horizon.
+    if (length(follow_ups) == 0L) {
+      return(invisible(NULL))
     }
 
     for (outcome in spec$outcomes) {
@@ -350,11 +361,20 @@ tteplan_from_spec_and_registrystudy <- function(
   }
 
   for (enrollment in spec$enrollments) {
-    add_enrollment(enrollment, grid[!feasible])
+    add_enrollment(enrollment, enrollment_grid(enrollment, FALSE))
   }
-  if (any(feasible)) {
-    for (enrollment in spec$enrollments) {
-      add_enrollment(enrollment, grid[feasible])
+  for (enrollment in spec$enrollments) {
+    feasibility <- enrollment_grid(enrollment, TRUE)
+    if (length(feasibility) > 0L) {
+      add_enrollment(enrollment, feasibility)
+    }
+  }
+  # The whole year that decides each part-year horizon, when the enrollment
+  # has no ETT at that year. These ETTs come last, so no ETT id above moves.
+  for (enrollment in spec$enrollments) {
+    ceilings <- .tte_ceiling_follow_ups(spec, enrollment$id)
+    if (length(ceilings) > 0L) {
+      add_enrollment(enrollment, ceilings)
     }
   }
 
@@ -362,11 +382,60 @@ tteplan_from_spec_and_registrystudy <- function(
 }
 
 
+#' The whole-year horizons that decide the part-year horizons of an enrollment
+#'
+#' A part-year horizon is a follow-up that is not a multiple of 52 weeks. Its
+#' estimate is reported when the minimum-events rule passes at the next whole
+#' year, `ceiling(weeks / 52) * 52` weeks. The function returns one entry for
+#' each such whole year that `.tte_follow_up_grid()` does not hold for the
+#' enrollment. The feasibility horizon counts as held. A feasibility horizon
+#' that is not a whole number of years is a part-year horizon too, so it gets
+#' a whole year as well.
+#'
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @param enrollment_id The id of one enrollment.
+#' @return A list of follow-up entries, in the order of the first part-year
+#'   horizon that needs each one. Each holds `label` (`"1 year"` or
+#'   `"<k> years"`), `weeks`, `feasibility_horizon = TRUE`, and `decides`,
+#'   the weeks of the part-year horizons it decides. The list is empty when
+#'   the grid holds the whole year of every part-year horizon.
+#' @noRd
+.tte_ceiling_follow_ups <- function(spec, enrollment_id) {
+  width <- .HORIZON_WINDOW_WEEKS
+  held <- vapply(
+    .tte_follow_up_grid(spec, enrollment_id),
+    function(f) as.numeric(f$weeks),
+    numeric(1)
+  )
+  out <- list()
+  for (w in held[held %% width != 0]) {
+    weeks <- ceiling(w / width) * width
+    if (weeks %in% held) {
+      next
+    }
+    key <- as.character(weeks)
+    if (is.null(out[[key]])) {
+      years <- weeks / width
+      out[[key]] <- list(
+        label = paste(years, if (years == 1) "year" else "years"),
+        weeks = as.integer(weeks),
+        feasibility_horizon = TRUE,
+        decides = numeric(0)
+      )
+    }
+    out[[key]]$decides <- c(out[[key]]$decides, w)
+  }
+  return(unname(out))
+}
+
+
 #' The follow-up horizons of the ETT grid of a spec
 #'
-#' The spec's own `follow_up` entries, in spec order. When the spec sets
-#' `feasibility_follow_up_weeks` to W, and W is longer than every follow-up
-#' of the spec, one entry follows them:
+#' The spec's own `follow_up` entries, in spec order. With `enrollment_id`,
+#' only the entries that apply to that enrollment: an entry without
+#' `only_enrollments`, or an entry that lists the id. When the spec sets
+#' `feasibility_follow_up_weeks` to W, and W is longer than every entry kept,
+#' one entry follows them:
 #' \itemize{
 #'   \item `weeks` is W;
 #'   \item `label` is `"<W/52> years"` when W is a multiple of 52, `"1 year"`
@@ -376,11 +445,16 @@ tteplan_from_spec_and_registrystudy <- function(
 #' Otherwise the spec adds no entry.
 #'
 #' @param spec A spec list from [tteplan_read_spec()].
+#' @param enrollment_id The id of one enrollment, or `NULL` for every entry
+#'   of the spec.
 #' @return A list of follow-up entries. Each holds `label` and `weeks`. The
 #'   feasibility horizon also holds `feasibility_horizon = TRUE`.
 #' @noRd
-.tte_follow_up_grid <- function(spec) {
+.tte_follow_up_grid <- function(spec, enrollment_id = NULL) {
   fu <- spec$follow_up %||% list()
+  if (!is.null(enrollment_id)) {
+    fu <- Filter(function(f) .tte_follow_up_applies(f, enrollment_id), fu)
+  }
   w <- spec[["feasibility_follow_up_weeks"]]
   if (is.null(w)) {
     return(fu)
@@ -406,6 +480,78 @@ tteplan_from_spec_and_registrystudy <- function(
       feasibility_horizon = TRUE
     ))
   ))
+}
+
+
+#' `TRUE` when a follow-up entry applies to an enrollment
+#'
+#' @param fu One `follow_up` entry of the spec.
+#' @param enrollment_id The id of one enrollment.
+#' @return `TRUE` when `fu` has no `only_enrollments`, or lists the id.
+#' @noRd
+.tte_follow_up_applies <- function(fu, enrollment_id) {
+  ids <- fu[["only_enrollments"]]
+  if (is.null(ids)) {
+    return(TRUE)
+  }
+  return(as.character(enrollment_id) %in% as.character(unlist(ids)))
+}
+
+
+#' `TRUE` when a spec restricts any follow-up entry with `only_enrollments`
+#'
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @return Logical(1).
+#' @noRd
+.tte_follow_up_restricted <- function(spec) {
+  return(any(vapply(
+    spec$follow_up %||% list(),
+    function(f) !is.null(f[["only_enrollments"]]),
+    logical(1)
+  )))
+}
+
+
+#' The enrollment ids a follow-up entry applies to, as text
+#'
+#' @param fu One `follow_up` entry of the spec.
+#' @param prefix Character scalar, the text before the ids.
+#' @return `""` for an entry without `only_enrollments`. Otherwise `prefix`,
+#'   then `"enrollment <id>"` or `"enrollments <id>, <id>"`.
+#' @noRd
+.tte_follow_up_scope <- function(fu, prefix = ", only for ") {
+  ids <- fu[["only_enrollments"]]
+  if (is.null(ids)) {
+    return("")
+  }
+  ids <- as.character(unlist(ids))
+  return(paste0(
+    prefix,
+    if (length(ids) == 1L) "enrollment " else "enrollments ",
+    paste(ids, collapse = ", ")
+  ))
+}
+
+
+#' The feasibility horizon of a spec, and the enrollments that get it
+#'
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @return `NULL` when no enrollment gets a feasibility horizon. Otherwise a
+#'   list: `fu`, the feasibility entry of `.tte_follow_up_grid()`, and `ids`,
+#'   the ids of the enrollments that get it, in spec order.
+#' @noRd
+.tte_feasibility_enrollments <- function(spec) {
+  out <- NULL
+  for (enr in spec$enrollments) {
+    feasible <- Filter(
+      function(fu) isTRUE(fu$feasibility_horizon),
+      .tte_follow_up_grid(spec, enr$id)
+    )
+    if (length(feasible) > 0L) {
+      out <- list(fu = feasible[[1]], ids = c(out$ids, as.character(enr$id)))
+    }
+  }
+  return(out)
 }
 
 
