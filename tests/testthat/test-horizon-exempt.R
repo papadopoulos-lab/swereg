@@ -956,3 +956,34 @@ test_that("(f) the feasibility report and record name the exempt ETT as exempt",
     )
   )
 })
+
+
+# ---- (g): the plan print -----------------------------------------------------
+
+# The spec summary of the `.ff_plan()` plan of `spec`, with a fixed creation
+# time. `.ff_plan()` is in helper-feasibility_follow_up.R.
+.hx_print <- function(spec) {
+  plan <- .ff_plan(spec, withr::local_tempdir())
+  plan$created_at <- FF_EXPORT_TIME
+  return(utils::capture.output(plan$print_spec_summary()))
+}
+
+test_that("(g) the spec summary names the exempt enrollment under the minimum-events rule", {
+  spec <- .ff_spec(NULL)
+  plain <- .hx_print(spec)
+  spec$enrollments[[2]]$minimum_events_rule_exempt <- TRUE
+  out <- .hx_print(spec)
+  line <- "  Exempt: Treated vs control 02"
+  expect_identical(sum(out == line), 1L)
+  after <- grep("Min expected events", plain, fixed = TRUE)
+  expect_length(after, 1L)
+  expect_identical(out, append(plain, line, after = after))
+  spec$enrollments[[1]]$minimum_events_rule_exempt <- TRUE
+  expect_identical(
+    sum(
+      .hx_print(spec) ==
+        "  Exempt: Treated vs control 01, Treated vs control 02"
+    ),
+    1L
+  )
+})

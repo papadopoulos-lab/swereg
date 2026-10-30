@@ -268,6 +268,17 @@ TTEPlan$set("public", "print_spec_summary", function() {
   for (fu in spec$follow_up) {
     cat(sprintf("  - %s (%d weeks)\n", fu$label, fu$weeks))
   }
+  # The feasibility horizon of `feasibility_follow_up_weeks`, when the key
+  # adds ETTs. s3 computes only the minimum-events rule for them.
+  for (fu in .tte_follow_up_grid(spec)) {
+    if (isTRUE(fu$feasibility_horizon)) {
+      cat(sprintf(
+        "  - Feasibility horizon: %s (%d weeks), minimum-events rule only\n",
+        fu$label,
+        fu$weeks
+      ))
+    }
+  }
   cat("\n")
 
   # Inclusion criteria. The `criteria` container applies to every enrollment,
@@ -479,7 +490,8 @@ TTEPlan$set("public", "print_spec_summary", function() {
 #'
 #' Prints `min_expected_events_per_arm_per_year`. A plan saved before swereg
 #' 27.2.14 holds no value. It prints `not declared` and names
-#' `$reload_spec()`, which copies the value from the spec file.
+#' `$reload_spec()`, which copies the value from the spec file. When the spec
+#' exempts enrollments from the rule, it also prints `Exempt:` and their names.
 #'
 #' @param plan A `TTEPlan`.
 #' @param bold A function that makes its text bold.
@@ -500,6 +512,10 @@ TTEPlan$set("public", "print_spec_summary", function() {
     "\n",
     sep = ""
   )
+  exempt <- .tte_exempt_enrollment_names(plan$spec)
+  if (length(exempt) > 0L) {
+    cat("  Exempt: ", paste(exempt, collapse = ", "), "\n", sep = "")
+  }
   cat("\n")
   return(invisible(NULL))
 }

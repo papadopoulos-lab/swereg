@@ -583,3 +583,95 @@ test_that("(e) through the real s1, the key changes no reported estimate, weight
     b$plan$get_baselines()
   )
 })
+
+
+# ---- (g): the plan print ---------------------------------------------------------
+
+# `$print_spec_summary()` of `.ff_plan(.ff_spec(NULL))` at swereg d1c6173d,
+# with `created_at` set to `FF_EXPORT_TIME`. The spec has no
+# `feasibility_follow_up_weeks` and no exempt enrollment.
+FF_PRINT_D1C6173D <- c(
+  "=== Target Trial Specification ===",
+  "\u001b[1mTitle:           \u001b[0mSparse rule fixture",
+  "\u001b[1mDesign:          \u001b[0mSequential target trial emulation",
+  "\u001b[1mPI:              \u001b[0msparse-rule test",
+  "\u001b[1mVersion:         \u001b[0mv001",
+  "\u001b[1m \u2514\u2500 Skeletons:   \u001b[0m(1 files)",
+  "\u001b[1mTTEPlan:         \u001b[0m2026-10-29 12:00:00",
+  "\u001b[1mAdmin censoring: \u001b[0m2023-52 (isoyear-isoweek)",
+  "",
+  "\u001b[1mFollow-up:\u001b[0m ",
+  "  - 1 year (52 weeks)",
+  "  - 2 years (104 weeks)",
+  "",
+  "\u001b[1mInclusion criteria (global):\u001b[0m ",
+  "  Isoyears: 2018-2019",
+  "",
+  "\u001b[1mExclusion criteria (global):\u001b[0m ",
+  "  - No prior intervention (new-user) ",
+  "    Variable:    rd_tx ",
+  "    Window:      lifetime before baseline ",
+  "",
+  "\u001b[1mConfounders:\u001b[0m ",
+  "  - Age ",
+  "    Variable:    rd_age_continuous ",
+  "  - Prior rare condition A ",
+  "    Variable:    rd_no_osd_rare_a_everbefore <- osd_rare_a ",
+  "    Window:      lifetime before baseline ",
+  "  - Prior common condition ",
+  "    Variable:    rd_no_osd_common_everbefore <- osd_common ",
+  "    Window:      lifetime before baseline ",
+  "  - Prior rare condition B ",
+  "    Variable:    rd_no_osd_rare_b_everbefore <- osd_rare_b ",
+  "    Window:      lifetime before baseline ",
+  "",
+  "\u001b[1mMinimum-events rule:\u001b[0m ",
+  "  Min expected events   1 per arm, per follow-up year",
+  "",
+  "\u001b[1mOutcomes:\u001b[0m ",
+  "  - Outcome A ",
+  "    Variable:    osd_a ",
+  "",
+  "\u001b[1mEnrollments:\u001b[0m ",
+  "  \u001b[1m01: Treated vs control 01\u001b[0m",
+  "    Treatment:",
+  "      Variable:                         rd_tx",
+  "      Intervention:                     Treated <- \u001b[93mtreated\u001b[0m",
+  "      Comparator:                       Control <- \u001b[93mcontrol\u001b[0m",
+  "      Comparator-to-intervention ratio: 2:1",
+  "    Additional inclusion:",
+  "      Age range:        40-80",
+  "  \u001b[1m02: Treated vs control 02\u001b[0m",
+  "    Treatment:",
+  "      Variable:                         rd_tx",
+  "      Intervention:                     Treated <- \u001b[93mtreated\u001b[0m",
+  "      Comparator:                       Control <- \u001b[93mcontrol\u001b[0m",
+  "      Comparator-to-intervention ratio: 2:1",
+  "    Additional inclusion:",
+  "      Age range:        40-55",
+  ""
+)
+
+# The spec summary of the plan of `spec`, with a fixed creation time.
+.ff_print <- function(spec) {
+  plan <- .ff_plan(spec, withr::local_tempdir())
+  plan$created_at <- FF_EXPORT_TIME
+  return(utils::capture.output(plan$print_spec_summary()))
+}
+
+test_that("(g) the spec summary lists the feasibility horizon under Follow-up", {
+  out <- .ff_print(.ff_spec(FF_W))
+  line <- "  - Feasibility horizon: 5 years (260 weeks), minimum-events rule only"
+  expect_identical(sum(out == line), 1L)
+  after <- which(FF_PRINT_D1C6173D == "  - 2 years (104 weeks)")
+  expect_identical(
+    out,
+    append(FF_PRINT_D1C6173D, line, after = after)
+  )
+})
+
+test_that("(g) without either key the spec summary equals its d1c6173d text", {
+  expect_identical(.ff_print(.ff_spec(NULL)), FF_PRINT_D1C6173D)
+  # 104 weeks is no longer than every follow-up, so the key adds no ETT.
+  expect_identical(.ff_print(.ff_spec(104L)), FF_PRINT_D1C6173D)
+})
