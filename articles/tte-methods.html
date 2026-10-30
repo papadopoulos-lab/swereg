@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -961,6 +961,13 @@ estimate of the same estimand.</p>
 estimand of the same ETT follows that decision: it is reported exactly
 when the per-protocol estimand is, to the same reportable horizon. One
 decision then holds for both estimands of a comparison.</p>
+<p>An enrollment MAY set <code>minimum_events_rule_exempt: true</code>
+in the specification. The rule then withholds no estimate of that
+comparison, in either estimand. s3 still computes the rule for the
+comparison and stores its verdict. The Minimum events sheets show that
+verdict, and they mark the comparison with <code>(exempt)</code>. The
+generated methods text names each exempt comparison. A change of the key
+needs a rerun of s3 only.</p>
 <p>Which years pass depends on the observed events, through the pooled
 rate. So the decision is not independent of the outcome. The rule is a
 prespecified reporting rule. It does not guarantee the precision of an

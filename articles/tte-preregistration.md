@@ -261,9 +261,9 @@ At s3, the pooled rate holds the observed events of both arms. So the
 years that pass depend on the outcome data. The rule is a prespecified
 reporting rule. The rule decides the per-protocol estimand, and the
 intention-to-treat estimand follows that decision. The
-`Minimum events (Y or -)` sheet of the workbook shows the decision, and
-the `Minimum events (#)` sheet shows the largest cut at which each
-estimate is still reported.
+`Minimum events (Y or -)` sheet of the workbook shows the verdict of the
+rule. The `Minimum events (#)` sheet shows the largest cut at which each
+estimate still passes the rule.
 
 ## Foreknowledge
 

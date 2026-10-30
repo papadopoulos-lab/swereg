@@ -73,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       125 |
+| consumed |       127 |
 | legacy   |        17 |
 | metadata |        10 |
 
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 152 key paths across 42 mapping contexts.
+The schema declares 154 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -137,6 +137,7 @@ knitr::kable(
 | `$`                                                           | `confounders`                              | consumed |
 | `$`                                                           | `enrollments`                              | consumed |
 | `$`                                                           | `exclusion_criteria`                       | consumed |
+| `$`                                                           | `feasibility_follow_up_weeks`              | consumed |
 | `$`                                                           | `follow_up`                                | consumed |
 | `$`                                                           | `horizon_rule`                             | legacy   |
 | `$`                                                           | `inclusion_criteria`                       | consumed |
@@ -164,6 +165,7 @@ knitr::kable(
 | `$/enrollments[]`                                             | `family`                                   | consumed |
 | `$/enrollments[]`                                             | `id`                                       | consumed |
 | `$/enrollments[]`                                             | `intervention_tolerance_weeks`             | consumed |
+| `$/enrollments[]`                                             | `minimum_events_rule_exempt`               | consumed |
 | `$/enrollments[]`                                             | `name`                                     | consumed |
 | `$/enrollments[]`                                             | `observed_var`                             | consumed |
 | `$/enrollments[]`                                             | `treatment`                                | consumed |
@@ -406,6 +408,33 @@ reports a row of kind `enrollment_family`, in two cases:
   YAML reads as a number, such as `family: "2008"`.
 - Some enrollments set `family`, and others do not. When one enrollment
   sets it, every enrollment MUST set it.
+
+## The minimum-events exemption
+
+An enrollment MAY set `minimum_events_rule_exempt`, one logical. With
+`true`, the minimum-events rule withholds no estimate of that
+comparison. An enrollment without the key is not exempt.
+
+``` yaml
+enrollments:
+  - id: "18"
+    name: "Statin initiation vs none"
+    minimum_events_rule_exempt: true
+```
+
+s3 still computes the rule for each ETT of the enrollment and stores its
+verdict. The Minimum events sheets show that verdict, and the comparison
+name ends with `(exempt)`. `$reload_spec()` applies a changed value as a
+cosmetic change, so s1 and s2 output stays valid. `$export()`,
+`$export_tables()` and `$print_target_checklist()` then stop until
+`$s3_analyze()` reruns.
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops, and
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reports a row of kind `enrollment_rule_exempt`, when the value is not
+one logical. A number, a string, a null value, `NA` and a sequence are
+refused, and the message names the enrollment id.
 
 ## What you see when a key is refused
 

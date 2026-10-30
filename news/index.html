@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,20 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.1" id="swereg-2731">swereg 27.3.1<a class="anchor" aria-label="anchor" href="#swereg-2731"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-3-1">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-1"></a></h3>
+<ul><li>
+<strong>An enrollment MAY set <code>minimum_events_rule_exempt: true</code>.</strong> The minimum-events rule then withholds none of its estimates, and s3 still stores the verdict of the rule. The Minimum events sheets show that verdict with <code>(exempt)</code> after the comparison, and the generated methods text names the exempt comparison. A changed key stops the writers until <code>$s3_analyze()</code> reruns; s1 and s2 output stays valid.</li>
+<li>
+<strong>The optional spec key <code>feasibility_follow_up_weeks</code> adds a feasibility horizon.</strong> When it is longer than every <code>follow_up</code>, each enrollment and outcome gets one more ETT of that length. s3 computes only the minimum-events rule for it, and only the two Minimum events sheets show it. <code>$reload_spec()</code> treats a change of the key as structural. <code>$print_spec_summary()</code> lists the feasibility horizon under Follow-up, and the exempt enrollments under Minimum-events rule.</li>
+<li>
+<strong>The two Minimum events sheets show one column per whole follow-up year</strong>, from 1 to the longest follow-up, feasibility horizon included. A year without an ETT of its own reads the per-year decision of the shortest longer ETT, which every horizon record now holds as <code>by_year</code>. A feasibility record from 27.3.0 stops the sheets until <code>$s3_feasibility()</code> reruns.</li>
+<li>
+<strong><code>$export_tables()</code> also writes <code>feasibility.xlsx</code></strong> beside <code>tables.xlsx</code>, with the sheets of <code>$s3_feasibility()</code>, from the s3 results.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.0" id="swereg-2730">swereg 27.3.0<a class="anchor" aria-label="anchor" href="#swereg-2730"></a></h2>
 <div class="section level3">

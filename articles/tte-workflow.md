@@ -641,11 +641,13 @@ Table 1. The Rare conditions sheet appears only when the spec carries
 
 The two Minimum events sheets hold one row per outcome and comparison
 and one column per follow-up horizon, for the per-protocol estimand.
-Minimum events (Y or -) shows Y when the estimate is reported and - when
-it is withheld. Minimum events (#) shows the largest cut, of 1, 2, 3, 4,
-5, 10 and 20 expected events per arm per year, at which the estimate is
-still reported. Read a different cut from it without a rerun.
-`$export_tables()` writes the same two sheets, after Rare conditions.
+Minimum events (Y or -) shows Y when the estimate passes the
+minimum-events rule and - when it fails the rule. A failed estimate is
+withheld unless its comparison is exempt. Minimum events (#) shows the
+largest cut at which the estimate still passes the rule. The cuts are 1,
+2, 3, 4, 5, 10 and 20 expected events per arm per year. Read a different
+cut from it without a rerun. `$export_tables()` writes the same two
+sheets, after Rare conditions.
 
 Neither output holds an event count, a rate or expected events after
 time zero, and neither holds an effect estimate. The Attrition sheet

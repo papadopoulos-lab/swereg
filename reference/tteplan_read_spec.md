@@ -75,6 +75,26 @@ Validation checks:
 - An enrollment MAY set `family`, one non-empty character string. When
   one enrollment sets it, every enrollment MUST set it
 
+- An enrollment MAY set `minimum_events_rule_exempt`, one logical
+  (`true` or `false`). An enrollment without the key is not exempt. The
+  error names the enrollment id of a value that is not one logical. The
+  specification exempts an enrollment from the minimum-events rule with
+  `true`. s3 still computes the rule for its ETTs, and the Minimum
+  events sheets show that verdict. The rule then withholds none of its
+  estimates
+
+- The spec MAY set the top-level key `feasibility_follow_up_weeks`, one
+  positive whole number of weeks. A logical, a string, `NA`, 0, a
+  fraction and a value of length other than 1 stop, and the error names
+  the key. When the value is longer than every `follow_up` horizon, the
+  ETT grid gets one more follow-up of that length for every enrollment
+  and outcome. s2 builds these feasibility-horizon ETTs as any other
+  ETT. s3 computes only the minimum-events rule for them, and only the
+  Minimum events sheets show them. s1 enrolls each enrollment to the
+  feasibility horizon. It truncates `ipw` and counts the fill over the
+  rows up to the longest reported follow-up, as it does without the key.
+  A value that is not longer than every `follow_up` horizon adds no ETT
+
 - Computed confounders must have `implementation$source_variable`
 
 Warns about open questions with `status: "open"`.

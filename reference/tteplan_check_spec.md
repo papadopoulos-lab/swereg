@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the nine kinds.
+  The problem kind. The Details section lists the eleven kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports nine kinds of problem:
+The checker reports eleven kinds of problem:
 
 - `unreadable`:
 
@@ -92,6 +92,18 @@ The checker reports nine kinds of problem:
   sets `family`, every enrollment MUST set it. The checker writes one
   row for each bad value, and one row that names the enrollments without
   a `family`.
+
+- `enrollment_rule_exempt`:
+
+  An enrollment sets `minimum_events_rule_exempt` to a value that is not
+  one logical, `true` or `false`. The checker writes one row for each
+  such enrollment, and the message names the enrollment id.
+
+- `feasibility_follow_up_weeks`:
+
+  The top-level key `feasibility_follow_up_weeks` is not one positive
+  whole number of weeks. The checker writes one row, and the message
+  names the key.
 
 - `read_error`:
 

@@ -103,7 +103,12 @@ Other tte_classes:
   refuses an ETT whose value differs from the current `s1_run_id` of the
   plan. The column `s2_run_id` holds the id of the s2 run that wrote the
   analysis files. It follows the same rules as `s1_run_id`, and it
-  changes on every s2 run. s3 copies it into each result it stores.
+  changes on every s2 run. s3 copies it into each result it stores. The
+  logical column `feasibility_horizon` is `TRUE` on each ETT that the
+  spec key `feasibility_follow_up_weeks` adds, and `FALSE` on every
+  other ETT.
+  [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+  gives a plan saved without the column the value `FALSE` on every ETT.
 
 - `skeleton_files`:
 
@@ -473,12 +478,29 @@ other than the one in the spec.
 
 The `Minimum events (Y or -)` and `Minimum events (#)` sheets follow the
 Rare conditions sheet. Both hold one row per outcome and comparison and
-one column per follow-up horizon, for the per-protocol estimand. The
-first shows Y when the estimate is reported and - when the
-minimum-events rule withheld it. The second shows the largest cut, of 1,
-2, 3, 4, 5, 10 and 20, at which the estimate is still reported. The
-intention-to-treat estimand follows the per-protocol decision.
-`$get_horizon_windows()` returns the year-by-year detail.
+one column per whole follow-up year, for the per-protocol estimand. The
+first shows Y when the estimate passes the minimum-events rule and -
+when it fails the rule. A failed estimate is withheld unless its
+comparison is exempt, and an exempt comparison ends with ` (exempt)`.
+The second shows the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which
+the estimate still passes the rule. The intention-to-treat estimand
+follows the per-protocol decision. `$get_horizon_windows()` returns the
+year-by-year detail.
+
+The year columns run from 1 to the longest follow-up of all ETTs, in
+whole years of 52 weeks. A follow-up that is not a whole number of years
+gets no column. A year with an ETT of exactly that follow-up shows the
+decision of that ETT. Another year shows the decision up to that year of
+the shortest longer ETT. A year that no ETT of the row reaches is empty.
+
+The two Minimum events sheets are the only sheets that show a
+feasibility-horizon ETT, one that the spec key
+`feasibility_follow_up_weeks` adds. Its years get columns. Every other
+sheet, `results.qs2` and `$get_horizon_windows()` leave it out.
+
+The method also writes `feasibility.xlsx` to the directory of the
+workbook. It holds the sheets of `$s3_feasibility()`, in the same order.
+Its Minimum events sheets read the decisions that s3 stored.
 
 The workbook carries no forest plot. The `PP results` and `ITT results`
 sheets already report every emulated trial with counts, rates, ratios,
@@ -723,8 +745,8 @@ The intention-to-treat record of each ETT takes the decision of its
 per-protocol record, as in `$s3_analyze()`.
 
 The method writes `feasibility.xlsx` to `self$dir_results`, the
-directory of `$export_tables()`. The workbook holds these sheets, in
-this order:
+directory of `$export_tables()`. `$export_tables()` also writes it, from
+the s3 results. The workbook holds these sheets, in this order:
 
 - Study Specification:
 
@@ -737,13 +759,15 @@ this order:
 
 - Minimum events (Y or -):
 
-  One row per outcome and comparison, one column per follow-up horizon.
-  Y: the per-protocol estimate is reported. -: it is withheld.
+  One row per outcome and comparison, one column per whole follow-up
+  year. Y: the per-protocol estimate passes the rule. -: it fails the
+  rule, and the estimate is withheld unless the comparison is exempt.
+  The comparison of an exempt enrollment ends with ` (exempt)`.
 
 - Minimum events (#):
 
   The same layout. Each cell is the largest cut of 1, 2, 3, 4, 5, 10 and
-  20 at which the estimate is reported.
+  20 at which the estimate passes the rule.
 
 - Attrition:
 
@@ -768,8 +792,14 @@ The plan, invisibly. `self$feasibility` is a list:
   A list keyed by ETT id, then by estimand (`pp`, `itt`). Each record
   holds `rule`, `weight_col`, `follow_up`, `windows`,
   `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm`,
-  `status` and `max_passing_cut`. The `itt` record also holds
-  `decided_by = "pp"`.
+  `status`, `max_passing_cut`, `exempt` and `by_year`. `by_year` holds
+  one row per follow-up year: `year`, `reportable` and
+  `max_passing_cut`, the decision up to the end of that year. It holds
+  no expected events. `exempt` is `TRUE` when the spec sets
+  `minimum_events_rule_exempt: true` on the enrollment of the ETT.
+  `withheld` then still holds the verdict of the rule, and
+  `$s3_analyze()` will withhold none of the estimates. The `itt` record
+  also holds `decided_by = "pp"`.
 
 - s1_run_id:
 
@@ -980,6 +1010,20 @@ curve stay. The record is stored as `horizon_pp` and `horizon_itt`, and
 `$get_horizon_windows()` returns its window table. Which windows pass
 depends on the observed events, through the pooled rate.
 
+An enrollment that sets `minimum_events_rule_exempt: true` is exempt.
+The method computes and stores the decision of its ETTs as for any ETT,
+and withholds none of their estimates. Their `horizon_status` reads
+`"exempt from minimum-events rule"`.
+
+A feasibility-horizon ETT, one with `feasibility_horizon = TRUE` in
+`$ett`, gets one work item per estimand. Each item computes the horizon
+record of its estimand through the same `.tte_horizon_record()` call as
+the RD item. The intention-to-treat record then takes the per-protocol
+decision. The method stores no estimate for the ETT: no summary, rate,
+ratio, risk difference, number needed to treat, survival curve or
+subgroup result. The enrollment loop reads an analysis file of a
+reported ETT.
+
 The method stops when the spec has no
 `min_expected_events_per_arm_per_year`. It also stops when an ETT of the
 run has no horizon decision for an estimand.
@@ -1048,6 +1092,10 @@ the only place a reader of the job log meets either signal.
 
 Print the TTEPlan object.
 
+The ETT grid it prints holds the reported ETTs. A feasibility-horizon
+ETT, one that the spec key `feasibility_follow_up_weeks` adds, is not
+printed.
+
 #### Usage
 
     TTEPlan$print(...)
@@ -1102,7 +1150,8 @@ a slot the plan does not hold. `"SKIP: <reason>"` names a worker that
 failed. `"OK"` names a stored result.
 
 It reports on the CACHE and never on a number. A caller that wants the
-numbers calls `$get_estimates()`.
+numbers calls `$get_estimates()`. A feasibility-horizon ETT gets no row,
+as in `$get_estimates()`.
 
 #### Usage
 
@@ -1147,6 +1196,13 @@ Six sibling methods return the other stored results in the same shape:
 `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 takes no argument, and each computes nothing.
 
+A feasibility-horizon ETT, one that the spec key
+`feasibility_follow_up_weeks` adds, gets no row from this method,
+`$get_curves()`, `$get_subgroups()` or `$get_horizon_windows()`. s3
+stores its two horizon records and no estimate. The Minimum events
+sheets of `$export_tables()` are the only output that shows its
+decision.
+
 `horizon_reportable_weeks` and `horizon_status` READ the decision of the
 minimum-events rule that `$s3_analyze()` stored for the estimand. Both
 weightings of the per-protocol estimand share one decision. A
@@ -1154,6 +1210,11 @@ weightings of the per-protocol estimand share one decision. A
 withheld estimand. Its ratio, risk difference and number needed to treat
 are `NA`, and `interval_status` holds the same text. A result stored
 before the rule gives `NA` in both columns.
+
+An ETT of an enrollment that sets `minimum_events_rule_exempt: true` has
+the `horizon_status` `"exempt from minimum-events rule"`. Its estimates
+are reported, and `horizon_reportable_weeks` is its follow-up, whatever
+the rule decided. `$get_horizon_windows()` keeps the computed decision.
 
 The number needed to treat carries its interval. `nnt` is the point
 estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
@@ -1427,6 +1488,16 @@ Each row repeats the record it came from: `weight_col`,
 `horizon_status`. The method computes nothing. A result stored before
 the rule gives no rows.
 
+The table is the diagnostic of the rule. For an ETT of an enrollment
+that sets `minimum_events_rule_exempt: true`, `pass` and
+`horizon_reportable_weeks` still hold the computed decision, and
+`horizon_status` reads `"exempt from minimum-events rule"`. The rule
+withholds none of its estimates. `$get_estimates()` gives the reporting
+horizon, which is then the follow-up of the ETT.
+
+A feasibility-horizon ETT gets no row. Its decision shows only in the
+Minimum events sheets.
+
 #### Usage
 
     TTEPlan$get_horizon_windows()
@@ -1471,7 +1542,8 @@ works from s0 on.
 - `ett_id`:
 
   Character(1), the emulated trial the table documents. `NULL` takes the
-  first ETT in the grid.
+  first ETT in the grid. A feasibility-horizon ETT is not in the grid
+  this method reads, so its id stops as an unknown id.
 
 #### Returns
 
@@ -1484,8 +1556,9 @@ A data.table with 7 rows and 3 character columns.
 Recompute baseline characteristic tables in-process.
 
 Reads each enrollment's smallest analysis file (and the raw file when
-present) from disk and re-runs the new `swereg_table1` engine. Used to
-refresh stale results after upgrading swereg, without re-running the
+present) from disk and re-runs the new `swereg_table1` engine. The file
+is one of a reported ETT, never one of a feasibility-horizon ETT. Used
+to refresh stale results after upgrading swereg, without re-running the
 full `$s3_analyze()` pipeline.
 
 This is a PRODUCER, and the read is s3's. It calls
@@ -1709,7 +1782,8 @@ outcome/follow-up combo.
       observed_var = NULL,
       intervention_tolerance_weeks = 0L,
       comparator_tolerance_weeks = 0L,
-      argset = list()
+      argset = list(),
+      feasibility_horizon = FALSE
     )
 
 #### Arguments
@@ -1768,6 +1842,14 @@ outcome/follow-up combo.
   Named list with age_group, age_min, age_max (and optional
   person_id_var, outcome_description).
 
+- `feasibility_horizon`:
+
+  Logical(1), `FALSE` by default. `TRUE` marks a feasibility-horizon
+  ETT. s2 builds it as any other ETT, s3 computes only the
+  minimum-events rule for it, and only the Minimum events sheets show
+  it. The spec key `feasibility_follow_up_weeks` adds these ETTs. See
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
+
 ------------------------------------------------------------------------
 
 ### `TTEPlan$enrollment_spec()`
@@ -1822,6 +1904,12 @@ A list with:
 
   Integer. It makes the comparator draw reproducible. Present when the
   plan was built from a spec.
+
+- reported_follow_up_time:
+
+  Integer, the longest follow-up of the reported ETTs of the enrollment,
+  in weeks. Present only when the enrollment holds a feasibility-horizon
+  ETT. `design$follow_up_time` is then the feasibility horizon.
 
 ------------------------------------------------------------------------
 
