@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -178,9 +178,13 @@ change it. s3 refuses an ETT whose value differs from the current
 s2 run that wrote the analysis files. It follows the same rules as
 <code>s1_run_id</code>, and it changes on every s2 run. s3 copies it into each
 result it stores. The logical column <code>feasibility_horizon</code> is <code>TRUE</code>
-on each ETT that the spec key <code>feasibility_follow_up_weeks</code> adds, and
-<code>FALSE</code> on every other ETT. <code><a href="tteplan_load.html">tteplan_load()</a></code> gives a plan saved
-without the column the value <code>FALSE</code> on every ETT.</p></dd>
+on each horizon-only ETT, and <code>FALSE</code> on every other ETT. The spec
+key <code>feasibility_follow_up_weeks</code> adds a horizon-only ETT. The grid
+also adds one at the next whole year of a follow-up that is not a
+whole number of years. It adds none where the enrollment already has
+an ETT of that length.
+<code><a href="tteplan_load.html">tteplan_load()</a></code> gives a plan saved without the column the value
+<code>FALSE</code> on every ETT.</p></dd>
 
 
     <dt><code>skeleton_files</code></dt>
@@ -514,8 +518,9 @@ gets no column. A year with an ETT of exactly that follow-up shows the
 decision of that ETT. Another year shows the decision up to that year of
 the shortest longer ETT. A year that no ETT of the row reaches is empty.</p>
 <p>The two Minimum events sheets are the only sheets that show a
-feasibility-horizon ETT, one that the spec key
-<code>feasibility_follow_up_weeks</code> adds. Its years get columns.
+horizon-only ETT. The spec key <code>feasibility_follow_up_weeks</code> adds one, and
+a follow-up that is not a whole number of years adds one at its next whole
+year. Its years get columns.
 Every other sheet, <code>results.qs2</code> and <code>$get_horizon_windows()</code> leave it
 out.</p>
 <p>The method also writes <code>feasibility.xlsx</code> to the directory of the
@@ -731,7 +736,9 @@ the estimand passes. The
 Attrition sheet keeps the eligibility counts by arm, including people
 excluded for an outcome event before time zero.</p>
 <p>The intention-to-treat record of each ETT takes the decision of its
-per-protocol record, as in <code>$s3_analyze()</code>.</p>
+per-protocol record, as in <code>$s3_analyze()</code>. Some ETTs have a follow-up
+that is not a whole number of years. The per-protocol record of such an ETT
+first takes the decision of the ETT at the next whole year.</p>
 <p>The method writes <code>feasibility.xlsx</code> to <code>self$dir_results</code>, the directory
 of <code>$export_tables()</code>. <code>$export_tables()</code> also writes it, from the s3
 results. The workbook holds these sheets, in this order:</p><dl><dt>Study Specification</dt>
@@ -1032,8 +1039,10 @@ are auto-partitioned as <code>floor(detectCores() / n_workers)</code>.</p></dd>
 <p></p><hr><a id="method-TTEPlan-print"></a><div class="section">
 <h3 id="tteplan-print-"><code>TTEPlan$print()</code><a class="anchor" aria-label="anchor" href="#tteplan-print-"></a></h3>
 <p>Print the TTEPlan object.</p>
-<p>The ETT grid it prints holds the reported ETTs. A feasibility-horizon ETT,
-one that the spec key <code>feasibility_follow_up_weeks</code> adds, is not printed.</p><div class="section">
+<p>The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
+printed. The spec key <code>feasibility_follow_up_weeks</code> adds one, and a
+follow-up that is not a whole number of years adds one at its next whole
+year.</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -1120,9 +1129,10 @@ formats it.</p>
 <code>$get_curves()</code>, <code>$get_baselines()</code>, <code>$get_attrition()</code>,
 <code>$get_matching()</code>, <code>$get_subgroups()</code> and <code>$get_horizon_windows()</code>. Each
 takes no argument, and each computes nothing.</p>
-<p>A feasibility-horizon ETT, one that the spec key
-<code>feasibility_follow_up_weeks</code> adds, gets no row from this method,
-<code>$get_curves()</code>, <code>$get_subgroups()</code> or <code>$get_horizon_windows()</code>. s3
+<p>A horizon-only ETT gets no row from this method,
+<code>$get_curves()</code>, <code>$get_subgroups()</code> or <code>$get_horizon_windows()</code>. The spec
+key <code>feasibility_follow_up_weeks</code> adds one, and a follow-up that is not a
+whole number of years adds one at its next whole year. s3
 stores its two horizon records and no estimate. The Minimum events sheets
 of <code>$export_tables()</code> are the only output that shows its decision.</p>
 <p><code>horizon_reportable_weeks</code> and <code>horizon_status</code> READ the decision of the
@@ -1649,8 +1659,10 @@ person_id_var, outcome_description).</p></dd>
 <dd><p>Logical(1), <code>FALSE</code> by default. <code>TRUE</code> marks a
 feasibility-horizon ETT. s2 builds it as any other ETT, s3 computes only
 the minimum-events rule for it, and only the Minimum events sheets show
-it. The spec key <code>feasibility_follow_up_weeks</code> adds these ETTs. See
-<code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>.</p></dd>
+it. The spec key <code>feasibility_follow_up_weeks</code> adds these ETTs. The grid
+also adds one at the next whole year of a follow-up that is not a whole
+number of years. It adds none where the enrollment already has an ETT of
+that length. See <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>.</p></dd>
 
 
 </dl><p></p></div>
@@ -1703,8 +1715,9 @@ Present when the plan was built from a spec.</p></dd>
 <dt>reported_follow_up_time</dt>
 <dd><p>Integer, the longest follow-up of the
 reported ETTs of the enrollment, in weeks. Present only when the
-enrollment holds a feasibility-horizon ETT. <code>design$follow_up_time</code>
-is then the feasibility horizon.</p></dd>
+enrollment holds a horizon-only ETT: the feasibility horizon, or the
+whole year that decides a part-year horizon. <code>design$follow_up_time</code>
+then covers the horizon-only ETTs too.</p></dd>
 
 
 </dl><p></p>

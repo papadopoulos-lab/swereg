@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the eleven kinds.
+  The problem kind. The Details section lists the twelve kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports eleven kinds of problem:
+The checker reports twelve kinds of problem:
 
 - `unreadable`:
 
@@ -104,6 +104,14 @@ The checker reports eleven kinds of problem:
   The top-level key `feasibility_follow_up_weeks` is not one positive
   whole number of weeks. The checker writes one row, and the message
   names the key.
+
+- `follow_up_only_enrollments`:
+
+  A `follow_up` entry sets `only_enrollments` to a bad value. The value
+  MUST be a non-empty list of enrollment ids. A single id is a list of
+  one. The list MUST NOT repeat an id, and each string MUST be the `id`
+  of an enrollment. The checker writes one row for each bad entry. The
+  message names the follow-up label and the bad value.
 
 - `read_error`:
 

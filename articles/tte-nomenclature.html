@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -545,8 +545,10 @@ section 1.8.6 states the rule.</p>
 <tr class="odd">
 <td align="left"><strong>follow-up year</strong></td>
 <td align="left">One 52-week window of follow-up from time zero:
-<code>(0, 52]</code>, <code>(52, 104]</code>, and so on. The last year
-ends at the ETT’s <code>follow_up</code> and can be shorter.</td>
+<code>(0, 52]</code>, <code>(52, 104]</code>, and so on. A
+<code>follow_up</code> that is not a multiple of 52 weeks takes the
+decision of the ETT at the next whole year. The rule does not judge its
+partial last year.</td>
 </tr>
 <tr class="even">
 <td align="left"><strong>expected events</strong></td>

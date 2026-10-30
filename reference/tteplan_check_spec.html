@@ -11,7 +11,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,7 +94,7 @@ character columns:</p><dl><dt><code>path</code></dt>
 the path <code>$</code>.</p></dd>
 
 <dt><code>kind</code></dt>
-<dd><p>The problem kind. The Details section lists the eleven
+<dd><p>The problem kind. The Details section lists the twelve
 kinds.</p></dd>
 
 <dt><code>message</code></dt>
@@ -105,7 +105,7 @@ kinds.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The checker reports eleven kinds of problem:</p><dl><dt><code>unreadable</code></dt>
+    <p>The checker reports twelve kinds of problem:</p><dl><dt><code>unreadable</code></dt>
 <dd><p>The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
 parsed specification to check.</p></dd>
@@ -159,6 +159,13 @@ the message names the enrollment id.</p></dd>
 <dd><p>The top-level key
 <code>feasibility_follow_up_weeks</code> is not one positive whole number of
 weeks. The checker writes one row, and the message names the key.</p></dd>
+
+<dt><code>follow_up_only_enrollments</code></dt>
+<dd><p>A <code>follow_up</code> entry sets
+<code>only_enrollments</code> to a bad value. The value MUST be a non-empty
+list of enrollment ids. A single id is a list of one. The list MUST
+NOT repeat an id, and each string MUST be the <code>id</code> of an enrollment.
+The checker writes one row for each bad entry. The message names the follow-up label and the bad value.</p></dd>
 
 <dt><code>read_error</code></dt>
 <dd><p><code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> stops after its key gate. The

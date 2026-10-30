@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,29 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.2" id="swereg-2732">swereg 27.3.2<a class="anchor" aria-label="anchor" href="#swereg-2732"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-27-3-2">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-3-2"></a></h3>
+<ul><li>
+<strong>A follow-up that is not a whole number of years takes the minimum-events decision of the next whole year.</strong> A 26-week estimate is reported exactly when the 52-week estimate of the same comparison and outcome passes the rule. A 78-week estimate follows the 104-week estimate in the same way. The rule no longer judges a partial year on its own. Rerun <code>$s3_analyze()</code> for a plan with a part-year horizon.</li>
+<li>
+<strong>The ETT grid adds the whole year when the spec has no follow-up of that length for a comparison.</strong> s3 computes only the verdict of the rule for this horizon-only ETT, and only the Minimum events sheets show it. s1 enrolls the comparison through that whole year, because the verdict needs data to the end of it. Reported outputs still stop at the follow-ups of the spec.</li>
+<li>
+<strong><code>$export()</code>, <code>$export_tables()</code> and <code>$print_target_checklist()</code> stop on a stale result of a follow-up that is not a whole number of years.</strong> They stop when the stored result does not hold the current decision of its source ETT, the ETT at the next whole year. The message names <code>$s3_analyze()</code>.</li>
+<li>
+<strong>The generated methods text of every study changes one sentence.</strong> <code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> no longer says “The last year ends at the horizon, so it can be shorter.” TARGET item 6h no longer says “and the last year ended at the horizon”. Both now state the rule for a horizon that is not a whole number of years.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-3-2">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-2"></a></h3>
+<ul><li>
+<strong>A <code>follow_up</code> entry MAY set <code>only_enrollments</code>, a list of enrollment ids.</strong> The horizon then applies only to those comparisons. A single id is a list of one. <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> and <code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code> refuse an empty list, a repeated id, an id that names no enrollment and a value that is not a string. <code>$print_spec_summary()</code>, the Study Specification sheet, <code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code>, TARGET item 6d and the protocol table name the enrollments of each restricted horizon. <code>$reload_spec()</code> treats a change of the key as structural.</li>
+<li>
+<strong><code>feasibility_follow_up_weeks</code> is compared with the horizons of each enrollment.</strong> The feasibility horizon is added to an enrollment when it is longer than every horizon of that enrollment. In 27.3.1 it was compared with every horizon of the spec. A spec without <code>only_enrollments</code> gets the grid of 27.3.1.</li>
+<li>
+<strong><code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> names each part-year horizon and its whole year</strong>, for example “The 6-month estimate is reported when the 1-year estimate passes the rule.” With <code>min_expected_events_per_arm_per_year: 0</code> the text keeps its single sentence that the rule withholds no estimate, and it adds no part-year sentence.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.1" id="swereg-2731">swereg 27.3.1<a class="anchor" aria-label="anchor" href="#swereg-2731"></a></h2>
 <div class="section level3">

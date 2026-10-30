@@ -711,9 +711,7 @@ difference alone decides benefit or harm.
 
 The minimum-events rule decides whether an estimand is reported.
 Follow-up is cut into years of 52 weeks from time zero: $(0,52\rbrack$,
-$(52,104\rbrack$, and so on. The last year ends at the horizon. When the
-horizon is not a multiple of 52 weeks, the last year is shorter, and the
-same threshold applies to it.
+$(52,104\rbrack$, and so on.
 
 In year $y$, ${PY}_{a,y}$ is the weighted person-time of arm $a$, in
 person-years, and $D_{a,y}$ is its weighted events. A row contributes
@@ -730,6 +728,17 @@ A year passes when $E_{0,y}$ and $E_{1,y}$ both reach the threshold that
 the specification states as `min_expected_events_per_arm_per_year`. The
 reportable horizon is the end of the last year before the first year
 that fails. It is 0 when the first year fails.
+
+A horizon of $h$ weeks that is not a multiple of 52 is not judged on its
+own years. Its per-protocol decision is the decision of its source ETT.
+The source ETT has the same enrollment and outcome, and a follow-up of
+$\lceil h/52\rceil \times 52$ weeks. So a 26-week estimate is reported
+exactly when the 52-week estimate passes the rule, whatever the events
+in its own 26 weeks. Its reportable horizon is the smaller of $h$ and
+the reportable horizon of the source. When the specification has no
+follow-up of that length for the enrollment, swereg adds a horizon-only
+ETT there. s3 computes only the rule for it, and s1 enrolls the
+comparison through that year, because the verdict needs data to its end.
 
 When any year up to the horizon fails, the estimates of that estimand
 are withheld. The IRR, the risk difference and the number needed to
@@ -1216,9 +1225,10 @@ arm in each year of follow-up. The expected events of an arm in a
 52-week year were computed under the null: its weighted person-time
 multiplied by the pooled weighted event rate of both arms. When any year
 up to `[horizon]` failed, we reported no IRR, risk difference or number
-needed to treat. Which years passed depended on the observed events,
-through the pooled rate. The rule was a reporting rule, not a guarantee
-of precision.
+needed to treat. At a horizon that was not a whole number of years, the
+estimate followed the decision of the rule at the next whole year. Which
+years passed depended on the observed events, through the pooled rate.
+The rule was a reporting rule, not a guarantee of precision.
 
 A missing confounder value at the recruiting week was singly imputed by
 a hot-deck draw. A missing value during follow-up was carried forward

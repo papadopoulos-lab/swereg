@@ -1,5 +1,60 @@
 # Changelog
 
+## swereg 27.3.2
+
+### Breaking changes
+
+- **A follow-up that is not a whole number of years takes the
+  minimum-events decision of the next whole year.** A 26-week estimate
+  is reported exactly when the 52-week estimate of the same comparison
+  and outcome passes the rule. A 78-week estimate follows the 104-week
+  estimate in the same way. The rule no longer judges a partial year on
+  its own. Rerun `$s3_analyze()` for a plan with a part-year horizon.
+- **The ETT grid adds the whole year when the spec has no follow-up of
+  that length for a comparison.** s3 computes only the verdict of the
+  rule for this horizon-only ETT, and only the Minimum events sheets
+  show it. s1 enrolls the comparison through that whole year, because
+  the verdict needs data to the end of it. Reported outputs still stop
+  at the follow-ups of the spec.
+- **`$export()`, `$export_tables()` and `$print_target_checklist()` stop
+  on a stale result of a follow-up that is not a whole number of
+  years.** They stop when the stored result does not hold the current
+  decision of its source ETT, the ETT at the next whole year. The
+  message names `$s3_analyze()`.
+- **The generated methods text of every study changes one sentence.**
+  [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  no longer says “The last year ends at the horizon, so it can be
+  shorter.” TARGET item 6h no longer says “and the last year ended at
+  the horizon”. Both now state the rule for a horizon that is not a
+  whole number of years.
+
+### New features
+
+- **A `follow_up` entry MAY set `only_enrollments`, a list of enrollment
+  ids.** The horizon then applies only to those comparisons. A single id
+  is a list of one.
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  and
+  [`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  refuse an empty list, a repeated id, an id that names no enrollment
+  and a value that is not a string. `$print_spec_summary()`, the Study
+  Specification sheet,
+  [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md),
+  TARGET item 6d and the protocol table name the enrollments of each
+  restricted horizon. `$reload_spec()` treats a change of the key as
+  structural.
+- **`feasibility_follow_up_weeks` is compared with the horizons of each
+  enrollment.** The feasibility horizon is added to an enrollment when
+  it is longer than every horizon of that enrollment. In 27.3.1 it was
+  compared with every horizon of the spec. A spec without
+  `only_enrollments` gets the grid of 27.3.1.
+- **[`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  names each part-year horizon and its whole year**, for example “The
+  6-month estimate is reported when the 1-year estimate passes the
+  rule.” With `min_expected_events_per_arm_per_year: 0` the text keeps
+  its single sentence that the rule withholds no estimate, and it adds
+  no part-year sentence.
+
 ## swereg 27.3.1
 
 ### New features

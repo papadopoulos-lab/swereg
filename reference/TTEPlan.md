@@ -104,9 +104,12 @@ Other tte_classes:
   plan. The column `s2_run_id` holds the id of the s2 run that wrote the
   analysis files. It follows the same rules as `s1_run_id`, and it
   changes on every s2 run. s3 copies it into each result it stores. The
-  logical column `feasibility_horizon` is `TRUE` on each ETT that the
-  spec key `feasibility_follow_up_weeks` adds, and `FALSE` on every
-  other ETT.
+  logical column `feasibility_horizon` is `TRUE` on each horizon-only
+  ETT, and `FALSE` on every other ETT. The spec key
+  `feasibility_follow_up_weeks` adds a horizon-only ETT. The grid also
+  adds one at the next whole year of a follow-up that is not a whole
+  number of years. It adds none where the enrollment already has an ETT
+  of that length.
   [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
   gives a plan saved without the column the value `FALSE` on every ETT.
 
@@ -494,9 +497,10 @@ decision of that ETT. Another year shows the decision up to that year of
 the shortest longer ETT. A year that no ETT of the row reaches is empty.
 
 The two Minimum events sheets are the only sheets that show a
-feasibility-horizon ETT, one that the spec key
-`feasibility_follow_up_weeks` adds. Its years get columns. Every other
-sheet, `results.qs2` and `$get_horizon_windows()` leave it out.
+horizon-only ETT. The spec key `feasibility_follow_up_weeks` adds one,
+and a follow-up that is not a whole number of years adds one at its next
+whole year. Its years get columns. Every other sheet, `results.qs2` and
+`$get_horizon_windows()` leave it out.
 
 The method also writes `feasibility.xlsx` to the directory of the
 workbook. It holds the sheets of `$s3_feasibility()`, in the same order.
@@ -742,7 +746,9 @@ counts by arm, including people excluded for an outcome event before
 time zero.
 
 The intention-to-treat record of each ETT takes the decision of its
-per-protocol record, as in `$s3_analyze()`.
+per-protocol record, as in `$s3_analyze()`. Some ETTs have a follow-up
+that is not a whole number of years. The per-protocol record of such an
+ETT first takes the decision of the ETT at the next whole year.
 
 The method writes `feasibility.xlsx` to `self$dir_results`, the
 directory of `$export_tables()`. `$export_tables()` also writes it, from
@@ -1092,9 +1098,10 @@ the only place a reader of the job log meets either signal.
 
 Print the TTEPlan object.
 
-The ETT grid it prints holds the reported ETTs. A feasibility-horizon
-ETT, one that the spec key `feasibility_follow_up_weeks` adds, is not
-printed.
+The ETT grid it prints holds the reported ETTs. A horizon-only ETT is
+not printed. The spec key `feasibility_follow_up_weeks` adds one, and a
+follow-up that is not a whole number of years adds one at its next whole
+year.
 
 #### Usage
 
@@ -1196,12 +1203,12 @@ Six sibling methods return the other stored results in the same shape:
 `$get_matching()`, `$get_subgroups()` and `$get_horizon_windows()`. Each
 takes no argument, and each computes nothing.
 
-A feasibility-horizon ETT, one that the spec key
-`feasibility_follow_up_weeks` adds, gets no row from this method,
-`$get_curves()`, `$get_subgroups()` or `$get_horizon_windows()`. s3
-stores its two horizon records and no estimate. The Minimum events
-sheets of `$export_tables()` are the only output that shows its
-decision.
+A horizon-only ETT gets no row from this method, `$get_curves()`,
+`$get_subgroups()` or `$get_horizon_windows()`. The spec key
+`feasibility_follow_up_weeks` adds one, and a follow-up that is not a
+whole number of years adds one at its next whole year. s3 stores its two
+horizon records and no estimate. The Minimum events sheets of
+`$export_tables()` are the only output that shows its decision.
 
 `horizon_reportable_weeks` and `horizon_status` READ the decision of the
 minimum-events rule that `$s3_analyze()` stored for the estimand. Both
@@ -1847,7 +1854,10 @@ outcome/follow-up combo.
   Logical(1), `FALSE` by default. `TRUE` marks a feasibility-horizon
   ETT. s2 builds it as any other ETT, s3 computes only the
   minimum-events rule for it, and only the Minimum events sheets show
-  it. The spec key `feasibility_follow_up_weeks` adds these ETTs. See
+  it. The spec key `feasibility_follow_up_weeks` adds these ETTs. The
+  grid also adds one at the next whole year of a follow-up that is not a
+  whole number of years. It adds none where the enrollment already has
+  an ETT of that length. See
   [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
 
 ------------------------------------------------------------------------
@@ -1908,8 +1918,10 @@ A list with:
 - reported_follow_up_time:
 
   Integer, the longest follow-up of the reported ETTs of the enrollment,
-  in weeks. Present only when the enrollment holds a feasibility-horizon
-  ETT. `design$follow_up_time` is then the feasibility horizon.
+  in weeks. Present only when the enrollment holds a horizon-only ETT:
+  the feasibility horizon, or the whole year that decides a part-year
+  horizon. `design$follow_up_time` then covers the horizon-only ETTs
+  too.
 
 ------------------------------------------------------------------------
 

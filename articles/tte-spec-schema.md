@@ -73,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       127 |
+| consumed |       128 |
 | legacy   |        17 |
 | metadata |        10 |
 
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 154 key paths across 42 mapping contexts.
+The schema declares 155 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -211,6 +211,7 @@ knitr::kable(
 | `$/exclusion_criteria[]/implementation`                       | `value`                                    | consumed |
 | `$/exclusion_criteria[]/implementation`                       | `window`                                   | consumed |
 | `$/follow_up[]`                                               | `label`                                    | consumed |
+| `$/follow_up[]`                                               | `only_enrollments`                         | consumed |
 | `$/follow_up[]`                                               | `weeks`                                    | consumed |
 | `$/inclusion_criteria`                                        | `additional_inclusion`                     | legacy   |
 | `$/inclusion_criteria`                                        | `criteria`                                 | consumed |
@@ -436,6 +437,47 @@ reports a row of kind `enrollment_rule_exempt`, when the value is not
 one logical. A number, a string, a null value, `NA` and a sequence are
 refused, and the message names the enrollment id.
 
+## A horizon for some comparisons only
+
+A `follow_up` entry MAY set `only_enrollments`, a list of enrollment
+ids. The horizon then applies only to those enrollments. An entry
+without the key applies to every enrollment.
+
+``` yaml
+follow_up:
+  - { label: "6 months", weeks: 26 }
+  - { label: "1 year",   weeks: 52 }
+  - { label: "3 years",  weeks: 156, only_enrollments: [M01] }
+```
+
+The ETT grid holds the 156-week horizon for enrollment M01 and for no
+other enrollment, and a dropped ETT takes no ETT id. YAML reads
+`only_enrollments: M01` and `only_enrollments: [M01]` as the same value,
+so a single id is a list of one. `$reload_spec()` treats a change of the
+key as structural.
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops, and
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reports a row of kind `follow_up_only_enrollments`, in these cases:
+
+- The list is empty.
+- An element is not a string. Quote an id that YAML reads as a number.
+- The list repeats an id.
+- An id names no enrollment of the spec.
+
+The message names the follow-up label and the bad value.
+
+`only_enrollments` cannot name the feasibility horizon of
+`feasibility_follow_up_weeks`. That horizon is added to an enrollment
+when it is longer than every horizon of that enrollment.
+
+The 26-week horizon above is not a whole number of years. It takes the
+minimum-events decision of the 52-week horizon of the same comparison
+and outcome. Section 1.8.6 of
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+states that rule.
+
 ## What you see when a key is refused
 
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
@@ -522,7 +564,7 @@ stops on a missing, bad or repeated `id`, because `$reload_spec()` and
 the Summary sheet find an enrollment by its `id`. It does not compare
 the version with the file name.
 [`?tteplan_check_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
-lists the nine problem kinds.
+lists the twelve problem kinds.
 
 ## See also
 

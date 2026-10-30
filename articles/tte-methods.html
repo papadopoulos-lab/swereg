@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -918,9 +918,7 @@ harm.</p>
 Follow-up is cut into years of 52 weeks from time zero:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>52</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(0, 52]</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>52</mn><mo>,</mo><mn>104</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">(52, 104]</annotation></semantics></math>,
-and so on. The last year ends at the horizon. When the horizon is not a
-multiple of 52 weeks, the last year is shorter, and the same threshold
-applies to it.</p>
+and so on.</p>
 <p>In year
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">{y}</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">Y</mi></mrow><mrow><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\mathrm{PY}_{a,y}</annotation></semantics></math>
@@ -949,6 +947,21 @@ both reach the threshold that the specification states as
 <code>min_expected_events_per_arm_per_year</code>. The reportable
 horizon is the end of the last year before the first year that fails. It
 is 0 when the first year fails.</p>
+<p>A horizon of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">{h}</annotation></semantics></math>
+weeks that is not a multiple of 52 is not judged on its own years. Its
+per-protocol decision is the decision of its source ETT. The source ETT
+has the same enrollment and outcome, and a follow-up of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌈</mo><mi>h</mi><mi>/</mi><mn>52</mn><mo stretchy="false" form="postfix">⌉</mo><mo>×</mo><mn>52</mn></mrow><annotation encoding="application/x-tex">\lceil h/52 \rceil \times 52</annotation></semantics></math>
+weeks. So a 26-week estimate is reported exactly when the 52-week
+estimate passes the rule, whatever the events in its own 26 weeks. Its
+reportable horizon is the smaller of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">{h}</annotation></semantics></math>
+and the reportable horizon of the source. When the specification has no
+follow-up of that length for the enrollment, swereg adds a horizon-only
+ETT there. s3 computes only the rule for it, and s1 enrolls the
+comparison through that year, because the verdict needs data to its
+end.</p>
 <p>When any year up to the horizon fails, the estimates of that estimand
 are withheld. The IRR, the risk difference and the number needed to
 treat are reported as NE, not estimable. The subgroup IRRs and the
@@ -1597,9 +1610,11 @@ expected events per arm in each year of follow-up. The expected events
 of an arm in a 52-week year were computed under the null: its weighted
 person-time multiplied by the pooled weighted event rate of both arms.
 When any year up to <code>[horizon]</code> failed, we reported no IRR,
-risk difference or number needed to treat. Which years passed depended
-on the observed events, through the pooled rate. The rule was a
-reporting rule, not a guarantee of precision.</p>
+risk difference or number needed to treat. At a horizon that was not a
+whole number of years, the estimate followed the decision of the rule at
+the next whole year. Which years passed depended on the observed events,
+through the pooled rate. The rule was a reporting rule, not a guarantee
+of precision.</p>
 <p>A missing confounder value at the recruiting week was singly imputed
 by a hot-deck draw. A missing value during follow-up was carried forward
 within the person-trial. We assessed effect modification by
