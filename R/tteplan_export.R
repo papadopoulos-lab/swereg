@@ -589,6 +589,9 @@
   results_path <- file.path(dirname(path), "results.qs2")
   qs2_write_atomic(results, results_path)
   cat("Saved:", results_path, "\n")
+  feasibility_path <- file.path(dirname(path), .FILENAME_FEASIBILITY_XLSX)
+  .plan_export_feasibility(plan, feasibility_path, enrollment_ids)
+  cat("Saved:", feasibility_path, "\n")
   return(invisible(path))
 }
 

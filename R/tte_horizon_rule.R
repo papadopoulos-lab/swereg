@@ -60,7 +60,8 @@
   "fail_arm",
   "status",
   "max_passing_cut",
-  "exempt"
+  "exempt",
+  "by_year"
 )
 
 # The result slots of each estimand that the rule withholds. The subgroup
@@ -382,6 +383,38 @@
 }
 
 
+#' The decision of the rule up to each whole follow-up year
+#'
+#' Year k covers every window that ends at or before week `52 * k`. The
+#' partial last window ends at the follow-up, so it is in the last year.
+#' The Minimum events sheets read row k for a year that has no ETT of its
+#' own.
+#'
+#' @param windows The table `.tte_horizon_windows()` returns. It MUST hold
+#'   `events_expected`.
+#' @return A data.table with one row per year, 1 to the number of windows.
+#'   It has three columns: `year`, `reportable` and `max_passing_cut`.
+#'   `reportable` is `TRUE` when every window of the year passes.
+#'   `max_passing_cut` is `.tte_horizon_max_passing_cut()` over the expected
+#'   events of those windows. The table holds no expected events.
+#' @noRd
+.tte_horizon_by_year <- function(windows) {
+  width <- .HORIZON_WINDOW_WEEKS
+  years <- seq_len(ceiling(max(windows$window_hi) / width))
+  rows <- lapply(years, function(k) {
+    sel <- windows$window_hi <= width * k
+    return(data.table::data.table(
+      year = k,
+      reportable = all(windows$pass[sel]),
+      max_passing_cut = .tte_horizon_max_passing_cut(
+        windows$events_expected[sel]
+      )
+    ))
+  })
+  return(data.table::rbindlist(rows))
+}
+
+
 #' Give the intention-to-treat record the per-protocol decision
 #'
 #' The intention-to-treat estimate of an ETT is reported exactly when its
@@ -422,7 +455,10 @@
 #'   `exempt`. A missing `exempt` counts as `FALSE`.
 #' @return A named list: `rule` (`min_expected_events`, and `exempt = TRUE`
 #'   for an exempt record), `weight_col`, `follow_up`, `windows`, the fields
-#'   of `.tte_horizon_decision()`, and `exempt`.
+#'   of `.tte_horizon_decision()`, `exempt`, and `by_year`, the table of
+#'   `.tte_horizon_by_year()`. `by_year` is a decision field, so the
+#'   intention-to-treat record takes the `by_year` of the per-protocol
+#'   record.
 #' @noRd
 .tte_horizon_record <- function(
   data,
@@ -448,6 +484,7 @@
     decision$status <- .HORIZON_STATUS_EXEMPT
   }
   decision$exempt <- exempt
+  decision$by_year <- .tte_horizon_by_year(windows)
   # The rule of a record that is not exempt is the rule of swereg 27.3.0.
   # `.tte_assert_horizon_rule_current()` reads a missing `exempt` as FALSE.
   stored_rule <- list(

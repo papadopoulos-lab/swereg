@@ -1,6 +1,6 @@
 # The two "Minimum events" sheets of the results workbook and the
 # feasibility workbook. Both are wide: one row per outcome and comparison,
-# one column per follow-up horizon, per-protocol only. The
+# one column per whole follow-up year, per-protocol only. The
 # intention-to-treat estimate follows the per-protocol decision, so it needs
 # no column of its own.
 #
@@ -21,42 +21,134 @@
 .MIN_EVENTS_FILL <- c(reported = "#BDD7EE", withheld = "#F4B6B6")
 
 
+#' The per-year table of a horizon record
+#'
+#' A record of swereg 27.3.1 holds `by_year`. A record of `$s3_analyze()`
+#' from swereg 27.3.0 holds none, and its window table still holds
+#' `events_expected`, so the table is derived from the windows. A record
+#' with neither is a feasibility record of swereg 27.3.0: its windows lost
+#' `events_expected` in the worker, and the function stops.
+#'
+#' @param rec A horizon record.
+#' @param ett_id Character(1), for the message.
+#' @return The `by_year` table of `.tte_horizon_by_year()`.
+#' @noRd
+.minimum_events_by_year <- function(rec, ett_id) {
+  if (data.table::is.data.table(rec$by_year)) {
+    return(rec$by_year)
+  }
+  win <- rec$windows
+  if (is.data.frame(win) && "events_expected" %in% names(win)) {
+    return(.tte_horizon_by_year(data.table::as.data.table(win)))
+  }
+  stop(
+    "Minimum events sheets: the record of ETT ",
+    ett_id,
+    " holds no decision for each follow-up year. It is a feasibility record ",
+    "stored before swereg 27.3.1. Rerun the feasibility step, ",
+    "$s3_feasibility().",
+    call. = FALSE
+  )
+}
+
+
+#' The column label of a whole follow-up year
+#'
+#' @param year Integer, the follow-up years.
+#' @param spec The study specification, or `NULL`.
+#' @return Character, the label of the spec follow-up with `52 * year`
+#'   weeks, and otherwise `"1 year"` or `"<k> years"`.
+#' @noRd
+.minimum_events_year_label <- function(year, spec) {
+  fu <- spec$follow_up %||% list()
+  fu_weeks <- vapply(fu, function(f) as.numeric(f$weeks), numeric(1))
+  fu_label <- vapply(fu, function(f) as.character(f$label), character(1))
+  label <- fu_label[match(year * .HORIZON_WINDOW_WEEKS, fu_weeks)]
+  own <- ifelse(year == 1L, "1 year", paste(year, "years"))
+  label[is.na(label)] <- own[is.na(label)]
+  return(label)
+}
+
+
 #' The wide table of the per-protocol decisions
+#'
+#' The table has one column per whole follow-up year k = 1 to K. K is the
+#' longest follow-up of all ETTs, feasibility-horizon ETTs included, in whole
+#' years of `.HORIZON_WINDOW_WEEKS` weeks. No column stands for a follow-up
+#' that is not a whole number of years.
+#'
+#' A cell of year k reads the ETT of its outcome and comparison with a
+#' follow-up of `52 * k` weeks. It shows the decision of that record. When no such
+#' ETT exists, the cell reads row k of `by_year` of the shortest ETT with a
+#' longer follow-up. When no ETT of the row reaches year k, the cell is empty.
+#' So an ETT shorter than one year appears in no cell.
 #'
 #' @param plan A TTEPlan.
 #' @param records A list keyed by ETT id. Each element is the per-protocol
 #'   horizon record of that ETT. An ETT without a record gets an empty cell.
 #' @return A list. `table` is a data.frame with the columns `Outcome`, `#`,
-#'   `Comparison` and one column per follow-up horizon, named by the spec's
-#'   follow-up label. `yn` holds `"Y"` or `"-"`, `cut` the largest passing cut
-#'   or `"-"`. A cell without an ETT record is `NA`, and `Outcome` is `NA`
-#'   below the first row of each outcome. `withheld` is a logical matrix with the shape of the horizon
-#'   columns, `NA` where an ETT has no record. `table` has no rows when the
-#'   plan has no ETT. Every cell shows the computed verdict of the rule, also
-#'   for an exempt enrollment. The `Comparison` of an enrollment that the
-#'   spec exempts ends with `" (exempt)"`. `any_exempt` is `TRUE` when at
-#'   least one enrollment of a row is exempt.
+#'   `Comparison` and one column per whole follow-up year. A year column
+#'   takes the spec's follow-up label when the spec has a follow-up of that
+#'   length, and otherwise `"1 year"` or `"<k> years"`. `yn` holds `"Y"` or `"-"`, `cut`
+#'   the largest passing cut or `"-"`. A cell without an ETT record is `NA`,
+#'   and `Outcome` is `NA` below the first row of each outcome. `withheld` is
+#'   a logical matrix with the shape of the year columns, `NA` where a cell
+#'   is empty. `table` has no rows when the plan has no ETT. Every cell shows
+#'   the computed verdict of the rule, also for an exempt enrollment. The
+#'   `Comparison` of an enrollment that the spec exempts ends with
+#'   `" (exempt)"`. `any_exempt` is `TRUE` when at least one enrollment of a
+#'   row is exempt. `any_longer` is `TRUE` when at least one cell reads the
+#'   `by_year` of a longer ETT. `feasibility_weeks` is the longest follow-up
+#'   of a feasibility-horizon ETT, or `NA` when the plan has none.
 #' @noRd
 .minimum_events_wide <- function(plan, records) {
   ett <- plan$ett
-  fu <- plan$spec$follow_up %||% list()
-  fu_weeks <- vapply(fu, function(f) as.numeric(f$weeks), numeric(1))
-  fu_label <- vapply(fu, function(f) as.character(f$label), character(1))
-  weeks <- sort(unique(as.numeric(ett$follow_up)))
-  label <- fu_label[match(weeks, fu_weeks)]
-  label[is.na(label)] <- paste(weeks[is.na(label)], "weeks")
+  width <- .HORIZON_WINDOW_WEEKS
+  ett_fu <- as.numeric(ett$follow_up)
+  n_years <- if (length(ett_fu) == 0L) {
+    0L
+  } else {
+    as.integer(floor(max(ett_fu) / width))
+  }
+  years <- seq_len(n_years)
+  label <- .minimum_events_year_label(years, plan$spec)
   enr <- .osf_comparison_numbers(plan$spec)
   enr_ids <- unique(c(names(enr), unique(ett$enrollment_id)))
   enr_ids <- enr_ids[enr_ids %in% ett$enrollment_id]
   outcomes <- unique(ett$outcome_name)
+  is_feas <- if ("feasibility_horizon" %in% names(ett)) {
+    ett$feasibility_horizon %in% TRUE
+  } else {
+    rep(FALSE, nrow(ett))
+  }
+
+  # Every record of an ETT of the plan MUST carry `max_passing_cut` and a
+  # per-year table.
+  for (i in seq_len(nrow(ett))) {
+    rec <- records[[ett$ett_id[i]]]
+    if (!is.list(rec)) {
+      next
+    }
+    if (!"max_passing_cut" %in% names(rec)) {
+      stop(
+        "Minimum events sheets: the record of ETT ",
+        ett$ett_id[i],
+        " holds no max_passing_cut. It was stored before swereg 27.3.0. ",
+        "Rerun the step that wrote it.",
+        call. = FALSE
+      )
+    }
+    .minimum_events_by_year(rec, ett$ett_id[i])
+  }
 
   n <- length(outcomes) * length(enr_ids)
-  yn <- matrix(NA_character_, n, length(weeks))
-  cut <- matrix(NA_character_, n, length(weeks))
-  withheld <- matrix(NA, n, length(weeks))
+  yn <- matrix(NA_character_, n, n_years)
+  cut <- matrix(NA_character_, n, n_years)
+  withheld <- matrix(NA, n, n_years)
   out_col <- rep(NA_character_, n)
   num_col <- integer(n)
   cmp_col <- character(n)
+  any_longer <- FALSE
   r <- 0L
   for (o in outcomes) {
     for (eid in enr_ids) {
@@ -69,12 +161,9 @@
       if (.tte_enrollment_rule_exempt(plan$spec, eid)) {
         cmp_col[r] <- paste0(cmp_col[r], " (exempt)")
       }
-      for (j in seq_along(weeks)) {
-        k <- which(
-          ett$enrollment_id == eid &
-            ett$outcome_name == o &
-            as.numeric(ett$follow_up) == weeks[j]
-        )
+      rows <- which(ett$enrollment_id == eid & ett$outcome_name == o)
+      for (w in unique(ett_fu[rows])) {
+        k <- rows[ett_fu[rows] == w]
         if (length(k) > 1L) {
           stop(
             "Minimum events sheets: ",
@@ -86,34 +175,44 @@
             ", outcome '",
             o,
             "' and follow-up ",
-            weeks[j],
+            w,
             " weeks, so they cannot share one cell. Give each outcome a ",
             "distinct name.",
             call. = FALSE
           )
         }
-        if (length(k) == 0L) {
-          next
+      }
+      for (j in seq_along(years)) {
+        target <- width * years[j]
+        k <- rows[ett_fu[rows] == target]
+        own <- length(k) == 1L
+        if (!own) {
+          longer <- rows[ett_fu[rows] > target]
+          if (length(longer) == 0L) {
+            next
+          }
+          k <- longer[which.min(ett_fu[longer])]
         }
         rec <- records[[ett$ett_id[k]]]
         if (!is.list(rec)) {
           next
         }
-        if (!"max_passing_cut" %in% names(rec)) {
-          stop(
-            "Minimum events sheets: the record of ETT ",
-            ett$ett_id[k],
-            " holds no max_passing_cut. It was stored before swereg 27.3.0. ",
-            "Rerun the step that wrote it.",
-            call. = FALSE
-          )
+        if (own) {
+          fails <- isTRUE(rec$withheld)
+          best <- rec$max_passing_cut
+        } else {
+          by_year <- .minimum_events_by_year(rec, ett$ett_id[k])
+          row_k <- by_year[by_year$year == years[j], ]
+          fails <- !isTRUE(row_k$reportable)
+          best <- row_k$max_passing_cut
+          any_longer <- TRUE
         }
-        withheld[r, j] <- isTRUE(rec$withheld)
-        yn[r, j] <- if (rec$withheld) "-" else "Y"
-        cut[r, j] <- if (is.na(rec$max_passing_cut)) {
+        withheld[r, j] <- fails
+        yn[r, j] <- if (fails) "-" else "Y"
+        cut[r, j] <- if (is.na(best)) {
           "-"
         } else {
-          format(rec$max_passing_cut, trim = TRUE)
+          format(best, trim = TRUE)
         }
       }
     }
@@ -138,7 +237,9 @@
     yn = as_table(yn),
     cut = as_table(cut),
     withheld = withheld,
-    any_exempt = n > 0L && any_exempt
+    any_exempt = n > 0L && any_exempt,
+    any_longer = any_longer,
+    feasibility_weeks = if (any(is_feas)) max(ett_fu[is_feas]) else NA_real_
   ))
 }
 
@@ -150,6 +251,7 @@
 #' @param title,note Character(1), rows 1 and 2.
 #' @param table The data.frame to write from row 4.
 #' @param withheld The logical matrix of `.minimum_events_wide()`.
+#' @param year_note Character(1) or `NULL`, row 3. `NULL` writes no row 3.
 #' @return `invisible(NULL)`.
 #' @noRd
 .write_minimum_events_one <- function(
@@ -158,7 +260,8 @@
   title,
   note,
   table,
-  withheld
+  withheld,
+  year_note = NULL
 ) {
   openxlsx::addWorksheet(wb, sheet_name)
   openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
@@ -170,6 +273,9 @@
     cols = 1L
   )
   openxlsx::writeData(wb, sheet_name, note, startRow = 2L)
+  if (!is.null(year_note)) {
+    openxlsx::writeData(wb, sheet_name, year_note, startRow = 3L)
+  }
   if (nrow(table) == 0L) {
     openxlsx::writeData(wb, sheet_name, "(no ETT)", startRow = 4L)
     return(invisible(NULL))
@@ -235,6 +341,12 @@
 #' of the sheet is exempt, the note of each sheet ends with one sentence on
 #' the exemption.
 #'
+#' Row 3 of each sheet explains the year columns, and it is empty when
+#' neither of its two sentences applies. The first sentence appears when a
+#' cell reads the `by_year` table of a longer ETT. The second appears when
+#' the plan holds a feasibility-horizon ETT, and it names the weeks of that
+#' horizon.
+#'
 #' @param wb An openxlsx workbook.
 #' @param plan A TTEPlan.
 #' @param records A list keyed by ETT id: the per-protocol horizon record of
@@ -245,6 +357,26 @@
   k <- plan$spec[["min_expected_events_per_arm_per_year"]]
   k <- if (is.null(k)) "not set" else format(k, trim = TRUE)
   wide <- .minimum_events_wide(plan, records)
+  year_note <- c(
+    if (isTRUE(wide$any_longer)) {
+      paste0(
+        "Years without their own follow-up are read from the shortest ",
+        "longer follow-up."
+      )
+    },
+    if (!is.na(wide$feasibility_weeks)) {
+      paste0(
+        "Years beyond the analysis follow-up come from the feasibility ",
+        "horizon of ",
+        format(wide$feasibility_weeks, trim = TRUE, scientific = FALSE),
+        " weeks (feasibility_follow_up_weeks); no estimate is reported for ",
+        "them."
+      )
+    }
+  )
+  if (!is.null(year_note)) {
+    year_note <- paste(year_note, collapse = " ")
+  }
   exempt_note <- if (isTRUE(wide$any_exempt)) {
     paste0(
       " Exempt: the specification exempts this comparison; its estimates ",
@@ -265,7 +397,8 @@
       exempt_note
     ),
     wide$yn,
-    wide$withheld
+    wide$withheld,
+    year_note
   )
   .write_minimum_events_one(
     wb,
@@ -283,7 +416,8 @@
       exempt_note
     ),
     wide$cut,
-    wide$withheld
+    wide$withheld,
+    year_note
   )
   return(invisible(NULL))
 }

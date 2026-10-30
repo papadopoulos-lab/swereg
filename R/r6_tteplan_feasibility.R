@@ -44,7 +44,8 @@
   "fail_arm",
   "status",
   "max_passing_cut",
-  "exempt"
+  "exempt",
+  "by_year"
 )
 
 #' @include r6_tteplan.R
@@ -77,13 +78,14 @@
 #' per-protocol record, as in `$s3_analyze()`.
 #'
 #' The method writes `feasibility.xlsx` to `self$dir_results`, the directory
-#' of `$export_tables()`. The workbook holds these sheets, in this order:
+#' of `$export_tables()`. `$export_tables()` also writes it, from the s3
+#' results. The workbook holds these sheets, in this order:
 #' \describe{
 #'   \item{Study Specification}{The sheet of `$export_tables()`.}
 #'   \item{Rare conditions}{The sheet of `$export_tables()`. It is absent when
 #'     the plan holds no rare-condition decision.}
 #'   \item{Minimum events (Y or -)}{One row per outcome and comparison, one
-#'     column per follow-up horizon. Y: the per-protocol estimate passes the
+#'     column per whole follow-up year. Y: the per-protocol estimate passes the
 #'     rule. -: it fails the rule, and the estimate is withheld unless the
 #'     comparison is exempt. The comparison of an exempt enrollment ends with
 #'     ` (exempt)`.}
@@ -112,7 +114,10 @@
 #'     \item{records}{A list keyed by ETT id, then by estimand (`pp`, `itt`).
 #'       Each record holds `rule`, `weight_col`, `follow_up`, `windows`,
 #'       `reportable_weeks`, `withheld`, `fail_lo`, `fail_hi`, `fail_arm`,
-#'       `status`, `max_passing_cut` and `exempt`. `exempt` is `TRUE` when the
+#'       `status`, `max_passing_cut`, `exempt` and `by_year`. `by_year` holds
+#'       one row per follow-up year: `year`, `reportable` and
+#'       `max_passing_cut`, the decision up to the end of that year. It holds
+#'       no expected events. `exempt` is `TRUE` when the
 #'       spec sets `minimum_events_rule_exempt: true` on the enrollment of the
 #'       ETT. `withheld` then still holds the verdict of the rule, and `$s3_analyze()`
 #'       will withhold none of the estimates. The `itt` record also holds
@@ -296,15 +301,72 @@ TTEPlan$set(
 }
 
 
-#' Write the feasibility workbook
+#' Write feasibility.xlsx from the s3 results
 #'
-#' @param plan A TTEPlan whose `feasibility` field is set.
-#' @param baselines Named list by enrollment id of `.s3_enrollment_worker()`
-#'   returns. The writer reads `table1_raw` and `table1_unweighted` only.
+#' `$export_tables()` calls it, so a normal run gives the feasibility
+#' workbook beside `tables.xlsx`. The sheets and their order are those of
+#' `$s3_feasibility()`, because both call `.write_feasibility_xlsx()`. The
+#' Minimum events sheets read the per-protocol horizon records that s3
+#' stored, feasibility-horizon ETTs included. Table 1 reads the stored
+#' unimputed and imputed unweighted panels of each enrollment, through
+#' `$get_baselines()`.
+#'
+#' @param plan A `TTEPlan` with s3 results.
 #' @param path Character(1), the `.xlsx` path.
+#' @param enrollment_ids Character, the enrollments of the reported ETTs, in
+#'   the order of Table 1.
 #' @return `path`, invisibly.
 #' @noRd
-.write_feasibility_xlsx <- function(plan, baselines, path) {
+.plan_export_feasibility <- function(plan, path, enrollment_ids) {
+  base_all <- plan$get_baselines()
+  baselines <- lapply(enrollment_ids, function(eid) {
+    arms <- .baseline_arm_labels(base_all, eid)
+    panel <- function(imputation) {
+      return(.baseline_panel(
+        base_all,
+        eid,
+        imputation,
+        "none",
+        "supplementary",
+        arms
+      ))
+    }
+    return(list(
+      table1_raw = panel("raw"),
+      table1_unweighted = panel("imputed")
+    ))
+  })
+  names(baselines) <- enrollment_ids
+  .write_feasibility_xlsx(
+    plan,
+    baselines,
+    path,
+    records = .acc_horizon_records(plan, "pp")
+  )
+  return(invisible(path))
+}
+
+
+#' Write the feasibility workbook
+#'
+#' `$s3_feasibility()` and `$export_tables()` both call it, so the two
+#' workbooks have the same sheets in the same order.
+#'
+#' @param plan A TTEPlan.
+#' @param baselines Named list by enrollment id. Each element holds the
+#'   panels `table1_raw` and `table1_unweighted`, and the writer reads only
+#'   those two.
+#' @param path Character(1), the `.xlsx` path.
+#' @param records A list keyed by ETT id: the per-protocol horizon record of
+#'   each ETT. The default reads `plan$feasibility$records`.
+#' @return `path`, invisibly.
+#' @noRd
+.write_feasibility_xlsx <- function(
+  plan,
+  baselines,
+  path,
+  records = lapply(plan$feasibility$records, function(r) r$pp)
+) {
   wb <- openxlsx::createWorkbook()
   bold <- openxlsx::createStyle(textDecoration = "bold", fontSize = 12)
   header <- openxlsx::createStyle(
@@ -315,11 +377,7 @@ TTEPlan$set(
 
   .write_spec_summary(wb, plan)
   .write_sparse_conditions_sheet(wb, plan)
-  .write_minimum_events_sheets(
-    wb,
-    plan,
-    lapply(plan$feasibility$records, function(r) r$pp)
-  )
+  .write_minimum_events_sheets(wb, plan, records)
 
   sht <- "Attrition"
   openxlsx::addWorksheet(wb, sht)

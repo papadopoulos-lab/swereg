@@ -35,7 +35,11 @@
 # `stored = FALSE` is a result cached before that column existed.
 .xp_irr <- function(irr, lo, hi, p, stored = TRUE, warn = FALSE) {
   dt <- data.table::data.table(
-    IRR = irr, IRR_lower = lo, IRR_upper = hi, IRR_pvalue = p, warn = warn
+    IRR = irr,
+    IRR_lower = lo,
+    IRR_upper = hi,
+    IRR_pvalue = p,
+    warn = warn
   )
   data.table::setattr(dt, "swereg_type", "irr")
   if (stored) swereg:::.s3_mark_irr_estimable(dt) else dt
@@ -110,8 +114,12 @@
 
 .xp_subgroup <- function(levels, irr, lo, hi, p) {
   dt <- data.table::data.table(
-    level = levels, IRR = irr, IRR_lower = lo, IRR_upper = hi,
-    IRR_pvalue = p, warn = rep(FALSE, length(levels))
+    level = levels,
+    IRR = irr,
+    IRR_lower = lo,
+    IRR_upper = hi,
+    IRR_pvalue = p,
+    warn = rep(FALSE, length(levels))
   )
   data.table::setattr(dt, "em_pvalue", 0.99)
   data.table::setattr(dt, "ratio_of_irrs", 9.99)
@@ -121,11 +129,18 @@
 
 .xp_emtest <- function(p, ratio, lo, hi, var) {
   list(
-    p_value = p, subgroup_var = var, n_levels = 2L,
+    p_value = p,
+    subgroup_var = var,
+    n_levels = 2L,
     interaction_coefs = data.table::data.table(
-      term = "x", estimate = log(ratio), se = 0.1, p = p
+      term = "x",
+      estimate = log(ratio),
+      se = 0.1,
+      p = p
     ),
-    ratio_of_irrs = ratio, ratio_lower = lo, ratio_upper = hi
+    ratio_of_irrs = ratio,
+    ratio_lower = lo,
+    ratio_upper = hi
   )
 }
 
@@ -165,8 +180,12 @@
     list(
       c("rd_age_band", "rd_bmi", "rd_absent"),
       c("rd_parity"),
-      character(0), character(0), character(0),
-      character(0), character(0), character(0)
+      character(0),
+      character(0),
+      character(0),
+      character(0),
+      character(0),
+      character(0)
     )
   } else {
     rep(list(character(0)), 8L)
@@ -180,19 +199,44 @@
     age_max = 59L,
     follow_up = c(52L, 52L, 52L, 52L, 156L, 52L, 52L, 52L),
     outcome_var = c(
-      "osd_a", "osd_b", "osd_a", "osd_b", "osd_c", "osd_d", "osd_e", "osd_f"
+      "osd_a",
+      "osd_b",
+      "osd_a",
+      "osd_b",
+      "osd_c",
+      "osd_d",
+      "osd_e",
+      "osd_f"
     ),
     outcome_name = c(
-      "Outcome A", "Outcome B", "Outcome A", "Outcome B",
-      "Outcome C", "Outcome D", "Outcome E", "Outcome F"
+      "Outcome A",
+      "Outcome B",
+      "Outcome A",
+      "Outcome B",
+      "Outcome C",
+      "Outcome D",
+      "Outcome E",
+      "Outcome F"
     ),
     outcome_description = c(
-      "first outcome", "second outcome", "first outcome", "second outcome",
-      "third outcome", "fourth outcome", "fifth outcome", "sixth outcome"
+      "first outcome",
+      "second outcome",
+      "first outcome",
+      "second outcome",
+      "third outcome",
+      "fourth outcome",
+      "fifth outcome",
+      "sixth outcome"
     ),
     outcome_role = c(
-      "primary", "secondary", "primary", "secondary",
-      "primary", "secondary", "secondary", "secondary"
+      "primary",
+      "secondary",
+      "primary",
+      "secondary",
+      "primary",
+      "secondary",
+      "secondary",
+      "secondary"
     ),
     description = sprintf("ETT0000%d", 1:8),
     confounder_vars = "rd_age_continuous",
@@ -204,9 +248,16 @@
     file_analysis = sprintf("analysis_00%d.qs2", 1:8),
     subgroup_vars = sg
   )
-  ett[, treatment_impl := list(rep(list(list(
-    variable = "rd_tx", intervention_value = TRUE, comparator_value = FALSE
-  )), 8L))]
+  ett[,
+    treatment_impl := list(rep(
+      list(list(
+        variable = "rd_tx",
+        intervention_value = TRUE,
+        comparator_value = FALSE
+      )),
+      8L
+    ))
+  ]
 
   plan <- swereg::TTEPlan$new(
     project_prefix = "xp",
@@ -217,7 +268,10 @@
   # Fixed, so the Provenance sheet carries no clock reading but the one the
   # capture masks.
   plan$created_at <- as.POSIXct("2026-01-04 05:06:07", tz = "UTC")
-  plan$registry_study_created_at <- as.POSIXct("2026-01-02 03:04:05", tz = "UTC")
+  plan$registry_study_created_at <- as.POSIXct(
+    "2026-01-02 03:04:05",
+    tz = "UTC"
+  )
   plan$skeleton_created_at <- as.POSIXct("2026-01-03 04:05:06", tz = "UTC")
   plan$expected_n_ids <- 123456L
   plan$expected_skeleton_file_count <- 1L
@@ -229,14 +283,16 @@
     min_expected_events_per_arm_per_year = 0,
     enrollments = list(
       list(
-        id = "01", name = "Enrollment one",
+        id = "01",
+        name = "Enrollment one",
         treatment = list(
           description = "treated versus untreated",
           arms = list(intervention = "Treated", comparator = "Untreated")
         )
       ),
       list(
-        id = "02", name = "Enrollment two",
+        id = "02",
+        name = "Enrollment two",
         treatment = list(
           description = "treated versus untreated",
           arms = list(intervention = "Treated", comparator = "Untreated")
@@ -268,23 +324,33 @@
       irr_itt = .xp_irr(0.66, 0.50, 0.87, 0.003, stored),
       subgroup_rd_age_band_pp = .xp_subgroup(
         c("all", "younger", "older"),
-        c(0.54, 0.61, 0.48), c(0.40, 0.42, 0.31),
-        c(0.71, 0.88, 0.74), c(1e-7, 0.008, 0.001)
+        c(0.54, 0.61, 0.48),
+        c(0.40, 0.42, 0.31),
+        c(0.71, 0.88, 0.74),
+        c(1e-7, 0.008, 0.001)
       ),
       emtest_rd_age_band_pp = .xp_emtest(0.42, 0.79, 0.55, 1.14, "rd_age_band"),
       subgroup_rd_age_band_itt = .xp_subgroup(
         c("all", "younger", "older"),
-        c(0.66, 0.70, 0.59), c(0.50, 0.49, 0.39),
-        c(0.87, 1.00, 0.89), c(0.003, 0.049, 0.012)
+        c(0.66, 0.70, 0.59),
+        c(0.50, 0.49, 0.39),
+        c(0.87, 1.00, 0.89),
+        c(0.003, 0.049, 0.012)
       ),
       emtest_rd_age_band_itt = .xp_emtest(
-        0.61, 0.88, 0.60, 1.29, "rd_age_band"
+        0.61,
+        0.88,
+        0.60,
+        1.29,
+        "rd_age_band"
       ),
       # Stratified only: no companion interaction test.
       subgroup_rd_bmi_pp = .xp_subgroup(
         c("all", "low", "high"),
-        c(0.54, 0.52, 0.57), c(0.40, 0.33, 0.38),
-        c(0.71, 0.81, 0.85), c(1e-7, 0.004, 0.006)
+        c(0.54, 0.52, 0.57),
+        c(0.40, 0.33, 0.38),
+        c(0.71, 0.81, 0.85),
+        c(1e-7, 0.004, 0.006)
       )
     ),
     mk_rd("rd_pp_trunc", -0.010, "ETT00001"),
@@ -377,8 +443,13 @@
   )
 
   plan$results_ett <- list(
-    ETT00001 = r1, ETT00002 = r2, ETT00003 = r3, ETT00004 = r4,
-    ETT00005 = r5, ETT00007 = r7, ETT00008 = r8
+    ETT00001 = r1,
+    ETT00002 = r2,
+    ETT00003 = r3,
+    ETT00004 = r4,
+    ETT00005 = r5,
+    ETT00007 = r7,
+    ETT00008 = r8
   )
 
   t1a <- .xp_table1(1L)
@@ -415,31 +486,93 @@
   plan$enrollment_counts <- list(
     `01` = list(
       attrition = data.table::data.table(
-        enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA),
+        enrollment_period_id = c(
+          1L,
+          2L,
+          NA,
+          1L,
+          2L,
+          NA,
+          1L,
+          2L,
+          NA,
+          1L,
+          2L,
+          NA
+        ),
         # `landmark_observed` is here on purpose. Every other criterion is a
         # name the label lookup does not hold, so without it the Attrition
         # sheet's `step_label` column exercises only its fallback branch and
         # a broken lookup would still render a sheet that looks right.
         criterion = c(
-          "before_exclusions", "before_exclusions", "before_exclusions",
-          "age", "age", "age",
-          "prior_disease", "prior_disease", "prior_disease",
-          "landmark_observed", "landmark_observed", "landmark_observed"
+          "before_exclusions",
+          "before_exclusions",
+          "before_exclusions",
+          "age",
+          "age",
+          "age",
+          "prior_disease",
+          "prior_disease",
+          "prior_disease",
+          "landmark_observed",
+          "landmark_observed",
+          "landmark_observed"
         ),
         n_persons = c(
-          3000, 3200, 5000, 2500, 2600, 4000, 1800, 1900, 3100,
-          1600, 1700, 2800
+          3000,
+          3200,
+          5000,
+          2500,
+          2600,
+          4000,
+          1800,
+          1900,
+          3100,
+          1600,
+          1700,
+          2800
         ),
         n_person_trials = c(
-          25000, 25000, 50000, 20000, 20000, 40000, 15000, 15000, 30000,
-          13000, 13000, 26000
+          25000,
+          25000,
+          50000,
+          20000,
+          20000,
+          40000,
+          15000,
+          15000,
+          30000,
+          13000,
+          13000,
+          26000
         ),
         n_intervention = c(
-          500, 500, 1000, 450, 450, 900, 400, 400, 800, 350, 350, 700
+          500,
+          500,
+          1000,
+          450,
+          450,
+          900,
+          400,
+          400,
+          800,
+          350,
+          350,
+          700
         ),
         n_comparator = c(
-          2000, 2000, 4000, 1550, 1550, 3100, 1100, 1100, 2200,
-          1000, 1000, 2000
+          2000,
+          2000,
+          4000,
+          1550,
+          1550,
+          3100,
+          1100,
+          1100,
+          2200,
+          1000,
+          1000,
+          2000
         )
       ),
       matching = data.table::data.table(
@@ -457,13 +590,25 @@
       attrition = data.table::data.table(
         enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
         criterion = c(
-          "before_exclusions", "before_exclusions", "before_exclusions",
-          "age", "age", "age",
-          "prior_disease", "prior_disease"
+          "before_exclusions",
+          "before_exclusions",
+          "before_exclusions",
+          "age",
+          "age",
+          "age",
+          "prior_disease",
+          "prior_disease"
         ),
         n_persons = c(1500, 1600, 2600, 1300, 1350, 2100, 900, 950),
         n_person_trials = c(
-          12000, 12000, 24000, 10000, 10000, 20000, 7000, 7000
+          12000,
+          12000,
+          24000,
+          10000,
+          10000,
+          20000,
+          7000,
+          7000
         ),
         n_intervention = c(250, 250, 500, 220, 220, 440, 200, 200),
         n_comparator = c(1000, 1000, 2000, 800, 800, 1600, 550, 550)
@@ -689,7 +834,12 @@
     )))
   )
   sheets <- .xp_read_sheets(path)
-  files <- sort(setdiff(list.files(dir), c("tables.xlsx", "results.qs2")))
+  # `feasibility.xlsx` is a workbook, not an image. swereg 27.3.1 writes it
+  # beside `tables.xlsx`.
+  files <- sort(setdiff(
+    list.files(dir),
+    c("tables.xlsx", "results.qs2", "feasibility.xlsx")
+  ))
   # NO BYTE DIGEST. `ggplot2::ggsave()` picks its rasteriser by probing for
   # `ragg`, and `ragg` is in neither Imports nor Suggests. `R CMD check` hides
   # it, so the same figure rasterises through cairo there and through ragg in an

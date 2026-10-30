@@ -320,7 +320,8 @@ test_that("(b) s3 reports the exempt ETT and withholds the other, and the record
   }
   expect_identical(r2$horizon_itt$decided_by, "pp")
 
-  # The record that is not exempt is the 27.3.0 record with `exempt = FALSE`.
+  # The record that is not exempt is the 27.3.0 record with `exempt = FALSE`
+  # and, since 27.3.1, `by_year`.
   rec <- r1$horizon_pp
   expect_identical(
     names(rec),
@@ -336,7 +337,8 @@ test_that("(b) s3 reports the exempt ETT and withholds the other, and the record
       "fail_arm",
       "status",
       "max_passing_cut",
-      "exempt"
+      "exempt",
+      "by_year"
     )
   )
   expect_false(rec$exempt)
@@ -458,12 +460,13 @@ test_that("(c) the Minimum events (Y or -) sheet shows the verdict of the rule a
   expect_true(endsWith(head[2L], paste0(" ", exempt_note)))
   s <- .hx_sheet(fx$xlsx, sh, "Comparison")
   expect_identical(s$Comparison, c("Enrollment one", "Enrollment two (exempt)"))
-  expect_identical(s[["104 weeks"]], c("-", "-"))
+  # The 104-week ETTs fill the column of year 2.
+  expect_identical(s[["2 years"]], c("-", "-"))
   # The (#) sheet carries the same comparison text and the same note
   # sentence. Its cells are the largest passing cut, 2, for both ETTs.
   cut <- .hx_sheet(fx$xlsx, "Minimum events (#)", "Comparison")
   expect_identical(cut$Comparison, s$Comparison)
-  expect_identical(cut[["104 weeks"]], c("2", "2"))
+  expect_identical(cut[["2 years"]], c("2", "2"))
   # The (#) sheet states the verdict of the rule too, never the reporting.
   cut_head <- .hx_head(fx$xlsx, "Minimum events (#)")
   expect_identical(

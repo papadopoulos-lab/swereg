@@ -368,7 +368,7 @@ the spec.
 
 The \verb{Minimum events (Y or -)} and \verb{Minimum events (#)} sheets follow the
 Rare conditions sheet. Both hold one row per outcome and comparison and
-one column per follow-up horizon, for the per-protocol estimand. The
+one column per whole follow-up year, for the per-protocol estimand. The
 first shows Y when the estimate passes the minimum-events rule and - when
 it fails the rule. A failed estimate is withheld unless its comparison is
 exempt, and an exempt comparison ends with \code{ (exempt)}. The second shows
@@ -377,11 +377,21 @@ passes the rule. The intention-to-treat estimand follows the per-protocol
 decision.
 \verb{$get_horizon_windows()} returns the year-by-year detail.
 
+The year columns run from 1 to the longest follow-up of all ETTs, in
+whole years of 52 weeks. A follow-up that is not a whole number of years
+gets no column. A year with an ETT of exactly that follow-up shows the
+decision of that ETT. Another year shows the decision up to that year of
+the shortest longer ETT. A year that no ETT of the row reaches is empty.
+
 The two Minimum events sheets are the only sheets that show a
 feasibility-horizon ETT, one that the spec key
-\code{feasibility_follow_up_weeks} adds. Its follow-up gets its own column.
+\code{feasibility_follow_up_weeks} adds. Its years get columns.
 Every other sheet, \code{results.qs2} and \verb{$get_horizon_windows()} leave it
 out.
+
+The method also writes \code{feasibility.xlsx} to the directory of the
+workbook. It holds the sheets of \verb{$s3_feasibility()}, in the same order.
+Its Minimum events sheets read the decisions that s3 stored.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
@@ -579,13 +589,14 @@ The intention-to-treat record of each ETT takes the decision of its
 per-protocol record, as in \verb{$s3_analyze()}.
 
 The method writes \code{feasibility.xlsx} to \code{self$dir_results}, the directory
-of \verb{$export_tables()}. The workbook holds these sheets, in this order:
+of \verb{$export_tables()}. \verb{$export_tables()} also writes it, from the s3
+results. The workbook holds these sheets, in this order:
 \describe{
 \item{Study Specification}{The sheet of \verb{$export_tables()}.}
 \item{Rare conditions}{The sheet of \verb{$export_tables()}. It is absent when
 the plan holds no rare-condition decision.}
 \item{Minimum events (Y or -)}{One row per outcome and comparison, one
-column per follow-up horizon. Y: the per-protocol estimate passes the
+column per whole follow-up year. Y: the per-protocol estimate passes the
 rule. -: it fails the rule, and the estimate is withheld unless the
 comparison is exempt. The comparison of an exempt enrollment ends with
 \code{ (exempt)}.}
@@ -607,7 +618,10 @@ and s2 wrote every analysis file after that s1 run.
 \item{records}{A list keyed by ETT id, then by estimand (\code{pp}, \code{itt}).
 Each record holds \code{rule}, \code{weight_col}, \code{follow_up}, \code{windows},
 \code{reportable_weeks}, \code{withheld}, \code{fail_lo}, \code{fail_hi}, \code{fail_arm},
-\code{status}, \code{max_passing_cut} and \code{exempt}. \code{exempt} is \code{TRUE} when the
+\code{status}, \code{max_passing_cut}, \code{exempt} and \code{by_year}. \code{by_year} holds
+one row per follow-up year: \code{year}, \code{reportable} and
+\code{max_passing_cut}, the decision up to the end of that year. It holds
+no expected events. \code{exempt} is \code{TRUE} when the
 spec sets \code{minimum_events_rule_exempt: true} on the enrollment of the
 ETT. \code{withheld} then still holds the verdict of the rule, and \verb{$s3_analyze()}
 will withhold none of the estimates. The \code{itt} record also holds

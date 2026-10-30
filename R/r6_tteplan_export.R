@@ -35,7 +35,7 @@
 #'
 #' The `Minimum events (Y or -)` and `Minimum events (#)` sheets follow the
 #' Rare conditions sheet. Both hold one row per outcome and comparison and
-#' one column per follow-up horizon, for the per-protocol estimand. The
+#' one column per whole follow-up year, for the per-protocol estimand. The
 #' first shows Y when the estimate passes the minimum-events rule and - when
 #' it fails the rule. A failed estimate is withheld unless its comparison is
 #' exempt, and an exempt comparison ends with ` (exempt)`. The second shows
@@ -44,11 +44,21 @@
 #' decision.
 #' `$get_horizon_windows()` returns the year-by-year detail.
 #'
+#' The year columns run from 1 to the longest follow-up of all ETTs, in
+#' whole years of 52 weeks. A follow-up that is not a whole number of years
+#' gets no column. A year with an ETT of exactly that follow-up shows the
+#' decision of that ETT. Another year shows the decision up to that year of
+#' the shortest longer ETT. A year that no ETT of the row reaches is empty.
+#'
 #' The two Minimum events sheets are the only sheets that show a
 #' feasibility-horizon ETT, one that the spec key
-#' `feasibility_follow_up_weeks` adds. Its follow-up gets its own column.
+#' `feasibility_follow_up_weeks` adds. Its years get columns.
 #' Every other sheet, `results.qs2` and `$get_horizon_windows()` leave it
 #' out.
+#'
+#' The method also writes `feasibility.xlsx` to the directory of the
+#' workbook. It holds the sheets of `$s3_feasibility()`, in the same order.
+#' Its Minimum events sheets read the decisions that s3 stored.
 #'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,

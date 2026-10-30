@@ -38,6 +38,16 @@ tte_stamp_stages <- function(plan) {
           withheld = FALSE,
           max_passing_cut = max(swereg:::.HORIZON_CUT_GRID)
         )
+        # The per-year decision that s3 stores since swereg 27.3.1, also
+        # "nothing withheld".
+        fu <- as.numeric(plan$ett$follow_up[plan$ett$ett_id == k])
+        if (length(fu) == 1L && is.finite(fu) && fu > 0) {
+          plan$results_ett[[k]][[slot]]$by_year <- data.table::data.table(
+            year = seq_len(ceiling(fu / 52)),
+            reportable = TRUE,
+            max_passing_cut = max(swereg:::.HORIZON_CUT_GRID)
+          )
+        }
         if (est == "itt") {
           plan$results_ett[[k]][[slot]]$decided_by <- "pp"
         }

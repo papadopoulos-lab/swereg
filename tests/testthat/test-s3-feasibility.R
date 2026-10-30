@@ -338,15 +338,40 @@ test_that("no stored window table holds an event, rate or expected-events column
   .fz_skip()
   fx <- .fz_fixture()
   for (feas in list(fx$feas, fx$staged$feasibility, fx$saved$feasibility)) {
+    # Four records, each with one window table and one by_year table.
     tabs <- .fz_tables(feas)
-    expect_length(tabs, 4L)
+    expect_length(tabs, 8L)
     for (t in tabs) {
-      expect_identical(
-        names(t),
-        c("window_lo", "window_hi", "arm", "py_weighted", "pass")
-      )
       expect_length(intersect(names(t), .FZ_STRIPPED), 0L)
       expect_false(any(grepl("event|rate", names(t), ignore.case = TRUE)))
+    }
+    for (eid in names(feas$records)) {
+      for (est in names(feas$records[[eid]])) {
+        rec <- feas$records[[eid]][[est]]
+        info <- paste(eid, est)
+        expect_identical(
+          names(rec$windows),
+          c("window_lo", "window_hi", "arm", "py_weighted", "pass"),
+          info = info
+        )
+        expect_true(data.table::is.data.table(rec$by_year), info = info)
+        expect_identical(
+          names(rec$by_year),
+          c("year", "reportable", "max_passing_cut"),
+          info = info
+        )
+        expect_false("events_expected" %in% names(rec), info = info)
+      }
+    }
+  }
+  # The by_year of the feasibility step equals the by_year of s3.
+  for (eid in fx$plan$ett$ett_id) {
+    for (est in c("pp", "itt")) {
+      expect_identical(
+        fx$feas$records[[eid]][[est]]$by_year,
+        fx$plan$results_ett[[eid]][[paste0("horizon_", est)]]$by_year,
+        info = paste(eid, est)
+      )
     }
   }
 })
@@ -587,4 +612,89 @@ test_that("a window that only the comparator fails reads 'no' and matches s3's r
   expect_identical(wide$yn[1, ncol(wide$yn)], "-")
   expect_identical(wide$cut[1, ncol(wide$cut)], "-")
   expect_true(is.na(fz_rec$max_passing_cut))
+})
+
+
+# ---- (k): every follow-up year, from s3 and $export_tables() -------------------
+
+# The s3 run and export of `helper-feasibility_follow_up.R`: follow-ups 52 and
+# 104, and `feasibility_follow_up_weeks: 260`.
+test_that("(k) both workbooks of $export_tables() show years 1 to 5, years 3 to 5 from the 260-week ETT", {
+  .ff_skip()
+  fx <- .ff_fixture(TRUE)
+  plan <- fx$plan
+  feas_xlsx <- file.path(dirname(fx$xlsx), "feasibility.xlsx")
+  expect_true(file.exists(feas_xlsx))
+  expect_identical(
+    openxlsx::getSheetNames(feas_xlsx),
+    c(
+      "Study Specification",
+      "Rare conditions",
+      "Minimum events (Y or -)",
+      "Minimum events (#)",
+      "Attrition",
+      "Table 1"
+    )[c(
+      TRUE,
+      "Rare conditions" %in% openxlsx::getSheetNames(fx$xlsx),
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE
+    )]
+  )
+  years <- c("1 year", paste(2:5, "years"))
+  feas_ids <- swereg:::.plan_ett_feasibility_ids(plan)
+  ett <- plan$ett
+  for (xlsx in c(fx$xlsx, feas_xlsx)) {
+    yn <- .fz_sheet(xlsx, "Minimum events (Y or -)", "Comparison")
+    cut <- .fz_sheet(xlsx, "Minimum events (#)", "Comparison")
+    for (d in list(yn, cut)) {
+      expect_identical(
+        names(d),
+        c("Outcome", "#", "Comparison", years),
+        info = basename(xlsx)
+      )
+    }
+    for (id in feas_ids) {
+      eid <- ett$enrollment_id[ett$ett_id == id]
+      r <- which(yn$`#` == as.character(match(eid, unique(ett$enrollment_id))))
+      expect_length(r, 1L)
+      by_year <- plan$results_ett[[id]]$horizon_pp$by_year
+      expect_identical(by_year$year, 1:5)
+      for (k in 3:5) {
+        info <- paste(basename(xlsx), id, k)
+        want_yn <- if (by_year$reportable[k]) "Y" else "-"
+        want_cut <- if (is.na(by_year$max_passing_cut[k])) {
+          "-"
+        } else {
+          format(by_year$max_passing_cut[k], trim = TRUE)
+        }
+        expect_false(is.na(yn[r, years[k]]), info = info)
+        expect_identical(yn[r, years[k]], want_yn, info = info)
+        expect_identical(cut[r, years[k]], want_cut, info = info)
+      }
+    }
+    note <- openxlsx::read.xlsx(
+      xlsx,
+      sheet = "Minimum events (Y or -)",
+      colNames = FALSE,
+      rows = 3L,
+      cols = 1L
+    )[[1L]]
+    expect_identical(
+      note,
+      paste0(
+        "Years without their own follow-up are read from the shortest ",
+        "longer follow-up. Years beyond the analysis follow-up come from the ",
+        "feasibility horizon of 260 weeks (feasibility_follow_up_weeks); no ",
+        "estimate is reported for them."
+      ),
+      info = basename(xlsx)
+    )
+  }
+  # The fixture fails a year after the second, so the 260-week cells are not
+  # all one verdict.
+  by5 <- plan$results_ett$ETT00005$horizon_pp$by_year
+  expect_true(any(by5$reportable) && !all(by5$reportable))
 })
