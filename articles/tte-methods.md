@@ -731,7 +731,9 @@ difference alone decides benefit or harm.
 
 The minimum-events rule decides whether an estimand is reported.
 Follow-up is cut into years of 52 weeks from time zero: $(0,52\rbrack$,
-$(52,104\rbrack$, and so on.
+$(52,104\rbrack$, and so on. An event at exactly week 52 belongs to the
+first year, so a table in whole weeks reads weeks 1 to 52 and weeks 53
+to 104. A status such as “weeks 52-104” names the window bounds.
 
 In year $y$, ${PY}_{a,y}$ is the weighted person-time of arm $a$, in
 person-years, and $D_{a,y}$ is its weighted events. A row contributes

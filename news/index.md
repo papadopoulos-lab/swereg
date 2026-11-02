@@ -1,5 +1,16 @@
 # Changelog
 
+## swereg 27.3.6
+
+### Documentation
+
+- [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  and
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  say which year a boundary week belongs to: an event at exactly week 52
+  is in the first year, so in whole weeks the years are weeks 1 to 52
+  and weeks 53 to 104.
+
 ## swereg 27.3.5
 
 ### Internal
