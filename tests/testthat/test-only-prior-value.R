@@ -329,20 +329,23 @@ test_that("the protocol table emulation cell names the rule", {
   )
 })
 
-test_that("the CONSORT lookup labels the eligibility column with the rule", {
-  # An inclusion block sits under "Not meeting inclusion criteria", so its
-  # label states the rule. An exclusion block sits under "Meeting exclusion
-  # criteria" and counts the people who failed the rule, so its label states
-  # what they had: "Prior ..." and not "No prior ...".
-  want <- c(
-    global_exclusion = sub("^No prior ", "Prior ", .opv_rule_text),
-    additional_inclusion = .opv_rule_text
+test_that("the CONSORT lookup labels the eligibility column by its name or its rule", {
+  # A named entry prints its name. With no name, an inclusion block sits under
+  # "Not meeting inclusion criteria", so its label states the rule. An exclusion
+  # block sits under "Meeting exclusion criteria" and counts the people who
+  # failed the rule, so its label states what they had: "Prior ..." and not
+  # "No prior ...".
+  cases <- list(
+    list("global_exclusion", "MHT-naive at baseline", "MHT-naive at baseline"),
+    list("additional_inclusion", "MHT-naive at baseline", "MHT-naive at baseline"),
+    list("global_exclusion", NULL, sub("^No prior ", "Prior ", .opv_rule_text)),
+    list("additional_inclusion", NULL, .opv_rule_text)
   )
-  for (block in names(want)) {
-    spec <- .opv_read(
-      block,
-      .opv_entry("only_prior_value", "local_or_none_mht")
-    )
+  for (case in cases) {
+    block <- case[[1L]]
+    want <- case[[3L]]
+    entry <- .opv_entry("only_prior_value", "local_or_none_mht", name = case[[2L]])
+    spec <- .opv_read(block, entry)
     labels <- swereg:::.build_criterion_label_lookup(
       .opv_plan(spec),
       enrollment_id = "01",
@@ -350,8 +353,8 @@ test_that("the CONSORT lookup labels the eligibility column with the rule", {
     )
     expect_identical(
       unname(labels["eligible_only_rd_approach1_single_everbefore"]),
-      paste0(want[[block]], "\\n(lifetime before baseline)"),
-      info = block
+      paste0(want, "\\n(lifetime before baseline)"),
+      info = paste(block, want)
     )
   }
 })

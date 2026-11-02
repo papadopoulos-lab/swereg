@@ -493,13 +493,10 @@
         love_sheet,
         t1_unweighted = love_rows(eid, "none"),
         t1_weighted = love_rows(eid, "ipw_trunc"),
-        title = paste0(
-          "Love plot: covariate balance before and after weighting",
-          " -- Enrollment ",
+        title = sprintf(
+          "Love plot: covariate balance before and after weighting -- Enrollment %s (%s)",
           eid,
-          " (",
-          label,
-          ")"
+          label
         ),
         img_dir = img_dir,
         img_basename = paste0(img_basename_root, "_love_plot_", eid),

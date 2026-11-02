@@ -1,3 +1,9 @@
+# swereg 27.3.5
+
+## Internal
+
+* The tests pin the CONSORT labels of 27.3.4. `R/tteplan_export.R` is back under the limit of 1000 code lines. Output does not change.
+
 # swereg 27.3.4
 
 ## Bug fixes
