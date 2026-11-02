@@ -83,14 +83,15 @@
     logical(1)
   )
   if (any(stale)) {
-    message(
-      "Refreshing ",
-      sum(stale),
-      " stale baseline table(s) from disk..."
-    )
+    message("Refreshing ", sum(stale), " stale baseline table(s) from disk...")
+  }
+  # A result without the name `adherence` is refreshed too, when its raw file
+  # is on disk. See `.tte_adherence_refresh_wanted()`.
+  refresh <- stale | .tte_adherence_refresh_wanted(plan, output_dir)
+  if (any(refresh)) {
     plan$recompute_baselines(
       output_dir = output_dir,
-      enrollment_ids = names(stale)[stale]
+      enrollment_ids = names(refresh)[refresh]
     )
   }
 
@@ -455,9 +456,9 @@
   {
     for (eid in enrollment_ids) {
       ec <- .plan_cohort_counts(plan, eid)
+      label <- .enrollment_label(plan, eid)
       if (!is.null(ec$attrition)) {
         attrition_sheet <- paste0("Attrition_", eid)
-        label <- .enrollment_label(plan, eid)
         if (isTRUE(.write_attrition_sheet(wb, attrition_sheet, plan, eid))) {
           toc_names <- c(toc_names, attrition_sheet)
           toc_desc <- c(
@@ -486,7 +487,6 @@
         }
       }
 
-      label <- .enrollment_label(plan, eid)
       love_sheet <- paste0("Love_", eid)
       paths <- .write_love_plot(
         wb,
@@ -527,6 +527,11 @@
       }
     }
   }
+  # The Protocol adherence sheet follows the last sheet of the loop. It reads
+  # `$get_adherence()`, and it is absent when no enrollment has a table.
+  adh <- .write_adherence_sheet(wb, plan, .tte_adherence_by_enrollment(plan))
+  toc_names <- c(toc_names, names(adh))
+  toc_desc <- c(toc_desc, unname(adh))
   if (length(consort_files) > 0L) {
     toc_names <- c(toc_names, "CONSORT sidecars (standalone files)")
     toc_desc <- c(
@@ -937,7 +942,9 @@
     # One analysis read remains in `$export_tables()` and it is a
     # PRODUCER's. A stale baseline panel sends `$recompute_baselines()` to
     # `.s3_enrollment_worker()`, which is s3's own worker computing and
-    # storing a Table 1 panel. That is s3 running late, not s4 computing.
+    # storing a Table 1 panel. A result without the name `adherence` takes
+    # the same route when its raw file is on disk, and the worker then also
+    # stores the adherence counts. That is s3 running late, not s4 computing.
     paths <- character(0)
     id_ett <- as.character(ett_row$ett_id[1])
     curves <- plan$get_curves()

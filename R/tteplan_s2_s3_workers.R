@@ -103,6 +103,9 @@
 #'   `intervention` keys, passed through to `$table1()`.
 #' @return A named list with enrollment-level results. `fill_summary` is the
 #'   table `.s1e_worker()` stored on the enrollment object, or NULL.
+#'   `adherence` is the table of `.tte_adherence_counts()` on the raw file. It
+#'   is NULL when `raw_path` does not exist or when that function returns
+#'   NULL. The list always holds the name `adherence`.
 #' @noRd
 .s3_enrollment_worker <- function(
   analysis_path,
@@ -190,8 +193,13 @@
   gc()
 
   table1_raw <- NULL
+  # The adherence table reads the raw file only, because that file holds no
+  # outcome and no imputed value. Without the file the value is NULL, and the
+  # name is still returned. See `.tte_adherence_counts()`.
+  adherence <- NULL
   if (file.exists(raw_path)) {
     enrollment_raw <- swereg::qs2_read(raw_path, nthreads = 1L)
+    adherence <- .tte_adherence_counts(enrollment_raw)
     table1_raw <- tryCatch(
       do.call(
         .s3_enrollment_table1,
@@ -223,6 +231,7 @@
     n_baseline_comparator = n_baseline_comparator,
     arm_labels = arm_labels,
     fill_summary = fill_summary,
+    adherence = adherence,
     swereg_version_s2 = enrollment_s2_version,
     computed_at = Sys.time()
   ))

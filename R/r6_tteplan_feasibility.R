@@ -94,6 +94,12 @@
 #'   \item{Minimum events (#)}{The same layout. Each cell is the largest cut
 #'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
 #'   \item{Attrition}{The table of `$get_attrition()`.}
+#'   \item{Protocol adherence}{One row per comparison and arm. `N (ITT)`
+#'     counts the person-trials still observed and `N (PP)` those still on
+#'     protocol. `%` is 100 x N (PP) / N (ITT). The sheet shows weeks 13 and
+#'     26 and every multiple of 52 up to the last stored week. The counts are
+#'     unweighted and come from the s1 raw file. The sheet is absent when no
+#'     enrollment has an adherence table.}
 #'   \item{Table 1}{The unweighted baseline table of each enrollment. One
 #'     panel reads the s1 raw file, before imputation. The other reads the
 #'     smallest s2 analysis file of the enrollment.}
@@ -258,7 +264,9 @@ TTEPlan$set(
 
     path <- file.path(self$dir_results, .FILENAME_FEASIBILITY_XLSX)
     dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
-    .write_feasibility_xlsx(self, baselines, path)
+    # The worker results hold the adherence table of each enrollment.
+    adherence <- lapply(baselines, function(b) b[["adherence"]])
+    .write_feasibility_xlsx(self, baselines, path, adherence)
     cat("feasibility: wrote ", path, "\n", sep = "")
     .feasibility_report(records)
     return(invisible(self))
@@ -358,6 +366,7 @@ TTEPlan$set(
     plan,
     baselines,
     path,
+    adherence = .tte_adherence_by_enrollment(plan),
     records = .acc_horizon_records(plan, "pp")
   )
   return(invisible(path))
@@ -374,6 +383,9 @@ TTEPlan$set(
 #'   panels `table1_raw` and `table1_unweighted`, and the writer reads only
 #'   those two.
 #' @param path Character(1), the `.xlsx` path.
+#' @param adherence A named list by enrollment id, each element a stored
+#'   adherence table or `NULL`. `.write_adherence_sheet()` writes it after
+#'   the Attrition sheet.
 #' @param records A list keyed by ETT id: the per-protocol horizon record of
 #'   each ETT. The default reads `plan$feasibility$records`.
 #' @return `path`, invisibly.
@@ -382,6 +394,7 @@ TTEPlan$set(
   plan,
   baselines,
   path,
+  adherence,
   records = lapply(plan$feasibility$records, function(r) r$pp)
 ) {
   wb <- openxlsx::createWorkbook()
@@ -406,6 +419,8 @@ TTEPlan$set(
   } else {
     openxlsx::writeData(wb, sht, att, startRow = 3L, headerStyle = header)
   }
+
+  .write_adherence_sheet(wb, plan, adherence)
 
   sht <- "Table 1"
   openxlsx::addWorksheet(wb, sht)

@@ -13,7 +13,9 @@ skip_if_not_installed("withr")
 
 rbs_plan <- function(env = parent.frame()) {
   plan <- spr_report_fast_plan(env = env)
-  plan$results_enrollment <- list(`01` = list(n_baseline = 100L))
+  plan$results_enrollment <- list(
+    `01` = list(n_baseline = 100L, adherence = NULL)
+  )
   return(tte_stamp_stages(plan))
 }
 

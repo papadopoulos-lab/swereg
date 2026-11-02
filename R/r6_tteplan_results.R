@@ -155,6 +155,30 @@ TTEPlan$set("public", "get_baselines", function() {
   return(.acc_baselines(self))
 })
 
+#' @description The stored protocol adherence counts, as one flat table.
+#'
+#' One row per enrollment, arm and week. `n_observed` counts the
+#' person-trials of the arm still under observation at the week, which is
+#' the intention-to-treat count. `n_on_protocol` counts those of them still
+#' on protocol, which is the per-protocol count. `share` is
+#' `n_on_protocol / n_observed`, and it is `NA` when `n_observed` is 0.
+#'
+#' `$s3_analyze()` and `$recompute_baselines()` store the counts. They
+#' compute them from the raw enrollment file, before any outcome. The counts
+#' are unweighted. The weeks run from 1 to the last follow-up week of the
+#' raw panel, so they MAY pass the longest reported follow-up.
+#'
+#' An enrollment whose stored result holds no table gets no row. That is the
+#' case when the raw file was absent, or when the raw panel lacks a boundary
+#' column the count needs.
+#'
+#' @return A data.table with columns `enrollment_id`, `arm`, `week`,
+#'   `n_observed`, `n_on_protocol` and `share`. `arm` reads `"intervention"`
+#'   or `"comparator"`.
+TTEPlan$set("public", "get_adherence", function() {
+  return(.acc_adherence(self))
+})
+
 #' @description The stored eligibility cascade, as one flat table.
 #'
 #' One row per enrollment and stored row, in pipeline order. Counts are
@@ -364,12 +388,15 @@ TTEPlan$set("public", "get_protocol_table", function(ett_id = NULL) {
 #' stores what the worker returns. No renderer in the export path opens an
 #' analysis file.
 #'
-#' The method skips an enrollment whose cached panels are current. The rule
-#' is `.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
+#' The method skips an enrollment whose cached panels are current and whose
+#' result holds the name `adherence`. The panel rule is
+#' `.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
 #' present panel MUST be a `swereg_table1` and MUST carry `smd_numeric`. A
-#' result holding no panel at all is not stale, so `force = FALSE` skips it.
-#' `enrollment_ids` names which enrollments to consider, and the same rule
-#' then decides each one.
+#' result holding no panel at all is not stale. A result without the name
+#' `adherence` is recomputed, also when its panels are current. A stored
+#' `adherence = NULL` holds the name, so it causes no recompute.
+#' `enrollment_ids` names which enrollments to consider, and the same rules
+#' then decide each one.
 #'
 #' `force = TRUE` skips the staleness test and recomputes every named
 #' enrollment. It changes nothing else. The method still reads the stored
@@ -388,7 +415,9 @@ TTEPlan$set("public", "get_protocol_table", function(ett_id = NULL) {
 #' and s2 run stamps of the analysis file it reads.
 #'
 #' `$export_tables()` calls this method on its own when a stored panel is
-#' stale. Call it yourself when you want the refresh to be a visible step.
+#' stale. It also calls it when a stored result holds no name `adherence`
+#' and the raw file of that enrollment is in the output directory. Call it
+#' yourself when you want the refresh to be a visible step.
 #' The lazy path costs minutes. Whether it runs at all depends on what a
 #' cached plan happens to hold.
 #'
@@ -441,7 +470,15 @@ TTEPlan$set(
       # recompute a valid panel forever. A fresh `swereg_table1` carries NA
       # there for N rows, sum-of-weights rows, continuation levels and
       # missing rows.
-      if (!force && !.baseline_panel_is_stale(prev)) {
+      # A result stored before the adherence table existed holds no name
+      # `adherence`, and it is recomputed too. A stored `adherence = NULL`
+      # is present, so it does not count. `.baseline_panel_is_stale()` stays
+      # the panel rule, unchanged.
+      if (
+        !force &&
+          !.baseline_panel_is_stale(prev) &&
+          !.tte_adherence_missing(prev)
+      ) {
         n_skipped <- n_skipped + 1L
         next
       }

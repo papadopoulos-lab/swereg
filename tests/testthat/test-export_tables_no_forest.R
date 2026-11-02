@@ -59,7 +59,9 @@ test_that("export_tables writes no forest sheet and no forest image", {
   # The workbook and the Love plot and CONSORT sidecars are still written, so
   # an empty directory cannot pass this test by accident.
   expect_true("tables.xlsx" %in% files)
-  expect_true(all(c("tables_love_plot_01.png", "tables_love_plot_02.png") %in% files))
+  expect_true(all(
+    c("tables_love_plot_01.png", "tables_love_plot_02.png") %in% files
+  ))
   expect_true(any(grepl("consort_.*\\.png$", files)))
 
   # The table of contents lives on the Provenance sheet. It MUST NOT advertise
@@ -67,6 +69,12 @@ test_that("export_tables writes no forest sheet and no forest image", {
   # order and then one extra row for the CONSORT sidecar files.
   expect_false(any(grepl("forest", .nf_toc$sheet, ignore.case = TRUE)))
   expect_identical(.nf_toc$sheet[seq_along(sheets)], sheets)
+  # The Protocol adherence sheet follows the last sheet of the per-enrollment
+  # loop, so its row follows the row of that sheet.
+  expect_identical(
+    .nf_toc$sheet[match("Love_02", sheets) + 0:1],
+    c("Love_02", "Protocol adherence")
+  )
   expect_identical(
     .nf_toc$sheet[-seq_along(sheets)],
     c(
@@ -185,7 +193,10 @@ test_that("the protocol sheet documents the requested trial", {
 
   # ETT00003 belongs to enrollment 02, and the Table 1 enrollment is 01, so
   # this id cannot have come from the fallback.
-  expect_equal(.nf_plan$ett$enrollment_id[.nf_plan$ett$ett_id == "ETT00003"], "02")
+  expect_equal(
+    .nf_plan$ett$enrollment_id[.nf_plan$ett$ett_id == "ETT00003"],
+    "02"
+  )
 })
 
 
@@ -208,7 +219,10 @@ test_that("an unknown protocol_ett_id warns and falls back", {
   path <- file.path(dir, "tables.xlsx")
   plan <- .xp_plan("new", subgroups = FALSE)
   expect_warning(
-    suppressMessages(plan$export_tables(path = path, protocol_ett_id = "ETT99999")),
+    suppressMessages(plan$export_tables(
+      path = path,
+      protocol_ett_id = "ETT99999"
+    )),
     "protocol_ett_id is not an ETT id"
   )
 
@@ -234,7 +248,10 @@ test_that("an unknown table1_enrollment stops and writes no workbook", {
   # The 003 stroke spec renamed enrollment 01 to M01, and its s4 script kept
   # "01". The workbook then lost Table 1 and the Love plot without an error.
   expect_error(
-    suppressMessages(plan$export_tables(path = path, table1_enrollment = "M01")),
+    suppressMessages(plan$export_tables(
+      path = path,
+      table1_enrollment = "M01"
+    )),
     "Analysed enrollments: 01, 02",
     fixed = TRUE
   )
@@ -272,7 +289,9 @@ test_that("an enrollment with no stored baseline panel stops", {
   path <- file.path(dir, "tables.xlsx")
   plan <- .xp_plan("new", subgroups = FALSE)
   r <- plan$results_enrollment[["02"]]
-  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  for (nm in grep("^table1_", names(r), value = TRUE)) {
+    r[[nm]] <- NULL
+  }
   plan$results_enrollment[["02"]] <- r
   expect_error(
     suppressMessages(plan$export_tables(path = path, table1_enrollment = "02")),
@@ -290,7 +309,9 @@ test_that("the default Table 1 enrollment skips one with no stored panel", {
   # Enrollment 01 carries the most baseline observations. Without its panel
   # the default MUST fall to 02, not stop.
   r <- plan$results_enrollment[["01"]]
-  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  for (nm in grep("^table1_", names(r), value = TRUE)) {
+    r[[nm]] <- NULL
+  }
   plan$results_enrollment[["01"]] <- r
   suppressMessages(suppressWarnings(plan$export_tables(path = path)))
   title <- openxlsx::read.xlsx(path, sheet = "Table 1", colNames = FALSE)[1, 1]
@@ -328,16 +349,21 @@ test_that("an enrollment with no SMDs gets no Love plot, and the contents say so
   path <- file.path(dir, "tables.xlsx")
   plan <- .xp_plan("new", subgroups = FALSE)
   r <- plan$results_enrollment[["02"]]
-  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  for (nm in grep("^table1_", names(r), value = TRUE)) {
+    r[[nm]] <- NULL
+  }
   plan$results_enrollment[["02"]] <- r
   # Sidecars an earlier export left: the pre-26.13.1 single pair, and a
   # per-enrollment pair for the enrollment that is now skipped.
-  stale <- file.path(dir, c(
-    "tables_love_plot.png",
-    "tables_love_plot.pdf",
-    "tables_love_plot_02.png",
-    "tables_love_plot_02.pdf"
-  ))
+  stale <- file.path(
+    dir,
+    c(
+      "tables_love_plot.png",
+      "tables_love_plot.pdf",
+      "tables_love_plot_02.png",
+      "tables_love_plot_02.pdf"
+    )
+  )
   file.create(stale)
   suppressMessages(suppressWarnings(
     plan$export_tables(path = path, table1_enrollment = "01")

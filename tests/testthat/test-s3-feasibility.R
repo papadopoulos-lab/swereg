@@ -379,6 +379,8 @@ test_that("no stored window table holds an event, rate or expected-events column
 test_that("no sheet of feasibility.xlsx names a stripped column", {
   .fz_skip()
   fx <- .fz_fixture()
+  # The raw files of this fixture come from s1, so each enrollment has an
+  # adherence table and the Protocol adherence sheet follows Attrition.
   expect_identical(
     openxlsx::getSheetNames(fx$xlsx),
     c(
@@ -387,6 +389,7 @@ test_that("no sheet of feasibility.xlsx names a stripped column", {
       "Minimum events (Y or -)",
       "Minimum events (#)",
       "Attrition",
+      "Protocol adherence",
       "Table 1"
     )
   )

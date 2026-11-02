@@ -294,6 +294,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-get_estimates}{\code{TTEPlan$get_estimates()}}
     \item \href{#method-TTEPlan-get_curves}{\code{TTEPlan$get_curves()}}
     \item \href{#method-TTEPlan-get_baselines}{\code{TTEPlan$get_baselines()}}
+    \item \href{#method-TTEPlan-get_adherence}{\code{TTEPlan$get_adherence()}}
     \item \href{#method-TTEPlan-get_attrition}{\code{TTEPlan$get_attrition()}}
     \item \href{#method-TTEPlan-get_matching}{\code{TTEPlan$get_matching()}}
     \item \href{#method-TTEPlan-get_subgroups}{\code{TTEPlan$get_subgroups()}}
@@ -394,9 +395,18 @@ year. Its years get columns.
 Every other sheet, \code{results.qs2} and \verb{$get_horizon_windows()} leave it
 out.
 
+The \verb{Protocol adherence} sheet follows the last \verb{Attrition_<id>} and
+\verb{Love_<id>} sheet, and the Provenance sheet lists it. It holds one row per
+comparison and arm, with \code{N (ITT)}, \code{N (PP)} and \verb{\%} from
+\verb{$get_adherence()}. It shows weeks 13 and 26 and every multiple of 52 up
+to the last stored week. An enrollment without an adherence table gets no
+row. When no enrollment has one, the workbook holds no such sheet.
+
 The method also writes \code{feasibility.xlsx} to the directory of the
 workbook. It holds the sheets of \verb{$s3_feasibility()}, in the same order.
-Its Minimum events sheets read the decisions that s3 stored.
+Its Minimum events sheets read the decisions that s3 stored. Its
+\verb{Protocol adherence} sheet holds the same cells as the sheet of this
+workbook.
 
 The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
@@ -610,6 +620,12 @@ comparison is exempt. The comparison of an exempt enrollment ends with
 \item{Minimum events (#)}{The same layout. Each cell is the largest cut
 of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
 \item{Attrition}{The table of \verb{$get_attrition()}.}
+\item{Protocol adherence}{One row per comparison and arm. \code{N (ITT)}
+counts the person-trials still observed and \code{N (PP)} those still on
+protocol. \verb{\%} is 100 x N (PP) / N (ITT). The sheet shows weeks 13 and
+26 and every multiple of 52 up to the last stored week. The counts are
+unweighted and come from the s1 raw file. The sheet is absent when no
+enrollment has an adherence table.}
 \item{Table 1}{The unweighted baseline table of each enrollment. One
 panel reads the s1 raw file, before imputation. The other reads the
 smallest s2 analysis file of the enrollment.}
@@ -1108,6 +1124,38 @@ counts them as the intention-to-treat set of \verb{$get_estimates()} minus
 }
 
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-get_adherence"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-get_adherence}{}}}
+\subsection{\code{TTEPlan$get_adherence()}}{
+  The stored protocol adherence counts, as one flat table.
+
+One row per enrollment, arm and week. \code{n_observed} counts the
+person-trials of the arm still under observation at the week, which is
+the intention-to-treat count. \code{n_on_protocol} counts those of them still
+on protocol, which is the per-protocol count. \code{share} is
+\code{n_on_protocol / n_observed}, and it is \code{NA} when \code{n_observed} is 0.
+
+\verb{$s3_analyze()} and \verb{$recompute_baselines()} store the counts. They
+compute them from the raw enrollment file, before any outcome. The counts
+are unweighted. The weeks run from 1 to the last follow-up week of the
+raw panel, so they MAY pass the longest reported follow-up.
+
+An enrollment whose stored result holds no table gets no row. That is the
+case when the raw file was absent, or when the raw panel lacks a boundary
+column the count needs.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$get_adherence()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with columns \code{enrollment_id}, \code{arm}, \code{week},
+\code{n_observed}, \code{n_on_protocol} and \code{share}. \code{arm} reads \code{"intervention"}
+or \code{"comparator"}.
+  }
+}
+
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-get_attrition"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-get_attrition}{}}}
 \subsection{\code{TTEPlan$get_attrition()}}{
@@ -1366,12 +1414,15 @@ This is a PRODUCER, and the read is s3's. It calls
 stores what the worker returns. No renderer in the export path opens an
 analysis file.
 
-The method skips an enrollment whose cached panels are current. The rule
-is \code{.baseline_panel_is_stale()}, the one \verb{$export_tables()} uses. Each
+The method skips an enrollment whose cached panels are current and whose
+result holds the name \code{adherence}. The panel rule is
+\code{.baseline_panel_is_stale()}, the one \verb{$export_tables()} uses. Each
 present panel MUST be a \code{swereg_table1} and MUST carry \code{smd_numeric}. A
-result holding no panel at all is not stale, so \code{force = FALSE} skips it.
-\code{enrollment_ids} names which enrollments to consider, and the same rule
-then decides each one.
+result holding no panel at all is not stale. A result without the name
+\code{adherence} is recomputed, also when its panels are current. A stored
+\code{adherence = NULL} holds the name, so it causes no recompute.
+\code{enrollment_ids} names which enrollments to consider, and the same rules
+then decide each one.
 
 \code{force = TRUE} skips the staleness test and recomputes every named
 enrollment. It changes nothing else. The method still reads the stored
@@ -1390,7 +1441,9 @@ then do not come from the current s1 run. A recomputed panel takes the s1
 and s2 run stamps of the analysis file it reads.
 
 \verb{$export_tables()} calls this method on its own when a stored panel is
-stale. Call it yourself when you want the refresh to be a visible step.
+stale. It also calls it when a stored result holds no name \code{adherence}
+and the raw file of that enrollment is in the output directory. Call it
+yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.
   \subsection{Usage}{

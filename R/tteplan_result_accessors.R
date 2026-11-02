@@ -8,7 +8,7 @@
 # reader had to know the slot name, the estimand the slot stands for, and the
 # column names inside it.
 #
-# The seven accessors below return that same content as seven flat tables. Each
+# The eight accessors below return that same content as eight flat tables. Each
 # takes no argument and returns EVERYTHING it can find. The caller filters.
 #
 # THE RULE THESE ACCESSORS KEEP
@@ -43,7 +43,8 @@
 #   - they select the stored rows and rename their columns;
 #   - they join the descriptive labels from `plan$ett` and `plan$spec`.
 #
-# Every number they return was stored by a producer.
+# Every number they return was stored by a producer, with one exception.
+# `.acc_adherence()` divides two stored counts of one row to give `share`.
 # =============================================================================
 
 #' The three estimand and weighting combinations `$s3_analyze()` stores.
@@ -269,6 +270,14 @@
     pass = "logical",
     horizon_reportable_weeks = "numeric",
     horizon_status = "character"
+  ),
+  adherence = c(
+    enrollment_id = "character",
+    arm = "character",
+    week = "integer",
+    n_observed = "integer",
+    n_on_protocol = "integer",
+    share = "numeric"
   )
 )
 
@@ -1046,6 +1055,40 @@
     ))
   })
   return(.acc_bind(rows, .ACC_SCHEMA$attrition))
+}
+
+
+#' The stored protocol adherence counts, one row per enrollment, arm and week.
+#'
+#' `.s3_enrollment_worker()` stores the table of `.tte_adherence_counts()` as
+#' `plan$results_enrollment[[eid]]$adherence`. This accessor prepends
+#' `enrollment_id`, and it appends `share = n_on_protocol / n_observed`. The
+#' share is `NA` when `n_observed` is 0. A stored `adherence = NULL`, and a
+#' result without the name, give no rows.
+#'
+#' @param plan A TTEPlan.
+#' @return A data.table with the `adherence` schema.
+#' @noRd
+.acc_adherence <- function(plan) {
+  rows <- lapply(names(plan$results_enrollment), function(eid) {
+    adh <- .acc_slot(plan$results_enrollment[[eid]], "adherence")
+    if (!data.table::is.data.table(adh) || nrow(adh) == 0L) {
+      return(NULL)
+    }
+    n_observed <- as.integer(adh$n_observed)
+    n_on_protocol <- as.integer(adh$n_on_protocol)
+    share <- n_on_protocol / n_observed
+    share[n_observed == 0L] <- NA_real_
+    return(data.table::data.table(
+      enrollment_id = as.character(eid),
+      arm = as.character(adh$arm),
+      week = as.integer(adh$week),
+      n_observed = n_observed,
+      n_on_protocol = n_on_protocol,
+      share = share
+    ))
+  })
+  return(.acc_bind(rows, .ACC_SCHEMA$adherence))
 }
 
 

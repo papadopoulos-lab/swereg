@@ -112,6 +112,18 @@
   )
 }
 
+# The adherence table `.tte_adherence_counts()` returns, chosen by hand. `k`
+# separates the two enrollments. A result that holds it is current for both
+# refresh routes, so the export path never opens a file for adherence.
+.xp_adherence <- function(k) {
+  return(data.table::data.table(
+    arm = rep(c("intervention", "comparator"), each = 3L),
+    week = rep(1:3, 2L),
+    n_observed = c(10L, 9L, 8L, 20L, 19L, 17L) * k,
+    n_on_protocol = c(10L, 8L, 6L, 20L, 18L, 15L) * k
+  ))
+}
+
 .xp_subgroup <- function(levels, irr, lo, hi, p) {
   dt <- data.table::data.table(
     level = levels,
@@ -463,7 +475,8 @@
       table1_ipw_trunc_main = .xp_table1_main(1L),
       n_baseline = 1000L,
       n_baseline_intervention = 300L,
-      n_baseline_comparator = 700L
+      n_baseline_comparator = 700L,
+      adherence = .xp_adherence(1L)
     ),
     # No raw panel at all.
     `02` = list(
@@ -474,7 +487,8 @@
       table1_ipw_trunc_main = .xp_table1_main(2L),
       n_baseline = 640L,
       n_baseline_intervention = 210L,
-      n_baseline_comparator = 430L
+      n_baseline_comparator = 430L,
+      adherence = .xp_adherence(2L)
     )
   )
 

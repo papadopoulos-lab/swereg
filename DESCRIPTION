@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 27.3.2
+Version: 27.3.3
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -144,6 +144,7 @@ Collate:
     'tte_survival_render.R'
     'tteenrollment_combine.R'
     'tteenrollment_fill.R'
+    'tteplan_adherence.R'
     'tteplan_apply_derived_confounders.R'
     'tteplan_apply_exclusions.R'
     'tteplan_attrition_sheet.R'

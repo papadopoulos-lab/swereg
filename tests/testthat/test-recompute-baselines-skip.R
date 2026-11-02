@@ -74,9 +74,16 @@ test_that("a current result reaches the worker for no enrollment", {
   dir <- withr::local_tempdir()
   .rbs_touch_inputs(plan, dir)
 
-  # The fixture states the case. Both enrollments are current.
-  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["01"]]))
-  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["02"]]))
+  # The fixture states the case. Both enrollments are current. A result
+  # without the name `adherence` is recomputed, so both MUST hold it.
+  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "01"
+  ]]))
+  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "02"
+  ]]))
+  expect_true("adherence" %in% names(plan$results_enrollment[["01"]]))
+  expect_true("adherence" %in% names(plan$results_enrollment[["02"]]))
 
   calls <- .rbs_calls()
   testthat::local_mocked_bindings(
@@ -114,8 +121,12 @@ test_that("one stale panel reaches the worker for that enrollment only", {
 
   # One panel of enrollment 01 lost `smd_numeric`. The other four still carry
   # it, and every panel of enrollment 02 does.
-  expect_true(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["01"]]))
-  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["02"]]))
+  expect_true(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "01"
+  ]]))
+  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "02"
+  ]]))
 
   calls <- .rbs_calls()
   testthat::local_mocked_bindings(
@@ -137,7 +148,10 @@ test_that("one stale panel reaches the worker for that enrollment only", {
 
   # The worker's result replaced enrollment 01, and enrollment 02 is untouched.
   expect_identical(plan$results_enrollment[["01"]]$n_baseline, 4242L)
-  expect_identical(plan$results_enrollment[["01"]]$table1_unweighted$x, "recomputed")
+  expect_identical(
+    plan$results_enrollment[["01"]]$table1_unweighted$x,
+    "recomputed"
+  )
   expect_identical(plan$results_enrollment[["02"]]$n_baseline, 640L)
 })
 
@@ -178,8 +192,12 @@ test_that("force = TRUE reaches the worker for a current result", {
   dir <- withr::local_tempdir()
   .rbs_touch_inputs(plan, dir)
 
-  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["01"]]))
-  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[["02"]]))
+  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "01"
+  ]]))
+  expect_false(swereg:::.baseline_panel_is_stale(plan$results_enrollment[[
+    "02"
+  ]]))
 
   calls <- .rbs_calls()
   testthat::local_mocked_bindings(
@@ -317,7 +335,9 @@ test_that("a current enrollment raises no missing-file warning", {
     .package = "swereg"
   )
 
-  expect_no_warning(suppressMessages(plan$recompute_baselines(output_dir = dir)))
+  expect_no_warning(suppressMessages(plan$recompute_baselines(
+    output_dir = dir
+  )))
   expect_identical(calls$n, 0L)
 
   # A stale enrollment does reach the check, so it warns. It counts as neither
@@ -325,7 +345,9 @@ test_that("a current enrollment raises no missing-file warning", {
   .rbs_age_one_panel(plan, "01")
   msg <- NULL
   expect_warning(
-    msg <- testthat::capture_messages(plan$recompute_baselines(output_dir = dir)),
+    msg <- testthat::capture_messages(plan$recompute_baselines(
+      output_dir = dir
+    )),
     "No analysis files found on disk for enrollment 01",
     fixed = TRUE
   )

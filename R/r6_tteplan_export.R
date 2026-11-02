@@ -57,9 +57,18 @@
 #' Every other sheet, `results.qs2` and `$get_horizon_windows()` leave it
 #' out.
 #'
+#' The `Protocol adherence` sheet follows the last `Attrition_<id>` and
+#' `Love_<id>` sheet, and the Provenance sheet lists it. It holds one row per
+#' comparison and arm, with `N (ITT)`, `N (PP)` and `%` from
+#' `$get_adherence()`. It shows weeks 13 and 26 and every multiple of 52 up
+#' to the last stored week. An enrollment without an adherence table gets no
+#' row. When no enrollment has one, the workbook holds no such sheet.
+#'
 #' The method also writes `feasibility.xlsx` to the directory of the
 #' workbook. It holds the sheets of `$s3_feasibility()`, in the same order.
-#' Its Minimum events sheets read the decisions that s3 stored.
+#' Its Minimum events sheets read the decisions that s3 stored. Its
+#' `Protocol adherence` sheet holds the same cells as the sheet of this
+#' workbook.
 #'
 #' The workbook carries no forest plot. The `PP results` and `ITT results`
 #' sheets already report every emulated trial with counts, rates, ratios,

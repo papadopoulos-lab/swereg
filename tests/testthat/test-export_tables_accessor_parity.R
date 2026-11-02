@@ -162,6 +162,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".acc_horizon_windows" = "accessor module",
   ".acc_horizon_records" = "accessor module",
   ".tteplan_fill_summary" = "accessor module",
+  ".acc_adherence" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
   # s2 rewrites every analysis file, so it drops the stored results.
@@ -211,7 +212,11 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".tte_assert_one_s2_run" = "cache inspector",
   # A GUARD ON THE CACHE. The writers call it to check that each stored horizon
   # decision was made with the rule the spec holds now.
-  ".tte_assert_horizon_rule_current" = "cache inspector"
+  ".tte_assert_horizon_rule_current" = "cache inspector",
+  # A reporter ON THE CACHE. `.plan_export_tables()` calls it to find the
+  # stored results without the name `adherence`, for its lazy refresh. It
+  # reports no number.
+  ".tte_adherence_refresh_wanted" = "cache inspector"
 )
 
 # The participant-flow renderers used to sit on this list. They read
