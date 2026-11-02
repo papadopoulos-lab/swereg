@@ -502,7 +502,8 @@
           ")"
         ),
         img_dir = img_dir,
-        img_basename = paste0(img_basename_root, "_love_plot_", eid)
+        img_basename = paste0(img_basename_root, "_love_plot_", eid),
+        labels = .tte_confounder_labels(plan$spec)
       )
       if (is.null(paths)) {
         # A sidecar from an earlier export MUST NOT outlive the skip.

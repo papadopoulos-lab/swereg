@@ -397,10 +397,7 @@ test_that("the production render path fills inclusion_steps from the spec", {
     .ceg_steps_of(groups[[2L]]),
     c(
       "Outside of age range (40 - 80 years)",
-      paste(
-        "No prior rd_approach1_single equal to local_or_none_mht",
-        "(lifetime before baseline)"
-      )
+      "MHT-naive at baseline (lifetime before baseline)"
     )
   )
   expect_identical(.ceg_steps_of(groups[[4L]]), "No week in either treatment arm")

@@ -999,6 +999,43 @@ tteplan_read_spec <- function(spec_path) {
 }
 
 
+#' The name of an exclusion step, in the voice of the people it removes
+#'
+#' An exclusion step counts the persons who failed the rule. A spec name that
+#' states the rule, "No earlier statin", therefore prints as "Earlier statin".
+#'
+#' @param name The `name` of the spec entry, or `NULL`.
+#' @return A string, or `NULL` when `name` is `NULL`.
+#' @noRd
+.tte_failure_name <- function(name) {
+  if (is.null(name) || !startsWith(name, "No ")) {
+    return(name)
+  }
+  rest <- substring(name, 4L)
+  return(paste0(toupper(substr(rest, 1L, 1L)), substring(rest, 2L)))
+}
+
+
+#' The reader's name of each confounder variable
+#'
+#' Two confounders with one name would share a Love plot row, so a repeated
+#' name is left out and those variables keep their own names.
+#'
+#' @param spec The parsed specification list.
+#' @return A character vector of confounder names, named by variable.
+#' @noRd
+.tte_confounder_labels <- function(spec) {
+  out <- character()
+  for (conf in (spec[["confounders"]] %||% list())) {
+    variable <- conf[["implementation"]][["variable"]]
+    if (!is.null(variable) && !is.null(conf[["name"]])) {
+      out[[variable]] <- conf[["name"]]
+    }
+  }
+  return(out[!out %in% out[duplicated(out)]])
+}
+
+
 #' The eligibility column names the global inclusion criteria generate
 #'
 #' Call it after `.tte_normalize_global_inclusion()`. It reads `window_weeks`

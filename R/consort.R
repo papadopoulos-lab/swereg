@@ -692,9 +692,8 @@
 
   # Title
   add(
-    "  title [label = '%s\\nEnrollment %s', shape = plaintext, fontsize = 13];",
-    split_label(label),
-    esc(eid)
+    "  title [label = '%s', shape = plaintext, fontsize = 13];",
+    split_label(label)
   )
   add("  title -> n1 [style = invis];")
 
@@ -928,7 +927,7 @@
     }
     col <- .tte_eligible_col_name(.tte_entry_type(ic), impl)
     out[col] <- fmt_line(
-      .tte_washout_prose(impl) %||% ic$name %||% sv,
+      ic$name %||% .tte_washout_prose(impl) %||% sv,
       .format_window_label(window = impl$window, window_weeks = ww)
     )
   }
@@ -1126,7 +1125,13 @@
     spec_cores[[length(spec_cores) + 1L]] <- list(
       sv = sv,
       sv_norm = normalise(sv),
-      name = .tte_washout_prose(impl, voice = "failure") %||% ec$name %||% sv,
+      # Only a washout rule has a failure voice. Any other name stays as written.
+      name = if (is.null(.tte_washout_prose(impl))) {
+        ec$name %||% sv
+      } else {
+        .tte_failure_name(ec$name) %||%
+          .tte_washout_prose(impl, voice = "failure")
+      },
       window_line = window_line
     )
   }

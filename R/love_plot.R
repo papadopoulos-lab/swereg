@@ -47,6 +47,8 @@
 #' @param t1_weighted The analysis-weighted panel, in either shape.
 #' @param label_unweighted Series label for the unweighted panel.
 #' @param label_weighted Series label for the weighted panel.
+#' @param labels Named character vector, the reader's name of each variable. A
+#'   variable it does not name keeps its own name.
 #' @return A `data.table` with columns `variable` (factor, plot order),
 #'   `weighting` (factor, series) and `smd` (double). `NULL` when neither
 #'   panel carries a usable `smd_numeric` column.
@@ -55,7 +57,8 @@
   t1_unweighted,
   t1_weighted,
   label_unweighted = "Unweighted",
-  label_weighted = "IPW truncated"
+  label_weighted = "IPW truncated",
+  labels = NULL
 ) {
   variable <- smd <- smd_numeric <- weighting <- NULL # nolint
   sort_key <- NULL # nolint
@@ -73,8 +76,11 @@
     if (nrow(dt) == 0L) {
       return(NULL)
     }
+    vars <- sub(" \\(mean \\(SD\\)\\)$", "", as.character(dt[[name_col]]))
+    named <- vars %in% names(labels)
+    vars[named] <- labels[vars[named]]
     return(data.table::data.table(
-      variable = sub(" \\(mean \\(SD\\)\\)$", "", as.character(dt[[name_col]])),
+      variable = vars,
       weighting = label,
       smd = as.numeric(dt$smd_numeric)
     ))
@@ -224,9 +230,10 @@
   t1_weighted,
   title = NULL,
   img_dir,
-  img_basename
+  img_basename,
+  labels = NULL
 ) {
-  df <- .build_love_df(t1_unweighted, t1_weighted)
+  df <- .build_love_df(t1_unweighted, t1_weighted, labels = labels)
   if (is.null(df)) {
     return(invisible(NULL))
   }
