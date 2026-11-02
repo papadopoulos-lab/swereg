@@ -1,5 +1,20 @@
 # Changelog
 
+## swereg 27.3.3
+
+### New features
+
+- **`tables.xlsx` and `feasibility.xlsx` hold a Protocol adherence
+  sheet.** For each comparison and arm, `N (ITT)` counts the
+  person-trials still observed and `N (PP)` those still on protocol. The
+  sheet shows weeks 13 and 26 and every multiple of 52. The counts are
+  unweighted and come from the s1 raw file, before any outcome.
+- **`$get_adherence()` returns the weekly counts behind the sheet.** s3
+  stores them as `adherence` in each enrollment result.
+  `$recompute_baselines()` recomputes a result stored without them.
+  `$export_tables()` does so too when the raw file of the enrollment is
+  in the output directory.
+
 ## swereg 27.3.2
 
 ### Breaking changes

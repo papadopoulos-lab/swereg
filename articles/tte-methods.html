@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -855,6 +855,39 @@ minimum-events rule of 1.8.6 decides. After the reportable horizon, the
 stored curve carries no risk difference and no number needed to treat.
 In the survival figure, each curve stops at the reportable horizon. A
 grey band labelled “Not estimable” covers the rest of follow-up.</p>
+<div class="section level5">
+<h5 id="protocol-adherence">Protocol adherence<a class="anchor" aria-label="anchor" href="#protocol-adherence"></a>
+</h5>
+<p>The Protocol adherence sheet shows how much per-protocol follow-up
+each arm keeps. The unit is the person-trial, and the counts are
+unweighted.</p>
+<p>swereg counts from the s1 raw file, which holds no outcome. A
+person-trial is observed at week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>
+when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>≤</mo><mo>min</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>g</mi><mo>,</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">t \le \min(r, g, a)</annotation></semantics></math>,
+and a missing boundary is ignored. Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">{r}</annotation></semantics></math>
+is the record end,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">{g}</annotation></semantics></math>
+is the first observation gap and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
+is the administrative end. An observed person-trial is on protocol at
+week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>
+when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>≤</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">t \le d</annotation></semantics></math>,
+or when it has no protocol deviation
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">{d}</annotation></semantics></math>.
+A deviation at time zero is off protocol at every week. Both comparisons
+are inclusive, as in the risk set above.</p>
+<p><code>N (ITT)</code> counts the observed person-trials of an arm, and
+<code>N (PP)</code> counts the on-protocol person-trials. <code>%</code>
+is 100 × N (PP) / N (ITT), and it is blank when N (ITT) is 0. The sheet
+shows weeks 13 and 26 and every multiple of 52, up to the last follow-up
+week of the raw panel. That panel holds the feasibility horizon when the
+spec sets one, so the sheet can pass the longest reported follow-up.</p>
+</div>
 </div>
 <div class="section level4">
 <h4 id="inference">1.8.6 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
@@ -3901,6 +3934,19 @@ from time zero as the column <code>follow_up_interval</code>, and the
 stored risk-difference rows use the same name</td>
 </tr>
 <tr class="even">
+<td align="left">1.4, 1.8.5</td>
+<td align="left">Protocol adherence</td>
+<td align="left">
+<code>.s3_enrollment_worker()</code> calls
+<code>.tte_adherence_counts()</code> on the s1 raw file and stores the
+table as <code>adherence</code> in each enrollment result.
+<code>$get_adherence()</code> returns it with <code>share</code>.
+<code>.write_adherence_sheet()</code> writes the
+<code>Protocol adherence</code> sheet of <code>tables.xlsx</code> and
+<code>feasibility.xlsx</code>
+</td>
+</tr>
+<tr class="odd">
 <td align="left">1.6, 1.8.6</td>
 <td align="left">Minimum-events rule</td>
 <td align="left">
@@ -3924,7 +3970,7 @@ judged with another
 <code>min_expected_events_per_arm_per_year</code>
 </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.8.7</td>
 <td align="left">Missing data</td>
 <td align="left">
@@ -3935,7 +3981,7 @@ value. <code>TTEEnrollment$s1b_fill_followup_confounders()</code>
 carries a follow-up value forward, and
 <code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> counts the filled rows</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1.8.8</td>
 <td align="left">Subgroups and heterogeneity</td>
 <td align="left">
@@ -3952,7 +3998,7 @@ The effect-modification model is
 where <code>n</code> is the number of trials; <code>$s3_analyze()</code>
 does not call it</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.9</td>
 <td align="left">Sensitivity analyses</td>
 <td align="left">The untruncated PP IRR is stored as
@@ -3964,7 +4010,7 @@ and <code>period_id</code>: <code>splines::ns(var, df = 3)</code> with 4
 or more distinct values, <code>factor(var)</code> with 2 or 3, none with
 1</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1.8</td>
 <td align="left">Pre-specification</td>
 <td align="left">YAML spec parsed by <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>;

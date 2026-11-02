@@ -633,11 +633,26 @@ plan$save()
 The method reads the analysis file, weight, follow-up and threshold that
 `$s3_analyze()` reads, through the same code. Its decision is therefore
 the decision s3 makes. It stores the decision in `plan$feasibility` and
-writes `feasibility.xlsx` to `plan$dir_results`. The workbook holds five
-or six sheets, in this order: Study Specification, Rare conditions,
-Minimum events (Y or -), Minimum events (#), Attrition and an unweighted
-Table 1. The Rare conditions sheet appears only when the spec carries
-`rare_condition_rule`.
+writes `feasibility.xlsx` to `plan$dir_results`.
+
+The workbook holds five to seven sheets, in this order:
+
+1.  Study Specification.
+2.  Rare conditions, only when the spec carries `rare_condition_rule`.
+3.  Minimum events (Y or -).
+4.  Minimum events (#).
+5.  Attrition.
+6.  Protocol adherence, only when an enrollment has an adherence table.
+7.  Table 1, unweighted.
+
+The Protocol adherence sheet shows how much per-protocol follow-up each
+arm keeps. For each comparison and arm, `N (ITT)` counts the
+person-trials still observed and `N (PP)` those still on protocol. The
+sheet shows weeks 13 and 26 and every multiple of 52, up to the last
+follow-up week of the raw panel. Section 1.8.5 of
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+defines the counts. `$export_tables()` writes the same sheet after the
+last `Attrition_<id>` and `Love_<id>` sheet.
 
 The two Minimum events sheets hold one row per outcome and comparison
 and one column per follow-up horizon, for the per-protocol estimand.

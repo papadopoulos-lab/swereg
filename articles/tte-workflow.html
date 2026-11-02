@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -739,11 +739,28 @@ study.</p>
 that <code>$s3_analyze()</code> reads, through the same code. Its
 decision is therefore the decision s3 makes. It stores the decision in
 <code>plan$feasibility</code> and writes <code>feasibility.xlsx</code>
-to <code>plan$dir_results</code>. The workbook holds five or six sheets,
-in this order: Study Specification, Rare conditions, Minimum events (Y
-or -), Minimum events (#), Attrition and an unweighted Table 1. The Rare
-conditions sheet appears only when the spec carries
-<code>rare_condition_rule</code>.</p>
+to <code>plan$dir_results</code>.</p>
+<p>The workbook holds five to seven sheets, in this order:</p>
+<ol style="list-style-type: decimal">
+<li>Study Specification.</li>
+<li>Rare conditions, only when the spec carries
+<code>rare_condition_rule</code>.</li>
+<li>Minimum events (Y or -).</li>
+<li>Minimum events (#).</li>
+<li>Attrition.</li>
+<li>Protocol adherence, only when an enrollment has an adherence
+table.</li>
+<li>Table 1, unweighted.</li>
+</ol>
+<p>The Protocol adherence sheet shows how much per-protocol follow-up
+each arm keeps. For each comparison and arm, <code>N (ITT)</code> counts
+the person-trials still observed and <code>N (PP)</code> those still on
+protocol. The sheet shows weeks 13 and 26 and every multiple of 52, up
+to the last follow-up week of the raw panel. Section 1.8.5 of
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> defines the counts.
+<code>$export_tables()</code> writes the same sheet after the last
+<code>Attrition_&lt;id&gt;</code> and <code>Love_&lt;id&gt;</code>
+sheet.</p>
 <p>The two Minimum events sheets hold one row per outcome and comparison
 and one column per follow-up horizon, for the per-protocol estimand.
 Minimum events (Y or -) shows Y when the estimate passes the

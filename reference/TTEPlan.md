@@ -387,6 +387,8 @@ Other tte_classes:
 
 - [`TTEPlan$get_baselines()`](#method-TTEPlan-get_baselines)
 
+- [`TTEPlan$get_adherence()`](#method-TTEPlan-get_adherence)
+
 - [`TTEPlan$get_attrition()`](#method-TTEPlan-get_attrition)
 
 - [`TTEPlan$get_matching()`](#method-TTEPlan-get_matching)
@@ -502,9 +504,18 @@ and a follow-up that is not a whole number of years adds one at its next
 whole year. Its years get columns. Every other sheet, `results.qs2` and
 `$get_horizon_windows()` leave it out.
 
+The `Protocol adherence` sheet follows the last `Attrition_<id>` and
+`Love_<id>` sheet, and the Provenance sheet lists it. It holds one row
+per comparison and arm, with `N (ITT)`, `N (PP)` and `%` from
+`$get_adherence()`. It shows weeks 13 and 26 and every multiple of 52 up
+to the last stored week. An enrollment without an adherence table gets
+no row. When no enrollment has one, the workbook holds no such sheet.
+
 The method also writes `feasibility.xlsx` to the directory of the
 workbook. It holds the sheets of `$s3_feasibility()`, in the same order.
-Its Minimum events sheets read the decisions that s3 stored.
+Its Minimum events sheets read the decisions that s3 stored. Its
+`Protocol adherence` sheet holds the same cells as the sheet of this
+workbook.
 
 The workbook carries no forest plot. The `PP results` and `ITT results`
 sheets already report every emulated trial with counts, rates, ratios,
@@ -778,6 +789,15 @@ the s3 results. The workbook holds these sheets, in this order:
 - Attrition:
 
   The table of `$get_attrition()`.
+
+- Protocol adherence:
+
+  One row per comparison and arm. `N (ITT)` counts the person-trials
+  still observed and `N (PP)` those still on protocol. `%` is 100 x N
+  (PP) / N (ITT). The sheet shows weeks 13 and 26 and every multiple of
+  52 up to the last stored week. The counts are unweighted and come from
+  the s1 raw file. The sheet is absent when no enrollment has an
+  adherence table.
 
 - Table 1:
 
@@ -1320,6 +1340,37 @@ A data.table. `n_baseline`, `n_baseline_intervention` and
 
 ------------------------------------------------------------------------
 
+### `TTEPlan$get_adherence()`
+
+The stored protocol adherence counts, as one flat table.
+
+One row per enrollment, arm and week. `n_observed` counts the
+person-trials of the arm still under observation at the week, which is
+the intention-to-treat count. `n_on_protocol` counts those of them still
+on protocol, which is the per-protocol count. `share` is
+`n_on_protocol / n_observed`, and it is `NA` when `n_observed` is 0.
+
+`$s3_analyze()` and `$recompute_baselines()` store the counts. They
+compute them from the raw enrollment file, before any outcome. The
+counts are unweighted. The weeks run from 1 to the last follow-up week
+of the raw panel, so they MAY pass the longest reported follow-up.
+
+An enrollment whose stored result holds no table gets no row. That is
+the case when the raw file was absent, or when the raw panel lacks a
+boundary column the count needs.
+
+#### Usage
+
+    TTEPlan$get_adherence()
+
+#### Returns
+
+A data.table with columns `enrollment_id`, `arm`, `week`, `n_observed`,
+`n_on_protocol` and `share`. `arm` reads `"intervention"` or
+`"comparator"`.
+
+------------------------------------------------------------------------
+
 ### `TTEPlan$get_attrition()`
 
 The stored eligibility cascade, as one flat table.
@@ -1573,12 +1624,15 @@ This is a PRODUCER, and the read is s3's. It calls
 stores what the worker returns. No renderer in the export path opens an
 analysis file.
 
-The method skips an enrollment whose cached panels are current. The rule
-is `.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
+The method skips an enrollment whose cached panels are current and whose
+result holds the name `adherence`. The panel rule is
+`.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
 present panel MUST be a `swereg_table1` and MUST carry `smd_numeric`. A
-result holding no panel at all is not stale, so `force = FALSE` skips
-it. `enrollment_ids` names which enrollments to consider, and the same
-rule then decides each one.
+result holding no panel at all is not stale. A result without the name
+`adherence` is recomputed, also when its panels are current. A stored
+`adherence = NULL` holds the name, so it causes no recompute.
+`enrollment_ids` names which enrollments to consider, and the same rules
+then decide each one.
 
 `force = TRUE` skips the staleness test and recomputes every named
 enrollment. It changes nothing else. The method still reads the stored
@@ -1597,9 +1651,11 @@ then do not come from the current s1 run. A recomputed panel takes the
 s1 and s2 run stamps of the analysis file it reads.
 
 `$export_tables()` calls this method on its own when a stored panel is
-stale. Call it yourself when you want the refresh to be a visible step.
-The lazy path costs minutes. Whether it runs at all depends on what a
-cached plan happens to hold.
+stale. It also calls it when a stored result holds no name `adherence`
+and the raw file of that enrollment is in the output directory. Call it
+yourself when you want the refresh to be a visible step. The lazy path
+costs minutes. Whether it runs at all depends on what a cached plan
+happens to hold.
 
 #### Usage
 
