@@ -1,5 +1,23 @@
 # Changelog
 
+## swereg 27.3.5
+
+### Internal
+
+- The tests pin the CONSORT labels of 27.3.4. `R/tteplan_export.R` is
+  back under the limit of 1000 code lines. Output does not change.
+
+## swereg 27.3.4
+
+### Bug fixes
+
+- **The CONSORT images and Love plots name things in the reader’s
+  words.** The CONSORT title no longer prints the enrollment id. A
+  washout criterion prints the `name` of its spec entry, and an
+  exclusion step drops a leading “No” from that name. The generated rule
+  text, which names the source variable, is the fallback when the entry
+  has no name. A Love plot row prints the `name` of its confounder.
+
 ## swereg 27.3.3
 
 ### New features
