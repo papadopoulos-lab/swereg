@@ -1,3 +1,9 @@
+# swereg 27.3.6
+
+## Documentation
+
+* `vignette("tte-methods")` and `vignette("tte-nomenclature")` say which year a boundary week belongs to: an event at exactly week 52 is in the first year, so in whole weeks the years are weeks 1 to 52 and weeks 53 to 104.
+
 # swereg 27.3.5
 
 ## Internal
