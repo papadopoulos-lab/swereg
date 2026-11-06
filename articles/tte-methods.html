@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -108,10 +108,9 @@ per-protocol (PP) estimand. It has four sections:</p>
 each study states, the formulas, model specifications, conventions,
 identifying assumptions and known limitations. It follows the target
 trial table of the TARGET guideline. It names no code, so a statistician
-can reimplement the estimators from it. The one exception is 1.8.9,
-which names the three time columns. Copy it whole into a protocol, a
-pre-registered statistical analysis plan or a methods supplement. The
-section numbers stay valid.</li>
+can reimplement the estimators from it. Section 4 maps it to the code.
+Copy it whole into a protocol, a pre-registered statistical analysis
+plan or a methods supplement. The section numbers stay valid.</li>
 <li>
 <strong>Manuscript methods</strong> (Section 2). Short past-tense
 text for the methods section of a journal article, in the order of
@@ -171,8 +170,7 @@ interaction with treatment (1.8.8).</li>
 <li>Missing data, and how it is handled. Default: the rules of 1.8.7.
 They include a single hot-deck imputation of a missing confounder value
 at entry.</li>
-<li>The threshold of the minimum-events rule,
-<code>min_expected_events_per_arm_per_year</code>: the minimum expected
+<li>The threshold of the minimum-events rule: the minimum expected
 events per arm in each year of follow-up, computed under the null. No
 default: the specification states it, for example 5, or swereg stops
 (1.8.6).</li>
@@ -355,9 +353,9 @@ per-protocol follow-up, so an outcome in it or later is not counted,
 even in the same follow-up interval. The interval that contains the
 deviation is kept, but it ends at the start of the deviation week and is
 marked as censored by deviation. It contributes its person-time before
-that week. This is the rule of Danaei et al. (2013, p. 77) and of
-<code>expand_until_switch()</code> in TrialEmulation (Su et
-al. 2024).</p>
+that week. This is the rule of Danaei et al. (2013, p. 77).
+TrialEmulation (Su et al. 2024) applies it when it expands follow-up up
+to the treatment switch.</p>
 <p>A gap is a week without observation between two observed weeks. It
 stops follow-up under both estimands at the start of its first absent
 week, and no tolerance applies. An outcome in that week or later is
@@ -625,9 +623,7 @@ The loss model fits on the rows without an outcome.</li>
 who is lost cannot be seen to deviate. The deviation model fits on the
 rows without an outcome that were not lost.</li>
 <li>The time-zero model fits on every person-trial under follow-up at
-time zero, including those that deviate there and keep no row.
-<code>$s4_prepare_for_analysis()</code> keeps them in
-<code>$time_zero_deviation</code>.</li>
+time zero, including those that deviate there and keep no row.</li>
 </ol>
 <p>The two row-level models are discrete-time complementary log-log
 generalised additive models with a person-time offset. For cause
@@ -688,13 +684,13 @@ is the proportion of the person-trials of arm
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
 that deviate at time zero.</p>
 <p>A cause with no censoring in its risk set fits no model, and its
-factor is exactly 1. <code>$ipcw_formulas</code> then records
-<code>list(fitted = FALSE, reason = )</code> for that cause. A row-level
-risk set with no uncensored row stops the run, and so does a model that
-cannot be fit. An arm in which every person-trial deviates at time zero
-keeps no row, so no row needs its time-zero factor. Its three models are
-not fitted, and the run does not stop. swereg substitutes no marginal
-censoring rate for a model it could not fit.</p>
+factor is exactly 1. swereg records that the cause fitted no model, and
+the reason. A row-level risk set with no uncensored row stops the run,
+and so does a model that cannot be fit. An arm in which every
+person-trial deviates at time zero keeps no row, so no row needs its
+time-zero factor. Its three models are not fitted, and the run does not
+stop. swereg substitutes no marginal censoring rate for a model it could
+not fit.</p>
 <p>The stabilised weight for the row in interval
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">{k}</annotation></semantics></math>
 is</p>
@@ -720,9 +716,11 @@ The denominator of
 is therefore the joint probability of remaining uncensored through the
 start of interval
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">{k}</annotation></semantics></math>.
-The panel keeps the three factors as <code>ipcw_pp_time_zero</code>,
-<code>ipcw_pp_loss</code> and <code>ipcw_pp_deviation</code>, and
-<code>ipcw_pp</code> is their product. Two rules govern the ratio.</p>
+The time-zero, loss and deviation censoring weights are the three
+factors of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow><mi>C</mi></msubsup></mrow><annotation encoding="application/x-tex">SW^{C}_{m,k}</annotation></semantics></math>,
+and swereg keeps each of them beside their product. Two rules govern the
+ratio.</p>
 <ul>
 <li>The product is lagged. It stops at interval
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">{k}-1</annotation></semantics></math>,
@@ -759,9 +757,10 @@ panel, pooled over arms and trials. The intention-to-treat analysis
 truncates the treatment weight once per enrollment, before the outcome
 is prepared. The per-protocol analysis truncates the product and not its
 components, so extreme components can offset each other. It takes the
-percentiles from the rows of each ETT’s analysis file. Primary analyses
-use truncated weights. The untruncated per-protocol result is reported
-beside them as a sensitivity analysis (1.9).</p>
+percentiles over all person-trial intervals of each analysis, one per
+comparison, outcome and follow-up. Primary analyses use truncated
+weights. The untruncated per-protocol result is reported beside them as
+a sensitivity analysis (1.9).</p>
 <p>Truncation trades bias for variance. It reduces the variance of the
 estimator. It also under-corrects the confounding or selection that the
 truncated weights carried, and that moves the estimate. Under
@@ -858,11 +857,11 @@ grey band labelled “Not estimable” covers the rest of follow-up.</p>
 <div class="section level5">
 <h5 id="protocol-adherence">Protocol adherence<a class="anchor" aria-label="anchor" href="#protocol-adherence"></a>
 </h5>
-<p>The Protocol adherence sheet shows how much per-protocol follow-up
-each arm keeps. The unit is the person-trial, and the counts are
-unweighted.</p>
-<p>swereg counts from the s1 raw file, which holds no outcome. A
-person-trial is observed at week
+<p>Protocol adherence shows how much per-protocol follow-up each arm
+keeps. The unit is the person-trial, and the counts are unweighted.</p>
+<p>swereg counts from the enrolled person-trials before the outcomes are
+attached, so the counts read no outcome. A person-trial is observed at
+week
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>
 when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>≤</mo><mo>min</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>g</mi><mo>,</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">t \le \min(r, g, a)</annotation></semantics></math>,
@@ -881,12 +880,22 @@ or when it has no protocol deviation
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">{d}</annotation></semantics></math>.
 A deviation at time zero is off protocol at every week. Both comparisons
 are inclusive, as in the risk set above.</p>
-<p><code>N (ITT)</code> counts the observed person-trials of an arm, and
-<code>N (PP)</code> counts the on-protocol person-trials. <code>%</code>
-is 100 × N (PP) / N (ITT), and it is blank when N (ITT) is 0. The sheet
-shows weeks 13 and 26 and every multiple of 52, up to the last follow-up
-week of the raw panel. That panel holds the feasibility horizon when the
-spec sets one, so the sheet can pass the longest reported follow-up.</p>
+<p>For arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">{a}</annotation></semantics></math>
+at week
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">{t}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>N</mi><mi>a</mi><mrow><mi mathvariant="normal">I</mi><mi mathvariant="normal">T</mi><mi mathvariant="normal">T</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">N^{\mathrm{ITT}}_{a}(t)</annotation></semantics></math>
+counts the observed person-trials, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>N</mi><mi>a</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">P</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">N^{\mathrm{PP}}_{a}(t)</annotation></semantics></math>
+counts the on-protocol person-trials. The percentage on protocol is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>100</mn><mspace width="0.167em"></mspace><msubsup><mi>N</mi><mi>a</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">P</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><msubsup><mi>N</mi><mi>a</mi><mrow><mi mathvariant="normal">I</mi><mi mathvariant="normal">T</mi><mi mathvariant="normal">T</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">100\,N^{\mathrm{PP}}_{a}(t) / N^{\mathrm{ITT}}_{a}(t)</annotation></semantics></math>.
+It is not defined when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>N</mi><mi>a</mi><mrow><mi mathvariant="normal">I</mi><mi mathvariant="normal">T</mi><mi mathvariant="normal">T</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">N^{\mathrm{ITT}}_{a}(t) = 0</annotation></semantics></math>.
+The counts run from week 1 to the last follow-up week of the enrolled
+person-trials. Enrollment reaches the feasibility horizon when the
+specification sets one, so the counts can pass the longest reported
+follow-up. Adherence is reported at week 13, at week 26 and at every
+multiple of 52 weeks up to the last follow-up week.</p>
 </div>
 </div>
 <div class="section level4">
@@ -978,25 +987,25 @@ in both arms. A year passes when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>0</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{0,y}</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">E_{1,y}</annotation></semantics></math>
-both reach the threshold that the specification states as
-<code>min_expected_events_per_arm_per_year</code>. The reportable
-horizon is the end of the last year before the first year that fails. It
-is 0 when the first year fails.</p>
+both reach the threshold that the specification states: the minimum
+expected events per arm per year. The reportable horizon is the end of
+the last year before the first year that fails. It is 0 when the first
+year fails.</p>
 <p>A horizon of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">{h}</annotation></semantics></math>
 weeks that is not a multiple of 52 is not judged on its own years. Its
-per-protocol decision is the decision of its source ETT. The source ETT
-has the same enrollment and outcome, and a follow-up of
+per-protocol decision is the decision of its source analysis. The source
+analysis has the same comparison and outcome, and a follow-up of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌈</mo><mi>h</mi><mi>/</mi><mn>52</mn><mo stretchy="false" form="postfix">⌉</mo><mo>×</mo><mn>52</mn></mrow><annotation encoding="application/x-tex">\lceil h/52 \rceil \times 52</annotation></semantics></math>
 weeks. So a 26-week estimate is reported exactly when the 52-week
 estimate passes the rule, whatever the events in its own 26 weeks. Its
 reportable horizon is the smaller of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">{h}</annotation></semantics></math>
 and the reportable horizon of the source. When the specification has no
-follow-up of that length for the enrollment, swereg adds a horizon-only
-ETT there. s3 computes only the rule for it, and s1 enrolls the
-comparison through that year, because the verdict needs data to its
-end.</p>
+follow-up of that length for the enrollment, swereg adds an analysis of
+that length that computes only the rule. It gives no estimate.
+Enrollment follows the comparison to the end of that year, because the
+verdict needs data to its end.</p>
 <p>When any year up to the horizon fails, the estimates of that estimand
 are withheld. The IRR, the risk difference and the number needed to
 treat are reported as NE, not estimable. The subgroup IRRs and the
@@ -1006,28 +1015,24 @@ The per-protocol decision uses the truncated product weight. It also
 covers the untruncated per-protocol IRR of 1.9, which is a sensitivity
 estimate of the same estimand.</p>
 <p>The rule decides the per-protocol estimand. The intention-to-treat
-estimand of the same ETT follows that decision: it is reported exactly
-when the per-protocol estimand is, to the same reportable horizon. One
-decision then holds for both estimands of a comparison.</p>
-<p>An enrollment MAY set <code>minimum_events_rule_exempt: true</code>
-in the specification. The rule then withholds no estimate of that
-comparison, in either estimand. s3 still computes the rule for the
-comparison and stores its verdict. The Minimum events sheets show that
-verdict, and they mark the comparison with <code>(exempt)</code>. The
-generated methods text names each exempt comparison. A change of the key
-needs a rerun of s3 only.</p>
+estimand of the same analysis follows that decision: it is reported
+exactly when the per-protocol estimand is, to the same reportable
+horizon. One decision then holds for both estimands of a comparison.</p>
+<p>The specification MAY exempt an enrollment from the rule. The rule
+then withholds no estimate of that comparison, in either estimand. The
+analysis still computes the rule for the comparison, and it reports the
+verdict marked as exempt.</p>
 <p>Which years pass depends on the observed events, through the pooled
 rate. So the decision is not independent of the outcome. The rule is a
 prespecified reporting rule. It does not guarantee the precision of an
 estimate or the coverage of an interval.</p>
-<p><code>$s3_feasibility()</code> applies the same rule after s2, before
-any outcome model is fitted. It reports which estimands pass and the
-reportable horizon of each. It reports no event count, rate or expected
-events after time zero, and no effect estimate. The Attrition sheet of
-<code>feasibility.xlsx</code> keeps the eligibility counts by arm,
-including people excluded for an outcome event before time zero. Its
-decision still depends on the observed events, through the pooled
-rate.</p>
+<p>A feasibility assessment applies the same rule after the censoring
+weights are estimated, before any outcome model is fitted. It reports
+which estimands pass and the reportable horizon of each. It reports no
+event count, rate or expected events after time zero, and no effect
+estimate. It reports the eligibility counts by arm, including people
+excluded for an outcome event before time zero. Its decision still
+depends on the observed events, through the pooled rate.</p>
 </div>
 </div>
 <div class="section level4">
@@ -1083,9 +1088,9 @@ protocol.</p>
 <h4 id="time-terms">1.8.9 Time terms<a class="anchor" aria-label="anchor" href="#time-terms"></a>
 </h4>
 <p>Every time term of 1.8 reads one of three time axes. Each row of the
-analysis data carries all three. This subsection names them by their
-columns, because the reasons for each model’s terms depend on what each
-column holds.</p>
+analysis data carries all three. This subsection defines each axis,
+because the reasons for the terms of each model depend on what each axis
+holds.</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -1093,24 +1098,24 @@ column holds.</p>
 <col width="33%">
 </colgroup>
 <thead><tr class="header">
-<th align="left">Column</th>
+<th align="left">Axis</th>
 <th align="left">Symbol</th>
 <th align="left">Meaning</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left"><code>period_id</code></td>
+<td align="left">Calendar period</td>
 <td align="left"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">c_{m,j}</annotation></semantics></math></td>
 <td align="left">The calendar period of the row.</td>
 </tr>
 <tr class="even">
-<td align="left"><code>enrollment_period_id</code></td>
+<td align="left">Trial</td>
 <td align="left"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math></td>
-<td align="left">The trial. It is the enrollment period, which ends at
-time zero, and it is constant within a person-trial.</td>
+<td align="left">The enrollment period, which ends at time zero. It is
+constant within a person-trial.</td>
 </tr>
 <tr class="odd">
-<td align="left"><code>tstart</code></td>
+<td align="left">Time since time zero</td>
 <td align="left"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math></td>
 <td align="left">The time since time zero at the start of the interval,
 in weeks.</td>
@@ -1131,11 +1136,12 @@ c_{m,j} = m + (j + 1),
 \qquad
 u_{m,j} = j\,w .
 </annotation></semantics></math></p>
-<p>In column terms, <code>period_id</code> =
-<code>enrollment_period_id</code> + interval number, and the interval
-number is <code>tstart</code> /
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">{w}</annotation></semantics></math>
-+ 1. Figure A shows the three axes on a Lexis diagram.</p>
+<p>Together they give
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mi>m</mi><mo>+</mo><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mi>/</mi><mi>w</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">c_{m,j} = m + u_{m,j}/w + 1</annotation></semantics></math>,
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mi>/</mi><mi>w</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">u_{m,j}/w + 1</annotation></semantics></math>
+is the interval number. Figure A shows the three axes on a Lexis
+diagram.</p>
 <div class="figure">
 <img src="tte-methods_files/figure-html/time-term-lexis-1.png" class="r-plt" alt="Figure A. Each line is one person-trial from its time zero, and the black lines are one person in three successive trials. The dashed lines are one calendar period, one trial and one time since time zero." width="672"><p class="caption">
 Figure A. Each line is one person-trial from its time zero, and the
@@ -1176,8 +1182,9 @@ is the number of trials.</p>
 </tr>
 <tr class="even">
 <td align="left">Loss and deviation denominators (1.8.2)</td>
-<td align="left">flex(<code>tstart</code>) +
-flex(<code>period_id</code>)</td>
+<td align="left">flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>)
++
+flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">c_{m,j}</annotation></semantics></math>)</td>
 <td align="left">time-updated confounders</td>
 <td align="left">log person-weeks</td>
 <td align="left">binomial, cloglog link</td>
@@ -1185,7 +1192,7 @@ flex(<code>period_id</code>)</td>
 </tr>
 <tr class="odd">
 <td align="left">Loss and deviation numerators (1.8.2)</td>
-<td align="left">flex(<code>tstart</code>)</td>
+<td align="left">flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>)</td>
 <td align="left">none</td>
 <td align="left">log person-weeks</td>
 <td align="left">binomial, cloglog link</td>
@@ -1201,8 +1208,9 @@ flex(<code>period_id</code>)</td>
 </tr>
 <tr class="odd">
 <td align="left">IRR and subgroup IRR (1.8.4, 1.8.8)</td>
-<td align="left">flex(<code>tstart</code>) +
-flex(<code>enrollment_period_id</code>)</td>
+<td align="left">flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>)
++
+flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math>)</td>
 <td align="left">arm</td>
 <td align="left">log person-weeks</td>
 <td align="left">quasi-Poisson</td>
@@ -1210,19 +1218,22 @@ flex(<code>enrollment_period_id</code>)</td>
 </tr>
 <tr class="even">
 <td align="left">Effect modification (1.8.8)</td>
-<td align="left">flex(<code>tstart</code>) +
-flex(<code>enrollment_period_id</code>)</td>
-<td align="left">arm × factor(subgroup)</td>
+<td align="left">flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>)
++
+flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math>)</td>
+<td align="left">arm × indicators of the subgroup level</td>
 <td align="left">log person-weeks</td>
 <td align="left">quasi-Poisson</td>
 <td align="left">survey-weighted GLM</td>
 </tr>
 <tr class="odd">
 <td align="left">Heterogeneity across trials (1.8.8)</td>
-<td align="left">flex(<code>tstart</code>)</td>
-<td align="left">arm × ns(<code>enrollment_period_id</code>, df = min(3,
+<td align="left">flex(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>)</td>
+<td align="left">arm × natural cubic spline of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math>
+with min(3,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">{n}</annotation></semantics></math>
-− 1))</td>
+− 1) degrees of freedom</td>
 <td align="left">log person-weeks</td>
 <td align="left">quasi-Poisson</td>
 <td align="left">survey-weighted GLM</td>
@@ -1244,19 +1255,19 @@ leaves out.
 <h5 id="at-most-two-axes-in-each-model">At most two axes in each model<a class="anchor" aria-label="anchor" href="#at-most-two-axes-in-each-model"></a>
 </h5>
 <p>The outcome models and the loss and deviation denominators each hold
-two of the three axes. Their numerators hold <code>tstart</code> only.
-The treatment-weight model and the time-zero model hold no time term.
-The identity makes the third axis a linear function of the other two.
-This is the age–period–cohort identity of Lexis-diagram analysis. A
+two of the three axes. Their numerators hold the time since time zero
+only. The treatment-weight model and the time-zero model hold no time
+term. The identity makes the third axis a linear function of the other
+two. This is the age–period–cohort identity of Lexis-diagram analysis. A
 linear term in the third axis therefore adds nothing to a model that
 holds the other two. Only the curvature of the third axis can add to the
 fit, and the data identify that curvature weakly.</p>
-<p>A grid of 10 trials and 8 follow-up intervals shows this. Natural
-cubic splines of 3 degrees of freedom in
-<code>enrollment_period_id</code> and <code>tstart</code>, with an
-intercept, give a design matrix of rank 7. A linear
-<code>period_id</code> term leaves the rank at 7. A natural cubic spline
-of 3 degrees of freedom in <code>period_id</code> raises it to 9.</p>
+<p>A grid of 10 trials and 8 follow-up intervals shows this. Its design
+matrix holds an intercept and natural cubic splines of 3 degrees of
+freedom in the trial and the time since time zero. Its rank is 7. A
+linear term in the calendar period leaves the rank at 7. A natural cubic
+spline of 3 degrees of freedom in the calendar period raises it to
+9.</p>
 </div>
 <div class="section level5">
 <h5 id="outcome-models-the-trial-and-the-time-since-time-zero">Outcome models: the trial and the time since time zero<a class="anchor" aria-label="anchor" href="#outcome-models-the-trial-and-the-time-since-time-zero"></a>
@@ -1274,11 +1285,9 @@ trial in place of the linear product term.</p>
 included “‘trial’ (taking values from 1-13 and modeled with restricted
 cubic splines)”. Their outcome model is a log-binomial model of a risk
 at delivery, so it holds no follow-up time. TrialEmulation (Su et
-al. 2024, p. 17) adds <code>trial_period</code> and
-<code>followup_time</code> to the outcome model by default, each as a
-linear and a quadratic term. There, <code>trial_period</code> is the
-trial index and <code>followup_time</code> is “the follow-up visit
-number within trials” (p. 16).</p>
+al. 2024, p. 17) adds the trial index and “the follow-up visit number
+within trials” (p. 16) by default. Each enters the outcome model as a
+linear and a quadratic term.</p>
 <p>The trial term adjusts for differences in the event rate between
 trials. One treatment coefficient is then shared by every trial.</p>
 </div>
@@ -1305,7 +1314,7 @@ and nothing else. Su et al. (2024, p. 6–7, the text after equation 3)
 state the condition. Covariates “conditioned upon in the numerator terms
 of the stabilised weights must be included as covariates in the marginal
 structural model”. The outcome model holds the trial and the time since
-time zero. A spline or factor in <code>period_id</code> can fall outside
+time zero. A spline or factor in the calendar period can fall outside
 the span of those two terms, as the rank example above shows. The
 numerator therefore omits it.</p>
 <p>By default the numerator fits in each arm, so it also conditions on
@@ -1317,27 +1326,26 @@ bias.</p>
 <div class="section level5">
 <h5 id="time-read-at-the-start-of-the-interval">Time read at the start of the interval<a class="anchor" aria-label="anchor" href="#time-read-at-the-start-of-the-interval"></a>
 </h5>
-<p>Every model with a time-since-entry term reads it at the interval
-start, <code>tstart</code>, and not at the interval stop,
-<code>tstop</code>. The last interval of a person-trial is cut short at
-an event or a censoring, so its <code>tstop</code> is smaller than a
-whole interval. A flexible term in <code>tstop</code> could then fit
-those last rows apart from the other rows, and the last rows hold the
-events. Under <code>tstart</code>, every row of interval number
+<p>Every model with a term in the time since time zero reads it at the
+interval start, and not at the interval stop. The last interval of a
+person-trial is cut short at an event or a censoring, so it stops before
+a whole interval ends. A flexible term read at the interval stop could
+then fit those last rows apart from the other rows. The last rows hold
+the events. Read at the interval start, every row of interval number
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">{k}</annotation></semantics></math>
 sits at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>w</mi></mrow><annotation encoding="application/x-tex">({k} - 1)\,{w}</annotation></semantics></math>
 weeks.</p>
 <p>Danaei et al. (2013, p. 76) index follow-up by month of follow-up.
-TrialEmulation indexes it by <code>followup_time</code>, the visit
-number (Su et al. 2024, p. 16). Both are interval numbers. The shorter
-width of the last row still enters the offset through the person-weeks.
-Figure C shows two person-trials under both readings.</p>
+TrialEmulation indexes it by the follow-up visit number (Su et al. 2024,
+p. 16). Both are interval numbers. The shorter width of the last row
+still enters the offset through the person-weeks. Figure C shows two
+person-trials under both readings.</p>
 <div class="figure">
-<img src="tte-methods_files/figure-html/time-term-intervals-1.png" class="r-plt" alt="Figure C. Bars are the rows of two person-trials, and the red row ends at an event in week 10. Dots place each row at tstart, and crosses place it at tstop." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/time-term-intervals-1.png" class="r-plt" alt="Figure C. Bars are the rows of two person-trials, and the red row ends at an event in week 10. Dots place each row at its interval start, and crosses place it at its interval stop." width="672"><p class="caption">
 Figure C. Bars are the rows of two person-trials, and the red row ends
-at an event in week 10. Dots place each row at tstart, and crosses place
-it at tstop.
+at an event in week 10. Dots place each row at its interval start, and
+crosses place it at its interval stop.
 </p>
 </div>
 </div>
@@ -1366,15 +1374,6 @@ default each arm, after the rows of zero width leave. An outcome model
 counts them in the rows it fits, so a subgroup IRR counts the rows of
 its subgroup level.</p>
 </div>
-<div class="section level5">
-<h5 id="stored-enrollments-and-plans">Stored enrollments and plans<a class="anchor" aria-label="anchor" href="#stored-enrollments-and-plans"></a>
-</h5>
-<p>A saved R6 object runs the method bodies it was saved with. A stored
-enrollment or plan with an older schema can therefore fit other time
-terms with no warning. swereg refuses to read a stored enrollment below
-schema 7 and a stored plan below schema 6. Rebuild the plan with s0,
-then run s1, s2 and s3 again.</p>
-</div>
 </div>
 <div class="section level4">
 <h4 id="baseline-characteristics">1.8.10 Baseline characteristics<a class="anchor" aria-label="anchor" href="#baseline-characteristics"></a>
@@ -1386,12 +1385,11 @@ range (min, max). The weighted median is the first distinct value at
 which the cumulative normalised weight reaches 0.5, after the values are
 sorted. Where that cumulative weight equals 0.5, the median is the mean
 of that value and the next distinct value. Q1 and Q3 use 0.25 and 0.75.
-The unweighted panel uses equal weights, which gives
-<code><a href="https://rdrr.io/r/stats/median.html" class="external-link">stats::median()</a></code> and <code>type = 2</code> of
-<code><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">stats::quantile()</a></code>. The range reads the rows with a positive
-weight, so it is the same in both panels when every weight is positive.
-Each variable carries a standardised mean difference between the
-arms.</p>
+The unweighted panel uses equal weights, which gives the sample median
+and the sample quantiles of definition 2 in Hyndman and Fan (1996). The
+range reads the rows with a positive weight, so it is the same in both
+panels when every weight is positive. Each variable carries a
+standardised mean difference between the arms.</p>
 </div>
 </div>
 <div class="section level3">
@@ -3825,7 +3823,9 @@ discordant interval instead. <code>.deviation_clip</code> is
 stop. The horizon comes from <code>follow_up</code>. The administrative
 end comes from <code>global_max_isoyearweek</code> (default: the largest
 <code>isoyearweek</code> of the first skeleton file), passed to
-<code>TTEDesign</code> as <code>admin_censor_isoyearweek</code>
+<code>TTEDesign</code> as <code>admin_censor_isoyearweek</code>.
+TrialEmulation applies the same deviation rule in
+<code>expand_until_switch()</code>
 </td>
 </tr>
 <tr class="even">
@@ -3887,7 +3887,12 @@ the risk set of the cause, after zero-width rows leave. Time zero:
 on <code>$time_zero_deviation</code>, numerator the stratum’s
 proportion. <code>$ipcw_formulas[[stratum]][[cause]]</code> records each
 model, or <code>list(fitted = FALSE, reason = )</code> for a cause that
-fits none.</td>
+fits none. <code>$s4_prepare_for_analysis()</code> keeps the
+person-trials that deviate at time zero in
+<code>$time_zero_deviation</code>. The panel keeps the three factors as
+<code>ipcw_pp_time_zero</code>, <code>ipcw_pp_loss</code> and
+<code>ipcw_pp_deviation</code>, and <code>ipcw_pp</code> is their
+product</td>
 </tr>
 <tr class="odd">
 <td align="left">1.8.3</td>
@@ -3945,8 +3950,11 @@ table as <code>adherence</code> in each enrollment result.
 <code>$get_adherence()</code> returns it with <code>share</code>.
 <code>.write_adherence_sheet()</code> writes the
 <code>Protocol adherence</code> sheet of <code>tables.xlsx</code> and
-<code>feasibility.xlsx</code>
-</td>
+<code>feasibility.xlsx</code>. The sheet shows <code>N (ITT)</code>,
+<code>N (PP)</code> and <code>%</code> for each comparison and arm, and
+<code>%</code> is blank when <code>N (ITT)</code> is 0. It shows weeks
+13 and 26 and every multiple of 52, up to the last follow-up week of the
+raw panel</td>
 </tr>
 <tr class="odd">
 <td align="left">1.6, 1.8.6</td>
@@ -3968,9 +3976,15 @@ show the per-protocol decision and the largest passing cut.
 <code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
 <code>$export()</code>, <code>$export_tables()</code> and
 <code>$print_target_checklist()</code> stop when a stored result was
-judged with another
-<code>min_expected_events_per_arm_per_year</code>
-</td>
+judged with another <code>min_expected_events_per_arm_per_year</code>.
+s1 enrolls a horizon-only ETT through its year, and s3 computes only the
+rule for it. <code>minimum_events_rule_exempt: true</code> on an
+enrollment exempts it. s3 still computes and stores the verdict. The
+Minimum events sheets mark the comparison with <code>(exempt)</code>,
+and the generated methods text names each exempt comparison. A change of
+the key needs a rerun of s3 only. <code>$s3_feasibility()</code> applies
+the rule after s2. The Attrition sheet of <code>feasibility.xlsx</code>
+keeps the eligibility counts by arm</td>
 </tr>
 <tr class="even">
 <td align="left">1.8.7</td>
@@ -3999,6 +4013,30 @@ The effect-modification model is
 <code>treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)</code>,
 where <code>n</code> is the number of trials; <code>$s3_analyze()</code>
 does not call it</td>
+</tr>
+<tr class="even">
+<td align="left">1.8.9</td>
+<td align="left">Time axes</td>
+<td align="left">Each row of the analysis panel carries the three axes
+as columns. <code>period_id</code> is the calendar period
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">c_{m,j}</annotation></semantics></math>,
+<code>enrollment_period_id</code> is the trial
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">{m}</annotation></semantics></math>,
+and <code>tstart</code> is the time since time zero
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">u_{m,j}</annotation></semantics></math>.
+<code>tstop</code> is the interval stop. So <code>period_id</code> =
+<code>enrollment_period_id</code> + interval number, and the interval
+number is <code>tstart</code> / <code>period_width</code> + 1</td>
+</tr>
+<tr class="odd">
+<td align="left">1.8.10</td>
+<td align="left">Baseline characteristics</td>
+<td align="left">
+<code>.t1_wtd_quartiles()</code> computes the weighted
+quartiles. With equal weights they equal
+<code>stats::quantile(type = 2)</code>, and the median equals
+<code><a href="https://rdrr.io/r/stats/median.html" class="external-link">stats::median()</a></code>
+</td>
 </tr>
 <tr class="even">
 <td align="left">1.9</td>
@@ -4111,6 +4149,15 @@ vignette stops building when one is false. It runs in CI.</li>
 file with the change.</p>
 </div>
 <div class="section level3">
+<h3 id="stored-enrollments-and-plans">4.3 Stored enrollments and plans<a class="anchor" aria-label="anchor" href="#stored-enrollments-and-plans"></a>
+</h3>
+<p>A saved R6 object runs the method bodies it was saved with. A stored
+enrollment or plan with an older schema can therefore fit other time
+terms than 1.8.9 states, with no warning. <code><a href="../reference/qs2_read.html">qs2_read()</a></code>
+refuses a stored enrollment below schema 7 and a stored plan below
+schema 6. Rebuild the plan with s0, then run s1, s2 and s3 again.</p>
+</div>
+<div class="section level3">
 <h3 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h3>
 <ul>
@@ -4150,6 +4197,8 @@ Observational Studies Emulating a Target Trial: the TARGET Statement.
 <em>BMJ</em> 2025;390:e087179.</li>
 <li>Thompson WA Jr. On the treatment of grouped observations in life
 studies. <em>Biometrics</em> 1977;33(3):463–470.</li>
+<li>Hyndman RJ, Fan Y. Sample quantiles in statistical packages. <em>Am
+Stat</em> 1996;50(4):361–365. DOI 10.1080/00031305.1996.10473566.</li>
 <li>Su L, Rezvani R, Seaman SR, Starr C, Gravestock I. TrialEmulation:
 An R Package to Emulate Target Trials for Causal Analysis of
 Observational Time-to-event Data. arXiv:2402.12083, 2024.</li>

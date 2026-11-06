@@ -552,6 +552,14 @@ manuscript reads that file. It is a named list of aggregate results:
   person-trials of each arm, `n_baseline_intervention` and
   `n_baseline_comparator`.
 
+- `adherence`:
+
+  `$get_adherence()`.
+
+- `horizons`:
+
+  `$get_horizon_windows()`.
+
 - `spec_version`:
 
   The specification version of the plan.

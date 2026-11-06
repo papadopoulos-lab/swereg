@@ -1,5 +1,22 @@
 # Changelog
 
+## swereg 27.3.7
+
+### New features
+
+- **`results.qs2` holds `adherence` and `horizons`.** They equal
+  `$get_adherence()` and `$get_horizon_windows()`, so a manuscript reads
+  the adherence counts and the minimum-events windows from the one file.
+
+### Documentation
+
+- **Section 1 of
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  names no code, so it can be copied whole into a supplement.** Section
+  4 now holds the column names, spec keys, methods, files, workbook
+  labels and pipeline steps that Section 1 named, and the note on stored
+  enrollments and plans.
+
 ## swereg 27.3.6
 
 ### Documentation
