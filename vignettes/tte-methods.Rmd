@@ -111,9 +111,8 @@ that swereg uses when the specification is silent, or says that there is none.
   interaction with treatment (1.8.8).
 - Missing data, and how it is handled. Default: the rules of 1.8.7. They
   include a single hot-deck imputation of a missing confounder value at entry.
-- The threshold of the minimum-events rule,
-  `min_expected_events_per_arm_per_year`: the minimum expected events per arm
-  in each year of follow-up, computed under the null. No default: the
+- The threshold of the minimum-events rule: the minimum expected events per
+  arm in each year of follow-up, computed under the null. No default: the
   specification states it, for example 5, or swereg stops (1.8.6).
 
 ## 1.1 Eligibility criteria
@@ -276,8 +275,8 @@ follow-up, so an outcome in it or later is not counted, even in the same
 follow-up interval. The interval that contains the deviation is kept, but it
 ends at the start of the deviation week and is marked as censored by
 deviation. It contributes its person-time before that week. This is the rule
-of Danaei et al. (2013, p. 77) and of `expand_until_switch()` in
-TrialEmulation (Su et al. 2024).
+of Danaei et al. (2013, p. 77). TrialEmulation (Su et al. 2024) applies it
+when it expands follow-up up to the treatment switch.
 
 A gap is a week without observation between two observed weeks. It stops
 follow-up under both estimands at the start of its first absent week, and no
@@ -516,7 +515,6 @@ ${a}$. Each model fits on the rows where its cause can be observed:
    without an outcome that were not lost.
 3. The time-zero model fits on every person-trial under follow-up at time
    zero, including those that deviate there and keep no row.
-   `$s4_prepare_for_analysis()` keeps them in `$time_zero_deviation`.
 
 The two row-level models are discrete-time complementary log-log generalised
 additive models with a person-time offset. For cause ${r}$, loss L or
@@ -568,8 +566,7 @@ $p_{m,0}$ is its fitted probability, and $\bar{p}_{a}$ is the proportion of
 the person-trials of arm ${a}$ that deviate at time zero.
 
 A cause with no censoring in its risk set fits no model, and its factor is
-exactly 1. `$ipcw_formulas` then records `list(fitted = FALSE, reason = )` for
-that cause. A row-level risk set with no uncensored row stops the run, and so
+exactly 1. swereg records that the cause fitted no model, and the reason. A row-level risk set with no uncensored row stops the run, and so
 does a model that cannot be fit. An arm in which every person-trial deviates at
 time zero keeps no row, so no row needs its time-zero factor. Its three models
 are not fitted, and the run does not stop. swereg substitutes no marginal
@@ -590,9 +587,9 @@ calendar term or the confounders (1.8.9). The deviation model conditions on
 not being lost, so $q^{\mathrm{L}}_{m,j}\,q^{\mathrm{D}}_{m,j}$ is the
 probability of remaining uncensored over row ${j}$. The denominator of
 $SW^{C}_{m,k}$ is therefore the joint probability of remaining uncensored
-through the start of interval ${k}$. The panel keeps the three factors as
-`ipcw_pp_time_zero`, `ipcw_pp_loss` and `ipcw_pp_deviation`, and `ipcw_pp` is
-their product. Two rules govern the ratio.
+through the start of interval ${k}$. The time-zero, loss and deviation
+censoring weights are the three factors of $SW^{C}_{m,k}$, and swereg keeps each
+of them beside their product. Two rules govern the ratio.
 
 - The product is lagged. It stops at interval ${k}-1$, so the uncensoring
   probability of a row does not enter its own weight. A censored interval
@@ -718,11 +715,20 @@ estimable" covers the rest of follow-up.
 
 #### Protocol adherence
 
-The Protocol adherence sheet shows how much per-protocol follow-up each arm keeps. The unit is the person-trial, and the counts are unweighted.
+Protocol adherence shows how much per-protocol follow-up each arm keeps. The
+unit is the person-trial, and the counts are unweighted.
 
-swereg counts from the s1 raw file, which holds no outcome. A person-trial is observed at week ${t}$ when $t \le \min(r, g, a)$, and a missing boundary is ignored. Here ${r}$ is the record end, ${g}$ is the first observation gap and ${a}$ is the administrative end. An observed person-trial is on protocol at week ${t}$ when $t \le d$, or when it has no protocol deviation ${d}$. A deviation at time zero is off protocol at every week. Both comparisons are inclusive, as in the risk set above.
+swereg counts from the enrolled person-trials before the outcomes are
+attached, so the counts read no outcome. A person-trial is observed at week ${t}$ when $t \le \min(r, g, a)$, and a missing boundary is ignored. Here ${r}$ is the record end, ${g}$ is the first observation gap and ${a}$ is the administrative end. An observed person-trial is on protocol at week ${t}$ when $t \le d$, or when it has no protocol deviation ${d}$. A deviation at time zero is off protocol at every week. Both comparisons are inclusive, as in the risk set above.
 
-`N (ITT)` counts the observed person-trials of an arm, and `N (PP)` counts the on-protocol person-trials. `%` is 100 × N (PP) / N (ITT), and it is blank when N (ITT) is 0. The sheet shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel. That panel holds the feasibility horizon when the spec sets one, so the sheet can pass the longest reported follow-up.
+For arm ${a}$ at week ${t}$, $N^{\mathrm{ITT}}_{a}(t)$ counts the observed
+person-trials, and $N^{\mathrm{PP}}_{a}(t)$ counts the on-protocol
+person-trials. The percentage on protocol is
+$100\,N^{\mathrm{PP}}_{a}(t) / N^{\mathrm{ITT}}_{a}(t)$. It is not defined
+when $N^{\mathrm{ITT}}_{a}(t) = 0$. The counts run from week 1 to the last
+follow-up week of the enrolled person-trials. Enrollment reaches the
+feasibility horizon when the specification sets one, so the counts can pass
+the longest reported follow-up.
 
 ### 1.8.6 Inference
 
@@ -790,7 +796,7 @@ $$
 
 A year with no person-time in either arm has $E_{a,y} = 0$ in both arms. A
 year passes when $E_{0,y}$ and $E_{1,y}$ both reach the threshold that the
-specification states as `min_expected_events_per_arm_per_year`. The
+specification states: the minimum expected events per arm per year. The
 reportable horizon is the end of the last year before the first year that
 fails. It is 0 when the first year fails.
 
@@ -801,9 +807,9 @@ $\lceil h/52 \rceil \times 52$ weeks. So a 26-week estimate is reported exactly 
 passes the rule, whatever the events in its own 26 weeks. Its reportable
 horizon is the smaller of ${h}$ and the reportable horizon of the source. When
 the specification has no follow-up of that length for the enrollment, swereg
-adds a horizon-only ETT there. s3 computes only the rule for it, and s1
-enrolls the comparison through that year, because the verdict needs data to
-its end.
+adds a horizon-only ETT there. The analysis computes the rule for it and no
+estimate. Enrollment follows the comparison to the end of that year, because
+the verdict needs data to its end.
 
 When any year up to the horizon fails, the estimates of that estimand are
 withheld. The IRR, the risk difference and the number needed to treat are
@@ -818,23 +824,20 @@ of the same ETT follows that decision: it is reported exactly when the
 per-protocol estimand is, to the same reportable horizon. One decision then
 holds for both estimands of a comparison.
 
-An enrollment MAY set `minimum_events_rule_exempt: true` in the
-specification. The rule then withholds no estimate of that comparison, in
-either estimand. s3 still
-computes the rule for the comparison and stores its verdict. The Minimum
-events sheets show that verdict, and they mark the comparison with
-` (exempt)`. The generated methods text names each exempt comparison. A
-change of the key needs a rerun of s3 only.
+The specification MAY exempt an enrollment from the rule. The rule then
+withholds no estimate of that comparison, in either estimand. The analysis
+still computes the rule for the comparison, and it reports the verdict marked
+as exempt.
 
 Which years pass depends on the observed events, through the pooled rate. So
 the decision is not independent of the outcome. The rule is a prespecified
 reporting rule. It does not guarantee the precision of an estimate or the
 coverage of an interval.
 
-`$s3_feasibility()` applies the same rule after s2, before any outcome model
-is fitted. It reports which estimands pass and the reportable horizon of
-each. It reports no event count, rate or expected events after time zero,
-and no effect estimate. The Attrition sheet of `feasibility.xlsx` keeps the
+A feasibility assessment applies the same rule after the censoring weights
+are estimated, before any outcome model is fitted. It reports which estimands
+pass and the reportable horizon of each. It reports no event count, rate or
+expected events after time zero, and no effect estimate. It reports the
 eligibility counts by arm, including people excluded for an outcome event
 before time zero. Its decision still depends on the observed events,
 through the pooled rate.
@@ -968,8 +971,8 @@ trials.
 | Loss and deviation numerators (1.8.2) | flex($u_{m,j}$) | none | log person-weeks | binomial, cloglog link | as the denominator |
 | Time-zero deviation (1.8.2) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
 | IRR and subgroup IRR (1.8.4, 1.8.8) | flex($u_{m,j}$) + flex(${m}$) | arm | log person-weeks | quasi-Poisson | survey-weighted GLM |
-| Effect modification (1.8.8) | flex($u_{m,j}$) + flex(${m}$) | arm × factor(subgroup) | log person-weeks | quasi-Poisson | survey-weighted GLM |
-| Heterogeneity across trials (1.8.8) | flex($u_{m,j}$) | arm × ns(${m}$, df = min(3, ${n}$ − 1)) | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Effect modification (1.8.8) | flex($u_{m,j}$) + flex(${m}$) | arm × indicators of the subgroup level | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Heterogeneity across trials (1.8.8) | flex($u_{m,j}$) | arm × natural cubic spline of ${m}$ with min(3, ${n}$ − 1) degrees of freedom | log person-weeks | quasi-Poisson | survey-weighted GLM |
 
 The person-weeks of the offset are the width of the row up to its stop (1.8.4).
 The loss and deviation models each count the distinct values of their own risk
@@ -1152,8 +1155,8 @@ continuous variable gets three rows: mean (SD), median (Q1, Q3) and range
 cumulative normalised weight reaches 0.5, after the values are sorted. Where
 that cumulative weight equals 0.5, the median is the mean of that value and the
 next distinct value. Q1 and Q3 use 0.25 and 0.75. The unweighted panel uses
-equal weights, which gives `stats::median()` and `type = 2` of
-`stats::quantile()`. The range reads the rows with a positive weight, so it is
+equal weights, which gives the sample median and the sample quantiles of
+definition 2 in Hyndman and Fan (1996). The range reads the rows with a positive weight, so it is
 the same in both panels when every weight is positive. Each
 variable carries a standardised mean difference between the arms.
 
@@ -2853,18 +2856,19 @@ validation evidence.
 | 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; `tteplan_read_spec()` stops without it) and `seed` (required; `tteplan_read_spec()` stops without it) come from the YAML spec's `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
 | 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` ("Candidate person-trials, before the time-zero checks"), `landmark_observed` ("Not under observation at time zero") and `landmark_event_free` ("Event before time zero"). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
-| 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek` |
+| 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from `global_max_isoyearweek` (default: the largest `isoyearweek` of the first skeleton file), passed to `TTEDesign` as `admin_censor_isoyearweek`. TrialEmulation applies the same deviation rule in `expand_until_switch()` |
 | 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` can lack `weeks_to_observation_gap`. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. `qs2_read()` refuses a stored enrollment below schema 7, and a stored enrollment that lacks the column is below schema 7, so such a file cannot be read. Rebuild the plan with s0 and re-run s1 |
 | 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
-| 1.8.2 | IPCW censoring models | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`. When its prediction stops with an "object not found" error, swereg fits the same formula again with `discrete = FALSE`. Other prediction errors stop s2. The denominator is `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum's proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. |
+| 1.8.2 | IPCW censoring models | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`. When its prediction stops with an "object not found" error, swereg fits the same formula again with `discrete = FALSE`. Other prediction errors stop s2. The denominator is `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum's proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. `$s4_prepare_for_analysis()` keeps the person-trials that deviate at time zero in `$time_zero_deviation`. The panel keeps the three factors as `ipcw_pp_time_zero`, `ipcw_pp_loss` and `ipcw_pp_deviation`, and `ipcw_pp` is their product |
 | 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |
 | 1.8.4, 1.8.6 | Outcome model and inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level` |
 | 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it on every ETT at 500 replicates and seed 1, on `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`) and on `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name |
-| 1.4, 1.8.5 | Protocol adherence | `.s3_enrollment_worker()` calls `.tte_adherence_counts()` on the s1 raw file and stores the table as `adherence` in each enrollment result. `$get_adherence()` returns it with `share`. `.write_adherence_sheet()` writes the `Protocol adherence` sheet of `tables.xlsx` and `feasibility.xlsx` |
-| 1.6, 1.8.6 | Minimum-events rule | `min_expected_events_per_arm_per_year` in the YAML spec, which `tteplan_read_spec()` requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work item of `$s3_analyze()` computes the years outside `safe_call()`, and the parent merge stops when an ETT has no decision. The records are stored as `horizon_pp` and `horizon_itt`, and `.tte_horizon_follow_pp()` gives `horizon_itt` the per-protocol decision. `$get_horizon_windows()` returns the years. The `Minimum events (Y or -)` and `Minimum events (#)` sheets of `$export_tables()` show the per-protocol decision and the largest passing cut. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `min_expected_events_per_arm_per_year` |
+| 1.4, 1.8.5 | Protocol adherence | `.s3_enrollment_worker()` calls `.tte_adherence_counts()` on the s1 raw file and stores the table as `adherence` in each enrollment result. `$get_adherence()` returns it with `share`. `.write_adherence_sheet()` writes the `Protocol adherence` sheet of `tables.xlsx` and `feasibility.xlsx`. The sheet shows `N (ITT)`, `N (PP)` and `%` for each comparison and arm, and `%` is blank when `N (ITT)` is 0. It shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel |
+| 1.6, 1.8.6 | Minimum-events rule | `min_expected_events_per_arm_per_year` in the YAML spec, which `tteplan_read_spec()` requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work item of `$s3_analyze()` computes the years outside `safe_call()`, and the parent merge stops when an ETT has no decision. The records are stored as `horizon_pp` and `horizon_itt`, and `.tte_horizon_follow_pp()` gives `horizon_itt` the per-protocol decision. `$get_horizon_windows()` returns the years. The `Minimum events (Y or -)` and `Minimum events (#)` sheets of `$export_tables()` show the per-protocol decision and the largest passing cut. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `min_expected_events_per_arm_per_year`. s1 enrolls a horizon-only ETT through its year, and s3 computes only the rule for it. `minimum_events_rule_exempt: true` on an enrollment exempts it. s3 still computes and stores the verdict. The Minimum events sheets mark the comparison with ` (exempt)`, and the generated methods text names each exempt comparison. A change of the key needs a rerun of s3 only. `$s3_feasibility()` applies the rule after s2. The Attrition sheet of `feasibility.xlsx` keeps the eligibility counts by arm |
 | 1.8.7 | Missing data | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan's `impute_fn`, whose default `tteenrollment_impute_confounders()` draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and `tteenrollment_fill_summary()` counts the filled rows |
 | 1.8.8 | Subgroups and heterogeneity | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it |
 | 1.8.9 | Time axes | Each row of the analysis panel carries the three axes as columns. `period_id` is the calendar period $c_{m,j}$, `enrollment_period_id` is the trial ${m}$, and `tstart` is the time since time zero $u_{m,j}$. `tstop` is the interval stop. So `period_id` = `enrollment_period_id` + interval number, and the interval number is `tstart` / `period_width` + 1 |
+| 1.8.10 | Baseline characteristics | `.t1_wtd_quartiles()` computes the weighted quartiles. With equal weights they equal `stats::quantile(type = 2)`, and the median equals `stats::median()` |
 | 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the loss and deviation models as cloglog GLMs, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1 |
 | 1.8 | Pre-specification | YAML spec parsed by `tteplan_read_spec()`; full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()` |
 
@@ -2945,6 +2949,8 @@ then run s1, s2 and s3 again.
   2025;390:e087179.
 - Thompson WA Jr. On the treatment of grouped observations in life
   studies. *Biometrics* 1977;33(3):463–470.
+- Hyndman RJ, Fan Y. Sample quantiles in statistical packages. *Am Stat*
+  1996;50(4):361–365. DOI 10.1080/00031305.1996.10473566.
 - Su L, Rezvani R, Seaman SR, Starr C, Gravestock I. TrialEmulation: An R
   Package to Emulate Target Trials for Causal Analysis of Observational
   Time-to-event Data. arXiv:2402.12083, 2024.

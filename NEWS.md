@@ -6,7 +6,7 @@
 
 ## Documentation
 
-* **Section 1 of `vignette("tte-methods")` names no code in 1.8.9.** Section 1.8.9 states the three time axes, the model terms and the figure labels in words and symbols. The note on stored enrollments and plans moves to Section 4, which keeps the column names.
+* **Section 1 of `vignette("tte-methods")` names no code, so it can be copied whole into a supplement.** Section 4 now holds the column names, spec keys, methods, files, workbook labels and pipeline steps that Section 1 named, and the note on stored enrollments and plans.
 
 # swereg 27.3.6
 
