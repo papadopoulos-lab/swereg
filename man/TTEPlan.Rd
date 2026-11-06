@@ -425,6 +425,8 @@ manuscript reads that file. It is a named list of aggregate results:
 \code{enrollment_name}, \code{intervention_name}, \code{comparator_name}, and the
 per-protocol person-trials of each arm, \code{n_baseline_intervention} and
 \code{n_baseline_comparator}.}
+\item{\code{adherence}}{\verb{$get_adherence()}.}
+\item{\code{horizons}}{\verb{$get_horizon_windows()}.}
 \item{\code{spec_version}}{The specification version of the plan.}
 \item{\code{swereg_version}}{The swereg version that wrote the file.}
 \item{\code{swereg_version_computing}}{A list with \code{s2} and \code{s3}, the swereg

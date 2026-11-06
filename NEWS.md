@@ -1,3 +1,13 @@
+# swereg 27.3.7
+
+## New features
+
+* **`results.qs2` holds `adherence` and `horizons`.** They equal `$get_adherence()` and `$get_horizon_windows()`, so a manuscript reads the adherence counts and the minimum-events windows from the one file.
+
+## Documentation
+
+* **Section 1 of `vignette("tte-methods")` names no code in 1.8.9.** Section 1.8.9 states the three time axes, the model terms and the figure labels in words and symbols. The note on stored enrollments and plans moves to Section 4, which keeps the column names.
+
 # swereg 27.3.6
 
 ## Documentation

@@ -11,6 +11,19 @@ skip_if_not_installed("withr")
 
 .ro_dir <- withr::local_tempdir(.local_envir = teardown_env())
 .ro_plan <- .xp_plan("new", subgroups = TRUE, fill_summary = TRUE)
+# `.xp_plan()` stores horizon records with no window table, so
+# `$get_horizon_windows()` gives no rows. One hand-chosen window per arm
+# gives the `horizons` field rows to compare.
+.ro_plan$results_ett$ETT00001$horizon_pp$windows <- data.table::data.table(
+  window_lo = 0,
+  window_hi = 52,
+  arm = c("intervention", "comparator"),
+  py_weighted = c(120.5, 240.25),
+  events_weighted = c(6, 9),
+  rate_pooled = 15 / 360.75,
+  events_expected = c(120.5, 240.25) * 15 / 360.75,
+  pass = TRUE
+)
 suppressMessages(suppressWarnings(
   .ro_plan$export_tables(path = file.path(.ro_dir, "tables.xlsx"))
 ))
@@ -28,7 +41,10 @@ suppressMessages(suppressWarnings(
 .ro_column_names <- function(x) {
   if (is.data.frame(x)) {
     nested <- Filter(is.list, as.list(x))
-    return(c(names(x), unlist(lapply(nested, .ro_column_names), use.names = FALSE)))
+    return(c(
+      names(x),
+      unlist(lapply(nested, .ro_column_names), use.names = FALSE)
+    ))
   }
   if (is.list(x)) {
     return(unlist(lapply(x, .ro_column_names), use.names = FALSE))
@@ -41,10 +57,19 @@ test_that("results.qs2 holds the named fields, next to tables.xlsx", {
   expect_identical(
     names(.ro),
     c(
-      "estimates", "curves", "subgroups", "baselines", "attrition",
+      "estimates",
+      "curves",
+      "subgroups",
+      "baselines",
+      "attrition",
       "enrollments",
-      "spec_version", "swereg_version", "swereg_version_computing",
-      "s1_run_id", "s2_run_id"
+      "adherence",
+      "horizons",
+      "spec_version",
+      "swereg_version",
+      "swereg_version_computing",
+      "s1_run_id",
+      "s2_run_id"
     )
   )
   expect_equal(.ro$estimates, .ro_plan$get_estimates())
@@ -52,18 +77,32 @@ test_that("results.qs2 holds the named fields, next to tables.xlsx", {
   expect_equal(.ro$subgroups, .ro_plan$get_subgroups())
   expect_equal(.ro$baselines, .ro_plan$get_baselines())
   expect_equal(.ro$attrition, .ro_plan$get_attrition())
-  expect_identical(.ro$swereg_version, as.character(utils::packageVersion("swereg")))
+  expect_gt(nrow(.ro_plan$get_adherence()), 0L)
+  expect_equal(.ro$adherence, .ro_plan$get_adherence())
+  expect_gt(nrow(.ro_plan$get_horizon_windows()), 0L)
+  expect_equal(.ro$horizons, .ro_plan$get_horizon_windows())
+  expect_identical(
+    .ro$swereg_version,
+    as.character(utils::packageVersion("swereg"))
+  )
   expect_identical(.ro$s1_run_id, .ro_plan$s1_run_id %||% NA_character_)
 })
 
 test_that("results.qs2 has one enrollment row per enrollment, with arm counts", {
   e <- .ro$enrollments
-  expect_identical(e$enrollment_id, unique(as.character(.ro_plan$ett$enrollment_id)))
+  expect_identical(
+    e$enrollment_id,
+    unique(as.character(.ro_plan$ett$enrollment_id))
+  )
   expect_identical(
     names(e),
     c(
-      "enrollment_id", "enrollment_name", "intervention_name",
-      "comparator_name", "n_baseline_intervention", "n_baseline_comparator"
+      "enrollment_id",
+      "enrollment_name",
+      "intervention_name",
+      "comparator_name",
+      "n_baseline_intervention",
+      "n_baseline_comparator"
     )
   )
   b <- .ro_plan$get_baselines()
@@ -81,6 +120,9 @@ test_that("results.qs2 has one enrollment row per enrollment, with arm counts", 
 
 test_that("results.qs2 holds no person or person-trial identifier column", {
   expect_true(length(Filter(is.data.frame, .ro)) >= 5L)
+  expect_true(all(
+    c("adherence", "horizons") %in% names(Filter(is.data.frame, .ro))
+  ))
   cols <- tolower(.ro_column_names(.ro))
   expect_identical(intersect(cols, .ro_id_cols), character(0))
   id_like <- unique(cols[grepl("(^|_)id$", cols)])

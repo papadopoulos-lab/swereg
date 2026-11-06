@@ -43,6 +43,8 @@
     baselines = baselines,
     attrition = plan$get_attrition(),
     enrollments = enrollments,
+    adherence = plan$get_adherence(),
+    horizons = plan$get_horizon_windows(),
     spec_version = plan$spec_version %||% NA_character_,
     swereg_version = as.character(utils::packageVersion("swereg")),
     swereg_version_computing = .plan_computing_versions(plan),

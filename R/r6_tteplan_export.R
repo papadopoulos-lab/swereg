@@ -87,6 +87,8 @@
 #'     `enrollment_name`, `intervention_name`, `comparator_name`, and the
 #'     per-protocol person-trials of each arm, `n_baseline_intervention` and
 #'     `n_baseline_comparator`.}
+#'   \item{`adherence`}{`$get_adherence()`.}
+#'   \item{`horizons`}{`$get_horizon_windows()`.}
 #'   \item{`spec_version`}{The specification version of the plan.}
 #'   \item{`swereg_version`}{The swereg version that wrote the file.}
 #'   \item{`swereg_version_computing`}{A list with `s2` and `s3`, the swereg
