@@ -621,7 +621,7 @@ percentiles come from all rows of the panel, pooled over arms and trials. The
 intention-to-treat analysis truncates the treatment weight once per enrollment,
 before the outcome is prepared. The per-protocol analysis truncates the product
 and not its components, so extreme components can offset each other. It takes
-the percentiles from the rows of each ETT's analysis file. Primary analyses use
+the percentiles over all person-trial intervals of each analysis, one per comparison, outcome and follow-up. Primary analyses use
 truncated weights. The untruncated per-protocol result is reported beside them
 as a sensitivity analysis (1.9).
 
@@ -801,13 +801,13 @@ reportable horizon is the end of the last year before the first year that
 fails. It is 0 when the first year fails.
 
 A horizon of ${h}$ weeks that is not a multiple of 52 is not judged on its own
-years. Its per-protocol decision is the decision of its source ETT. The source
-ETT has the same enrollment and outcome, and a follow-up of
+years. Its per-protocol decision is the decision of its source analysis. The source
+analysis has the same comparison and outcome, and a follow-up of
 $\lceil h/52 \rceil \times 52$ weeks. So a 26-week estimate is reported exactly when the 52-week estimate
 passes the rule, whatever the events in its own 26 weeks. Its reportable
 horizon is the smaller of ${h}$ and the reportable horizon of the source. When
 the specification has no follow-up of that length for the enrollment, swereg
-adds a horizon-only ETT there. The analysis computes the rule for it and no
+adds an analysis of that length that computes only the rule. It gives no
 estimate. Enrollment follows the comparison to the end of that year, because
 the verdict needs data to its end.
 
@@ -820,7 +820,7 @@ truncated product weight. It also covers the untruncated per-protocol IRR of
 1.9, which is a sensitivity estimate of the same estimand.
 
 The rule decides the per-protocol estimand. The intention-to-treat estimand
-of the same ETT follows that decision: it is reported exactly when the
+of the same analysis follows that decision: it is reported exactly when the
 per-protocol estimand is, to the same reportable horizon. One decision then
 holds for both estimands of a comparison.
 
