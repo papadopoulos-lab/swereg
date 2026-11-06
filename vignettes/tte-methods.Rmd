@@ -728,7 +728,8 @@ $100\,N^{\mathrm{PP}}_{a}(t) / N^{\mathrm{ITT}}_{a}(t)$. It is not defined
 when $N^{\mathrm{ITT}}_{a}(t) = 0$. The counts run from week 1 to the last
 follow-up week of the enrolled person-trials. Enrollment reaches the
 feasibility horizon when the specification sets one, so the counts can pass
-the longest reported follow-up.
+the longest reported follow-up. Adherence is reported at week 13, at week 26 and at every
+multiple of 52 weeks up to the last follow-up week.
 
 ### 1.8.6 Inference
 
