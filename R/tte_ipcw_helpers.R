@@ -319,6 +319,49 @@
   return(list(q = q, formula = model_formula, fit = fit_used))
 }
 
+#' Name the columns that one censoring fit receives.
+#'
+#' The fit reads the cause column, `person_weeks` for the offset, the time
+#' column and every confounder. It reads `period_id` only when the panel has
+#' it, because `.tte_ipcw_fit_cause()` adds the period term only then. The
+#' prediction reads the same columns. The fit data also carries the
+#' identifier, the treatment, `event` and `censor_loss`. With them, the data
+#' of each fit names its arm and shows its risk set.
+#'
+#' The result holds only the names that are in `panel_cols`. A confounder
+#' that the panel lacks therefore reaches the formula and not the subset, and
+#' the fit stops with its own error.
+#'
+#' @param cause_col The censoring indicator of the cause.
+#' @param tstart_var The column of the interval start.
+#' @param confounder_vars Character vector of confounder names.
+#' @param treatment_var The treatment column.
+#' @param id_var The person-trial identifier.
+#' @param panel_cols The column names of the panel.
+#' @return A character vector of column names.
+#' @noRd
+.tte_ipcw_model_cols <- function(
+  cause_col,
+  tstart_var,
+  confounder_vars,
+  treatment_var,
+  id_var,
+  panel_cols
+) {
+  cols <- unique(c(
+    cause_col,
+    "person_weeks",
+    tstart_var,
+    "period_id",
+    confounder_vars,
+    treatment_var,
+    "event",
+    "censor_loss",
+    id_var
+  ))
+  return(intersect(cols, panel_cols))
+}
+
 #' Fit the censoring model of one cause in one stratum.
 #'
 #' The caller passes the risk set of the cause. A risk set with no censoring by
@@ -548,7 +591,9 @@
 #' @return `invisible(NULL)`, or an error.
 #' @noRd
 .tte_check_censoring_var <- function(censoring_var) {
-  if (is.null(censoring_var) || identical(censoring_var, "censor_this_period")) {
+  if (
+    is.null(censoring_var) || identical(censoring_var, "censor_this_period")
+  ) {
     return(invisible(NULL))
   }
   stop(

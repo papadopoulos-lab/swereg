@@ -445,7 +445,37 @@ TTEEnrollment$set(
       )
     }
 
-    working_data <- self$data[!is.na(get(treatment_var))]
+    # `working_data` holds only the columns this step reads, so the copy of a
+    # wide panel costs a few columns. The fits read the two cause columns,
+    # `person_weeks`, `tstart_var`, `period_id` and the confounders. The rest
+    # of this step reads `id_var`, `treatment_var`, `event` and
+    # `censor_loss`. `tstop_var` makes `person_weeks` when the panel lacks
+    # it, and it is a key of the join that writes the weights back.
+    # `period_id` stays only when the panel has it, because
+    # `.tte_ipcw_fit_cause()` fits a period term only when it finds the column.
+    # The `intersect()` keeps a confounder that the panel lacks out of the
+    # subset. The fit then stops with its own error, as it did before the
+    # subset.
+    keep_cols <- intersect(
+      unique(c(
+        id_var,
+        tstart_var,
+        tstop_var,
+        treatment_var,
+        "event",
+        "censor_loss",
+        "censor_deviation",
+        confounder_vars,
+        "person_weeks",
+        "period_id"
+      )),
+      names(self$data)
+    )
+    working_data <- self$data[
+      !is.na(get(treatment_var)),
+      keep_cols,
+      with = FALSE
+    ]
 
     # The censoring models read the TIME-UPDATED confounder, and never the
     # entry-window snapshot. A missing value there makes `predict()` return
@@ -500,6 +530,27 @@ TTEEnrollment$set(
       strata <- list("the pooled cohort" = NA)
     }
 
+    # Each fit receives the columns `.tte_ipcw_model_cols()` names, and no
+    # other column of `working_data`.
+    fit_cols <- list(
+      loss = .tte_ipcw_model_cols(
+        "censor_loss",
+        tstart_var,
+        confounder_vars,
+        treatment_var,
+        id_var,
+        names(working_data)
+      ),
+      deviation = .tte_ipcw_model_cols(
+        "censor_deviation",
+        tstart_var,
+        confounder_vars,
+        treatment_var,
+        id_var,
+        names(working_data)
+      )
+    )
+
     ipcw_formulas <- list()
     tz_factor <- list()
     for (label in names(strata)) {
@@ -510,7 +561,7 @@ TTEEnrollment$set(
       # 1. Loss, on the rows without an event.
       rows <- which(in_stratum & has_time & no_event)
       loss <- .tte_ipcw_fit_cause(
-        working_data[rows],
+        working_data[rows, fit_cols$loss, with = FALSE],
         "censor_loss",
         "loss",
         label,
@@ -524,7 +575,7 @@ TTEEnrollment$set(
       # 2. Deviation, on the rows without an event that were not lost.
       rows <- which(in_stratum & has_time & no_event & not_lost)
       dev <- .tte_ipcw_fit_cause(
-        working_data[rows],
+        working_data[rows, fit_cols$deviation, with = FALSE],
         "censor_deviation",
         "deviation",
         label,
