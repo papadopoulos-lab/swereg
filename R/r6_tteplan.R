@@ -10,8 +10,8 @@
 #   r6_tteplan_spec.R       the spec and ETT-grid methods
 #   r6_tteplan_pipeline.R   s1, s2 and s3
 #   r6_tteplan_results.R    the stored-result accessors
-#   r6_tteplan_export.R     export_tables(), export() and the two exhibit
-#                           producers
+#   r6_tteplan_export.R     export_tables() and export(). The two exhibit
+#                           producers are in tteplan_export_figure.R.
 #
 # The standalone helpers and the spec functions moved to the tteplan_*.R files.
 # =============================================================================

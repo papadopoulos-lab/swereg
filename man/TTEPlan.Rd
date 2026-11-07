@@ -497,7 +497,7 @@ flow diagram for an enrollment).}
 written as CSV).}
 }
 Full per-type fields are documented on the \code{.plan_export_figure()} and
-\code{.plan_export_table()} producers in \code{R/tteplan_export.R}.
+\code{.plan_export_table()} producers in \code{R/tteplan_export_figure.R}.
 
 Two \code{"forest"} and \code{"survival"} fields carry a decision worth stating
 here, because both are silent when they go wrong.

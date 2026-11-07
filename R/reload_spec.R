@@ -241,8 +241,9 @@
 
 #' Classify the `outcomes` block.
 #'
-#' `name`, `description` and `role` are labels. `R/tteplan_export.R:854` reads
-#' `role` for the forest row label, and `plan$ett` carries a copy of all three.
+#' `name`, `description` and `role` are labels. `.plan_export_figure()` in
+#' `R/tteplan_export_figure.R` reads `role` for the forest row label, and
+#' `plan$ett` carries a copy of all three.
 #' `implementation` names the analysis column, so it is a definition.
 #'
 #' The block matches by position. An outcome that only one spec holds is

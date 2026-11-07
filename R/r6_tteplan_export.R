@@ -1,7 +1,7 @@
 # These TTEPlan methods write output. One produces the results workbook and
 # one produces the ordered exhibit set. Both are one-call delegates. The
-# bodies are plain functions in `R/tteplan_export.R`, together with the two
-# exhibit producers that `$export()` dispatches to.
+# bodies are plain functions in `R/tteplan_export.R`. The two exhibit
+# producers that `$export()` dispatches to are in `R/tteplan_export_figure.R`.
 
 #' @include r6_tteplan.R
 #' @description Export analysis results to an Excel workbook.
@@ -158,7 +158,7 @@ TTEPlan$set(
 #'     written as CSV).}
 #' }
 #' Full per-type fields are documented on the `.plan_export_figure()` and
-#' `.plan_export_table()` producers in `R/tteplan_export.R`.
+#' `.plan_export_table()` producers in `R/tteplan_export_figure.R`.
 #'
 #' Two `"forest"` and `"survival"` fields carry a decision worth stating
 #' here, because both are silent when they go wrong.

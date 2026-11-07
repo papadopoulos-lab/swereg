@@ -676,7 +676,7 @@ RSI_LEAF_SIDE <- c(
   "$/open_questions[]/status" = "cosmetic",
 
   # Outcomes. `plan$ett` carries a copy of all three labels, and
-  # `R/tteplan_export.R` reads `role` for the forest row label.
+  # `R/tteplan_export_figure.R` reads `role` for the forest row label.
   "$/outcomes[]/description" = "cosmetic",
   "$/outcomes[]/name" = "cosmetic",
   "$/outcomes[]/role" = "cosmetic",
