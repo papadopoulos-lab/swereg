@@ -1,5 +1,17 @@
 # Changelog
 
+## swereg 27.3.8
+
+### Performance
+
+- **The per-protocol censoring fits receive only the columns that the
+  models and the weight step read.** For one worker on a large
+  per-protocol analysis file, the peak resident memory fell from 40.7
+  GiB to 34.7 GiB. The weights are
+  [`identical()`](https://rdrr.io/r/base/identical.html) to 27.3.7. An
+  enrollment that s1 saved before 27.3.8 keeps the method it was saved
+  with, so it gets the saving only after s1 runs again.
+
 ## swereg 27.3.7
 
 ### New features
