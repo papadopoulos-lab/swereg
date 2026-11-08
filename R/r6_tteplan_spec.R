@@ -359,8 +359,9 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
 #' @description Export the study specification to a standalone Excel file.
 #'
 #' Writes the preregistration sheets of the plan. The Study Specification
-#' sheet summarises the spec (design, criteria, confounders, outcomes,
-#' enrollments) with ICD-10/ATC code annotations from the code registry. The
+#' sheet summarises the spec (design, follow-up, criteria, confounders, the
+#' minimum-events rule, outcomes, enrollments) with ICD-10/ATC code
+#' annotations from the code registry. The
 #' Target trial protocol sheet documents one ETT. The Rare conditions sheet
 #' is written only when the plan holds a current sparse decision: the rule in
 #' `$spec` still hashes to `$sparse_rule_hash`, and s1 completed for it.
@@ -389,6 +390,10 @@ TTEPlan$set(
 #' @description Refresh cosmetic spec fields (enrollment names, treatment
 #' arm labels, outcome names, ETT descriptions) on a cached plan without
 #' re-running the upstream pipeline.
+#'
+#' It also copies `min_expected_events_per_arm_per_year`, the threshold of the
+#' minimum-events rule. A changed threshold needs no rerun of s1 or s2. The
+#' writers stop until `$s3_analyze()` reruns.
 #'
 #' Structural fields (confounders, exclusion criteria, follow-up windows,
 #' comparator-draw parameters, etc.) are *not* applied - they would invalidate

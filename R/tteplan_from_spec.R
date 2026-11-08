@@ -429,6 +429,67 @@ tteplan_from_spec_and_registrystudy <- function(
 }
 
 
+#' Where a part-year horizon takes its minimum-events verdict, as text
+#'
+#' A part-year horizon takes the verdict of the next whole year,
+#' `ceiling(weeks / 52) * 52` weeks. The text says so. It names the
+#' horizon-only ETT when the grid of an enrollment of the horizon gets that
+#' year from `.tte_ceiling_follow_ups()` or from the feasibility horizon. When
+#' only some of those enrollments get it, the text names them.
+#'
+#' `$print_spec_summary()` and the Study Specification sheet show it.
+#'
+#' @param spec A spec list from [tteplan_read_spec()].
+#' @param fu One `follow_up` entry of the spec.
+#' @return `NULL` for a horizon that is a whole number of years. Otherwise a
+#'   character(1), for example `"at 104 weeks, the next whole year, through a
+#'   horizon-only ETT"`.
+#' @noRd
+.tte_part_year_verdict <- function(spec, fu) {
+  width <- .HORIZON_WINDOW_WEEKS
+  weeks <- as.numeric(fu$weeks)
+  if (weeks %% width == 0) {
+    return(NULL)
+  }
+  whole <- ceiling(weeks / width) * width
+  ids <- vapply(
+    spec$enrollments %||% list(),
+    function(e) as.character(e$id),
+    character(1)
+  )
+  ids <- ids[vapply(ids, .tte_follow_up_applies, logical(1), fu = fu)]
+  horizon_only <- vapply(
+    ids,
+    function(id) {
+      extra <- c(
+        Filter(
+          function(f) isTRUE(f$feasibility_horizon),
+          .tte_follow_up_grid(spec, id)
+        ),
+        .tte_ceiling_follow_ups(spec, id)
+      )
+      weeks_extra <- vapply(extra, function(f) as.numeric(f$weeks), numeric(1))
+      return(whole %in% weeks_extra)
+    },
+    logical(1)
+  )
+  via <- if (!any(horizon_only)) {
+    ""
+  } else if (all(horizon_only)) {
+    ", through a horizon-only ETT"
+  } else {
+    paste0(
+      ", through a horizon-only ETT",
+      .tte_follow_up_scope(
+        list(only_enrollments = ids[horizon_only]),
+        prefix = " for "
+      )
+    )
+  }
+  return(paste0("at ", whole, " weeks, the next whole year", via))
+}
+
+
 #' The follow-up horizons of the ETT grid of a spec
 #'
 #' The spec's own `follow_up` entries, in spec order. With `enrollment_id`,

@@ -4,7 +4,9 @@
 #' @include r6_registrystudy.R
 #' @description Save rawbatch files for one group.
 #' @param group Character. Group name (must be in group_names).
-#' @param data data.table or named list of data.tables.
+#' @param data data.table or named list of data.tables. A bare data.table
+#'   MUST hold the ID column `id_col`, and the method stops without it. A list
+#'   element without that column goes whole into every batch.
 #' @param n_workers Integer. Number of parallel writers (default 1L,
 #'   serial). When > 1L, slices are written concurrently via mirai
 #'   daemons; the 'mirai' package must be installed. Each splittable
@@ -16,7 +18,7 @@
 #'   An ID MAY be in more than one batch (see `$set_batches()`). Then
 #'   each batch gets the rows of the IDs it holds, in input order, by one
 #'   `%in%` scan per batch. That path adds no `BID` column and does not
-#'   change the caller's tables.
+#'   change the caller's tables. On both paths a slice has no key.
 #'
 #'   After `$set_matched_sets()`, each batch gets every row of a person
 #'   once for each `skeleton_id` of that person in the batch. The ID column
@@ -24,7 +26,8 @@
 #'   and the rows keep their input order. The ID column takes the type of
 #'   `skeleton_id`. The other columns do not change. Before it writes the
 #'   group, the method writes each missing `"roster"` file. A roster where
-#'   every `skeleton_id` equals the person ID takes the paths above.
+#'   every `skeleton_id` equals the person ID takes the paths above when the
+#'   ID column already has the class of `skeleton_id`.
 RegistryStudy$set(
   "public",
   "save_rawbatch",
@@ -62,6 +65,19 @@ RegistryStudy$set(
     }
 
     id_col <- self$id_col
+    # A bare data.table is split by person, so it MUST hold the ID column.
+    # Every path stops without it. A list element without the column goes
+    # whole into every batch.
+    if (data.table::is.data.table(data) && !id_col %in% names(data)) {
+      stop(
+        "save_rawbatch(): the data.table of group '",
+        group,
+        "' has no column `",
+        id_col,
+        "`. Add the person ID, or pass the table as an element of a list.",
+        call. = FALSE
+      )
+    }
     if (n_workers > 1L && !requireNamespace("mirai", quietly = TRUE)) {
       stop(
         "save_rawbatch(n_workers > 1) requires the 'mirai' package",
@@ -75,9 +91,10 @@ RegistryStudy$set(
     # files stay byte-identical to swereg 27.2.6.
     ids_overlap <- anyDuplicated(
       unlist(self$batch_id_list, use.names = FALSE)
-    ) > 0L
+    ) >
+      0L
     roster <- self$matched_set_roster
-    if (!is.null(roster) && !.roster_is_identity(roster, id_col)) {
+    if (!is.null(roster) && !.roster_is_identity(roster, id_col, data)) {
       payload_for_batch <- .rawbatch_rekey_payload(data, roster, id_col)
     } else if (ids_overlap) {
       payload_for_batch <- .rawbatch_subset_payload(
@@ -676,6 +693,7 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   study$n_batches <- as.integer(length(batch_id_list))
   study$batch_id_list <- batch_id_list
   study$matched_set_roster <- roster_by_batch
+  study$batch_composition_source <- caller
 
   study$groups_saved <- .detect_rawbatch_groups(
     study$data_rawbatch_dir,
@@ -693,9 +711,11 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
 # remains. The skeletons count as well as the rawbatches, because
 # $delete_rawbatches() leaves the skeletons behind.
 #
-# A study with no recorded digest was saved by swereg 27.2.6 or earlier, or
-# never had a composition. It records the new one and continues, so an
-# existing store keeps working.
+# A fresh study holds no digest. While files are on disk, it compares with the
+# digest of the study in its meta file, `registrystudy.qs2`. A meta file saved
+# by swereg 27.2.6 or earlier holds no digest, so the guard takes the digest of
+# its composition, as $adopt_runtime_state_from() does. With files on disk and
+# no composition in a meta file, the guard stops and names the files.
 .guard_batch_composition <- function(
   study,
   batch_id_list,
@@ -703,34 +723,70 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   roster_by_batch = NULL
 ) {
   new_digest <- .batch_composition_digest(batch_id_list, roster_by_batch)
-  recorded <- study$batch_composition_digest
-  if (is.null(recorded) || identical(recorded, new_digest)) {
-    return(new_digest)
-  }
-  n_rawbatch <- length(list.files(
+  rawbatch <- list.files(
     study$data_rawbatch_dir,
     pattern = "^\\d+_rawbatch_.*\\.qs2$"
-  ))
-  n_skeleton <- length(study$skeleton_files)
-  if (n_rawbatch > 0L || n_skeleton > 0L) {
+  )
+  skeleton <- study$skeleton_files
+  if (length(rawbatch) == 0L && length(skeleton) == 0L) {
+    return(new_digest)
+  }
+  recorded <- study$batch_composition_digest %||%
+    .meta_file_composition_digest(study)
+  if (is.null(recorded)) {
+    files <- c(rawbatch, basename(skeleton))
     stop(
       caller,
-      ": the new batch composition differs from the one that wrote the ",
-      n_rawbatch,
-      " rawbatch and ",
-      n_skeleton,
-      " skeleton files on disk. Delete them with $delete_rawbatches() and ",
-      "$delete_skeletons() first, or keep the recorded composition.",
+      ": the study records no batch composition, and its meta file ",
+      study$meta_file,
+      " holds none, but ",
+      length(files),
+      " rawbatch or skeleton files are on disk: ",
+      paste(utils::head(files, 10L), collapse = ", "),
+      if (length(files) > 10L) ", ...",
+      ". Delete them with $delete_rawbatches() and $delete_skeletons() ",
+      "first, or adopt the study that wrote them with ",
+      "$adopt_runtime_state_from().",
       call. = FALSE
     )
   }
-  return(new_digest)
+  if (identical(recorded, new_digest)) {
+    return(new_digest)
+  }
+  stop(
+    caller,
+    ": the new batch composition differs from the one that wrote the ",
+    length(rawbatch),
+    " rawbatch and ",
+    length(skeleton),
+    " skeleton files on disk. Delete them with $delete_rawbatches() and ",
+    "$delete_skeletons() first, or keep the recorded composition.",
+    call. = FALSE
+  )
+}
+
+# The composition digest of the study in the meta file of `study`. It is NULL
+# when the file is absent, cannot be read or holds no composition.
+.meta_file_composition_digest <- function(study) {
+  path <- tryCatch(study$meta_file, error = function(e) NA_character_)
+  if (is.na(path) || !file.exists(path)) {
+    return(NULL)
+  }
+  saved <- tryCatch(qs2_read(path), error = function(e) NULL)
+  if (!inherits(saved, "RegistryStudy")) {
+    return(NULL)
+  }
+  return(
+    saved$batch_composition_digest %||%
+      .batch_composition_digest(saved$batch_id_list, saved$matched_set_roster)
+  )
 }
 
 # The payload function of $save_rawbatch() when an id is in more than one
 # batch. Batch b gets the rows whose `id_col` is in batch b, in their input
 # order and with their column types. A list element without `id_col` goes whole
-# into every batch, as on the BID path. The caller's tables are not changed.
+# into every batch, as on the BID path. A slice has no key and no index, as a
+# slice of the BID path has none. The caller's tables are not changed.
 .rawbatch_subset_payload <- function(data, batch_id_list, id_col) {
   slice <- function(dt, b) {
     if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
@@ -739,7 +795,10 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
     # A bare symbol in `i` is read from this frame, never from a column, so
     # a column named `keep` or `b` cannot change the subset.
     keep <- dt[[id_col]] %in% batch_id_list[[b]]
-    return(dt[keep])
+    out <- dt[keep]
+    data.table::setkeyv(out, NULL)
+    data.table::setindexv(out, NULL)
+    return(out)
   }
   if (data.table::is.data.table(data)) {
     return(function(b) {
@@ -863,11 +922,23 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   return(out)
 }
 
-# TRUE when every skeleton_id equals its person ID. Re-keying then changes
-# nothing, and $save_rawbatch() takes the path that $set_batches() takes.
-.roster_is_identity <- function(roster_by_batch, id_col) {
+# TRUE when every skeleton_id equals its person ID, and the ID column of every
+# table of `data` has the class of skeleton_id. Re-keying then changes nothing,
+# and $save_rawbatch() takes the path that $set_batches() takes. A class that
+# differs takes the re-key path, so the ID column takes the class of
+# skeleton_id with an identity roster too.
+.roster_is_identity <- function(roster_by_batch, id_col, data = NULL) {
+  sid_class <- NULL
   for (r in roster_by_batch) {
     if (!all(r[["skeleton_id"]] == r[[id_col]])) {
+      return(FALSE)
+    }
+    sid_class <- class(r[["skeleton_id"]])
+  }
+  tables <- if (data.table::is.data.table(data)) list(data) else data
+  for (dt in tables) {
+    has_id <- data.table::is.data.table(dt) && id_col %in% names(dt)
+    if (has_id && !identical(class(dt[[id_col]]), sid_class)) {
       return(FALSE)
     }
   }

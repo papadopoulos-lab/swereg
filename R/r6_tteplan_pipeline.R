@@ -91,7 +91,10 @@
 #' @param impute_fn Imputation callback or NULL (default:
 #'   [tteenrollment_impute_confounders]). swereg calls it with the panel and
 #'   with the `.tte_entry__` snapshot names, not with the plain confounder
-#'   names. It MUST impute only the columns it is given.
+#'   names. It MUST impute only the columns it is given. A custom `impute_fn`
+#'   MUST fit on the baseline rows only (`tstart == 0`), as the default does.
+#'   s1 can build panels to the feasibility horizon, and a fit on all panel
+#'   rows would let those weeks change the reported estimates.
 #' @param stabilize Logical, stabilize IPW (default: TRUE).
 #' @param n_workers Integer, concurrent subprocesses. Default
 #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
@@ -191,10 +194,11 @@ TTEPlan$set(
     # so a run that fails after s1b never pairs the new decision with old
     # files. Every stored s3 result reads files that this run replaces, so s1
     # drops them here. A writer called after s1 then reads no result of an
-    # earlier run.
+    # earlier run. The result of `$s3_feasibility()` reads those files too.
     self$s1_run_id <- NULL
     self$results_enrollment <- NULL
     self$results_ett <- NULL
+    self$feasibility <- NULL
     # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
     # rejects a relative `outputs` entry. Create the directory BEFORE
     # normalizing: normalizePath(mustWork = FALSE) returns an absolute path
@@ -701,8 +705,10 @@ TTEPlan$set(
     # current s1. s2 rewrites the analysis files of every ETT, and every
     # stored s3 result reads those files, so s2 drops the stored results.
     # A writer then never pairs a result with files of other IPCW options.
+    # The result of `$s3_feasibility()` reads those files too.
     self$results_enrollment <- NULL
     self$results_ett <- NULL
+    self$feasibility <- NULL
     .tte_s2_stamp(self, NA_character_, NA_character_)
     out <- .batch_run_and_write(
       target = .batch_target("swereg", ".s2_worker"),

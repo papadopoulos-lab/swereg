@@ -203,6 +203,12 @@ RegistryStudy <- R6::R6Class(
     #'   earlier has none.
     batch_composition_digest = NULL,
 
+    #' @field batch_composition_source Character or NULL. The method that
+    #'   set the batch composition: `"set_ids()"`, `"set_batches()"` or
+    #'   `"set_matched_sets()"`. A study saved by swereg 27.3.8 or earlier
+    #'   has none.
+    batch_composition_source = NULL,
+
     #' @field matched_set_roster List of data.tables, one per batch, or
     #'   NULL. Each holds the roster rows of that batch, in roster row
     #'   order. `$set_matched_sets()` sets it. `$set_ids()` and
@@ -683,6 +689,7 @@ RegistryStudy <- R6::R6Class(
           other$batch_id_list,
           other$matched_set_roster
         )
+      self$batch_composition_source <- other$batch_composition_source
       self$matched_set_roster <- other$matched_set_roster
       self$groups_saved <- other$groups_saved
       return(invisible(self))
@@ -845,7 +852,8 @@ RegistryStudy <- R6::R6Class(
 
     # --- Batch pipeline methods ---
 
-    #' @description Set IDs and split into batches.
+    #' @description Set IDs and split into batches. The guard of
+    #'   `$set_batches()` applies.
     #' @param ids Vector of person IDs.
     set_ids = function(ids) {
       ids <- unique(ids)
@@ -858,6 +866,7 @@ RegistryStudy <- R6::R6Class(
         batch_id_list,
         "set_ids()"
       )
+      self$batch_composition_source <- "set_ids()"
       self$matched_set_roster <- NULL
 
       self$n_ids <- as.integer(length(ids))
@@ -885,8 +894,11 @@ RegistryStudy <- R6::R6Class(
     #'
     #'   The method stops when rawbatch or skeleton files are on disk and
     #'   the new composition differs from the recorded one. A study with
-    #'   no recorded composition, for example one saved by swereg 27.2.6,
-    #'   records the new one and continues.
+    #'   no recorded composition, for example a fresh study, compares with
+    #'   the composition of the study in its meta file, `registrystudy.qs2`.
+    #'   It stops when that file is absent or holds no composition. With no
+    #'   rawbatch or skeleton file on disk, the method records the new
+    #'   composition and continues.
     #' @param batches A non-empty list of non-empty vectors of person IDs.
     #'   An ID MUST NOT repeat within one batch. The batches get the names
     #'   `"1"` to `"n"`, as `$set_ids()` gives them. The method does not
@@ -945,7 +957,9 @@ RegistryStudy <- R6::R6Class(
     #'
     #'   A roster where every `skeleton_id` equals the person ID gives the
     #'   same rawbatch files as `$set_batches()` on the same IDs, plus the
-    #'   `"roster"` files.
+    #'   `"roster"` files, when the person ID has the class of `skeleton_id`.
+    #'   Otherwise the ID column takes the class of `skeleton_id`, as with
+    #'   any other roster.
     #' @param roster A data.table with one row per membership and the
     #'   columns `id_col` (the person ID in the rawbatch data), `set_id`,
     #'   `role` (character) and `skeleton_id`. One `skeleton_id` MUST map

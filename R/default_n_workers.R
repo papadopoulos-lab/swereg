@@ -22,6 +22,7 @@
 #'   \item{`"s1"`}{[TTEPlan]'s `s1_generate_enrollments_and_ipw()` (~6 GB/worker)}
 #'   \item{`"s3"`}{[TTEPlan]'s `s3_analyze()` --- peaks ~20 GB/worker on large
 #'     "vs none" panels, so keep at 1 unless you have the RAM headroom}
+#'   \item{`"feasibility"`}{[TTEPlan]'s `s3_feasibility()`}
 #' }
 #'
 #' Note: `s2_generate_analysis_files_and_ipcw_pp()` does not call this
@@ -89,14 +90,19 @@ default_n_workers <- function(stage = NULL) {
   # trips on it. So it must be rejected BEFORE coercion, like every other bad
   # value, to keep the "a rejected count changes nothing" invariant true.
   if (
-    !is.numeric(n_workers) || length(n_workers) != 1L || is.na(n_workers) ||
-      !is.finite(n_workers) || n_workers < 1L ||
+    !is.numeric(n_workers) ||
+      length(n_workers) != 1L ||
+      is.na(n_workers) ||
+      !is.finite(n_workers) ||
+      n_workers < 1L ||
       !isTRUE(n_workers == floor(n_workers)) ||
       n_workers > .Machine$integer.max
   ) {
     stop(
-      what, ": n_workers must be a single whole number in [1, ",
-      .Machine$integer.max, "], got: ",
+      what,
+      ": n_workers must be a single whole number in [1, ",
+      .Machine$integer.max,
+      "], got: ",
       paste(utils::capture.output(utils::str(n_workers)), collapse = " "),
       call. = FALSE
     )
@@ -107,8 +113,10 @@ default_n_workers <- function(stage = NULL) {
 .default_n_workers_impl <- function(stage = NULL) {
   # Deprecated box-wide global: warn once per session if it is still set so
   # stale env files (which now do nothing) get noticed.
-  if (nzchar(Sys.getenv("SWEREG_N_WORKERS", unset = "")) &&
-      !isTRUE(getOption("swereg.n_workers_global_warned"))) {
+  if (
+    nzchar(Sys.getenv("SWEREG_N_WORKERS", unset = "")) &&
+      !isTRUE(getOption("swereg.n_workers_global_warned"))
+  ) {
     warning(
       "SWEREG_N_WORKERS is deprecated and ignored. Worker counts default to 1 ",
       "and are opt-in per stage via SWEREG_N_WORKERS_<STAGE> (e.g. ",
@@ -139,7 +147,8 @@ default_n_workers <- function(stage = NULL) {
       num <- suppressWarnings(as.numeric(env))
       if (is.na(num)) {
         stop(
-          env_name, ": n_workers must be a whole number >= 1, got: ",
+          env_name,
+          ": n_workers must be a whole number >= 1, got: ",
           encodeString(env, quote = "\""),
           call. = FALSE
         )

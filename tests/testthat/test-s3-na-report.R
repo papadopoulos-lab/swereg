@@ -76,11 +76,16 @@ skip_if_not_installed("data.table")
     }
     out <- lapply(items, function(it) {
       # Each risk-difference item returns the horizon decision of its
-      # estimand, as the real worker does. The parent stops without one.
+      # estimand, as the real worker does. The parent stops without one. The
+      # record carries the threshold of the fixture plan, 0, which the strict
+      # freshness check of the writers reads.
       if (identical(it$method, "risk_difference")) {
         est <- if (identical(it$weight_col, "ipw_trunc")) "itt" else "pp"
         return(stats::setNames(
-          list(list(withheld = FALSE), s2),
+          list(
+            list(withheld = FALSE, rule = list(min_expected_events = 0)),
+            s2
+          ),
           c(paste0("horizon_", est), "swereg_version_s2")
         ))
       }
@@ -149,4 +154,10 @@ test_that("s3_analyze reports the clean case on both lines", {
   expect_length(grep("all 3 ETT estimates are finite", out), 1L)
   expect_length(grep("no ETT fit raised a warning", out), 1L)
   expect_length(grep("estimates are NA", out), 0L)
+
+  # The stored horizon records pass the strict freshness check of the
+  # writers.
+  expect_no_error(
+    swereg:::.tte_assert_horizon_rule_current(plan, "export_tables()")
+  )
 })

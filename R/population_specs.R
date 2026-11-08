@@ -64,7 +64,9 @@
       )
     }
     sub <- unique(skeleton_dt[, cols_needed, with = FALSE])
-    agg <- sub[, .(n = .N), by = c("isoyear", spec)]
+    # unique(): a spec of "isoyear" groups by isoyear once.
+    by_cols <- unique(c("isoyear", spec))
+    agg <- sub[, .(n = .N), by = by_cols]
     out[[.population_spec_key(spec)]] <- agg
   }
   return(out)

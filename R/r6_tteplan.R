@@ -203,7 +203,8 @@ TTEPlan <- R6::R6Class(
     #'   has not run. It holds the decision of the minimum-events rule for
     #'   each ETT and estimand, with the weighted person-years of each arm and
     #'   window. It holds no event count, rate or expected events.
-    #'   `$s3_analyze()` does not read it.
+    #'   `$s3_analyze()` does not read it. `$s1_generate_enrollments_and_ipw()`
+    #'   and `$s2_generate_analysis_files_and_ipcw_pp()` set it to NULL.
     feasibility = NULL,
 
     # --- Directory candidates and embedded study ---

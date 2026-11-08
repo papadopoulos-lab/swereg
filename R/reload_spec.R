@@ -371,7 +371,7 @@
 #' so it has no residual to classify.
 #'
 #' @noRd
-.ds_diff_horizon_rule <- function(old, new, pc, ps) {
+.ds_diff_horizon_rule <- function(old, new, pc) {
   a <- old[["min_expected_events_per_arm_per_year"]]
   b <- new[["min_expected_events_per_arm_per_year"]]
   if (!identical(a, b)) {
@@ -603,7 +603,7 @@
   .ds_diff_outcomes(old, new, push_c, push_s)
   .ds_diff_var_blocks(old, new, push_c, push_s)
   .ds_diff_display(old, new, push_c)
-  .ds_diff_horizon_rule(old, new, push_c, push_s)
+  .ds_diff_horizon_rule(old, new, push_c)
   .ds_diff_enrollments(old, new, push_c, push_s)
   .ds_residual(old, new, .DS_TOP_LEVEL_BLOCKS, "", push_s)
 

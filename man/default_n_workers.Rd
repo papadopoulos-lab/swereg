@@ -38,6 +38,7 @@ Stage tags currently used by the pipeline:
 \item{\code{"s1"}}{\link{TTEPlan}'s \code{s1_generate_enrollments_and_ipw()} (~6 GB/worker)}
 \item{\code{"s3"}}{\link{TTEPlan}'s \code{s3_analyze()} --- peaks ~20 GB/worker on large
 "vs none" panels, so keep at 1 unless you have the RAM headroom}
+\item{\code{"feasibility"}}{\link{TTEPlan}'s \code{s3_feasibility()}}
 }
 
 Note: \code{s2_generate_analysis_files_and_ipcw_pp()} does not call this

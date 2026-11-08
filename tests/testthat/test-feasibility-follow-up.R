@@ -301,7 +301,18 @@ test_that("(c) no public accessor returns a row for a 260-week ETT", {
 
 # ---- (d): parity ----------------------------------------------------------------------
 
-test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is identical cell by cell", {
+# The cells of `sheet`. On the Study Specification sheet, the one row
+# "Feasibility horizon:" goes, which swereg 27.3.9 adds for the key.
+.ff_cells_no_feasibility_row <- function(path, sheet) {
+  m <- .ff_cells(path, sheet)
+  if (identical(sheet, "Study Specification")) {
+    m <- m[!(m[[1L]] %in% "Feasibility horizon:"), , drop = FALSE]
+    rownames(m) <- NULL
+  }
+  return(m)
+}
+
+test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is identical cell by cell, but for the Feasibility horizon row", {
   .ff_skip()
   a <- .ff_fixture(TRUE)
   b <- .ff_fixture(FALSE)
@@ -312,9 +323,19 @@ test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is i
     c("PP results", "ITT results", "Summary", "ETTs") %in% sheets
   ))
   # Every cell of every other sheet, Provenance included. The fixture pins the
-  # export time, so no cell is replaced before the comparison.
+  # export time, so no cell is replaced before the comparison. The Study
+  # Specification sheet differs by its one "Feasibility horizon:" row.
+  spec_a <- .ff_cells(a$xlsx, "Study Specification")
+  expect_identical(
+    spec_a[[2L]][spec_a[[1L]] %in% "Feasibility horizon:"],
+    "260 weeks, minimum-events rule only"
+  )
   for (sh in setdiff(sheets, FF_MIN_SHEETS)) {
-    expect_identical(.ff_cells(a$xlsx, sh), .ff_cells(b$xlsx, sh), info = sh)
+    expect_identical(
+      .ff_cells_no_feasibility_row(a$xlsx, sh),
+      .ff_cells(b$xlsx, sh),
+      info = sh
+    )
   }
   prov <- .ff_cells(a$xlsx, "Provenance")
   expect_identical(
@@ -323,7 +344,7 @@ test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is i
   )
   for (sh in openxlsx::getSheetNames(a$spec_xlsx)) {
     expect_identical(
-      .ff_cells(a$spec_xlsx, sh),
+      .ff_cells_no_feasibility_row(a$spec_xlsx, sh),
       .ff_cells(b$spec_xlsx, sh),
       info = paste("spec workbook", sh)
     )
@@ -346,7 +367,7 @@ test_that("(d) only the Minimum events sheets show the 260-week ETT", {
   }
 })
 
-test_that("(d) results.qs2, the TARGET checklist and the protocol tables are identical", {
+test_that("(d) results.qs2, the TARGET checklist and the protocol tables are identical, and print() differs by the ETT count", {
   .ff_skip()
   a <- .ff_fixture(TRUE)
   b <- .ff_fixture(FALSE)
@@ -367,10 +388,13 @@ test_that("(d) results.qs2, the TARGET checklist and the protocol tables are ide
       info = if (is.null(id)) "default" else id
     )
   }
-  expect_identical(
-    utils::capture.output(print(a$plan)),
-    utils::capture.output(print(b$plan))
-  )
+  # print() differs by the count that swereg 27.3.9 adds to the ETT count
+  # line.
+  print_a <- utils::capture.output(print(a$plan))
+  print_b <- utils::capture.output(print(b$plan))
+  suffix <- " + 2 feasibility-horizon ETT(s)"
+  expect_identical(sum(endsWith(print_a, suffix)), 1L)
+  expect_identical(sub(suffix, "", print_a, fixed = TRUE), print_b)
 })
 
 test_that("(d) the OSF text of the spec with the key equals the text without it", {

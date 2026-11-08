@@ -156,11 +156,13 @@
 #'
 #' @param weeks Integer, from `.tte_adherence_milestones()`.
 #' @param spec The study specification, or `NULL`.
-#' @return Character, one label per element of `weeks`.
+#' @return Character, one label per element of `weeks`. An empty `weeks`
+#'   gives `character(0)`.
 #' @noRd
 .tte_adherence_milestone_labels <- function(weeks, spec) {
   weeks <- as.integer(weeks)
-  label <- paste(weeks, "weeks")
+  # recycle0: no week gives no label.
+  label <- paste(weeks, "weeks", recycle0 = TRUE)
   is_year <- weeks %% .HORIZON_WINDOW_WEEKS == 0L
   if (any(is_year)) {
     label[is_year] <- .minimum_events_year_label(
@@ -174,15 +176,19 @@
 
 #' Test whether a stored enrollment result is missing adherence
 #'
-#' A result is missing adherence exactly when it holds no element named
-#' `adherence`. A stored `adherence = NULL` is present. It means the worker
-#' ran and could not compute the table, so no refresh recomputes it unless
-#' the caller passes `force = TRUE`.
+#' A result is missing adherence exactly when it is not `NULL` and holds no
+#' element named `adherence`. A stored `adherence = NULL` is present. It means
+#' the worker ran and could not compute the table, so no refresh recomputes it
+#' unless the caller passes `force = TRUE`. A `NULL` result is skipped, as in
+#' swereg 27.3.2, so no refresh recomputes it on every call.
 #'
 #' @param result One element of `plan$results_enrollment`, or `NULL`.
-#' @return `TRUE` or `FALSE`.
+#' @return `TRUE` or `FALSE`. `NULL` gives `FALSE`.
 #' @noRd
 .tte_adherence_missing <- function(result) {
+  if (is.null(result)) {
+    return(FALSE)
+  }
   return(!"adherence" %in% names(result))
 }
 
@@ -328,12 +334,7 @@
   }
   table <- data.table::rbindlist(rows)
   data.table::setDF(table)
-  # `.tte_adherence_milestone_labels()` returns one label for no week, so
-  # it is not called then.
-  labels <- character(0)
-  if (length(weeks) > 0L) {
-    labels <- .tte_adherence_milestone_labels(weeks, plan$spec)
-  }
+  labels <- .tte_adherence_milestone_labels(weeks, plan$spec)
   return(list(table = table, labels = labels))
 }
 

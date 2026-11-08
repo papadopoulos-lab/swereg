@@ -198,14 +198,16 @@ test_that("a threshold of 0 says that the rule withholds no estimate, and define
       "the pooled weighted event rate of both arms."
     )
   )
+  # swereg 27.3.9 split the protocol line in two sentences of at most 25
+  # words.
   cell <- hrp_protocol_lines(0)
   expect_identical(
     cell[startsWith(cell, "Minimum-events rule: ")],
     paste0(
       "Minimum-events rule: at least 0 expected events per arm in each year of ",
-      "follow-up, computed under the null as the pooled weighted event rate ",
-      "of both arms times the weighted person-years of the arm, so no ",
-      "estimate is withheld"
+      "follow-up, so no estimate is withheld. The expected events are computed ",
+      "under the null as the pooled weighted event rate of both arms times the ",
+      "weighted person-years of the arm"
     )
   )
 })

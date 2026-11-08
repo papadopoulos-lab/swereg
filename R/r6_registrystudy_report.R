@@ -166,6 +166,28 @@ RegistryStudy$set("public", "population", function(by) {
   return(qs2_read(path))
 })
 
+# TRUE when `batch_size` sized the batches of `study`, as $set_ids() does. A
+# study saved by swereg 27.3.8 or earlier records no source. It counts as
+# $set_ids() when it holds no roster and its batches have the sizes that
+# $set_ids() gives.
+.composition_uses_batch_size <- function(study) {
+  src <- study$batch_composition_source
+  if (!is.null(src)) {
+    return(identical(src, "set_ids()"))
+  }
+  if (!is.null(study$matched_set_roster)) {
+    return(FALSE)
+  }
+  sizes <- lengths(study$batch_id_list)
+  n <- length(sizes)
+  if (n == 0L || is.null(study$batch_size)) {
+    return(TRUE)
+  }
+  return(
+    all(sizes[-n] == study$batch_size) && sizes[n] <= study$batch_size
+  )
+}
+
 #' @description Print method for RegistryStudy.
 #' @param ... Ignored.
 RegistryStudy$set("public", "print", function(...) {
@@ -203,21 +225,41 @@ RegistryStudy$set("public", "print", function(...) {
   }
 
   # Pipeline status: batches → rawbatch → skeleton (grouped together)
-  cat(
-    "  Batches:",
-    self$n_batches,
-    "(",
-    format(self$batch_size, big.mark = ","),
-    "IDs each)\n"
-  )
+  # `batch_size` sizes the batches of $set_ids() only.
+  if (.composition_uses_batch_size(self)) {
+    cat(
+      "  Batches:",
+      self$n_batches,
+      "(",
+      format(self$batch_size, big.mark = ","),
+      "IDs each)\n"
+    )
+  } else {
+    cat(
+      "  Batches: ",
+      self$n_batches,
+      " (from ",
+      self$batch_composition_source %||%
+        if (is.null(self$matched_set_roster)) {
+          "set_batches()"
+        } else {
+          "set_matched_sets()"
+        },
+      ")\n",
+      sep = ""
+    )
+  }
 
-  # Rawbatch info
+  # Rawbatch info. The "roster" group of $set_matched_sets() is not one of
+  # `groups_saved`, so its files are not counted.
   if (length(self$groups_saved) > 0) {
     rb_files <- list.files(
       self$data_rawbatch_dir,
       pattern = "\\d+_rawbatch_.*\\.qs2$",
       full.names = TRUE
     )
+    rb_group <- sub("^\\d+_rawbatch_(.*)\\.qs2$", "\\1", basename(rb_files))
+    rb_files <- rb_files[rb_group %in% self$groups_saved]
     rb_size <- sum(file.size(rb_files), na.rm = TRUE)
     cat(
       "  Rawbatch groups saved:",
@@ -536,7 +578,8 @@ RegistryStudy$set(
 RegistryStudy$set("private", ".compute_population_for_spec", function(spec) {
   key <- .population_spec_key(spec)
   file_key <- .population_spec_filename_key(spec)
-  group_cols <- c("isoyear", spec)
+  # unique(): a spec of "isoyear" groups by isoyear once.
+  group_cols <- unique(c("isoyear", spec))
 
   candidates <- if (!is.null(self$n_batches) && self$n_batches > 0L) {
     seq_len(self$n_batches)

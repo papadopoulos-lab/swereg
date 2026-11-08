@@ -554,9 +554,10 @@
 
   # -- Follow-up ------------------------------------------------------------
   add_header("Follow-up")
-  for (fu in spec$follow_up) {
-    add_kv(fu$label, paste0(fu$weeks, " weeks", .tte_follow_up_scope(fu)))
-  }
+  invisible(lapply(
+    .spec_sheet_follow_up_rows(spec, st_label, st_sub_label),
+    function(rw) add_row(rw$a, rw$b, rw$sa, rw$sb)
+  ))
   # The three censoring models of `s6_ipcw_pp()`, in the order it fits them.
   add_kv(
     "Per-protocol censoring weights:",
@@ -660,6 +661,12 @@
   # frozen decision. A spec without a rare_condition_rule adds no row.
   invisible(lapply(
     .tte_sparse_spec_rows(plan, st_header, st_label),
+    function(rw) add_row(rw$a, rw$b, rw$sa, rw$sb)
+  ))
+
+  # -- Minimum-events rule --------------------------------------------------
+  invisible(lapply(
+    .spec_sheet_rule_rows(spec, st_header, st_label),
     function(rw) add_row(rw$a, rw$b, rw$sa, rw$sb)
   ))
 
@@ -782,6 +789,90 @@
     if (!is.null(rw$sb)) openxlsx::addStyle(wb, sht, rw$sb, rows = i, cols = 2L)
   }
   return(openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70)))
+}
+
+
+#' The Follow-up rows of the Study Specification sheet
+#'
+#' One row for each `follow_up` entry of the spec, with its weeks and its
+#' enrollments. A part-year horizon gets a second row, from
+#' `.tte_part_year_verdict()`. The feasibility horizon of
+#' `feasibility_follow_up_weeks` follows, as `$print_spec_summary()` shows it,
+#' when it adds ETTs.
+#'
+#' @param spec The spec list.
+#' @param st_label,st_sub_label The styles of a label and of an indented label.
+#' @return A list of rows, each `list(a, b, sa, sb)`.
+#' @noRd
+.spec_sheet_follow_up_rows <- function(spec, st_label, st_sub_label) {
+  row <- function(a, b, sa = st_label) {
+    return(list(a = a, b = b, sa = sa, sb = NULL))
+  }
+  out <- list()
+  for (fu in spec$follow_up) {
+    out <- c(
+      out,
+      list(row(fu$label, paste0(fu$weeks, " weeks", .tte_follow_up_scope(fu))))
+    )
+    verdict <- .tte_part_year_verdict(spec, fu)
+    if (!is.null(verdict)) {
+      out <- c(out, list(row("Minimum-events verdict:", verdict, st_sub_label)))
+    }
+  }
+  feas <- .tte_feasibility_enrollments(spec)
+  if (!is.null(feas)) {
+    all_ids <- vapply(spec$enrollments, function(e) as.character(e$id), "")
+    scope <- if (setequal(feas$ids, all_ids)) {
+      ""
+    } else {
+      .tte_follow_up_scope(list(only_enrollments = feas$ids))
+    }
+    out <- c(
+      out,
+      list(row(
+        "Feasibility horizon:",
+        paste0(feas$fu$weeks, " weeks, minimum-events rule only", scope)
+      ))
+    )
+  }
+  return(out)
+}
+
+
+#' The Minimum-events rule rows of the Study Specification sheet
+#'
+#' The threshold `min_expected_events_per_arm_per_year` and the exempt
+#' enrollments, where the spec sets them. A name MAY hold a comma, so the
+#' names are joined with "; ".
+#'
+#' @param spec The spec list.
+#' @param st_header,st_label The styles of a header and of a label.
+#' @return A list of rows, each `list(a, b, sa, sb)`. Empty when the spec sets
+#'   neither.
+#' @noRd
+.spec_sheet_rule_rows <- function(spec, st_header, st_label) {
+  row <- function(a, b, sa = st_label) {
+    return(list(a = a, b = b, sa = sa, sb = NULL))
+  }
+  min_events <- spec[["min_expected_events_per_arm_per_year"]]
+  exempt <- .tte_exempt_enrollment_names(spec)
+  if (is.null(min_events) && length(exempt) == 0L) {
+    return(list())
+  }
+  out <- list(row("Minimum-events rule", NA_character_, st_header))
+  if (!is.null(min_events)) {
+    out <- c(
+      out,
+      list(row(
+        "Min expected events:",
+        paste0(format(min_events), " per arm, per follow-up year")
+      ))
+    )
+  }
+  if (length(exempt) > 0L) {
+    out <- c(out, list(row("Exempt:", paste(exempt, collapse = "; "))))
+  }
+  return(c(out, list(row("", NA_character_, NULL))))
 }
 
 

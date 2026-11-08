@@ -7,7 +7,8 @@
 #' The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
 #' printed. The spec key `feasibility_follow_up_weeks` adds one, and a
 #' follow-up that is not a whole number of years adds one at its next whole
-#' year.
+#' year. When the plan holds N > 0 of them, the ETT count line ends with
+#' `+ N feasibility-horizon ETT(s)`.
 #' @param ... Ignored.
 TTEPlan$set("public", "print", function(...) {
   cat("<TTEPlan>", self$project_prefix, "\n")
@@ -57,17 +58,25 @@ TTEPlan$set("public", "print", function(...) {
     }
 
     # `only_enrollments` gives some enrollments fewer horizons. The grid is
-    # then not the full product, and the line shows the count alone.
+    # then not the full product, and the line shows the count alone. The
+    # horizon-only ETTs are not in `ett`, so the line adds their count.
+    n_feasibility <- length(.plan_ett_feasibility_ids(self))
+    feasibility <- if (n_feasibility > 0L) {
+      sprintf(" + %d feasibility-horizon ETT(s)", n_feasibility)
+    } else {
+      ""
+    }
     if (n_etts == n_outcomes * n_follow_up * n_enrollments) {
       cat(sprintf(
-        "  %d outcome(s) x %d follow-up x %d enrollment(s) = %d ETT(s)\n",
+        "  %d outcome(s) x %d follow-up x %d enrollment(s) = %d ETT(s)%s\n",
         n_outcomes,
         n_follow_up,
         n_enrollments,
-        n_etts
+        n_etts,
+        feasibility
       ))
     } else {
-      cat(sprintf("  %d ETT(s)\n", n_etts))
+      cat(sprintf("  %d ETT(s)%s\n", n_etts, feasibility))
     }
 
     # Enrollment grid
@@ -114,7 +123,9 @@ TTEPlan$set("public", "print", function(...) {
 #' s1 completed for it. Otherwise the decision reads `not decided yet (s1 has
 #' not completed for this rule)`. It also prints the minimum-events rule,
 #' `min_expected_events_per_arm_per_year`: the minimum number of expected events
-#' per arm in each follow-up year.
+#' per arm in each follow-up year. A follow-up that is not a whole number of
+#' years takes the verdict of the rule at the next whole year. The summary
+#' prints that year under the follow-up, and names the horizon-only ETT.
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_spec_summary", function() {
   return(.plan_print_spec_summary(self))
@@ -280,6 +291,10 @@ TTEPlan$set("public", "print_spec_summary", function() {
       fu$weeks,
       .tte_follow_up_scope(fu)
     ))
+    verdict <- .tte_part_year_verdict(spec, fu)
+    if (!is.null(verdict)) {
+      cat("    Minimum-events verdict: ", verdict, "\n", sep = "")
+    }
   }
   # The feasibility horizon of `feasibility_follow_up_weeks`, when the key
   # adds ETTs. s3 computes only the minimum-events rule for them. With
@@ -534,7 +549,8 @@ TTEPlan$set("public", "print_spec_summary", function() {
   )
   exempt <- .tte_exempt_enrollment_names(plan$spec)
   if (length(exempt) > 0L) {
-    cat("  Exempt: ", paste(exempt, collapse = ", "), "\n", sep = "")
+    # An enrollment name MAY hold a comma, so the names are joined with "; ".
+    cat("  Exempt: ", paste(exempt, collapse = "; "), "\n", sep = "")
   }
   cat("\n")
   return(invisible(NULL))

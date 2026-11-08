@@ -901,12 +901,13 @@ test_that("(e) with no exempt enrollment each text equals its 27.3.0 string, but
 
 # The 27.3.0 strings at threshold 0, captured from the unpatched tree
 # (commit dcfc8f37) for the same fixture. The subgroup block does not change
-# them.
+# them. swereg 27.3.9 split the protocol line in two sentences of at most 25
+# words, so the protocol string is the one of 27.3.9.
 HX_TARGET_0_27_3_0 <- "A prespecified reporting rule, the minimum-events rule, required at least 0 expected events per arm in each year of follow-up, so it withheld no estimate. The expected events of an arm in a year were computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms."
-HX_PROTOCOL_0_27_3_0 <- "Minimum-events rule: at least 0 expected events per arm in each year of follow-up, computed under the null as the pooled weighted event rate of both arms times the weighted person-years of the arm, so no estimate is withheld"
+HX_PROTOCOL_0_27_3_9 <- "Minimum-events rule: at least 0 expected events per arm in each year of follow-up, so no estimate is withheld. The expected events are computed under the null as the pooled weighted event rate of both arms times the weighted person-years of the arm"
 HX_OSF_0_27_3_0 <- "A prespecified reporting rule, the minimum-events rule, requires at least 0 expected events per arm in each year of follow-up, so it withholds no estimate. The expected events of an arm in a year are computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms."
 
-test_that("(e0) at threshold 0 each text names the exempt enrollment, and without one equals its 27.3.0 string", {
+test_that("(e0) at threshold 0 each text names the exempt enrollment, and without one equals its 27.3.0 or 27.3.9 string", {
   plan <- .hx_prose_plan(list(NULL, TRUE), k = 0)
   expect_identical(
     swereg:::.plan_horizon_rule_text(plan$spec),
@@ -914,7 +915,7 @@ test_that("(e0) at threshold 0 each text names the exempt enrollment, and withou
   )
   expect_identical(
     .hx_protocol_line(plan),
-    paste0(HX_PROTOCOL_0_27_3_0, ". ", HX_ONE)
+    paste0(HX_PROTOCOL_0_27_3_9, ". ", HX_ONE)
   )
   expect_identical(
     .hx_osf(list(NULL, TRUE), k = 0),
@@ -935,9 +936,13 @@ test_that("(e0) at threshold 0 each text names the exempt enrollment, and withou
       HX_TARGET_0_27_3_0,
       info = lab
     )
-    expect_identical(.hx_protocol_line(none), HX_PROTOCOL_0_27_3_0, info = lab)
+    expect_identical(.hx_protocol_line(none), HX_PROTOCOL_0_27_3_9, info = lab)
     expect_identical(.hx_osf(exempt, k = 0), HX_OSF_0_27_3_0, info = lab)
   }
+  # No sentence of the protocol line holds more than 25 words.
+  sentences <- strsplit(HX_PROTOCOL_0_27_3_9, "(?<=\\.) ", perl = TRUE)[[1]]
+  expect_length(sentences, 2L)
+  expect_true(all(lengths(strsplit(sentences, " ")) <= 25L))
 })
 
 # ---- (f): the console reports -----------------------------------------------------
@@ -1008,7 +1013,7 @@ test_that("(g) the spec summary names the exempt enrollment under the minimum-ev
   expect_identical(
     sum(
       .hx_print(spec) ==
-        "  Exempt: Treated vs control 01, Treated vs control 02"
+        "  Exempt: Treated vs control 01; Treated vs control 02"
     ),
     1L
   )

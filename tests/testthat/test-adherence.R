@@ -385,8 +385,27 @@ test_that("milestone weeks, their labels and the presence rule", {
   )
 
   expect_true(swereg:::.tte_adherence_missing(list(n_baseline = 1L)))
-  expect_true(swereg:::.tte_adherence_missing(NULL))
   expect_false(swereg:::.tte_adherence_missing(list(adherence = NULL)))
+})
+
+test_that("no milestone week gives no label", {
+  expect_identical(
+    swereg:::.tte_adherence_milestone_labels(integer(0), NULL),
+    character(0)
+  )
+  spec <- list(follow_up = list(list(label = "12 months", weeks = 52L)))
+  expect_identical(
+    swereg:::.tte_adherence_milestone_labels(integer(0), spec),
+    character(0)
+  )
+})
+
+test_that("a NULL stored result is skipped, and a result without adherence is missing it", {
+  # swereg 27.3.2 skipped a NULL result. A result without the name
+  # `adherence` is still refreshed.
+  expect_false(swereg:::.tte_adherence_missing(NULL))
+  expect_true(swereg:::.tte_adherence_missing(list(n_baseline = 1L)))
+  expect_true(swereg:::.tte_adherence_missing(list()))
 })
 
 

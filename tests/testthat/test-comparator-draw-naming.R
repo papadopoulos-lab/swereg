@@ -39,7 +39,14 @@ skip_if_not_installed("data.table")
 .CDN_RETIRED <- c(
   "exactly matched",
   "matched on the entry",
-  "no covariate",
+  # The claim that the comparator draw reads no covariate. The draw runs by
+  # trial, and the trial is calendar time. "The outcome model holds no
+  # covariate" is true and MUST pass.
+  paste0(
+    "(draw|sampl|comparator)[^.!?]*\\bno covariate",
+    "|\\b(read|reads|use|uses) no covariate",
+    "|no covariate enters? (it|the (comparator )?draw)"
+  ),
   "not covariate matching"
 )
 
@@ -311,7 +318,10 @@ test_that("the generated methods text names incidence density sampling and no pa
   )))
   # The draw is one trial-level sample, sized from that trial's intervention
   # count. Stated twice: once in item 6c and once in item 7c.
-  expect_gte(sum(grepl("The draw took one sample per trial.", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl("The draw took one sample per trial.", txt, fixed = TRUE)),
+    2L
+  )
   expect_gte(
     sum(grepl(
       "In enrollment 01, the draw took 2 times that trial's count of intervention individuals.",
@@ -341,7 +351,10 @@ test_that("the generated methods text names incidence density sampling and no pa
     )),
     2L
   )
-  expect_gte(sum(grepl("No later step conditions on one.", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl("No later step conditions on one.", txt, fixed = TRUE)),
+    2L
+  )
   expect_gte(
     sum(grepl(
       paste0(
@@ -355,7 +368,11 @@ test_that("the generated methods text names incidence density sampling and no pa
   )
   # The stratum, stated twice: once in item 6c and once in item 7c.
   expect_gte(
-    sum(grepl("Each sequential trial was one enrollment period of 4 weeks.", txt, fixed = TRUE)),
+    sum(grepl(
+      "Each sequential trial was one enrollment period of 4 weeks.",
+      txt,
+      fixed = TRUE
+    )),
     2L
   )
   expect_gte(
@@ -369,7 +386,10 @@ test_that("the generated methods text names incidence density sampling and no pa
   # The enrollment period is 4 weeks wide, so two individuals in one trial cover
   # 3 weeks.
   expect_gte(sum(grepl("differed by up to 3 weeks", txt, fixed = TRUE)), 2L)
-  expect_gte(sum(grepl("The draw read no other variable.", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl("The draw read no other variable.", txt, fixed = TRUE)),
+    2L
+  )
   # Confounding adjustment is by weighting, at the recruiting week.
   expect_true(any(grepl("taken at the recruiting week", txt, fixed = TRUE)))
   # Item 8 reports the counts after the draw.
@@ -400,7 +420,11 @@ test_that("the generated methods text reads period_width and never prints its na
     fixed = TRUE
   )))
   expect_gte(
-    sum(grepl("Each sequential trial was one enrollment period of 8 weeks.", txt, fixed = TRUE)),
+    sum(grepl(
+      "Each sequential trial was one enrollment period of 8 weeks.",
+      txt,
+      fixed = TRUE
+    )),
     2L
   )
   expect_gte(sum(grepl("differed by up to 7 weeks", txt, fixed = TRUE)), 2L)
@@ -471,6 +495,26 @@ test_that("the CONSORT flow and node labels name incidence density sampling", {
 })
 
 
+test_that("the retired phrase flags the comparator-draw claim and passes the outcome-model statement", {
+  # True statements about the outcome model, as tteplan_osf_text() writes
+  # them.
+  true <- c(
+    "The outcome model holds no covariate.",
+    "It holds no covariate, so the exponentiated treatment coefficient is the marginal incidence rate ratio."
+  )
+  expect_identical(.cdn_retired(true), character(0))
+  # The retired claims about the comparator draw.
+  retired <- c(
+    "The comparator draw uses no covariate.",
+    "The draw read no covariate, so it was a ratio-based random sample.",
+    "It read no covariate.",
+    "The draw is seeded and reads no covariate.",
+    "No covariate enters it."
+  )
+  expect_identical(.cdn_retired(retired), retired)
+})
+
+
 test_that("no source file carries either retired formulation", {
   root <- .cdn_root()
   skip_if(is.null(root), "source tree not available")
@@ -479,7 +523,11 @@ test_that("no source file carries either retired formulation", {
   # `tests/` is excluded on purpose: this file holds the phrases it hunts.
   files <- c(
     list.files(file.path(root, "R"), pattern = "\\.R$", full.names = TRUE),
-    list.files(file.path(root, "vignettes"), pattern = "\\.Rmd$", full.names = TRUE),
+    list.files(
+      file.path(root, "vignettes"),
+      pattern = "\\.Rmd$",
+      full.names = TRUE
+    ),
     list.files(file.path(root, "man"), pattern = "\\.Rd$", full.names = TRUE),
     file.path(root, "NEWS.md")
   )

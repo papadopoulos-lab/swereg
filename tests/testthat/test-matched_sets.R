@@ -119,11 +119,14 @@
 
 # Every skeleton of a study, with its batch number.
 .ms_skeletons <- function(study) {
-  return(data.table::rbindlist(lapply(seq_len(study$n_batches), function(b) {
-    d <- data.table::copy(study$load_skeleton(b)$data)
-    d[, batch := b]
-    return(d)
-  }), fill = TRUE))
+  return(data.table::rbindlist(
+    lapply(seq_len(study$n_batches), function(b) {
+      d <- data.table::copy(study$load_skeleton(b)$data)
+      d[, batch := b]
+      return(d)
+    }),
+    fill = TRUE
+  ))
 }
 
 # ---- The ground truth: one one-person study per archetype ------------------
@@ -151,7 +154,8 @@
       d <- data.table::copy(study$load_skeleton(1L)$data)
       stopifnot(identical(unique(d$id), a), identical(unique(d$raw_id), a))
       d[, `:=`(archetype = a, .r = seq_len(.N))]
-      return(d[, c("archetype", ".r", "isoyearweek", .ms_compare_cols),
+      return(d[,
+        c("archetype", ".r", "isoyearweek", .ms_compare_cols),
         with = FALSE
       ])
     }))
@@ -212,7 +216,10 @@
   big_s <- max(spb)
   n_chunks <- max(x$chunk)
 
-  real <- unique(x[, list(r, chunk, set_id)])[, list(n_real = .N), by = list(r, chunk)]
+  real <- unique(x[, list(r, chunk, set_id)])[,
+    list(n_real = .N),
+    by = list(r, chunk)
+  ]
   slots <- data.table::CJ(r = seq_len(n_rosters), chunk = seq_len(n_chunks))
   slots <- real[slots, on = c("r", "chunk")]
   slots[is.na(n_real), n_real := 0L]
@@ -252,8 +259,15 @@
 }
 
 # Build, save and process a combined study. Returns the study.
-.ms_run_combined <- function(combined, n_workers = 1L, framework = .ms_framework) {
-  study <- .ms_study(withr::local_tempdir(.local_envir = parent.frame()), framework)
+.ms_run_combined <- function(
+  combined,
+  n_workers = 1L,
+  framework = .ms_framework
+) {
+  study <- .ms_study(
+    withr::local_tempdir(.local_envir = parent.frame()),
+    framework
+  )
   roster <- combined$roster
   study$set_matched_sets(
     roster[, list(lopnr, set_id, role, skeleton_id)],
@@ -290,14 +304,23 @@
   )])
   check <- got_roster[roster, on = c(batch = "chunk", id = "skeleton_id")]
   bad_roster <- check[
-    is.na(set_id) | set_id != i.set_id | role != i.role |
-      roster_lopnr != lopnr | raw_id != lopnr
+    is.na(set_id) |
+      set_id != i.set_id |
+      role != i.role |
+      roster_lopnr != lopnr |
+      raw_id != lopnr
   ]
   expect(
     nrow(bad_roster) == 0L && nrow(got_roster) == nrow(roster),
     paste0(
-      label, ": ", nrow(bad_roster), " memberships have wrong roster columns\n",
-      paste(utils::capture.output(print(utils::head(bad_roster, 10L))), collapse = "\n")
+      label,
+      ": ",
+      nrow(bad_roster),
+      " memberships have wrong roster columns\n",
+      paste(
+        utils::capture.output(print(utils::head(bad_roster, 10L))),
+        collapse = "\n"
+      )
     )
   )
 
@@ -325,20 +348,37 @@
   }
   joined[, row_ok := row_ok]
   n_ref <- ref[, list(n_ref = .N), by = archetype]
-  per_id <- joined[, list(ok = all(row_ok), n = .N, archetype = archetype[1L]),
+  per_id <- joined[,
+    list(ok = all(row_ok), n = .N, archetype = archetype[1L]),
     by = list(batch, id)
   ]
   per_id <- n_ref[per_id, on = "archetype"]
   differs <- per_id[!ok | is.na(n_ref) | n != n_ref]
-  bad <- roster[differs, on = c(chunk = "batch", skeleton_id = "id"), nomatch = NULL]
+  bad <- roster[
+    differs,
+    on = c(chunk = "batch", skeleton_id = "id"),
+    nomatch = NULL
+  ]
   expect(
     nrow(differs) == 0L,
     paste0(
-      label, ": ", nrow(differs), " of ", nrow(roster),
+      label,
+      ": ",
+      nrow(differs),
+      " of ",
+      nrow(roster),
       " memberships differ from the one-person study of their person\n",
       paste(
         utils::capture.output(print(utils::head(
-          bad[, list(chunk, skeleton_id, lopnr, set_id, role, n_memberships, archetype)],
+          bad[, list(
+            chunk,
+            skeleton_id,
+            lopnr,
+            set_id,
+            role,
+            n_memberships,
+            archetype
+          )],
           10L
         ))),
         collapse = "\n"
@@ -359,7 +399,10 @@ test_that("every membership of every roster of 1-3 cases and 1-4 controls matche
   n_rosters <- data.table::uniqueN(rosters$r)
 
   # A control in two sets is the case the invariant exists for.
-  n_multi <- rosters[role == "control", list(n = .N), by = list(r, lopnr)][n > 1L, .N]
+  n_multi <- rosters[role == "control", list(n = .N), by = list(r, lopnr)][
+    n > 1L,
+    .N
+  ]
   expect_gt(n_multi, 0L)
 
   for (s in 1:3) {
@@ -378,7 +421,11 @@ test_that("every membership of every roster of 1-3 cases and 1-4 controls matche
 .ms_random_roster <- function(spb) {
   n_sets <- sample(5:30, 1L)
   sets <- seq_len(n_sets)
-  rows <- list(data.table::data.table(lopnr = sets, set_id = sets, role = "case"))
+  rows <- list(data.table::data.table(
+    lopnr = sets,
+    set_id = sets,
+    role = "case"
+  ))
   next_id <- n_sets
   n_controls <- sample(n_sets:(2L * n_sets), 1L)
   for (j in seq_len(n_controls)) {
@@ -417,9 +464,17 @@ test_that("every membership of every roster of 1-3 cases and 1-4 controls matche
   shared <- people[stats::runif(length(people)) < 0.5]
   x[, k_in_batch := seq_len(.N), by = list(lopnr, chunk)]
   x[, k_all := seq_len(.N), by = lopnr]
-  x[, skeleton_id := lopnr * 100L +
-    data.table::fifelse(lopnr %in% shared, k_in_batch, 50L + k_all)]
-  x[, archetype := sample(1:10, length(people), replace = TRUE)[match(lopnr, people)]]
+  x[,
+    skeleton_id := lopnr *
+      100L +
+      data.table::fifelse(lopnr %in% shared, k_in_batch, 50L + k_all)
+  ]
+  x[,
+    archetype := sample(1:10, length(people), replace = TRUE)[match(
+      lopnr,
+      people
+    )]
+  ]
   return(x[, list(lopnr, set_id, role, skeleton_id, archetype)])
 }
 
@@ -435,14 +490,19 @@ test_that("every membership of 200 random rosters matches a one-person study", {
 
   # The generator reaches each shape the test is for.
   real <- combined$roster[role != "filler"]
-  per_lopnr <- real[, list(
-    n_batches = data.table::uniqueN(chunk),
-    n_ids = data.table::uniqueN(skeleton_id),
-    n_in_one_batch = max(table(chunk))
-  ), by = lopnr]
+  per_lopnr <- real[,
+    list(
+      n_batches = data.table::uniqueN(chunk),
+      n_ids = data.table::uniqueN(skeleton_id),
+      n_in_one_batch = max(table(chunk))
+    ),
+    by = lopnr
+  ]
   expect_gt(per_lopnr[n_in_one_batch > 1L, .N], 0L)
   expect_gt(real[role == "sibling", .N], 0L)
-  repeated <- real[, list(n = data.table::uniqueN(chunk)), by = skeleton_id][n > 1L]
+  repeated <- real[, list(n = data.table::uniqueN(chunk)), by = skeleton_id][
+    n > 1L
+  ]
   expect_gt(nrow(repeated), 0L)
 
   study <- .ms_run_combined(combined)
@@ -470,12 +530,17 @@ test_that("a roster with every skeleton_id equal to its lopnr writes the rawbatc
       study$save_rawbatch("persons", data.table::copy(raw$persons))
       study$save_rawbatch(
         "outpatient",
-        list(op = data.table::copy(raw$outpatient), lookup = data.frame(code = "X01"))
+        list(
+          op = data.table::copy(raw$outpatient),
+          lookup = data.frame(code = "X01")
+        )
       )
     }))
     return(list(dir = dir, study = study))
   }
-  by_roster <- write(function(s) s$set_matched_sets(roster, sets_per_batch = 2L))
+  by_roster <- write(function(s) {
+    s$set_matched_sets(roster, sets_per_batch = 2L)
+  })
   expect_identical(
     unname(by_roster$study$batch_id_list),
     list(1:3, 4:6)
@@ -514,7 +579,10 @@ test_that("save_rawbatch writes a row once per skeleton_id of its lopnr, in inpu
   lookup <- data.frame(code = "X01")
 
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_rawbatch_dir = dir, group_names = "outpatient")
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = "outpatient"
+  )
   study$set_matched_sets(roster, sets_per_batch = 2L)
   invisible(utils::capture.output(
     study$save_rawbatch("outpatient", list(op = op, lookup = lookup))
@@ -621,7 +689,9 @@ test_that("set_matched_sets never splits a set across batches", {
       return(paste("refused:", refused))
     }
     got <- data.table::rbindlist(study$matched_set_roster, idcol = "batch")
-    split_sets <- got[, list(n = data.table::uniqueN(batch)), by = set_id][n > 1L]
+    split_sets <- got[, list(n = data.table::uniqueN(batch)), by = set_id][
+      n > 1L
+    ]
     if (nrow(split_sets) > 0L) {
       return(paste("set split across batches:", split_sets$set_id[1L]))
     }
@@ -646,13 +716,19 @@ test_that("set_matched_sets never splits a set across batches", {
   # every membership of the 2924 rosters with up to 4 controls.
   exhaustive <- .ms_exhaustive_rosters(controls = 1:3)
   expect_identical(data.table::uniqueN(exhaustive$r), 441L)
-  by_roster <- split(exhaustive[, list(lopnr, set_id, role, skeleton_id)], exhaustive$r)
+  by_roster <- split(
+    exhaustive[, list(lopnr, set_id, role, skeleton_id)],
+    exhaustive$r
+  )
   failed <- character(0)
   for (s in 1:3) {
     for (r in names(by_roster)) {
       why <- check_packing(by_roster[[r]], s)
       if (!is.null(why)) {
-        failed <- c(failed, sprintf("exhaustive roster %s, sets_per_batch %d: %s", r, s, why))
+        failed <- c(
+          failed,
+          sprintf("exhaustive roster %s, sets_per_batch %d: %s", r, s, why)
+        )
       }
     }
   }
@@ -664,13 +740,17 @@ test_that("set_matched_sets never splits a set across batches", {
     roster <- .ms_random_roster(s)[, list(lopnr, set_id, role, skeleton_id)]
     why <- check_packing(roster, s)
     if (!is.null(why)) {
-      failed <- c(failed, sprintf("random roster %d, sets_per_batch %d: %s", r, s, why))
+      failed <- c(
+        failed,
+        sprintf("random roster %d, sets_per_batch %d: %s", r, s, why)
+      )
     }
   }
   expect(
     length(failed) == 0L,
     paste0(
-      length(failed), " rosters are packed wrong:\n",
+      length(failed),
+      " rosters are packed wrong:\n",
       paste(utils::head(failed, 10L), collapse = "\n")
     )
   )
@@ -679,6 +759,7 @@ test_that("set_matched_sets never splits a set across batches", {
 # ---- Test 6: workers -------------------------------------------------------
 
 test_that("with two workers, every membership of every roster of 2 cases and 3 controls matches a one-person study", {
+  skip_if_not_installed("mirai")
   rosters <- .ms_exhaustive_rosters(cases = 2L, controls = 3L)
   expect_identical(data.table::uniqueN(rosters$r), 27L)
   # One combined roster per (roster, sets_per_batch) pair.
@@ -687,36 +768,6 @@ test_that("with two workers, every membership of every roster of 2 cases and 3 c
   }))
   pairs[, r := (s - 1L) * 27L + r]
   combined <- .ms_interleave(pairs[, -"s"], rep(1:3, each = 27L))
-
-  # A daemon of save_rawbatch() unserializes its slice of the persons table.
-  # The slice carries the probe attribute of the table. mirai calls the
-  # registered unserialize function on the probe, in the daemon, and that
-  # function records the process id. A serial save_rawbatch() unserializes
-  # nothing, so it records no process id.
-  pid_dir <- withr::local_tempdir()
-  # mirai::register_serial() cannot remove a registration. The test restores
-  # the internal registry of mirai when it stops.
-  mirai_state <- get(".", envir = asNamespace("mirai"))
-  old_serial <- mirai_state[["serial"]]
-  withr::defer(assign("serial", old_serial, envir = mirai_state))
-  # The first call in a daemon waits 1 second. The dispatcher then gives the
-  # next slice to the other daemon, so a fast daemon cannot take every slice.
-  record_pid <- eval(bquote(function(raw) {
-    f <- file.path(.(pid_dir), paste0("pid_", Sys.getpid()))
-    if (!file.exists(f)) {
-      writeLines("", f)
-      Sys.sleep(1)
-    }
-    return(new.env())
-  }))
-  send_probe <- function(x) {
-    return(serialize(NULL, NULL))
-  }
-  # mirai sends both functions to each daemon. A function defined here
-  # encloses the test frame, which holds the probe, and save_rawbatch() hangs.
-  environment(record_pid) <- baseenv()
-  environment(send_probe) <- baseenv()
-  mirai::register_serial("swereg_ms_pid_probe", send_probe, record_pid)
 
   dir <- withr::local_tempdir()
   study <- .ms_study(dir, framework = .ms_framework_pid)
@@ -727,23 +778,52 @@ test_that("with two workers, every membership of every roster of 2 cases and 3 c
   )
   people <- unique(roster[, list(lopnr, archetype)])
   raw <- .ms_raw(people$lopnr, people$archetype)
-  data.table::setattr(
-    raw$persons,
-    "pid_probe",
-    structure(new.env(), class = "swereg_ms_pid_probe")
-  )
   .ms_save_rawbatch(study, raw, 2L)
   .ms_process(study, n_workers = 2L)
 
-  rawbatch_pids <- as.integer(sub("^pid_", "", list.files(pid_dir)))
-  expect_gte(length(rawbatch_pids), 2L)
-  expect_false(Sys.getpid() %in% rawbatch_pids)
+  # Each skeleton records the process id of the process that built it, from
+  # `.ms_framework_pid()`. The test reads no internal state of mirai. Under
+  # load one worker MAY build every batch, so the test asks for one worker
+  # process and not for two.
   skeleton_pids <- unique(.ms_skeletons(study)$worker_pid)
-  expect_gte(length(skeleton_pids), 1L)
   expect_false(anyNA(skeleton_pids))
+  expect_gte(length(setdiff(skeleton_pids, Sys.getpid())), 1L)
   expect_false(Sys.getpid() %in% skeleton_pids)
 
   .ms_expect_invariant(study, combined, "two workers")
+})
+
+# ---- swereg 27.3.9: the class of the id column ------------------------------
+
+test_that("the id column takes the class of skeleton_id with an identity and a non-identity roster", {
+  # lopnr is integer in the rawbatch data. Both rosters hold a double
+  # skeleton_id. The first equals lopnr, the second does not.
+  persons <- data.table::data.table(lopnr = 1:4, v = letters[1:4])
+  write <- function(skeleton_id) {
+    roster <- data.table::data.table(
+      lopnr = 1:4,
+      set_id = c("a", "a", "b", "b"),
+      role = c("case", "control", "case", "control"),
+      skeleton_id = skeleton_id
+    )
+    study <- RegistryStudy$new(
+      data_rawbatch_dir = withr::local_tempdir(.local_envir = parent.frame()),
+      group_names = "persons"
+    )
+    study$set_matched_sets(roster, sets_per_batch = 2L)
+    invisible(utils::capture.output(
+      study$save_rawbatch("persons", data.table::copy(persons))
+    ))
+    return(study$load_rawbatch(1L)$persons)
+  }
+  identity <- write(c(1, 2, 3, 4))
+  other <- write(c(11, 12, 13, 14))
+  expect_identical(class(identity$lopnr), "numeric")
+  expect_identical(class(identity$lopnr), class(other$lopnr))
+  expect_identical(identity$lopnr, c(1, 2, 3, 4))
+  expect_identical(other$lopnr, c(11, 12, 13, 14))
+  expect_identical(identity$v, letters[1:4])
+  expect_identical(other$v, letters[1:4])
 })
 
 # ---- Test 7: a changed roster ----------------------------------------------

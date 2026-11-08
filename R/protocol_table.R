@@ -702,7 +702,8 @@
       # A restricted spec lists the horizons of this ETT's own enrollment,
       # from `plan$ett`. An unrestricted spec keeps the 27.3.1 line, which
       # reads the spec, also for a plan whose ETT table was built by hand.
-      weeks <- if (.tte_follow_up_restricted(spec)) {
+      restricted <- .tte_follow_up_restricted(spec)
+      weeks <- if (restricted) {
         ctx$grid_weeks
       } else {
         vapply(
@@ -720,7 +721,11 @@
         ),
         paste0("Horizon on this sheet: ", ctx$follow_up_weeks, " weeks"),
         paste0(
-          "Horizons in the ETT grid: ",
+          if (restricted) {
+            "Horizons of this comparison: "
+          } else {
+            "Horizons in the ETT grid: "
+          },
           paste(weeks, collapse = ", "),
           " weeks"
         )
@@ -808,11 +813,13 @@
 #' @param spec Parsed spec list. It MUST carry
 #'   `min_expected_events_per_arm_per_year`.
 #' @return A character(1). With `min_expected_events_per_arm_per_year` 0, the
-#'   line says that the rule withholds no estimate. When the spec exempts an
+#'   line says that the rule withholds no estimate, and then how the expected
+#'   events are computed. When the spec exempts an
 #'   enrollment, the withholding sentence carries ", except in an exempt
 #'   comparison,", and the sentence of `.tte_exempt_rule_sentence()` ends the
 #'   line. With a threshold of 0 that sentence also ends the line. Without an
-#'   exempt enrollment the line is the line of swereg 27.3.0.
+#'   exempt enrollment and with a threshold above 0, the line is the line of
+#'   swereg 27.3.0. Swereg 27.3.9 split the line of a threshold of 0 in two.
 #' @noRd
 .protocol_horizon_rule_line <- function(spec) {
   .tte_assert_horizon_rule_present(spec, "the target trial protocol")
@@ -827,9 +834,14 @@
   )
   exempt <- .tte_exempt_rule_sentence(spec)
   if (value == 0) {
+    # Two sentences, each of at most 25 words.
     return(paste0(
-      first,
-      ", so no estimate is withheld",
+      "Minimum-events rule: at least ",
+      k,
+      " expected events per arm in each year of follow-up, so no estimate ",
+      "is withheld. The expected events are computed under the null as the ",
+      "pooled weighted event rate of both arms times the weighted ",
+      "person-years of the arm",
       if (!is.null(exempt)) paste0(". ", exempt)
     ))
   }

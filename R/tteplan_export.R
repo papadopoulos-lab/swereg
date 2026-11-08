@@ -118,8 +118,7 @@
     if (length(eids_analysed) == 0L) {
       stop(
         "No enrollment has a stored IPW-truncated baseline panel, so ",
-        "Table 1 cannot be drawn. Run ",
-        "$recompute_baselines().",
+        "Table 1 cannot be drawn. Re-run s3 ($s3_analyze()).",
         call. = FALSE
       )
     }
@@ -236,7 +235,7 @@
       "Enrollment ",
       table1_enrollment,
       " has no stored IPW-truncated baseline panel, so Table 1 cannot be ",
-      "drawn. Run $recompute_baselines(), or name another enrollment in ",
+      "drawn. Re-run s3 ($s3_analyze()), or name another enrollment in ",
       "`table1_enrollment`.",
       call. = FALSE
     )
@@ -553,7 +552,7 @@
           paste0(
             ". No Love plot, because no numeric SMDs are stored: ",
             paste(love_skipped, collapse = ", "),
-            ". Run $recompute_baselines()."
+            ". Re-run s3 ($s3_analyze())."
           )
         } else {
           ""

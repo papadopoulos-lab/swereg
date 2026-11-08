@@ -217,7 +217,8 @@ when a stored result carries another id.}
 has not run. It holds the decision of the minimum-events rule for
 each ETT and estimand, with the weighted person-years of each arm and
 window. It holds no event count, rate or expected events.
-\verb{$s3_analyze()} does not read it.}
+\verb{$s3_analyze()} does not read it. \verb{$s1_generate_enrollments_and_ipw()}
+and \verb{$s2_generate_analysis_files_and_ipcw_pp()} set it to NULL.}
 
     \item{\code{spec_version}}{Character. Spec version tag (e.g. \code{"v003"}) that
 selects the YAML filename and the results sub-directory.}
@@ -703,7 +704,10 @@ per-batch draw). Produces panel-expanded TTEEnrollment objects.
       \item{\code{impute_fn}}{Imputation callback or NULL (default:
 \link{tteenrollment_impute_confounders}). swereg calls it with the panel and
 with the \code{.tte_entry__} snapshot names, not with the plain confounder
-names. It MUST impute only the columns it is given.}
+names. It MUST impute only the columns it is given. A custom \code{impute_fn}
+MUST fit on the baseline rows only (\code{tstart == 0}), as the default does.
+s1 can build panels to the feasibility horizon, and a fit on all panel
+rows would let those weeks change the reported estimates.}
       \item{\code{stabilize}}{Logical, stabilize IPW (default: TRUE).}
       \item{\code{n_workers}}{Integer, concurrent subprocesses. Default
 \link{default_n_workers}\code{("s1")} (1 unless \code{SWEREG_N_WORKERS_S1} is set).}
@@ -901,7 +905,8 @@ are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
 The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
 printed. The spec key \code{feasibility_follow_up_weeks} adds one, and a
 follow-up that is not a whole number of years adds one at its next whole
-year.
+year. When the plan holds N > 0 of them, the ETT count line ends with
+\verb{+ N feasibility-horizon ETT(s)}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print(...)}
@@ -930,7 +935,9 @@ the decision reads \verb{not decided yet (s1 has not run)}. A stored decision
 prints only when the rule in \verb{$spec} still hashes to \verb{$sparse_rule_hash} and
 s1 completed for it. Otherwise the decision reads \verb{not decided yet (s1 has not completed for this rule)}. It also prints the minimum-events rule,
 \code{min_expected_events_per_arm_per_year}: the minimum number of expected events
-per arm in each follow-up year.
+per arm in each follow-up year. A follow-up that is not a whole number of
+years takes the verdict of the rule at the next whole year. The summary
+prints that year under the follow-up, and names the horizon-only ETT.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_spec_summary()}
@@ -1670,8 +1677,9 @@ then covers the horizon-only ETTs too.}
   Export the study specification to a standalone Excel file.
 
 Writes the preregistration sheets of the plan. The Study Specification
-sheet summarises the spec (design, criteria, confounders, outcomes,
-enrollments) with ICD-10/ATC code annotations from the code registry. The
+sheet summarises the spec (design, follow-up, criteria, confounders, the
+minimum-events rule, outcomes, enrollments) with ICD-10/ATC code
+annotations from the code registry. The
 Target trial protocol sheet documents one ETT. The Rare conditions sheet
 is written only when the plan holds a current sparse decision: the rule in
 \verb{$spec} still hashes to \verb{$sparse_rule_hash}, and s1 completed for it.
@@ -1710,6 +1718,10 @@ the plan does not hold warns and falls back to the first ETT.}
   Refresh cosmetic spec fields (enrollment names, treatment
 arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.
+
+It also copies \code{min_expected_events_per_arm_per_year}, the threshold of the
+minimum-events rule. A changed threshold needs no rerun of s1 or s2. The
+writers stop until \verb{$s3_analyze()} reruns.
 
 Structural fields (confounders, exclusion criteria, follow-up windows,
 comparator-draw parameters, etc.) are \emph{not} applied - they would invalidate

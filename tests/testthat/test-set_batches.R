@@ -66,8 +66,16 @@ skip_if_not_installed("withr")
 }
 
 .sb_expect_id3_in_batches_1_and_3 <- function(study) {
-  expect_identical(.sb_id3_weeks(study, 1L), c(TRUE, TRUE), info = "skeleton_00001")
-  expect_identical(.sb_id3_weeks(study, 3L), c(TRUE, TRUE), info = "skeleton_00003")
+  expect_identical(
+    .sb_id3_weeks(study, 1L),
+    c(TRUE, TRUE),
+    info = "skeleton_00001"
+  )
+  expect_identical(
+    .sb_id3_weeks(study, 3L),
+    c(TRUE, TRUE),
+    info = "skeleton_00003"
+  )
   # Batch 2 holds id 5, and id 5 has one diagnosis week.
   d2 <- study$load_skeleton(2L)$data
   expect_identical(sum(d2[id == 5L & !is_isoyear, ov_e11]), 1L)
@@ -333,4 +341,192 @@ test_that("a store written by swereg 27.2.6 runs with no stop and no rebuilt bat
     study$process_skeletons(n_workers = 1L)
   )))
   expect_identical(file_state(dir), before)
+})
+
+# ---- swereg 27.3.9: the guard of a fresh study -------------------------------
+
+# A study with the rawbatch files of `batches` and the meta file of that
+# composition, in a fresh directory. `meta = FALSE` deletes the meta file.
+.sb_saved_store <- function(batches, meta = TRUE, env = parent.frame()) {
+  dir <- withr::local_tempdir(.local_envir = env)
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = "persons",
+    batch_size = 3L
+  )
+  study$set_batches(batches)
+  invisible(utils::capture.output({
+    study$save_rawbatch("persons", data.table::data.table(lopnr = 1:6))
+    study$save_meta()
+  }))
+  if (!meta) {
+    unlink(study$meta_file)
+  }
+  return(dir)
+}
+
+.sb_fresh <- function(dir) {
+  return(RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = "persons",
+    batch_size = 3L
+  ))
+}
+
+test_that("a fresh study stops on a composition that differs from the one in its meta file", {
+  dir <- .sb_saved_store(list(1:3, 4:6))
+  fresh <- .sb_fresh(dir)
+  expect_null(fresh$batch_composition_digest)
+  expect_error(
+    fresh$set_batches(list(1:2, 3:6)),
+    "set_batches\\(\\): the new batch composition differs .* 2 rawbatch and 0 skeleton files"
+  )
+  expect_error(
+    fresh$set_ids(1:6),
+    "set_ids\\(\\): the new batch composition differs"
+  )
+  roster <- data.table::data.table(
+    lopnr = 1:6,
+    set_id = c("a", "a", "a", "b", "b", "b"),
+    role = "case",
+    skeleton_id = 11:16
+  )
+  expect_error(
+    fresh$set_matched_sets(roster, sets_per_batch = 1L),
+    "set_matched_sets\\(\\): the new batch composition differs"
+  )
+  # The failed calls set nothing.
+  expect_null(fresh$batch_composition_digest)
+  expect_identical(fresh$batch_id_list, list())
+})
+
+test_that("a fresh study accepts the composition of its meta file", {
+  dir <- .sb_saved_store(list(1:3, 4:6))
+  fresh <- .sb_fresh(dir)
+  expect_no_error(fresh$set_batches(list(1:3, 4:6)))
+  expect_identical(
+    fresh$batch_composition_digest,
+    digest::digest(fresh$batch_id_list)
+  )
+  expect_identical(fresh$groups_saved, "persons")
+})
+
+test_that("a fresh study with rawbatch files and no meta file stops and names the files", {
+  dir <- .sb_saved_store(list(1:3, 4:6), meta = FALSE)
+  fresh <- .sb_fresh(dir)
+  expect_false(file.exists(fresh$meta_file))
+  err <- expect_error(fresh$set_batches(list(1:3, 4:6)))
+  expect_match(
+    conditionMessage(err),
+    "set_batches(): the study records no batch composition",
+    fixed = TRUE
+  )
+  expect_match(
+    conditionMessage(err),
+    "00001_rawbatch_persons.qs2, 00002_rawbatch_persons.qs2",
+    fixed = TRUE
+  )
+})
+
+test_that("the adopt path calls no set_* method and keeps the composition of the meta file", {
+  dir <- .sb_saved_store(list(1:3, 4:6))
+  fresh <- .sb_fresh(dir)
+  saved <- qs2_read(fresh$meta_file)
+  expect_no_error(fresh$adopt_runtime_state_from(saved))
+  expect_identical(fresh$batch_id_list, saved$batch_id_list)
+  expect_identical(
+    fresh$batch_composition_digest,
+    saved$batch_composition_digest
+  )
+  expect_identical(fresh$batch_composition_source, "set_batches()")
+  # The adopted digest is the recorded one, so the guard stops a new
+  # composition and passes the recorded one.
+  expect_error(fresh$set_batches(list(1:2, 3:6)), "differs")
+  expect_no_error(fresh$set_batches(list(1:3, 4:6)))
+})
+
+# ---- swereg 27.3.9: the overlap path of save_rawbatch() ---------------------
+
+test_that("save_rawbatch stops on a bare data.table without the id column on the overlap and the BID path", {
+  for (batches in list(overlap = list(1:3, 3:6), bid = list(1:3, 4:6))) {
+    study <- RegistryStudy$new(
+      data_rawbatch_dir = withr::local_tempdir(),
+      group_names = "persons"
+    )
+    study$set_batches(batches)
+    expect_error(
+      invisible(utils::capture.output(
+        study$save_rawbatch("persons", data.table::data.table(x = 1:3))
+      )),
+      "save_rawbatch(): the data.table of group 'persons' has no column `lopnr`",
+      fixed = TRUE
+    )
+    expect_length(list.files(study$data_rawbatch_dir), 0L)
+  }
+})
+
+test_that("a slice of the overlap path has no key and no index, as a slice of the BID path", {
+  slices <- list()
+  for (path in c("overlap", "bid")) {
+    batches <- if (path == "overlap") list(1:3, 3:6) else list(1:3, 4:6)
+    study <- RegistryStudy$new(
+      data_rawbatch_dir = withr::local_tempdir(),
+      group_names = "persons"
+    )
+    study$set_batches(batches)
+    persons <- data.table::data.table(lopnr = 6:1, v = 1:6)
+    data.table::setkey(persons, lopnr)
+    data.table::setindex(persons, v)
+    invisible(utils::capture.output(study$save_rawbatch("persons", persons)))
+    slices[[path]] <- study$load_rawbatch(1L)$persons
+  }
+  for (path in names(slices)) {
+    expect_null(data.table::key(slices[[path]]), label = path)
+    expect_null(data.table::indices(slices[[path]]), label = path)
+  }
+  expect_identical(slices$overlap$lopnr, 1:3)
+  expect_identical(slices$bid$lopnr, 1:3)
+})
+
+# ---- swereg 27.3.9: the print -----------------------------------------------
+
+test_that("print counts no roster file under Rawbatch groups saved, and names the source of a composition", {
+  print_of <- function(set) {
+    study <- RegistryStudy$new(
+      data_rawbatch_dir = withr::local_tempdir(.local_envir = parent.frame()),
+      group_names = "persons",
+      batch_size = 3L
+    )
+    set(study)
+    invisible(utils::capture.output(
+      study$save_rawbatch("persons", data.table::data.table(lopnr = 1:6))
+    ))
+    return(utils::capture.output(print(study)))
+  }
+  roster <- data.table::data.table(
+    lopnr = 1:6,
+    set_id = c("a", "a", "b", "b", "c", "c"),
+    role = c("case", "control", "case", "control", "case", "control"),
+    skeleton_id = 11:16
+  )
+  by_ids <- print_of(function(s) s$set_ids(1:6))
+  by_batches <- print_of(function(s) s$set_batches(list(1:3, 4:6)))
+  by_sets <- print_of(function(s) {
+    return(s$set_matched_sets(roster, sets_per_batch = 2L))
+  })
+
+  expect_true("  Batches: 2 ( 3 IDs each)" %in% by_ids)
+  expect_true("  Batches: 2 (from set_batches())" %in% by_batches)
+  expect_true("  Batches: 2 (from set_matched_sets())" %in% by_sets)
+  expect_false(any(grepl("IDs each", by_batches, fixed = TRUE)))
+  expect_false(any(grepl("IDs each", by_sets, fixed = TRUE)))
+
+  # Two "persons" files. The two "roster" files are on disk and not counted.
+  saved <- grep("Rawbatch groups saved", by_sets, value = TRUE)
+  expect_match(saved, "Rawbatch groups saved: persons ( 2 files,", fixed = TRUE)
+  expect_match(
+    grep("Rawbatch groups saved", by_ids, value = TRUE),
+    "Rawbatch groups saved: persons ( 2 files,",
+    fixed = TRUE
+  )
 })

@@ -307,16 +307,28 @@ test_that("(d) the spec summary and the protocol table name the enrollment", {
       swereg:::.protocol_context(plan, id)
     ))
   }
+  # A restricted spec names the horizons of this comparison.
   expect_match(
     emu("ETT00001"),
-    "Horizons in the ETT grid: 26, 52, 156 weeks",
+    "Horizons of this comparison: 26, 52, 156 weeks",
     fixed = TRUE
   )
   expect_match(
     emu("ETT00007"),
-    "Horizons in the ETT grid: 26, 52 weeks",
+    "Horizons of this comparison: 26, 52 weeks",
     fixed = TRUE
   )
+  expect_false(grepl("Horizons in the ETT grid", emu("ETT00001"), fixed = TRUE))
+
+  # A spec without `only_enrollments` keeps the label of 27.3.1.
+  plain <- .oe_plan(.oe_spec(.OE_FU_C))$plan
+  emu_plain <- swereg:::.protocol_emulation(
+    plain$spec,
+    "follow_up_period",
+    swereg:::.protocol_context(plain, "ETT00001")
+  )
+  expect_match(emu_plain, "Horizons in the ETT grid: ", fixed = TRUE)
+  expect_false(grepl("Horizons of this comparison", emu_plain, fixed = TRUE))
 })
 
 test_that("(d) the spec summary sheet names the enrollment", {

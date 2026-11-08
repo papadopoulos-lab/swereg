@@ -50,3 +50,7 @@ dev/**/*.rds
 
 # knitr::knit() run from the repo root writes its default fig.path here
 /figure/
+
+# A failing testthat::test_file() writes these into the repository
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds

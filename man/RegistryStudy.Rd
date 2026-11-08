@@ -171,6 +171,11 @@ when it is set. \verb{$set_ids()}, \verb{$set_batches()} and
 \verb{$set_matched_sets()} set it. A study saved by swereg 27.2.6 or
 earlier has none.}
 
+    \item{\code{batch_composition_source}}{Character or NULL. The method that
+set the batch composition: \code{"set_ids()"}, \code{"set_batches()"} or
+\code{"set_matched_sets()"}. A study saved by swereg 27.3.8 or earlier
+has none.}
+
     \item{\code{matched_set_roster}}{List of data.tables, one per batch, or
 NULL. Each holds the roster rows of that batch, in roster row
 order. \verb{$set_matched_sets()} sets it. \verb{$set_ids()} and
@@ -346,7 +351,9 @@ message if the file is missing.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{group}}{Character. Group name (must be in group_names).}
-      \item{\code{data}}{data.table or named list of data.tables.}
+      \item{\code{data}}{data.table or named list of data.tables. A bare data.table
+MUST hold the ID column \code{id_col}, and the method stops without it. A list
+element without that column goes whole into every batch.}
       \item{\code{n_workers}}{Integer. Number of parallel writers (default 1L,
 serial). When > 1L, slices are written concurrently via mirai
 daemons; the 'mirai' package must be installed. Each splittable
@@ -358,7 +365,7 @@ lookups instead of O(n) \code{\%in\%} scans. RAM stays ~1x the input
 An ID MAY be in more than one batch (see \verb{$set_batches()}). Then
 each batch gets the rows of the IDs it holds, in input order, by one
 \code{\%in\%} scan per batch. That path adds no \code{BID} column and does not
-change the caller's tables.
+change the caller's tables. On both paths a slice has no key.
 
 After \verb{$set_matched_sets()}, each batch gets every row of a person
 once for each \code{skeleton_id} of that person in the batch. The ID column
@@ -366,7 +373,8 @@ of each copy holds that \code{skeleton_id}. The copies of one row are adjacent,
 and the rows keep their input order. The ID column takes the type of
 \code{skeleton_id}. The other columns do not change. Before it writes the
 group, the method writes each missing \code{"roster"} file. A roster where
-every \code{skeleton_id} equals the person ID takes the paths above.}
+every \code{skeleton_id} equals the person ID takes the paths above when the
+ID column already has the class of \code{skeleton_id}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1079,7 +1087,8 @@ column, and a new object otherwise.
 \if{html}{\out{<a id="method-RegistryStudy-set_ids"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-set_ids}{}}}
 \subsection{\code{RegistryStudy$set_ids()}}{
-  Set IDs and split into batches.
+  Set IDs and split into batches. The guard of
+\verb{$set_batches()} applies.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$set_ids(ids)}
@@ -1109,8 +1118,11 @@ a person in two batches twice.
 
 The method stops when rawbatch or skeleton files are on disk and
 the new composition differs from the recorded one. A study with
-no recorded composition, for example one saved by swereg 27.2.6,
-records the new one and continues.
+no recorded composition, for example a fresh study, compares with
+the composition of the study in its meta file, \code{registrystudy.qs2}.
+It stops when that file is absent or holds no composition. With no
+rawbatch or skeleton file on disk, the method records the new
+composition and continues.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$set_batches(batches)}
@@ -1156,7 +1168,9 @@ the \code{skeleton_id} unchanged. Every phase function reads them as
 
 A roster where every \code{skeleton_id} equals the person ID gives the
 same rawbatch files as \verb{$set_batches()} on the same IDs, plus the
-\code{"roster"} files.
+\code{"roster"} files, when the person ID has the class of \code{skeleton_id}.
+Otherwise the ID column takes the class of \code{skeleton_id}, as with
+any other roster.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$set_matched_sets(roster, sets_per_batch)}

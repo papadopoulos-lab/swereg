@@ -33,9 +33,9 @@ library(data.table)
 .pa_mk_study <- function(specs = list()) {
   dir <- withr::local_tempdir(.local_envir = parent.frame())
   study <- RegistryStudy$new(
-    data_rawbatch_dir   = dir,
-    group_names         = c("grp1"),
-    batch_size          = 3L,
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L,
     population_by_specs = specs
   )
   study$set_ids(1:6)
@@ -80,9 +80,9 @@ test_that("study$population reads cached aggregations matching old uniqueN(id) s
 test_that("adding a new spec triggers a meta-only refresh -- skeleton untouched", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_rawbatch_dir   = dir,
-    group_names         = c("grp1"),
-    batch_size          = 3L,
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L,
     population_by_specs = list("saab")
   )
   study$set_ids(1:6)
@@ -93,9 +93,9 @@ test_that("adding a new spec triggers a meta-only refresh -- skeleton untouched"
   study$register_framework(.pa_framework)
   study$process_skeletons()
 
-  sk_path   <- file.path(dir, "skeleton_00001.qs2")
+  sk_path <- file.path(dir, "skeleton_00001.qs2")
   meta_path <- file.path(dir, "meta_00001.qs2")
-  sk_mtime_before   <- file.mtime(sk_path)
+  sk_mtime_before <- file.mtime(sk_path)
   meta_mtime_before <- file.mtime(meta_path)
 
   # Sleep one second so mtime resolution can distinguish before/after
@@ -105,17 +105,21 @@ test_that("adding a new spec triggers a meta-only refresh -- skeleton untouched"
   # same directory and re-run. The skeleton on disk is still valid;
   # only the meta should be rewritten.
   study2 <- RegistryStudy$new(
-    data_rawbatch_dir   = dir,
-    group_names         = c("grp1"),
-    batch_size          = 3L,
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L,
     population_by_specs = list("saab", c("saab", "age"))
   )
   study2$set_ids(1:6)
   study2$register_framework(.pa_framework)
   study2$process_skeletons()
 
-  expect_equal(file.mtime(sk_path), sk_mtime_before,
-               tolerance = 0.1, info = "skeleton must not have been rewritten")
+  expect_equal(
+    file.mtime(sk_path),
+    sk_mtime_before,
+    tolerance = 0.1,
+    info = "skeleton must not have been rewritten"
+  )
   expect_gt(as.numeric(file.mtime(meta_path) - meta_mtime_before), 0)
 
   meta <- study2$load_skeleton_meta(1L)
@@ -160,4 +164,21 @@ test_that("population_by_specs validation rejects bad shapes", {
     ),
     "non-empty character vector"
   )
+})
+
+
+test_that("population(by = 'isoyear') gives one row per isoyear with the columns isoyear and n", {
+  study <- .pa_mk_study(specs = list("isoyear"))
+  invisible(utils::capture.output(study$process_skeletons()))
+
+  pop <- study$population(by = "isoyear")
+  expect_identical(names(pop), c("isoyear", "n"))
+  # Six persons in each of the two isoyears of the framework.
+  expect_identical(pop$isoyear, c(2020L, 2021L))
+  expect_identical(pop$n, c(6L, 6L))
+
+  # Each batch holds three persons in each isoyear.
+  agg <- study$load_skeleton_meta(1L)$population_aggregations[["isoyear"]]
+  expect_identical(names(agg), c("isoyear", "n"))
+  expect_identical(agg$n, c(3L, 3L))
 })
