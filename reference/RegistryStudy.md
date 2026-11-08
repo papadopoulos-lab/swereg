@@ -135,6 +135,12 @@ Other skeleton_pipeline:
   `$set_ids()`, `$set_batches()` and `$set_matched_sets()` set it. A
   study saved by swereg 27.2.6 or earlier has none.
 
+- `batch_composition_source`:
+
+  Character or NULL. The method that set the batch composition:
+  `"set_ids()"`, `"set_batches()"` or `"set_matched_sets()"`. A study
+  saved by swereg 27.3.8 or earlier has none.
+
 - `matched_set_roster`:
 
   List of data.tables, one per batch, or NULL. Each holds the roster
@@ -381,7 +387,9 @@ Save rawbatch files for one group.
 
 - `data`:
 
-  data.table or named list of data.tables.
+  data.table or named list of data.tables. A bare data.table MUST hold
+  the ID column `id_col`, and the method stops without it. A list
+  element without that column goes whole into every batch.
 
 - `n_workers`:
 
@@ -395,7 +403,7 @@ Save rawbatch files for one group.
   An ID MAY be in more than one batch (see `$set_batches()`). Then each
   batch gets the rows of the IDs it holds, in input order, by one `%in%`
   scan per batch. That path adds no `BID` column and does not change the
-  caller's tables.
+  caller's tables. On both paths a slice has no key.
 
   After `$set_matched_sets()`, each batch gets every row of a person
   once for each `skeleton_id` of that person in the batch. The ID column
@@ -404,7 +412,7 @@ Save rawbatch files for one group.
   type of `skeleton_id`. The other columns do not change. Before it
   writes the group, the method writes each missing `"roster"` file. A
   roster where every `skeleton_id` equals the person ID takes the paths
-  above.
+  above when the ID column already has the class of `skeleton_id`.
 
 ------------------------------------------------------------------------
 
@@ -1113,7 +1121,7 @@ object otherwise.
 
 ### `RegistryStudy$set_ids()`
 
-Set IDs and split into batches.
+Set IDs and split into batches. The guard of `$set_batches()` applies.
 
 #### Usage
 
@@ -1140,8 +1148,10 @@ batches twice.
 
 The method stops when rawbatch or skeleton files are on disk and the new
 composition differs from the recorded one. A study with no recorded
-composition, for example one saved by swereg 27.2.6, records the new one
-and continues.
+composition, for example a fresh study, compares with the composition of
+the study in its meta file, `registrystudy.qs2`. It stops when that file
+is absent or holds no composition. With no rawbatch or skeleton file on
+disk, the method records the new composition and continues.
 
 #### Usage
 
@@ -1183,7 +1193,8 @@ unchanged. Every phase function reads them as `batch_data[["roster"]]`.
 
 A roster where every `skeleton_id` equals the person ID gives the same
 rawbatch files as `$set_batches()` on the same IDs, plus the `"roster"`
-files.
+files, when the person ID has the class of `skeleton_id`. Otherwise the
+ID column takes the class of `skeleton_id`, as with any other roster.
 
 #### Usage
 

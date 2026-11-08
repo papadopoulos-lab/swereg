@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -330,7 +330,8 @@ when a stored result carries another id.</p></dd>
 has not run. It holds the decision of the minimum-events rule for
 each ETT and estimand, with the weighted person-years of each arm and
 window. It holds no event count, rate or expected events.
-<code>$s3_analyze()</code> does not read it.</p></dd>
+<code>$s3_analyze()</code> does not read it. <code>$s1_generate_enrollments_and_ipw()</code>
+and <code>$s2_generate_analysis_files_and_ipcw_pp()</code> set it to NULL.</p></dd>
 
 
     <dt><code>spec_version</code></dt>
@@ -652,7 +653,7 @@ written as CSV).</p></dd>
 
 
 </dl><p>Full per-type fields are documented on the <code>.plan_export_figure()</code> and
-<code>.plan_export_table()</code> producers in <code>R/tteplan_export.R</code>.</p>
+<code>.plan_export_table()</code> producers in <code>R/tteplan_export_figure.R</code>.</p>
 <p>Two <code>"forest"</code> and <code>"survival"</code> fields carry a decision worth stating
 here, because both are silent when they go wrong.</p>
 <p><code>"survival"</code> is drawn on the CUMULATIVE-FAILURE scale, which is one
@@ -863,7 +864,10 @@ per-batch draw). Produces panel-expanded TTEEnrollment objects.</p></li>
 <dd><p>Imputation callback or NULL (default:
 <a href="tteenrollment_impute_confounders.html">tteenrollment_impute_confounders</a>). swereg calls it with the panel and
 with the <code>.tte_entry__</code> snapshot names, not with the plain confounder
-names. It MUST impute only the columns it is given.</p></dd>
+names. It MUST impute only the columns it is given. A custom <code>impute_fn</code>
+MUST fit on the baseline rows only (<code>tstart == 0</code>), as the default does.
+s1 can build panels to the feasibility horizon, and a fit on all panel
+rows would let those weeks change the reported estimates.</p></dd>
 
       <dt><code>stabilize</code></dt>
 <dd><p>Logical, stabilize IPW (default: TRUE).</p></dd>
@@ -1065,7 +1069,8 @@ are auto-partitioned as <code>floor(detectCores() / n_workers)</code>.</p></dd>
 <p>The ETT grid it prints holds the reported ETTs. A horizon-only ETT is not
 printed. The spec key <code>feasibility_follow_up_weeks</code> adds one, and a
 follow-up that is not a whole number of years adds one at its next whole
-year.</p><div class="section">
+year. When the plan holds N &gt; 0 of them, the ETT count line ends with
+<code>+ N feasibility-horizon ETT(s)</code>.</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -1091,7 +1096,9 @@ the decision reads <code>not decided yet (s1 has not run)</code>. A stored decis
 prints only when the rule in <code>$spec</code> still hashes to <code>$sparse_rule_hash</code> and
 s1 completed for it. Otherwise the decision reads <code>not decided yet (s1 has not completed for this rule)</code>. It also prints the minimum-events rule,
 <code>min_expected_events_per_arm_per_year</code>: the minimum number of expected events
-per arm in each follow-up year.</p><div class="section">
+per arm in each follow-up year. A follow-up that is not a whole number of
+years takes the verdict of the rule at the next whole year. The summary
+prints that year under the follow-up, and names the horizon-only ETT.</p><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print_spec_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -1783,8 +1790,9 @@ then covers the horizon-only ETTs too.</p></dd>
 <h3 id="tteplan-excel-spec-summary-"><code>TTEPlan$excel_spec_summary()</code><a class="anchor" aria-label="anchor" href="#tteplan-excel-spec-summary-"></a></h3>
 <p>Export the study specification to a standalone Excel file.</p>
 <p>Writes the preregistration sheets of the plan. The Study Specification
-sheet summarises the spec (design, criteria, confounders, outcomes,
-enrollments) with ICD-10/ATC code annotations from the code registry. The
+sheet summarises the spec (design, follow-up, criteria, confounders, the
+minimum-events rule, outcomes, enrollments) with ICD-10/ATC code
+annotations from the code registry. The
 Target trial protocol sheet documents one ETT. The Rare conditions sheet
 is written only when the plan holds a current sparse decision: the rule in
 <code>$spec</code> still hashes to <code>$sparse_rule_hash</code>, and s1 completed for it.
@@ -1822,6 +1830,9 @@ the plan does not hold warns and falls back to the first ETT.</p></dd>
 <p>Refresh cosmetic spec fields (enrollment names, treatment
 arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.</p>
+<p>It also copies <code>min_expected_events_per_arm_per_year</code>, the threshold of the
+minimum-events rule. A changed threshold needs no rerun of s1 or s2. The
+writers stop until <code>$s3_analyze()</code> reruns.</p>
 <p>Structural fields (confounders, exclusion criteria, follow-up windows,
 comparator-draw parameters, etc.) are <em>not</em> applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,56 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.9" id="swereg-2739">swereg 27.3.9<a class="anchor" aria-label="anchor" href="#swereg-2739"></a></h2>
+<p>No plan needs a rerun of s1, s2 or s3. A stale feasibility result clears only on the next <code>$s3_feasibility()</code>.</p>
+<div class="section level3">
+<h3 id="bug-fixes-27-3-9">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-3-9"></a></h3>
+<ul><li>
+<strong>A rerun of <code>$s1_generate_enrollments_and_ipw()</code> or <code>$s2_generate_analysis_files_and_ipcw_pp()</code> sets <code>plan$feasibility</code> to NULL.</strong> A plan saved with a stale result keeps it until <code>$s3_feasibility()</code> reruns.</li>
+<li>
+<strong>A fresh <code>RegistryStudy</code> compares its new composition with the study in <code>registrystudy.qs2</code>.</strong> <code>$set_ids()</code>, <code>$set_batches()</code> and <code>$set_matched_sets()</code> stop when rawbatch or skeleton files are on disk and that composition differs. With files on disk and no composition in a meta file, they stop and name the files. <code>$adopt_runtime_state_from()</code> does not change.</li>
+<li>
+<strong><code>$population(by = "isoyear")</code> gives one row per isoyear, with the columns <code>isoyear</code> and <code>n</code>.</strong> It gave duplicate columns and a cross-join. The next <code>$process_skeletons()</code> rewrites the file and rebuilds no skeleton.</li>
+<li>
+<strong><code>$save_rawbatch()</code> stops on a bare data.table without the ID column on every path.</strong> A slice of the overlap path has no key, as a slice of the single-batch path has none.</li>
+<li><strong>After <code>$set_matched_sets()</code>, the ID column takes the class of <code>skeleton_id</code> also with an identity roster.</strong></li>
+<li>
+<strong><code>$recompute_baselines()</code> skips a stored result that is NULL, as in 27.3.2.</strong> A result without the name <code>adherence</code> is still recomputed.</li>
+<li>
+<strong><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> of a <code>RegistryStudy</code> does not count the roster files under “Rawbatch groups saved”.</strong> It prints <code>IDs each</code> only for a composition of <code>$set_ids()</code>.</li>
+<li>
+<strong>The messages of <code>$export_tables()</code> on a missing baseline panel say “Re-run s3”.</strong> They named <code>$recompute_baselines()</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-3-9">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-9"></a></h3>
+<ul><li>
+<strong>The Study Specification sheet shows <code>min_expected_events_per_arm_per_year</code>, the exempt enrollments and the feasibility horizon</strong>, where the spec sets them.</li>
+<li>
+<strong><code>$print_spec_summary()</code> and the Study Specification sheet say that a part-year horizon takes the verdict of the next whole year.</strong> They name the horizon-only ETT that gives it.</li>
+<li>
+<strong><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> of a <code>TTEPlan</code> adds <code>+ N feasibility-horizon ETT(s)</code> to the ETT count line</strong> when N &gt; 0.</li>
+<li>
+<strong>The emulation column of the protocol table reads “Horizons of this comparison”</strong> when <code>only_enrollments</code> restricts the horizons.</li>
+<li>
+<strong>The <code>Exempt:</code> line of <code>$print_spec_summary()</code> joins the names with “;”</strong>, because a name can hold a comma.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-3-9">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-3-9"></a></h3>
+<ul><li>
+<strong>A custom <code>impute_fn</code> MUST fit on the baseline rows only (<code>tstart == 0</code>).</strong> s1 can build panels to the feasibility horizon.</li>
+<li>
+<strong><code><a href="../articles/tte-spec-schema.html">vignette("tte-spec-schema")</a></code> documents <code>feasibility_follow_up_weeks</code>.</strong> <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> says that the writers stop on a stored result with no horizon record.</li>
+<li>The protocol-table line for a threshold of 0 is two sentences. <code>$reload_spec()</code> names <code>min_expected_events_per_arm_per_year</code>, and <code><a href="../reference/default_n_workers.html">default_n_workers()</a></code> names the <code>feasibility</code> stage.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-27-3-9">Internal<a class="anchor" aria-label="anchor" href="#internal-27-3-9"></a></h3>
+<ul><li>
+<code>R/tteplan_export.R</code> and <code>R/tteplan_reporting.R</code> are split into four files; output does not change.</li>
+<li>
+<code>.ds_diff_horizon_rule()</code> takes no <code>ps</code> argument. <code>test-matched_sets.R</code> reads no internal state of mirai. <code>.gitignore</code> covers the files of a failing <code>test_file()</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.8" id="swereg-2738">swereg 27.3.8<a class="anchor" aria-label="anchor" href="#swereg-2738"></a></h2>
 <div class="section level3">

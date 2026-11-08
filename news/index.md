@@ -1,5 +1,75 @@
 # Changelog
 
+## swereg 27.3.9
+
+No plan needs a rerun of s1, s2 or s3. A stale feasibility result clears
+only on the next `$s3_feasibility()`.
+
+### Bug fixes
+
+- **A rerun of `$s1_generate_enrollments_and_ipw()` or
+  `$s2_generate_analysis_files_and_ipcw_pp()` sets `plan$feasibility` to
+  NULL.** A plan saved with a stale result keeps it until
+  `$s3_feasibility()` reruns.
+- **A fresh `RegistryStudy` compares its new composition with the study
+  in `registrystudy.qs2`.** `$set_ids()`, `$set_batches()` and
+  `$set_matched_sets()` stop when rawbatch or skeleton files are on disk
+  and that composition differs. With files on disk and no composition in
+  a meta file, they stop and name the files.
+  `$adopt_runtime_state_from()` does not change.
+- **`$population(by = "isoyear")` gives one row per isoyear, with the
+  columns `isoyear` and `n`.** It gave duplicate columns and a
+  cross-join. The next `$process_skeletons()` rewrites the file and
+  rebuilds no skeleton.
+- **`$save_rawbatch()` stops on a bare data.table without the ID column
+  on every path.** A slice of the overlap path has no key, as a slice of
+  the single-batch path has none.
+- **After `$set_matched_sets()`, the ID column takes the class of
+  `skeleton_id` also with an identity roster.**
+- **`$recompute_baselines()` skips a stored result that is NULL, as in
+  27.3.2.** A result without the name `adherence` is still recomputed.
+- **[`print()`](https://rdrr.io/r/base/print.html) of a `RegistryStudy`
+  does not count the roster files under “Rawbatch groups saved”.** It
+  prints `IDs each` only for a composition of `$set_ids()`.
+- **The messages of `$export_tables()` on a missing baseline panel say
+  “Re-run s3”.** They named `$recompute_baselines()`.
+
+### New features
+
+- **The Study Specification sheet shows
+  `min_expected_events_per_arm_per_year`, the exempt enrollments and the
+  feasibility horizon**, where the spec sets them.
+- **`$print_spec_summary()` and the Study Specification sheet say that a
+  part-year horizon takes the verdict of the next whole year.** They
+  name the horizon-only ETT that gives it.
+- **[`print()`](https://rdrr.io/r/base/print.html) of a `TTEPlan` adds
+  `+ N feasibility-horizon ETT(s)` to the ETT count line** when N \> 0.
+- **The emulation column of the protocol table reads “Horizons of this
+  comparison”** when `only_enrollments` restricts the horizons.
+- **The `Exempt:` line of `$print_spec_summary()` joins the names with
+  “;”**, because a name can hold a comma.
+
+### Documentation
+
+- **A custom `impute_fn` MUST fit on the baseline rows only
+  (`tstart == 0`).** s1 can build panels to the feasibility horizon.
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  documents `feasibility_follow_up_weeks`.**
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  says that the writers stop on a stored result with no horizon record.
+- The protocol-table line for a threshold of 0 is two sentences.
+  `$reload_spec()` names `min_expected_events_per_arm_per_year`, and
+  [`default_n_workers()`](https://papadopoulos-lab.github.io/swereg/reference/default_n_workers.md)
+  names the `feasibility` stage.
+
+### Internal
+
+- `R/tteplan_export.R` and `R/tteplan_reporting.R` are split into four
+  files; output does not change.
+- `.ds_diff_horizon_rule()` takes no `ps` argument.
+  `test-matched_sets.R` reads no internal state of mirai. `.gitignore`
+  covers the files of a failing `test_file()`.
+
 ## swereg 27.3.8
 
 ### Performance

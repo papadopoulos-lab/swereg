@@ -61,6 +61,11 @@ Stage tags currently used by the pipeline:
   `s3_analyze()` — peaks ~20 GB/worker on large "vs none" panels, so
   keep at 1 unless you have the RAM headroom
 
+- `"feasibility"`:
+
+  [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)'s
+  `s3_feasibility()`
+
 Note: `s2_generate_analysis_files_and_ipcw_pp()` does not call this
 function. Its `n_workers` argument defaults to `1L`. It accepts a larger
 whole number, and s2 then runs that many concurrent subprocesses.

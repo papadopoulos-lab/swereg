@@ -266,7 +266,8 @@ Other tte_classes:
   holds the decision of the minimum-events rule for each ETT and
   estimand, with the weighted person-years of each arm and window. It
   holds no event count, rate or expected events. `$s3_analyze()` does
-  not read it.
+  not read it. `$s1_generate_enrollments_and_ipw()` and
+  `$s2_generate_analysis_files_and_ipcw_pp()` set it to NULL.
 
 - `spec_version`:
 
@@ -653,7 +654,7 @@ manifest. Each spec's `type` routes it to a producer:
   CSV).
 
 Full per-type fields are documented on the `.plan_export_figure()` and
-`.plan_export_table()` producers in `R/tteplan_export.R`.
+`.plan_export_table()` producers in `R/tteplan_export_figure.R`.
 
 Two `"forest"` and `"survival"` fields carry a decision worth stating
 here, because both are silent when they go wrong.
@@ -897,7 +898,10 @@ imbalance. Requires `self$spec` to be set (e.g., via
   [tteenrollment_impute_confounders](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)).
   swereg calls it with the panel and with the `.tte_entry__` snapshot
   names, not with the plain confounder names. It MUST impute only the
-  columns it is given.
+  columns it is given. A custom `impute_fn` MUST fit on the baseline
+  rows only (`tstart == 0`), as the default does. s1 can build panels to
+  the feasibility horizon, and a fit on all panel rows would let those
+  weeks change the reported estimates.
 
 - `stabilize`:
 
@@ -1129,7 +1133,8 @@ Print the TTEPlan object.
 The ETT grid it prints holds the reported ETTs. A horizon-only ETT is
 not printed. The spec key `feasibility_follow_up_weeks` adds one, and a
 follow-up that is not a whole number of years adds one at its next whole
-year.
+year. When the plan holds N \> 0 of them, the ETT count line ends with
+`+ N feasibility-horizon ETT(s)`.
 
 #### Usage
 
@@ -1156,7 +1161,10 @@ prints only when the rule in `$spec` still hashes to `$sparse_rule_hash`
 and s1 completed for it. Otherwise the decision reads
 `not decided yet (s1 has not completed for this rule)`. It also prints
 the minimum-events rule, `min_expected_events_per_arm_per_year`: the
-minimum number of expected events per arm in each follow-up year.
+minimum number of expected events per arm in each follow-up year. A
+follow-up that is not a whole number of years takes the verdict of the
+rule at the next whole year. The summary prints that year under the
+follow-up, and names the horizon-only ETT.
 
 #### Usage
 
@@ -1994,16 +2002,16 @@ A list with:
 Export the study specification to a standalone Excel file.
 
 Writes the preregistration sheets of the plan. The Study Specification
-sheet summarises the spec (design, criteria, confounders, outcomes,
-enrollments) with ICD-10/ATC code annotations from the code registry.
-The Target trial protocol sheet documents one ETT. The Rare conditions
-sheet is written only when the plan holds a current sparse decision: the
-rule in `$spec` still hashes to `$sparse_rule_hash`, and s1 completed
-for it. Without one, the Study Specification sheet reads the rule as not
-decided yet. Each sheet holds the same cells as the sheet of that name
-that `$export_tables()` writes for the same plan state and the same
-`protocol_ett_id`. No sheet reads an s2 or s3 result, so the method runs
-straight after s0.
+sheet summarises the spec (design, follow-up, criteria, confounders, the
+minimum-events rule, outcomes, enrollments) with ICD-10/ATC code
+annotations from the code registry. The Target trial protocol sheet
+documents one ETT. The Rare conditions sheet is written only when the
+plan holds a current sparse decision: the rule in `$spec` still hashes
+to `$sparse_rule_hash`, and s1 completed for it. Without one, the Study
+Specification sheet reads the rule as not decided yet. Each sheet holds
+the same cells as the sheet of that name that `$export_tables()` writes
+for the same plan state and the same `protocol_ett_id`. No sheet reads
+an s2 or s3 result, so the method runs straight after s0.
 
 #### Usage
 
@@ -2034,6 +2042,10 @@ straight after s0.
 Refresh cosmetic spec fields (enrollment names, treatment arm labels,
 outcome names, ETT descriptions) on a cached plan without re-running the
 upstream pipeline.
+
+It also copies `min_expected_events_per_arm_per_year`, the threshold of
+the minimum-events rule. A changed threshold needs no rerun of s1 or s2.
+The writers stop until `$s3_analyze()` reruns.
 
 Structural fields (confounders, exclusion criteria, follow-up windows,
 comparator-draw parameters, etc.) are *not* applied - they would

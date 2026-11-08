@@ -437,6 +437,31 @@ reports a row of kind `enrollment_rule_exempt`, when the value is not
 one logical. A number, a string, a null value, `NA` and a sequence are
 refused, and the message names the enrollment id.
 
+## The feasibility horizon
+
+A spec MAY set the top-level key `feasibility_follow_up_weeks`, one
+positive whole number of weeks. It adds a horizon at which s3 computes
+only the minimum-events rule.
+
+``` yaml
+feasibility_follow_up_weeks: 260
+```
+
+The value MAY be longer than every horizon of an enrollment. The ETT
+grid then gets one more ETT of that length for that enrollment and each
+outcome. s1 enrolls the enrollment to that horizon. Only the two Minimum
+events sheets show these ETTs. A value that is not longer than every
+horizon of an enrollment adds no ETT to it. `$reload_spec()` treats a
+change of the key as structural.
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops, and
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reports a row of kind `feasibility_follow_up_weeks`, when the value is
+not one positive whole number. A logical, a string, a null value, `NA`,
+0, a negative number, a fraction, an infinite number and a sequence are
+refused. The message names the key.
+
 ## A horizon for some comparisons only
 
 A `follow_up` entry MAY set `only_enrollments`, a list of enrollment
