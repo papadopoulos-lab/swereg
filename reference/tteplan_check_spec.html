@@ -11,7 +11,7 @@ one pass."><meta property="og:image" content="https://papadopoulos-lab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -169,7 +169,10 @@ The checker writes one row for each bad entry. The message names the follow-up l
 
 <dt><code>read_error</code></dt>
 <dd><p><code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> stops after its key gate. The
-message is the message of that error.</p></dd>
+message is the message of that error. A missing or bad design key
+gives one row of this kind on the path <code>$</code>, also when the key gate
+fails. The two design keys are <code>period_width</code> and
+<code>admin_censoring_isoyearweek</code>, and the message names both.</p></dd>
 
 
 </dl><p>The checker reports every undeclared key path and every retired key path.
@@ -177,7 +180,7 @@ message is the message of that error.</p></dd>
 calls <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> only when no key path is undeclared or retired,
 because the key gate stops it first. <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> stops at its
 first problem after the key gate, so a table holds at most one
-<code>read_error</code> row.</p>
+<code>read_error</code> row. The design keys are its first check after the key gate.</p>
 <p>A warning from <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>, for example on an open question,
 reaches the caller unchanged.</p>
     </div>
@@ -208,10 +211,12 @@ schema declares.</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                            &lt;char&gt;           &lt;char&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1:                 $/study/colour   undeclared_key</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2: $/study/implementation/version version_mismatch</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                       message</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                        &lt;char&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: Unknown key 'colour'. $/study accepts: description, design, implementation, principal_investigator, title.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2:                     study$implementation$version is 'v001', and the file name spec_v002.yaml gives 'v002'.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3:                              $       read_error</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                                                                                                                                             message</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                                                                                                                                              &lt;char&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1:                                                                                                                                       Unknown key 'colour'. $/study accepts: description, design, implementation, principal_investigator, title.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2:                                                                                                                                                           study$implementation$version is 'v001', and the file name spec_v002.yaml gives 'v002'.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: The spec MUST declare both top-level design keys, period_width and admin_censoring_isoyearweek.\n  period_width is missing.\n  admin_censoring_isoyearweek is missing.\nFor example: period_width: 4 and admin_censoring_isoyearweek: "2025-01".</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">spec_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>

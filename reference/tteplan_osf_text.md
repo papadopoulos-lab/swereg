@@ -13,8 +13,6 @@ list. Each fact appears in one field. The other fields point to it as
 tteplan_osf_text(
   spec_path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   people = c("person", "persons")
 )
 ```
@@ -35,18 +33,6 @@ tteplan_osf_text(
   or a `data.table` with the columns of `RegistryStudy$summary_table()`.
   With `NULL`, every code cell of the code list reads `not resolved`.
 
-- period_width:
-
-  Integer, the width in weeks of the enrollment period. It has the
-  default of
-  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md).
-
-- global_max_isoyearweek:
-
-  Character(1) or `NULL`, the administrative censoring boundary as an
-  isoyearweek, for example `"2025-01"`. Follow-up includes that week.
-  `NULL` writes "the administrative end of the data".
-
 - people:
 
   Character(2), the singular and plural noun for a study participant,
@@ -66,9 +52,11 @@ from `min_expected_events_per_arm_per_year`.
 ## Details
 
 The function reads the spec and the code registry only. It reads no
-skeleton, rawbatch or registry data file, so it runs before s0. Every
-spec entry appears in the text: no criterion, covariate or outcome is
-left out.
+skeleton, rawbatch or registry data file, so it runs before s0. The
+width of the enrollment period and the administrative censoring week
+come from the spec keys `period_width` and
+`admin_censoring_isoyearweek`. Every spec entry appears in the text: no
+criterion, covariate or outcome is left out.
 
 The text uses the `name` of each criterion, covariate and outcome, the
 `arms` and `description` of each treatment, and the `description` of
@@ -127,6 +115,8 @@ writeLines(
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
     "min_expected_events_per_arm_per_year: 5",
+    "period_width: 4",
+    "admin_censoring_isoyearweek: '2025-01'",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

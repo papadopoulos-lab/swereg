@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -176,7 +176,7 @@ keys.</p>
 <tbody>
 <tr class="odd">
 <td align="left">consumed</td>
-<td align="right">128</td>
+<td align="right">130</td>
 </tr>
 <tr class="even">
 <td align="left">legacy</td>
@@ -294,7 +294,7 @@ the gate refuse an unknown key and accept these.</p>
 <div class="section level2">
 <h2 id="every-declared-key-path">Every declared key path<a class="anchor" aria-label="anchor" href="#every-declared-key-path"></a>
 </h2>
-<p>The schema declares 155 key paths across 42 mapping contexts.</p>
+<p>The schema declares 157 key paths across 42 mapping contexts.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
@@ -318,52 +318,62 @@ the gate refuse an unknown key and accept these.</p>
 <tbody>
 <tr class="odd">
 <td align="left"><code>$</code></td>
-<td align="left"><code>confounders</code></td>
+<td align="left"><code>admin_censoring_isoyearweek</code></td>
 <td align="left">consumed</td>
 </tr>
 <tr class="even">
+<td align="left"><code>$</code></td>
+<td align="left"><code>confounders</code></td>
+<td align="left">consumed</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>$</code></td>
 <td align="left"><code>enrollments</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>$</code></td>
 <td align="left"><code>exclusion_criteria</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>$</code></td>
 <td align="left"><code>feasibility_follow_up_weeks</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>$</code></td>
 <td align="left"><code>follow_up</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>$</code></td>
 <td align="left"><code>horizon_rule</code></td>
 <td align="left">legacy</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>$</code></td>
 <td align="left"><code>inclusion_criteria</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>$</code></td>
 <td align="left"><code>min_expected_events_per_arm_per_year</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>$</code></td>
 <td align="left"><code>open_questions</code></td>
 <td align="left">consumed</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>$</code></td>
 <td align="left"><code>outcomes</code></td>
+<td align="left">consumed</td>
+</tr>
+<tr class="even">
+<td align="left"><code>$</code></td>
+<td align="left"><code>period_width</code></td>
 <td align="left">consumed</td>
 </tr>
 <tr class="odd">
@@ -1095,19 +1105,70 @@ the gate refuse an unknown key and accept these.</p>
 </table>
 </div>
 <div class="section level2">
+<h2 id="the-design-keys">The design keys<a class="anchor" aria-label="anchor" href="#the-design-keys"></a>
+</h2>
+<p>Every specification MUST declare two flat top-level keys. They are
+design choices, so the specification holds them and no function argument
+does.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">period_width</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">admin_censoring_isoyearweek</span><span class="kw">:</span><span class="at"> </span><span class="st">"2025-01"</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Key</th>
+<th align="left">Meaning</th>
+<th align="left">Type</th>
+<th align="left">Required</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>period_width</code></td>
+<td align="left">The width in weeks of the enrollment period. The same
+width sets each follow-up interval.</td>
+<td align="left">One whole number of at least 1</td>
+<td align="left">Yes</td>
+</tr>
+<tr class="even">
+<td align="left"><code>admin_censoring_isoyearweek</code></td>
+<td align="left">The administrative censoring week. Follow-up includes
+that week.</td>
+<td align="left">One string <code>YYYY-WW</code>, with the week from 01
+to 53</td>
+<td align="left">Yes</td>
+</tr>
+</tbody>
+</table>
+<p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops on a specification without one
+or both keys, and on a bad value. The one message names both keys,
+states each problem and shows the example above.
+<code><a href="../reference/tteplan_check_spec.html">tteplan_check_spec()</a></code> reports the same message as one
+<code>read_error</code> row on the path <code>$</code>. s0 reads both
+values from the specification. It does not compare the week with the
+skeleton.</p>
+<p><code>$/standing_methods/admin_censoring</code> stays an optional
+<code>metadata</code> note. swereg does not read it. When the note
+states a week, keep it equal to
+<code>admin_censoring_isoyearweek</code>.</p>
+</div>
+<div class="section level2">
 <h2 id="the-global-inclusion-container">The global inclusion container<a class="anchor" aria-label="anchor" href="#the-global-inclusion-container"></a>
 </h2>
 <p><code>inclusion_criteria</code> is a fixed container. It holds
 <code>isoyears</code> and <code>criteria</code>, and nothing else.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">inclusion_criteria</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="at">  </span><span class="fu">isoyears</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">2010</span><span class="kw">,</span><span class="at"> </span><span class="dv">2023</span><span class="kw">]</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="at">  </span><span class="fu">criteria</span><span class="kw">:</span></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Recorded gender dysphoria diagnosis"</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="at">      </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"The study population is people with the diagnosis"</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="at">      </span><span class="fu">type</span><span class="kw">:</span><span class="at"> has_event</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="at">        </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_f64</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="at">        </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">inclusion_criteria</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="at">  </span><span class="fu">isoyears</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">2010</span><span class="kw">,</span><span class="at"> </span><span class="dv">2023</span><span class="kw">]</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="at">  </span><span class="fu">criteria</span><span class="kw">:</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Recorded gender dysphoria diagnosis"</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="at">      </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"The study population is people with the diagnosis"</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="at">      </span><span class="fu">type</span><span class="kw">:</span><span class="at"> has_event</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="at">        </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_f64</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="at">        </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span></code></pre></div>
 <p>Each entry declares one type, and
 <code>inclusion_criteria$criteria</code> accepts three. It declares
 <code>type: has_event</code> as its own key, one level above
@@ -1192,11 +1253,11 @@ name belongs to an enrollment. In the container, it names a path that
 swereg does not read.</p>
 <p>An <code>isoyear_range</code> entry limits one enrollment to trials
 registered in a range of ISO years.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Trial registration 2008-2016"</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="at">    </span><span class="fu">type</span><span class="kw">:</span><span class="at"> isoyear_range</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="at">    </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">2008</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="at">    </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">2016</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Trial registration 2008-2016"</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="at">    </span><span class="fu">type</span><span class="kw">:</span><span class="at"> isoyear_range</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="at">    </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">2008</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="at">    </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">2016</span></span></code></pre></div>
 <p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> writes the column
 <code>eligible_isoyears_&lt;min&gt;_&lt;max&gt;</code>, here
 <code>eligible_isoyears_2008_2016</code>. An <code>age_range</code> in
@@ -1228,13 +1289,13 @@ so a second entry would replace the first.
 </h2>
 <p>An enrollment MAY set <code>family</code>, a short label that groups
 enrollments in the results workbook.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none"</span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"02"</span></span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 54-60"</span></span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sens: age 54-60"</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none"</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main"</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"02"</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 54-60"</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="at">    </span><span class="fu">family</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sens: age 54-60"</span></span></code></pre></div>
 <p>The label changes no cohort, model or estimate.
 <code>$export_tables()</code> shows it in the <code>Family</code> column
 of the Summary sheet. <code>$reload_spec()</code> applies a new
@@ -1258,10 +1319,10 @@ one enrollment sets it, every enrollment MUST set it.</li>
 logical. With <code>true</code>, the minimum-events rule withholds no
 estimate of that comparison. An enrollment without the key is not
 exempt.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"18"</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none"</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="at">    </span><span class="fu">minimum_events_rule_exempt</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"18"</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none"</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="at">    </span><span class="fu">minimum_events_rule_exempt</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
 <p>s3 still computes the rule for each ETT of the enrollment and stores
 its verdict. The Minimum events sheets show that verdict, and the
 comparison name ends with <code>(exempt)</code>.
@@ -1282,7 +1343,7 @@ refused, and the message names the enrollment id.</p>
 <code>feasibility_follow_up_weeks</code>, one positive whole number of
 weeks. It adds a horizon at which s3 computes only the minimum-events
 rule.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">feasibility_follow_up_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">feasibility_follow_up_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span></span></code></pre></div>
 <p>The value MAY be longer than every horizon of an enrollment. The ETT
 grid then gets one more ETT of that length for that enrollment and each
 outcome. s1 enrolls the enrollment to that horizon. Only the two Minimum
@@ -1302,10 +1363,10 @@ and a sequence are refused. The message names the key.</p>
 <p>A <code>follow_up</code> entry MAY set <code>only_enrollments</code>,
 a list of enrollment ids. The horizon then applies only to those
 enrollments. An entry without the key applies to every enrollment.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">follow_up</span><span class="kw">:</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"6 months"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">26</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"1 year"</span><span class="kw">,</span><span class="at">   </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at">  </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="kw">,</span><span class="at"> </span><span class="fu">only_enrollments</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">M01</span><span class="kw">]</span><span class="at"> </span><span class="kw">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">follow_up</span><span class="kw">:</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"6 months"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">26</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"1 year"</span><span class="kw">,</span><span class="at">   </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at">  </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="kw">,</span><span class="at"> </span><span class="fu">only_enrollments</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">M01</span><span class="kw">]</span><span class="at"> </span><span class="kw">}</span></span></code></pre></div>
 <p>The ETT grid holds the 156-week horizon for enrollment M01 and for no
 other enrollment, and a dropped ETT takes no ETT id. YAML reads
 <code>only_enrollments: M01</code> and
@@ -1337,7 +1398,7 @@ comparison and outcome. Section 1.8.6 of
 <p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> reports every refused key in one
 message, and reads no data first. The message for a <code>legacy</code>
 key names its replacement.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">spec_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"spec_v001.yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -1362,7 +1423,7 @@ because the schema declares no context below it. Move the entries into
 <code>criteria</code>, and swereg reads each one.</p>
 <p>A key the schema does not name anywhere carries the list of keys its
 context accepts.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inclusion_criteria:"</span>, <span class="st">"  isoyear: 2010"</span><span class="op">)</span>,</span>
 <span>  <span class="va">spec_path</span></span>

@@ -11,7 +11,7 @@ rawbatch or registry data file, so it runs before s0."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,8 +78,6 @@ rawbatch or registry data file, so it runs before s0.</p>
 <span>  <span class="va">spec_path</span>,</span>
 <span>  <span class="va">path</span>,</span>
 <span>  code_registry <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  period_width <span class="op">=</span> <span class="fl">4L</span>,</span>
-<span>  global_max_isoyearweek <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  protocol_ett_id <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -109,18 +107,6 @@ data.</p></li>
 </ul></dd>
 
 
-<dt id="arg-period-width">period_width<a class="anchor" aria-label="anchor" href="#arg-period-width"></a></dt>
-<dd><p>Integer, the width in weeks of the enrollment period.
-It has the default of <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>. The
-Target trial protocol sheet states it.</p></dd>
-
-
-<dt id="arg-global-max-isoyearweek">global_max_isoyearweek<a class="anchor" aria-label="anchor" href="#arg-global-max-isoyearweek"></a></dt>
-<dd><p>Character(1) or <code>NULL</code>, the administrative
-censoring boundary as an isoyearweek, for example <code>"2023-52"</code>. <code>NULL</code>
-writes <code>not built (spec only)</code> in the <code>Admin censoring:</code> row.</p></dd>
-
-
 <dt id="arg-protocol-ett-id">protocol_ett_id<a class="anchor" aria-label="anchor" href="#arg-protocol-ett-id"></a></dt>
 <dd><p>Character(1) or <code>NULL</code>, the ETT that the Target
 trial protocol sheet documents. <code>NULL</code> takes the first ETT of the grid.
@@ -135,11 +121,9 @@ documents the first ETT.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Each cell holds the value that <code>TTEPlan$excel_spec_summary()</code> writes for a
-plan at s0 from the same spec, code registry, <code>period_width</code> and
-<code>protocol_ett_id</code>. The one exception is the <code>Admin censoring:</code> row. s0
-reads that value from the first skeleton unless you supply it. Here the
-row reads <code>not built (spec only)</code> unless you supply
-<code>global_max_isoyearweek</code>.</p>
+plan at s0 from the same spec, code registry and <code>protocol_ett_id</code>. The
+<code>Admin censoring:</code> row and the width of the enrollment period come from the
+spec keys <code>admin_censoring_isoyearweek</code> and <code>period_width</code>.</p>
 <p>Only s1 decides the rare-condition rule. The workbook therefore states the
 rule as not decided yet, and it has no Rare conditions sheet. The
 function builds the ETT grid with the code of
@@ -189,6 +173,8 @@ the same ETT for the same <code>protocol_ett_id</code>.</p>
 <span class="r-in"><span>    <span class="st">"follow_up:"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"  - {label: 1 year, weeks: 52}"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"min_expected_events_per_arm_per_year: 5"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"period_width: 4"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"admin_censoring_isoyearweek: '2025-01'"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"enrollments:"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"  - id: '01'"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"    name: A vs B"</span>,</span></span>
@@ -219,7 +205,7 @@ the same ETT for the same <code>protocol_ett_id</code>.</p>
 <span class="r-in"><span>  path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">spec_dir</span>, <span class="st">"spec_v001.xlsx"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  code_registry <span class="op">=</span> <span class="va">study</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Spec summary saved to: /tmp/RtmpB5daZq/file1d0048b4283a/spec_v001.xlsx</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Spec summary saved to: /tmp/RtmpU8GFrU/file1d864029bb5c/spec_v001.xlsx</span>
 <span class="r-in"><span><span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/getSheetNames.html" class="external-link">getSheetNames</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Study Specification"   "Target trial protocol"</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">spec_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>

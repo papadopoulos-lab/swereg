@@ -116,7 +116,10 @@ The checker reports twelve kinds of problem:
 - `read_error`:
 
   [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-  stops after its key gate. The message is the message of that error.
+  stops after its key gate. The message is the message of that error. A
+  missing or bad design key gives one row of this kind on the path `$`,
+  also when the key gate fails. The two design keys are `period_width`
+  and `admin_censoring_isoyearweek`, and the message names both.
 
 The checker reports every undeclared key path and every retired key
 path.
@@ -127,7 +130,8 @@ only when no key path is undeclared or retired, because the key gate
 stops it first.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 stops at its first problem after the key gate, so a table holds at most
-one `read_error` row.
+one `read_error` row. The design keys are its first check after the key
+gate.
 
 A warning from
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
@@ -161,9 +165,11 @@ tteplan_check_spec(spec_path)
 #>                            <char>           <char>
 #> 1:                 $/study/colour   undeclared_key
 #> 2: $/study/implementation/version version_mismatch
-#>                                                                                                       message
-#>                                                                                                        <char>
-#> 1: Unknown key 'colour'. $/study accepts: description, design, implementation, principal_investigator, title.
-#> 2:                     study$implementation$version is 'v001', and the file name spec_v002.yaml gives 'v002'.
+#> 3:                              $       read_error
+#>                                                                                                                                                                                                                                             message
+#>                                                                                                                                                                                                                                              <char>
+#> 1:                                                                                                                                       Unknown key 'colour'. $/study accepts: description, design, implementation, principal_investigator, title.
+#> 2:                                                                                                                                                           study$implementation$version is 'v001', and the file name spec_v002.yaml gives 'v002'.
+#> 3: The spec MUST declare both top-level design keys, period_width and admin_censoring_isoyearweek.\n  period_width is missing.\n  admin_censoring_isoyearweek is missing.\nFor example: period_width: 4 and admin_censoring_isoyearweek: "2025-01".
 unlink(spec_dir, recursive = TRUE)
 ```

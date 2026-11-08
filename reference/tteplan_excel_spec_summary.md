@@ -11,8 +11,6 @@ tteplan_excel_spec_summary(
   spec_path,
   path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   protocol_ett_id = NULL
 )
 ```
@@ -44,19 +42,6 @@ tteplan_excel_spec_summary(
   - A `data.table` with the columns of `RegistryStudy$summary_table()`:
     `name`, `codes`, `label` and `generated_columns`.
 
-- period_width:
-
-  Integer, the width in weeks of the enrollment period. It has the
-  default of
-  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md).
-  The Target trial protocol sheet states it.
-
-- global_max_isoyearweek:
-
-  Character(1) or `NULL`, the administrative censoring boundary as an
-  isoyearweek, for example `"2023-52"`. `NULL` writes
-  `not built (spec only)` in the `Admin censoring:` row.
-
 - protocol_ett_id:
 
   Character(1) or `NULL`, the ETT that the Target trial protocol sheet
@@ -71,11 +56,9 @@ tteplan_excel_spec_summary(
 ## Details
 
 Each cell holds the value that `TTEPlan$excel_spec_summary()` writes for
-a plan at s0 from the same spec, code registry, `period_width` and
-`protocol_ett_id`. The one exception is the `Admin censoring:` row. s0
-reads that value from the first skeleton unless you supply it. Here the
-row reads `not built (spec only)` unless you supply
-`global_max_isoyearweek`.
+a plan at s0 from the same spec, code registry and `protocol_ett_id`.
+The `Admin censoring:` row and the width of the enrollment period come
+from the spec keys `admin_censoring_isoyearweek` and `period_width`.
 
 Only s1 decides the rare-condition rule. The workbook therefore states
 the rule as not decided yet, and it has no Rare conditions sheet. The
@@ -129,6 +112,8 @@ writeLines(
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
     "min_expected_events_per_arm_per_year: 5",
+    "period_width: 4",
+    "admin_censoring_isoyearweek: '2025-01'",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",
@@ -159,7 +144,7 @@ out <- tteplan_excel_spec_summary(
   path = file.path(spec_dir, "spec_v001.xlsx"),
   code_registry = study
 )
-#> Spec summary saved to: /tmp/RtmpB5daZq/file1d0048b4283a/spec_v001.xlsx
+#> Spec summary saved to: /tmp/RtmpU8GFrU/file1d864029bb5c/spec_v001.xlsx
 openxlsx::getSheetNames(out)
 #> [1] "Study Specification"   "Target trial protocol"
 unlink(spec_dir, recursive = TRUE)

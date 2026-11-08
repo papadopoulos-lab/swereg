@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -577,13 +577,14 @@ the workbook and in the forest figure.</td>
 <h2 id="enrollment-period-width">Enrollment period width<a class="anchor" aria-label="anchor" href="#enrollment-period-width"></a>
 </h2>
 <p>The <code>period_width</code> parameter in <code>TTEDesign</code>
-(default: 4 weeks) sets the width of an enrollment period. The same
-width sets each follow-up interval. The input is a person-week skeleton,
-so eligibility and treatment status are assessed weekly.
-<code>period_width</code> then groups consecutive weeks into enrollment
-periods, and each enrollment period opens exactly one trial. With
-<code>period_width = 4</code>, one trial opens every four weeks, and not
-one trial per week.</p>
+(default: 4 weeks) sets the width of an enrollment period. In the
+spec-driven pipeline, the required spec key <code>period_width</code>
+sets it. The same width sets each follow-up interval. The input is a
+person-week skeleton, so eligibility and treatment status are assessed
+weekly. <code>period_width</code> then groups consecutive weeks into
+enrollment periods, and each enrollment period opens exactly one trial.
+With <code>period_width = 4</code>, one trial opens every four weeks,
+and not one trial per week.</p>
 <p>Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
 observation and free of every enrollment outcome. The enrollment period

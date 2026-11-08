@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -192,7 +192,9 @@ an ETT of that length.
 
 
     <dt><code>global_max_isoyearweek</code></dt>
-<dd><p>Admin censoring boundary.</p></dd>
+<dd><p>Admin censoring boundary.
+<code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> sets it from the spec key
+<code>admin_censoring_isoyearweek</code>.</p></dd>
 
 
     <dt><code>spec</code></dt>
@@ -225,7 +227,9 @@ an ETT of that length.
 
     <dt><code>period_width</code></dt>
 <dd><p>Integer, the width in weeks of the enrollment period
-(default: 4L). The same width sets each follow-up interval.</p></dd>
+(default: 4L). The same width sets each follow-up interval.
+<code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> sets it from the spec key
+<code>period_width</code>.</p></dd>
 
 
     <dt><code>enrollment_counts</code></dt>
@@ -960,15 +964,16 @@ For each ETT: loads the analysis file, then computes the rates and the IRR
 with both truncated and untruncated weights. For each subgroup the spec
 names, it also computes the stratified IRRs and the effect-modification
 test.</p>
-<p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
-estimand and weight combinations carry it: per-protocol on
-<code>analysis_weight_pp_trunc</code>, stored under <code>rd_pp_trunc</code>, and
-intention-to-treat on <code>ipw_trunc</code>, stored under <code>rd_itt</code>. Each stores one
-summary row at the end of follow-up, with <code>rd</code>, <code>rd_lo</code>, <code>rd_hi</code>, <code>nnt</code>,
-<code>nnt_lo</code>, <code>nnt_hi</code>, <code>nnt_direction</code> and <code>interval_status</code>. Each also stores
-the full curve, one row per stop time, under <code>rd_curve_pp_trunc</code> or
-<code>rd_curve_itt</code>, with <code>surv_comparator</code> and <code>surv_intervention</code> beside the
-risk difference.</p>
+<p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Three
+estimand and weight combinations carry it:</p><ul><li><p>per-protocol on <code>analysis_weight_pp_trunc</code>, stored under
+<code>rd_pp_trunc</code>;</p></li>
+<li><p>per-protocol on <code>analysis_weight_pp</code>, stored under <code>rd_pp</code>;</p></li>
+<li><p>intention-to-treat on <code>ipw_trunc</code>, stored under <code>rd_itt</code>.</p></li>
+</ul><p>Each stores one summary row at the end of follow-up, with <code>rd</code>, <code>rd_lo</code>,
+<code>rd_hi</code>, <code>nnt</code>, <code>nnt_lo</code>, <code>nnt_hi</code>, <code>nnt_direction</code> and <code>interval_status</code>.
+Each also stores the full curve, one row per stop time, under
+<code>rd_curve_pp_trunc</code>, <code>rd_curve_pp</code> or <code>rd_curve_itt</code>, with
+<code>surv_comparator</code> and <code>surv_intervention</code> beside the risk difference.</p>
 <p>The curve also carries <code>n_persons_at_risk_comparator</code> and
 <code>n_persons_at_risk_intervention</code>. Each is a head count of distinct people in
 that arm at that stop time. It is the count a numbers-at-risk row
@@ -979,13 +984,13 @@ The confidence level is a STUDY property, read from
 are recorded on every stored risk-difference row. The export path formats
 those numbers and never recomputes them. The IRR intervals and the
 interval of the ratio of stratum IRRs use the same level.</p>
-<p>The minimum-events rule. The RD item of each estimand also cuts follow-up
-into 52-week windows. In each window it computes the expected events of
-each arm under the null. They are the pooled weighted rate of both arms
+<p>The minimum-events rule. The RD item on the truncated weight of each
+estimand also cuts follow-up into 52-week windows. In each window it
+computes the expected events of each arm under the null. They are the pooled weighted rate of both arms
 times the weighted person-years of that arm. A window passes when both arms
 reach <code>spec$min_expected_events_per_arm_per_year</code>. When a window fails, the
 method withholds the estimates of that estimand. It sets these to <code>NA</code>:</p><ul><li><p>the incidence rate ratios and the subgroup ratios;</p></li>
-<li><p>the risk difference and the number needed to treat;</p></li>
+<li><p>the risk differences and the numbers needed to treat;</p></li>
 <li><p>the interaction tests.</p></li>
 </ul><p>Their <code>interval_status</code> and <code>horizon_status</code> then read
 <code>"below minimum-events rule: &lt;arm&gt; arm, weeks &lt;lo&gt;-&lt;hi&gt;"</code>, which names the
@@ -993,6 +998,9 @@ first failing window. Events, person-years, rates and the survival curve
 stay. The record is stored as <code>horizon_pp</code> and <code>horizon_itt</code>, and
 <code>$get_horizon_windows()</code> returns its window table. Which windows pass depends
 on the observed events, through the pooled rate.</p>
+<p>The RD item on <code>analysis_weight_pp</code> computes no windows. The per-protocol
+decision is the decision on <code>analysis_weight_pp_trunc</code>, and it withholds
+both per-protocol risk differences.</p>
 <p>An enrollment that sets <code>minimum_events_rule_exempt: true</code> is exempt. The
 method computes and stores the decision of its ETTs as for any ETT, and
 withholds none of their estimates. Their <code>horizon_status</code> reads
@@ -1000,7 +1008,7 @@ withholds none of their estimates. Their <code>horizon_status</code> reads
 <p>A feasibility-horizon ETT, one with <code>feasibility_horizon = TRUE</code> in
 <code>$ett</code>, gets one work item per estimand. Each item computes the horizon
 record of its estimand through the same <code>.tte_horizon_record()</code> call as
-the RD item. The intention-to-treat record then takes the per-protocol
+the RD item on the truncated weight. The intention-to-treat record then takes the per-protocol
 decision. The method stores no estimate for the ETT: no summary, rate,
 ratio, risk difference, number needed to treat, survival curve or
 subgroup result. The enrollment loop reads an analysis file of a reported
@@ -1009,8 +1017,12 @@ ETT.</p>
 <code>min_expected_events_per_arm_per_year</code>. It also stops when an ETT of the
 run has no horizon decision for an estimand.</p>
 <p>Cost. Each risk difference is its own work item, so it is its own worker
-process with its own read of the analysis file. That is two more reads
-per ETT, or 1,080 more reads on a 540-ETT grid.</p>
+process with its own read of the analysis file. That is three more reads
+per ETT, or 1,620 more reads on a 540-ETT grid. The bootstrap of the third
+item was measured on a synthetic panel of 50,000 person-trials, under
+swereg 27.3.9. It took 3.97 s, the mean of 3 runs at 500 replicates. The
+7 items per ETT of swereg 27.3.9 took 27.14 s on that panel, so the third
+item adds 14.6% to that compute. The file reads are not in either number.</p>
 <p>Results are stored in <code>self$results_enrollment</code> and <code>self$results_ett</code>.
 Every targeted result is recomputed on each call (no skip cache). Use
 <code>plan$save()</code> to persist.</p>
@@ -1204,8 +1216,10 @@ risk-difference interval.</p>
 <p>One row per emulated trial, estimand, weighting, arm and stop time.
 <code>follow_up_interval</code> holds the stop time, in weeks from time zero, of the
 rows the curve was evaluated at.
-<code>$s3_analyze()</code> stores one wide curve per estimand, with a survival
-column for each arm. This method returns one row per arm instead.</p>
+<code>$s3_analyze()</code> stores one wide curve per estimand and weight, with a
+survival column for each arm. Per-protocol has two curves, on the truncated
+weight (<code>rd_curve_pp_trunc</code>) and the untruncated weight (<code>rd_curve_pp</code>).
+Intention-to-treat has one. This method returns one row per arm instead.</p>
 <p>The table carries the numbers at risk beside survival. <code>n_persons_at_risk</code> is
 an unweighted count of distinct people, per arm per stop time.
 <code>$s3_analyze()</code> stores it and this method melts it. A risk table reports
@@ -1836,7 +1850,14 @@ writers stop until <code>$s3_analyze()</code> reruns.</p>
 <p>Structural fields (confounders, exclusion criteria, follow-up windows,
 comparator-draw parameters, etc.) are <em>not</em> applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
-and recorded in <code>self$spec_reload_skipped_diffs</code>.</p><div class="section">
+and recorded in <code>self$spec_reload_skipped_diffs</code>. The two design keys,
+<code>period_width</code> and <code>admin_censoring_isoyearweek</code>, are structural fields.</p>
+<p>A plan built before swereg 27.3.10 stores a spec without the two design
+keys. For such a plan the method fills each design key that the spec file
+lacks from <code>self$period_width</code> and <code>self$global_max_isoyearweek</code>. It fills
+the same two values into the copy of <code>self$spec</code> that it compares against.
+A plan whose stored spec has the keys reads the file with
+<code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>, which refuses a file without them.</p><div class="section">
 <h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span>spec_path <span class="op">=</span> <span class="cn">NULL</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,38 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.10" id="swereg-27310">swereg 27.3.10<a class="anchor" aria-label="anchor" href="#swereg-27310"></a></h2>
+<p>No plan needs a rerun for the new spec keys. A plan gets the untruncated per-protocol risk difference only on its next rerun of <code>$s3_analyze()</code>.</p>
+<div class="section level3">
+<h3 id="breaking-changes-27-3-10">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-3-10"></a></h3>
+<ul><li>
+<strong>A spec MUST set the top-level keys <code>period_width</code> and <code>admin_censoring_isoyearweek</code>.</strong> <code>period_width</code> is one integer of at least 1. <code>admin_censoring_isoyearweek</code> is one string <code>"YYYY-WW"</code>, with a week from 01 to 53. Add two lines to the spec, for example <code>period_width: 4</code> and <code>admin_censoring_isoyearweek: "2025-01"</code>.</li>
+<li>
+<strong><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses a spec without both keys, with one message that names both.</strong> Do not edit an existing spec file. Cut a new spec version for each project.</li>
+<li>
+<strong><code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, <code><a href="../reference/tteplan_osf_text.html">tteplan_osf_text()</a></code> and <code><a href="../reference/tteplan_excel_spec_summary.html">tteplan_excel_spec_summary()</a></code> lose the arguments <code>period_width</code> and <code>global_max_isoyearweek</code>.</strong> They take both values from the spec. A call that passes either argument stops with an unused-argument error.</li>
+<li>
+<strong>No result changes when the spec values equal the values the plan used before.</strong> Those values are the arguments, or else the defaults: 4 and the last isoyearweek of the first skeleton file.</li>
+<li>
+<strong><code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> runs <code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> in every build that finds the first skeleton file.</strong> Before, it ran only when the call did not pass <code>global_max_isoyearweek</code>. The function no longer reads the admin week from the skeleton.</li>
+<li>
+<strong>A plan saved before 27.3.10 reloads its own spec.</strong> <code>$reload_spec()</code> takes both values from the plan, so the s4 export of an existing plan needs no rerun.</li>
+<li>
+<code>standing_methods.admin_censoring</code> stays an optional note. swereg does not read it.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-3-10">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-10"></a></h3>
+<ul><li>
+<strong><code>$s3_analyze()</code> also estimates the risk difference, its bootstrap interval and the NNT on the untruncated per-protocol weight.</strong> It stores them as <code>rd_pp</code> and <code>rd_curve_pp</code>, beside <code>rd_pp_trunc</code> and <code>rd_curve_pp_trunc</code>. <code>$get_estimates()</code>, <code>$get_curves()</code> and <code>results.qs2</code> carry them on the untruncated per-protocol row.</li>
+<li>
+<strong>The minimum-events rule withholds the untruncated per-protocol risk difference exactly when it withholds the truncated per-protocol estimate.</strong> The stored per-protocol horizon record stays the one computed on the truncated weight.</li>
+<li>
+<strong>The sheet “Weight truncation (PP)” gains “Risk difference per 10,000”, “Risk difference <level>% CI” and “NNT (<level>% CI)” for each weight.</level></level></strong> A result saved before 27.3.10 shows “not computed” in the cells of the untruncated weight.</li>
+<li>
+<strong>The extra bootstrap adds a projected 14.6% to the s3 compute per ETT.</strong> It took 3.97 s against a sum of 27.14 s for the 7 existing items. The base is a synthetic panel of 50,000 person-trials (25,000 persons), 500 replicates, under swereg 27.3.9. It excludes the analysis-file reads and the subgroup items. (<a href="https://github.com/papadopoulos-lab/swereg/issues/66" class="external-link">#66</a>)</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.9" id="swereg-2739">swereg 27.3.9<a class="anchor" aria-label="anchor" href="#swereg-2739"></a></h2>
 <p>No plan needs a rerun of s1, s2 or s3. A stale feasibility result clears only on the next <code>$s3_feasibility()</code>.</p>

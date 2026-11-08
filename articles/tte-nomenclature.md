@@ -144,7 +144,8 @@ section 1.8.6 states the rule.
 ## Enrollment period width
 
 The `period_width` parameter in `TTEDesign` (default: 4 weeks) sets the
-width of an enrollment period. The same width sets each follow-up
+width of an enrollment period. In the spec-driven pipeline, the required
+spec key `period_width` sets it. The same width sets each follow-up
 interval. The input is a person-week skeleton, so eligibility and
 treatment status are assessed weekly. `period_width` then groups
 consecutive weeks into enrollment periods, and each enrollment period

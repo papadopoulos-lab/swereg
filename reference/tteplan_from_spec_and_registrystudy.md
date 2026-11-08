@@ -19,8 +19,6 @@ tteplan_from_spec_and_registrystudy(
   spec_version = NULL,
   project_id = NULL,
   n_skeleton_files = NULL,
-  global_max_isoyearweek = NULL,
-  period_width = 4L,
   check_skeletons = TRUE
 )
 ```
@@ -38,9 +36,8 @@ tteplan_from_spec_and_registrystudy(
   Without a `work_root`, s1 reads `data_meta_dir` from it for its work
   directory. A list has no `$assert_skeletons_consistent()`, so pass
   `check_skeletons = FALSE` here and to
-  `$s1_generate_enrollments_and_ipw()`. With
-  `global_max_isoyearweek = NULL` and a first file named
-  `skeleton_<n>.qs2`, the list also needs `$load_skeleton()`.
+  `$s1_generate_enrollments_and_ipw()`. When the first file exists and
+  is named `skeleton_<n>.qs2`, the list also needs `$load_skeleton()`.
 
 - candidate_dir_spec:
 
@@ -77,20 +74,6 @@ tteplan_from_spec_and_registrystudy(
   [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
   can re-apply it after a host transfer.
 
-- global_max_isoyearweek:
-
-  Administrative censoring boundary (isoyearweek string, e.g.,
-  "2023-52"). If `NULL` (default), auto-detected from `max(isoyearweek)`
-  in the first skeleton file. Also runs
-  [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
-  on that skeleton.
-
-- period_width:
-
-  Integer, the width in weeks of the enrollment period (default: 4L).
-  The same width sets each follow-up interval. Stored on the plan and
-  passed through to TTEDesign.
-
 - check_skeletons:
 
   Logical (default `TRUE`). Run
@@ -125,6 +108,17 @@ then re-load the plan on any host with
 [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
 and call `plan$save()`, `plan$s1_generate_enrollments_and_ipw()`, etc.
 without re-specifying any paths.
+
+The plan takes `period_width` and `global_max_isoyearweek` from the spec
+keys `period_width` and `admin_censoring_isoyearweek`. See the design
+keys section of
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
+The function does not compare the week with the skeleton.
+
+When the first skeleton file exists, the function loads it and runs
+[`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+on it. When the file does not exist, the function gives the message
+`prevalent-user check skipped: no skeleton loaded`.
 
 ## See also
 

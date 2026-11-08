@@ -73,7 +73,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       128 |
+| consumed |       130 |
 | legacy   |        17 |
 | metadata |        10 |
 
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 155 key paths across 42 mapping contexts.
+The schema declares 157 key paths across 42 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -134,6 +134,7 @@ knitr::kable(
 
 | context                                                       | key                                        | class    |
 |:--------------------------------------------------------------|:-------------------------------------------|:---------|
+| `$`                                                           | `admin_censoring_isoyearweek`              | consumed |
 | `$`                                                           | `confounders`                              | consumed |
 | `$`                                                           | `enrollments`                              | consumed |
 | `$`                                                           | `exclusion_criteria`                       | consumed |
@@ -144,6 +145,7 @@ knitr::kable(
 | `$`                                                           | `min_expected_events_per_arm_per_year`     | consumed |
 | `$`                                                           | `open_questions`                           | consumed |
 | `$`                                                           | `outcomes`                                 | consumed |
+| `$`                                                           | `period_width`                             | consumed |
 | `$`                                                           | `rare_condition_rule`                      | consumed |
 | `$`                                                           | `sparse_rule`                              | legacy   |
 | `$`                                                           | `standing_methods`                         | consumed |
@@ -289,6 +291,35 @@ knitr::kable(
 | `$/target_trial/follow_up_period`                             | `specification`                            | consumed |
 | `$/target_trial/outcome`                                      | `specification`                            | consumed |
 | `$/target_trial/treatment_strategies`                         | `specification`                            | consumed |
+
+## The design keys
+
+Every specification MUST declare two flat top-level keys. They are
+design choices, so the specification holds them and no function argument
+does.
+
+``` yaml
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
+```
+
+| Key                           | Meaning                                                                                   | Type                                              | Required |
+|:------------------------------|:------------------------------------------------------------------------------------------|:--------------------------------------------------|:---------|
+| `period_width`                | The width in weeks of the enrollment period. The same width sets each follow-up interval. | One whole number of at least 1                    | Yes      |
+| `admin_censoring_isoyearweek` | The administrative censoring week. Follow-up includes that week.                          | One string `YYYY-WW`, with the week from 01 to 53 | Yes      |
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops on a specification without one or both keys, and on a bad value.
+The one message names both keys, states each problem and shows the
+example above.
+[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+reports the same message as one `read_error` row on the path `$`. s0
+reads both values from the specification. It does not compare the week
+with the skeleton.
+
+`$/standing_methods/admin_censoring` stays an optional `metadata` note.
+swereg does not read it. When the note states a week, keep it equal to
+`admin_censoring_isoyearweek`.
 
 ## The global inclusion container
 

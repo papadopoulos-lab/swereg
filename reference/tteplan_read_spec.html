@@ -11,7 +11,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,8 @@ fields are present.</p>
     <p>Window conversion rules:</p><ul><li><p><code>"lifetime_before_baseline"</code> -&gt; <code>Inf</code></p></li>
 <li><p><code>"N year"</code> or <code>"N years"</code> -&gt; <code>N * 52</code></p></li>
 </ul><p>Validation checks:</p><ul><li><p>Required sections: study, enrollments, outcomes, follow_up,
-min_expected_events_per_arm_per_year</p></li>
+min_expected_events_per_arm_per_year, period_width and
+admin_censoring_isoyearweek</p></li>
 <li><p><code>min_expected_events_per_arm_per_year</code> MUST be one finite number of
 at least 0</p></li>
 <li><p>The retired keys <code>horizon_rule</code> and <code>sparse_rule</code> are refused. The
@@ -240,6 +241,29 @@ value MUST be one finite number of at least 0. The function refuses a
 missing key, an empty value and a mapping. <code>$reload_spec()</code> copies a
 changed value onto a cached plan, because the value does not change who is
 enrolled or how swereg weights them.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-design-keys">The design keys<a class="anchor" aria-label="anchor" href="#the-design-keys"></a></h2>
+
+
+
+<p>Every spec MUST declare two flat top-level keys. They are design choices of
+the study, so the spec holds them and no function argument does.</p>
+<div class="sourceCode"><pre><code><span></span>
+<span><span class="va">period_width</span><span class="op">:</span> <span class="fl">4</span></span>
+<span><span class="va">admin_censoring_isoyearweek</span><span class="op">:</span> <span class="st">"2025-01"</span></span></code></pre></div>
+<ul><li><p><code>period_width</code> is the width in weeks of the enrollment period. The same
+width sets each follow-up interval. It MUST be one whole number from 1
+to 2147483647, the largest R integer. The function returns it as an
+integer.</p></li>
+<li><p><code>admin_censoring_isoyearweek</code> is the administrative censoring week, as
+<code>YYYY-WW</code> with the week from 01 to 53. Follow-up includes that week.</p></li>
+</ul><p>A spec without one or both keys stops with one message. The message names
+both keys, states which keys are missing and shows an example. A bad value
+stops with the same form of message. <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>
+reads both values from the spec, and it does not compare the week with the
+skeleton. <code>standing_methods$admin_censoring</code> MAY still describe the rule in
+prose. swereg does not read it.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

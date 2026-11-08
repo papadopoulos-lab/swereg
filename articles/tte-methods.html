@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -844,10 +844,12 @@ when
 <p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">W_{i,m,j}</annotation></semantics></math>
 is the analysis weight of 1.8.3. It is the truncated treatment weight
 for the intention-to-treat analogue and the truncated product weight for
-the per-protocol estimand. Covariates do not enter the estimator, so the
-weights carry the whole adjustment, as in the IRR model. A stop time at
-which an arm has nobody at risk leaves the survival of that arm
-unchanged. The risk difference is
+the per-protocol estimand. The sensitivity analysis of 1.9 repeats the
+per-protocol estimate with the untruncated product weight. So each
+analysis has three risk differences. Covariates do not enter the
+estimator, so the weights carry the whole adjustment, as in the IRR
+model. A stop time at which an arm has nobody at risk leaves the
+survival of that arm unchanged. The risk difference is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_{0}(t) - \hat S_{1}(t)</annotation></semantics></math>.</p>
 <p>The stored survival curves run to the end of follow-up, whatever the
 minimum-events rule of 1.8.6 decides. After the reportable horizon, the
@@ -927,7 +929,8 @@ estimator.</li>
 </ul>
 <p>The interval of the risk difference is a percentile interval from a
 person-level (cluster) bootstrap, with 500 replicates and a fixed seed.
-Each replicate draws
+Each analysis runs three bootstraps, one for each risk difference of
+1.8.5, with the same replicate count and seed. Each replicate draws
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">{N}</annotation></semantics></math>
 persons with replacement, and a drawn person brings all of their
 person-trials. One resample serves both arms. A person can be a
@@ -1012,8 +1015,9 @@ treat are reported as NE, not estimable. The subgroup IRRs and the
 effect-modification tests of 1.8.8 are withheld too. Events,
 person-time, rates and the stored survival curves are still reported.
 The per-protocol decision uses the truncated product weight. It also
-covers the untruncated per-protocol IRR of 1.9, which is a sensitivity
-estimate of the same estimand.</p>
+covers the untruncated per-protocol IRR, risk difference and number
+needed to treat of 1.9. These are sensitivity estimates of the same
+estimand, and the untruncated weight makes no decision of its own.</p>
 <p>The rule decides the per-protocol estimand. The intention-to-treat
 estimand of the same analysis follows that decision: it is reported
 exactly when the per-protocol estimand is, to the same reportable
@@ -1397,12 +1401,17 @@ standardised mean difference between the arms.</p>
 </h3>
 <p>TARGET item 7h.ii.</p>
 <p>The pipeline reports one sensitivity analysis by default: the
-per-protocol IRR with untruncated weights. It is a required companion of
-the primary analysis, not an alternative primary analysis. A material
-divergence between the two estimates means the weights are under stress.
-It calls for two checks: the raw weight distribution, and the positivity
-of treatment and censoring. Where the extreme weights are structural,
-restrict the eligible population rather than truncate harder.</p>
+per-protocol estimand with untruncated weights. It reports the IRR, the
+risk difference with its bootstrap interval, and the number needed to
+treat. The third bootstrap of 1.8.6 gives that interval. The
+minimum-events rule withholds these estimates exactly when it withholds
+the truncated per-protocol estimates (1.8.6). The sensitivity analysis
+is a required companion of the primary analysis, not an alternative
+primary analysis. A material divergence between the two estimates means
+the weights are under stress. It calls for two checks: the raw weight
+distribution, and the positivity of treatment and censoring. Where the
+extreme weights are structural, restrict the eligible population rather
+than truncate harder.</p>
 <p>The loss and deviation models can also be refit as generalised linear
 models, which drops the penalised splines. Each time term of 1.8.2 is
 then a natural cubic spline of 3 degrees of freedom with 4 or more
@@ -3686,10 +3695,9 @@ source of the validation evidence.</p>
 <tr class="odd">
 <td align="left">Values, 1.1, 1.4</td>
 <td align="left">Width of the enrollment period</td>
-<td align="left">
-<code>period_width</code> argument of
-<code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, default
-<code>4L</code>. It also sets the width of each follow-up interval.
+<td align="left">The required spec key <code>period_width</code>, which
+<code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> copies to the plan.
+It also sets the width of each follow-up interval.
 <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> states the timing rules with worked
 examples</td>
 </tr>
@@ -3746,8 +3754,7 @@ washout covers the enrollment’s intervention level on the weekly rows of
 the first skeleton batch. A prevalent week is a week at that level after
 an earlier week of the same person at that level. A washout covers the
 enrollment when it makes every prevalent week ineligible. swereg skips
-the check and says so when no skeleton is loaded
-(<code>global_max_isoyearweek</code> supplied). Set
+the check and says so when the first skeleton file does not exist. Set
 <code>options(swereg.warn_prevalent_user = FALSE)</code> to silence
 it</td>
 </tr>
@@ -3821,11 +3828,11 @@ discordant week beyond tolerance. A panel built outside
 discordant interval instead. <code>.deviation_clip</code> is
 <code>NA</code> when the deviation is not strictly before every other
 stop. The horizon comes from <code>follow_up</code>. The administrative
-end comes from <code>global_max_isoyearweek</code> (default: the largest
-<code>isoyearweek</code> of the first skeleton file), passed to
-<code>TTEDesign</code> as <code>admin_censor_isoyearweek</code>.
-TrialEmulation applies the same deviation rule in
-<code>expand_until_switch()</code>
+end comes from the required spec key
+<code>admin_censoring_isoyearweek</code>, stored on the plan as
+<code>global_max_isoyearweek</code> and passed to <code>TTEDesign</code>
+as <code>admin_censor_isoyearweek</code>. TrialEmulation applies the
+same deviation rule in <code>expand_until_switch()</code>
 </td>
 </tr>
 <tr class="even">
@@ -3930,11 +3937,13 @@ The Wald interval uses <code>qnorm(1 - (1 - conf_level) / 2)</code>, and
 interval</td>
 <td align="left">
 <code>TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)</code>.
-<code>$s3_analyze()</code> runs it on every ETT at 500 replicates and
-seed 1, on <code>analysis_weight_pp_trunc</code> (stored as
-<code>rd_pp_trunc</code> and <code>rd_curve_pp_trunc</code>) and on
-<code>ipw_trunc</code> (stored as <code>rd_itt</code> and
-<code>rd_curve_itt</code>). The level comes from
+<code>$s3_analyze()</code> runs it three times on every ETT, at 500
+replicates and seed 1. The three weights are
+<code>analysis_weight_pp_trunc</code> (stored as
+<code>rd_pp_trunc</code> and <code>rd_curve_pp_trunc</code>),
+<code>analysis_weight_pp</code> (stored as <code>rd_pp</code> and
+<code>rd_curve_pp</code>) and <code>ipw_trunc</code> (stored as
+<code>rd_itt</code> and <code>rd_curve_itt</code>). The level comes from
 <code>study.implementation.conf_level</code> in the YAML spec, default
 0.95. <code>TTEPlan$get_curves()</code> returns the stop time in weeks
 from time zero as the column <code>follow_up_interval</code>, and the
@@ -3963,10 +3972,13 @@ raw panel</td>
 <code>min_expected_events_per_arm_per_year</code> in
 the YAML spec, which <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> requires. The year
 is the package constant <code>.HORIZON_WINDOW_WEEKS</code>, 52 weeks.
-The risk-difference work item of <code>$s3_analyze()</code> computes the
-years outside <code>safe_call()</code>, and the parent merge stops when
-an ETT has no decision. The records are stored as
-<code>horizon_pp</code> and <code>horizon_itt</code>, and
+The risk-difference work items of <code>$s3_analyze()</code> on
+<code>analysis_weight_pp_trunc</code> and <code>ipw_trunc</code> compute
+the years outside <code>safe_call()</code>. The parent merge stops when
+an ETT has no decision. The item on <code>analysis_weight_pp</code>
+computes no years, and the per-protocol decision withholds
+<code>rd_pp</code> with <code>rd_pp_trunc</code>. The records are stored
+as <code>horizon_pp</code> and <code>horizon_itt</code>, and
 <code>.tte_horizon_follow_pp()</code> gives <code>horizon_itt</code> the
 per-protocol decision. <code>$get_horizon_windows()</code> returns the
 years. The <code>Minimum events (Y or -)</code> and
@@ -4044,7 +4056,14 @@ quartiles. With equal weights they equal
 <td align="left">1.9</td>
 <td align="left">Sensitivity analyses</td>
 <td align="left">The untruncated PP IRR is stored as
-<code>irr_pp</code>. <code>estimate_ipcw_pp_with_gam = FALSE</code> in
+<code>irr_pp</code>, and the untruncated PP risk difference as
+<code>rd_pp</code> and <code>rd_curve_pp</code>. The
+<code>Weight truncation (PP)</code> sheet of
+<code>$export_tables()</code> shows the risk difference, its interval
+and the number needed to treat on each weight. A result that swereg
+27.3.9 stored has no <code>rd_pp</code>, and the sheet reads
+<code>not computed</code> in its three untruncated cells.
+<code>estimate_ipcw_pp_with_gam = FALSE</code> in
 <code>$s2_generate_analysis_files_and_ipcw_pp()</code> fits the loss and
 deviation models as cloglog GLMs,
 <code>.tte_time_term(var, n, gam = FALSE)</code> for <code>tstart</code>

@@ -17,7 +17,7 @@ The other fields point to it as 'Field/Subheading'."><meta property="og:image" c
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,8 +86,6 @@ The other fields point to it as <code>'Field/Subheading'</code>.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tteplan_osf_text</span><span class="op">(</span></span>
 <span>  <span class="va">spec_path</span>,</span>
 <span>  code_registry <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  period_width <span class="op">=</span> <span class="fl">4L</span>,</span>
-<span>  global_max_isoyearweek <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  people <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"person"</span>, <span class="st">"persons"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -106,17 +104,6 @@ reads it with <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></co
 codes, as in <code><a href="tteplan_excel_spec_summary.html">tteplan_excel_spec_summary()</a></code>: <code>NULL</code>, a <a href="RegistryStudy.html">RegistryStudy</a>,
 or a <code>data.table</code> with the columns of <code>RegistryStudy$summary_table()</code>.
 With <code>NULL</code>, every code cell of the code list reads <code>not resolved</code>.</p></dd>
-
-
-<dt id="arg-period-width">period_width<a class="anchor" aria-label="anchor" href="#arg-period-width"></a></dt>
-<dd><p>Integer, the width in weeks of the enrollment period.
-It has the default of <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>.</p></dd>
-
-
-<dt id="arg-global-max-isoyearweek">global_max_isoyearweek<a class="anchor" aria-label="anchor" href="#arg-global-max-isoyearweek"></a></dt>
-<dd><p>Character(1) or <code>NULL</code>, the administrative
-censoring boundary as an isoyearweek, for example <code>"2025-01"</code>. Follow-up
-includes that week. <code>NULL</code> writes "the administrative end of the data".</p></dd>
 
 
 <dt id="arg-people">people<a class="anchor" aria-label="anchor" href="#arg-people"></a></dt>
@@ -138,7 +125,9 @@ from <code>min_expected_events_per_arm_per_year</code>.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The function reads the spec and the code registry only. It reads no
-skeleton, rawbatch or registry data file, so it runs before s0. Every spec
+skeleton, rawbatch or registry data file, so it runs before s0. The width
+of the enrollment period and the administrative censoring week come from
+the spec keys <code>period_width</code> and <code>admin_censoring_isoyearweek</code>. Every spec
 entry appears in the text: no criterion, covariate or outcome is left out.</p>
 <p>The text uses the <code>name</code> of each criterion, covariate and outcome, the
 <code>arms</code> and <code>description</code> of each treatment, and the <code>description</code> of each
@@ -193,6 +182,8 @@ the data sources and the study population, and the ethics approval.</p>
 <span class="r-in"><span>    <span class="st">"follow_up:"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"  - {label: 1 year, weeks: 52}"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"min_expected_events_per_arm_per_year: 5"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"period_width: 4"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"admin_censoring_isoyearweek: '2025-01'"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"enrollments:"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"  - id: '01'"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"    name: A vs B"</span>,</span></span>

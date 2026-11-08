@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -136,33 +136,30 @@ the YAML first. It reads the YAML and no data.</p>
 <span><span class="va">plan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">plan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>s0 reads the specification YAML and the registry codes of the
-<code>RegistryStudy</code>. It also loads the first skeleton batch to
-validate the specification:</p>
+<code>RegistryStudy</code>. The specification sets the width of the
+enrollment period, <code>period_width</code>, and the administrative
+end, <code>admin_censoring_isoyearweek</code>. s0 also loads the first
+skeleton batch to validate the specification:</p>
 <ul>
 <li>It checks that each named column exists. It reads the outcome
 columns by name only, and reads no outcome value.</li>
 <li>It reads the values of the treatment, washout and categorical
 confounder columns, and the type of the observation column.</li>
-<li>It takes the last week of the data as the administrative end.</li>
 </ul>
 <p>A failed check stops s0 or gives a warning. A message can state a
 count of prevalent-user weeks, or a category value that the data hold
-and the specification lacks. You MAY pass
-<code>global_max_isoyearweek</code> to set the administrative end
-yourself, and s0 then skips this validation.</p>
+and the specification lacks. When the first skeleton file does not
+exist, s0 skips this validation and says so.</p>
 <p><code><a href="../reference/tteplan_excel_spec_summary.html">tteplan_excel_spec_summary()</a></code> writes the Excel
 specification from the specification YAML and a code registry, without a
 plan. It reads no skeleton, so it runs before s0, and while the
 skeletons do not yet hold a new code. Pass the
 <code>RegistryStudy</code>, or its <code>$summary_table()</code>, as
 <code>code_registry</code>, and each variable that the registry
-generates shows its codes. The <code>Admin censoring:</code> row reads
-<code>not built (spec only)</code> unless you pass
-<code>global_max_isoyearweek</code>. Every other cell matches
+generates shows its codes. Every cell matches
 <code>$excel_spec_summary()</code> at s0 for the same spec, code
-registry, <code>period_width</code> and <code>protocol_ett_id</code>. Do
-not edit the workbook by hand: change the YAML and write the workbook
-again.</p>
+registry and <code>protocol_ett_id</code>. Do not edit the workbook by
+hand: change the YAML and write the workbook again.</p>
 <p>Register after s0 and before s1.</p>
 </div>
 <div class="section level2">
@@ -176,7 +173,6 @@ named character vector of Markdown texts, one for each field:</p>
 <code class="sourceCode R"><span><span class="va">osf</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_osf_text.html">tteplan_osf_text</a></span><span class="op">(</span></span>
 <span>  <span class="st">"/path/to/spec/spec_v001.yaml"</span>,</span>
 <span>  code_registry <span class="op">=</span> <span class="va">study</span>,</span>
-<span>  global_max_isoyearweek <span class="op">=</span> <span class="st">"2025-01"</span>,</span>
 <span>  people <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"woman"</span>, <span class="st">"women"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">osf</span><span class="op">[[</span><span class="st">"Data inclusion and exclusion"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
@@ -291,8 +287,9 @@ See “Sample size”.</td>
 <td align="left">Starting and stopping rules</td>
 <td align="left">
 <code>inclusion_criteria$isoyears</code>,
-<code>follow_up[]$weeks</code>, the <code>global_max_isoyearweek</code>
-argument of s0</td>
+<code>follow_up[]$weeks</code>,
+<code>admin_censoring_isoyearweek</code>
+</td>
 <td align="left">Inclusion criteria (global), row “Isoyears:”;
 Follow-up; Study, row “Admin censoring:”</td>
 </tr>
