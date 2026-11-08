@@ -28,9 +28,8 @@
 #'   `skeleton_files`. Without a `work_root`, s1 reads `data_meta_dir` from
 #'   it for its work directory. A list has no `$assert_skeletons_consistent()`, so pass
 #'   `check_skeletons = FALSE` here and to
-#'   `$s1_generate_enrollments_and_ipw()`. With
-#'   `global_max_isoyearweek = NULL` and a first file named
-#'   `skeleton_<n>.qs2`, the list also needs `$load_skeleton()`.
+#'   `$s1_generate_enrollments_and_ipw()`. When the first file exists and is
+#'   named `skeleton_<n>.qs2`, the list also needs `$load_skeleton()`.
 #' @param candidate_dir_spec Character vector of candidate directories that
 #'   contain the spec YAML `spec_vXXX.yaml`. The first existing directory is
 #'   used to locate the spec.
@@ -47,13 +46,6 @@
 #'   `n_skeleton_files` files are used (for faster dev iterations). Stored
 #'   on the plan as `n_skeleton_files_limit` so [tteplan_load()] can
 #'   re-apply it after a host transfer.
-#' @param global_max_isoyearweek Administrative censoring boundary
-#'   (isoyearweek string, e.g., "2023-52"). If `NULL` (default), auto-detected
-#'   from `max(isoyearweek)` in the first skeleton file. Also runs
-#'   [tteplan_validate_spec()] on that skeleton.
-#' @param period_width Integer, the width in weeks of the enrollment period
-#'   (default: 4L). The same width sets each follow-up interval. Stored on the
-#'   plan and passed through to TTEDesign.
 #' @param check_skeletons Logical (default `TRUE`). Run
 #'   [RegistryStudy]`$assert_skeletons_consistent()` before reading any
 #'   skeleton, so a half-rebuilt or stale skeleton store stops here rather
@@ -63,6 +55,17 @@
 #'   typically alongside `n_skeleton_files`.
 #' @return A [TTEPlan] object with the full ETT grid, embedded
 #'   `registrystudy`, and CandidatePath fields populated.
+#'
+#' @details
+#' The plan takes `period_width` and `global_max_isoyearweek` from the spec
+#' keys `period_width` and `admin_censoring_isoyearweek`. See the design keys
+#' section of [tteplan_read_spec()]. The function does not compare the week
+#' with the skeleton.
+#'
+#' When the first skeleton file exists, the function loads it and runs
+#' [tteplan_validate_spec()] on it. When the file does not exist, the
+#' function gives the message `prevalent-user check skipped: no skeleton
+#' loaded`.
 #'
 #' @family tte_spec
 #' @seealso [registrystudy_load()], [tteplan_locate_and_load()]
@@ -75,12 +78,8 @@ tteplan_from_spec_and_registrystudy <- function(
   spec_version = NULL,
   project_id = NULL,
   n_skeleton_files = NULL,
-  global_max_isoyearweek = NULL,
-  period_width = 4L,
   check_skeletons = TRUE
 ) {
-  isoyearweek <- NULL
-
   if (is.null(study) || is.null(study$skeleton_files)) {
     stop(
       "`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy).",
@@ -179,32 +178,25 @@ tteplan_from_spec_and_registrystudy <- function(
     return(list(data = sk$data, created_at = sk$created_at))
   }
 
-  if (is.null(global_max_isoyearweek)) {
+  if (file.exists(skeleton_files[1])) {
     first <- .load_first_skeleton_dt()
-    skeleton <- first$data
-    tteplan_validate_spec(spec, skeleton)
-    global_max_isoyearweek <- skeleton[, max(isoyearweek, na.rm = TRUE)]
-    message("Admin censoring cutoff from skeleton: ", global_max_isoyearweek)
+    tteplan_validate_spec(spec, first$data)
     skeleton_created_at <- first$created_at
-    rm(skeleton, first)
+    rm(first)
   } else {
-    # A supplied cutoff means no skeleton is validated, so the prevalent-user
-    # check in tteplan_validate_spec() does not run. Say so, rather than let
-    # a silent build read as a clean one.
-    if (file.exists(skeleton_files[1])) {
-      first <- .load_first_skeleton_dt()
-      skeleton_created_at <- first$created_at
-      rm(first)
-    }
+    # No skeleton is validated, so the prevalent-user check in
+    # tteplan_validate_spec() does not run. Say so, rather than let a silent
+    # build read as a clean one.
     message("prevalent-user check skipped: no skeleton loaded")
   }
 
+  # Both design values come from the spec, and only from the spec.
   plan <- TTEPlan$new(
     project_prefix = project_id,
     skeleton_files = skeleton_files,
-    global_max_isoyearweek = global_max_isoyearweek
+    global_max_isoyearweek = spec[["admin_censoring_isoyearweek"]]
   )
-  plan$period_width <- as.integer(period_width)
+  plan$period_width <- spec[["period_width"]]
   plan$spec <- spec
   plan$spec_version <- spec_version
 

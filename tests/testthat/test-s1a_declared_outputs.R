@@ -36,8 +36,8 @@ skip_if_not_installed("processx")
 # Two enrollments, so `2 x n_enrollments` is 4 and not 2: with a single
 # enrollment the cache/pre distinction and the per-enrollment suffix cannot be
 # told apart from each other.
-s1a_write_spec <- function(path, project_prefix) {
-  ttm_write_spec(path, project_prefix, "rd_age_continuous")
+s1a_write_spec <- function(path, project_prefix, admin) {
+  ttm_write_spec(path, project_prefix, "rd_age_continuous", admin = admin)
   spec <- yaml::read_yaml(path)
   e2 <- spec$enrollments[[1L]]
   e2$id <- "02"
@@ -73,7 +73,11 @@ s1a_fixture <- function(env = parent.frame(), n_skel = 2L) {
   for (p in skel_paths) {
     qs2::qs_save(sk, p)
   }
-  s1a_write_spec(file.path(dir_spec, "spec_v001.yaml"), "s1adecl")
+  s1a_write_spec(
+    file.path(dir_spec, "spec_v001.yaml"),
+    "s1adecl",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
+  )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_paths, data_meta_dir = dir_meta),
@@ -81,7 +85,6 @@ s1a_fixture <- function(env = parent.frame(), n_skel = 2L) {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 

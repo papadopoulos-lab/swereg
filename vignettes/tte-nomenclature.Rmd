@@ -143,7 +143,7 @@ The flat key `min_expected_events_per_arm_per_year` of the specification sets th
 
 # Enrollment period width
 
-The `period_width` parameter in `TTEDesign` (default: 4 weeks) sets the width of an enrollment period. The same width sets each follow-up interval. The input is a person-week skeleton, so eligibility and treatment status are assessed weekly. `period_width` then groups consecutive weeks into enrollment periods, and each enrollment period opens exactly one trial. With `period_width = 4`, one trial opens every four weeks, and not one trial per week.
+The `period_width` parameter in `TTEDesign` (default: 4 weeks) sets the width of an enrollment period. In the spec-driven pipeline, the required spec key `period_width` sets it. The same width sets each follow-up interval. The input is a person-week skeleton, so eligibility and treatment status are assessed weekly. `period_width` then groups consecutive weeks into enrollment periods, and each enrollment period opens exactly one trial. With `period_width = 4`, one trial opens every four weeks, and not one trial per week.
 
 Time zero is a landmark: the first week after the enrollment period closes. A person enters the trial only if they reach that week under observation and free of every enrollment outcome. The enrollment period therefore carries no follow-up and no immortal time. `period_width` trades the number of trials against how long a newly eligible person waits:
 

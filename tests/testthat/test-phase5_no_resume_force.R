@@ -81,7 +81,8 @@ test_that("the deleted resume/cache internals are gone from the namespace", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttmphase5",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = global_max
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -90,7 +91,6 @@ test_that("the deleted resume/cache internals are gone from the namespace", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = global_max,
     check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()

@@ -221,10 +221,15 @@ test_that("each estimand reads the analysis file, weight, follow-up and rule tha
   .fz_skip()
   fx <- .fz_fixture()
   fz <- .fz_items(fx$log_fz, ".s3_feasibility_worker")
-  rd <- Filter(
+  rd_all <- Filter(
     function(it) identical(it$method, "risk_difference"),
     .fz_items(fx$log_s3, ".s3_ett_worker")
   )
+  # Three risk-difference items per ETT. The item on the untruncated
+  # per-protocol weight computes no horizon record (swereg#66), so the
+  # feasibility items mirror the other two.
+  expect_length(rd_all, 6L)
+  rd <- Filter(function(it) !identical(it$weight_col, "analysis_weight_pp"), rd_all)
   expect_length(fz, 4L)
   expect_length(rd, 4L)
   for (it in rd) {

@@ -61,6 +61,8 @@
       list(label = "2 years", weeks = 104L)
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     exclusion_criteria = list(
       list(
         name = "Prior event A",
@@ -208,7 +210,16 @@ test_that("tteplan_read_spec errors on missing file", {
 
 test_that("tteplan_read_spec errors on missing required sections", {
   path <- tempfile(fileext = ".yaml")
-  yaml::write_yaml(list(study = list(title = "X")), path)
+  # The design keys are present, so the generic check of the required
+  # sections is the first stop.
+  yaml::write_yaml(
+    list(
+      study = list(title = "X"),
+      period_width = 4L,
+      admin_censoring_isoyearweek = "2025-01"
+    ),
+    path
+  )
   on.exit(unlink(path))
 
   expect_error(
@@ -786,7 +797,6 @@ test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -808,7 +818,6 @@ test_that("tteplan_from_spec_and_registrystudy stores treatment_impl in ETT", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -835,7 +844,6 @@ test_that("tteplan_from_spec_and_registrystudy passes treatment_impl through enr
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -858,7 +866,6 @@ test_that("tteplan_from_spec_and_registrystudy extracts confounder_vars", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -902,7 +909,6 @@ test_that("tteplan_from_spec_and_registrystudy stores spec on plan", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -1249,6 +1255,8 @@ test_that("print_spec_summary prints expected sections", {
       list(label = "3 years", weeks = 156)
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Drug X vs none, age 30-39",
@@ -1365,6 +1373,8 @@ test_that("print_spec_summary annotates matched code registry entries", {
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test enrollment",
@@ -1423,6 +1433,8 @@ test_that("print_spec_summary works without code_registry", {
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1468,6 +1480,8 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1516,6 +1530,8 @@ test_that("print_spec_summary shows date and status from implementation", {
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1587,6 +1603,8 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1665,6 +1683,8 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01", name = "Test",
@@ -1729,20 +1749,23 @@ test_that("the pre-flight runs before any skeleton is read", {
 
 test_that("check_skeletons = FALSE skips it", {
   d <- .preflight_dir(withr::local_tempdir())
-  # It still fails, because the skeleton file does not exist. The point is
-  # that it gets PAST the pre-flight to fail for that later reason.
+  # The skeleton file does not exist, so s0 validates no skeleton and builds
+  # the plan. The point is that it gets PAST the pre-flight.
   msg <- tryCatch(
-    swereg::tteplan_from_spec_and_registrystudy(
-      study = .preflight_study("nonexistent.qs2", d),
-      candidate_dir_spec = d,
-      candidate_dir_tteplan = d,
-      candidate_dir_results = d,
-      spec_version = "v001",
-      check_skeletons = FALSE
-    ),
+    {
+      suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
+        study = .preflight_study("nonexistent.qs2", d),
+        candidate_dir_spec = d,
+        candidate_dir_tteplan = d,
+        candidate_dir_results = d,
+        spec_version = "v001",
+        check_skeletons = FALSE
+      ))
+      "built"
+    },
     error = function(e) conditionMessage(e)
   )
-  expect_false(grepl("PREFLIGHT RAN", msg, fixed = TRUE))
+  expect_identical(msg, "built")
 })
 
 test_that("a study that cannot be checked FAILS, it does not pass quietly", {

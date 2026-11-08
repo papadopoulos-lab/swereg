@@ -53,7 +53,7 @@ test_that("an unknown key at the root is refused by name", {
   # name they meant.
   expect_error(
     swereg::tteplan_read_spec(f),
-    "$ accepts: confounders, enrollments",
+    "$ accepts: admin_censoring_isoyearweek, confounders, enrollments",
     fixed = TRUE
   )
 })

@@ -67,9 +67,8 @@ test_that("s0 refuses a global exclusion that selects on an outcome", {
       candidate_dir_tteplan = root,
       candidate_dir_results = root,
       spec_version = "v001",
-      # A supplied cutoff loads no skeleton, so without the refusal s0
-      # builds a plan and returns.
-      global_max_isoyearweek = "2020-52",
+      # The skeleton file does not exist, so s0 loads no skeleton. Without
+      # the refusal it builds a plan and returns.
       check_skeletons = FALSE
     ),
     OSE_GLOBAL_MESSAGE,

@@ -71,7 +71,8 @@ s1d_fixture <- function(env = parent.frame(), run_s1ac = TRUE) {
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
     "s1ddecl",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -80,7 +81,6 @@ s1d_fixture <- function(env = parent.frame(), run_s1ac = TRUE) {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 

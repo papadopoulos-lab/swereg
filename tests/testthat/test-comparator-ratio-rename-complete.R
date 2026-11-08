@@ -11,9 +11,10 @@
 #      refusal. It declares the key `legacy` at
 #      `$/enrollments[]/treatment/implementation/matching_ratio`, and it
 #      carries the migration message.
-#   2. `R/tteplan_read_spec.R`, inside `tteplan_read_spec()`, in a comment
-#      only. That function held a second copy of the rule until the key gate
-#      landed. The comment points at the schema.
+#   2. `R/tteplan_read_spec.R`, inside `.tte_read_spec()`, the body of
+#      `tteplan_read_spec()`, in a comment only. That function held a second
+#      copy of the rule until the key gate landed. The comment points at the
+#      schema.
 #   3. `tests/testthat/test-tteplan-spec-keys.R`. That file drives the gate
 #      end to end, through `tteplan_read_spec()`.
 #   4. `tests/testthat/test-tteplan-spec-schema.R`. That file pins how the
@@ -103,10 +104,11 @@ test_that("the retired matching_ratio key survives only in the gate, its test an
   )
 
   # In `R/tteplan_read_spec.R` every occurrence is a comment, and every one
-  # sits in the body of `tteplan_read_spec()`. A line of code there would be a
-  # second spelling of a rule the schema already carries.
+  # sits in the body of `.tte_read_spec()`, which `tteplan_read_spec()` calls.
+  # A line of code there would be a second spelling of a rule the schema
+  # already carries.
   src <- readLines(file.path(root, "R", "tteplan_read_spec.R"), warn = FALSE)
-  fn_start <- grep("^tteplan_read_spec <- function", src)
+  fn_start <- grep("^\\.tte_read_spec <- function", src)
   expect_length(fn_start, 1L)
   fn_end <- fn_start + which(src[(fn_start + 1L):length(src)] == "}")[1]
   in_r <- as.integer(sub("^.*:", "", hits[files == "R/tteplan_read_spec.R"]))

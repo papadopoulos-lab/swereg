@@ -71,7 +71,10 @@ list of enrollment ids. A single id is a list of one. The list MUST
 NOT repeat an id, and each string MUST be the \code{id} of an enrollment.
 The checker writes one row for each bad entry. The message names the follow-up label and the bad value.}
 \item{\code{read_error}}{\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops after its key gate. The
-message is the message of that error.}
+message is the message of that error. A missing or bad design key
+gives one row of this kind on the path \code{$}, also when the key gate
+fails. The two design keys are \code{period_width} and
+\code{admin_censoring_isoyearweek}, and the message names both.}
 }
 
 The checker reports every undeclared key path and every retired key path.
@@ -79,7 +82,7 @@ The checker reports every undeclared key path and every retired key path.
 calls \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} only when no key path is undeclared or retired,
 because the key gate stops it first. \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops at its
 first problem after the key gate, so a table holds at most one
-\code{read_error} row.
+\code{read_error} row. The design keys are its first check after the key gate.
 
 A warning from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}, for example on an open question,
 reaches the caller unchanged.

@@ -340,9 +340,92 @@
 }
 
 
+#' The cell text of a risk difference that s3 did not compute
+#'
+#' A result that swereg 27.3.9 saved holds no `rd_pp`, because s3 computed no
+#' risk difference on the untruncated per-protocol weight. A risk-difference
+#' worker that failed stores a skip envelope. In both cases `$get_estimates()`
+#' reports `rd_stored = FALSE`, and the three risk-difference cells of the
+#' sensitivity sheet read this text. An empty cell already means "no interval"
+#' or "no number needed to treat", so a missing estimate reads differently.
+#' @noRd
+.SHEET_NOT_COMPUTED <- "not computed"
+
+
+#' The three risk-difference cells of one block of the sensitivity sheet
+#'
+#' The risk difference and its interval are cells 3 and 4 of
+#' `.rd_sheet_cells()`, the cells of the PP results sheet. The number needed
+#' to treat reads `nnt`, `nnt_lo`, `nnt_hi` and `nnt_direction` of the same
+#' `$get_estimates()` row through `.tte_nntb_cell()`, the cell builder of the
+#' forest figure. No results sheet shows a number needed to treat. The cell
+#' is empty where `.tte_nntb_cell()` renders an empty cell, as where the
+#' interval of the risk difference does not strictly exclude zero.
+#'
+#' A risk difference that the minimum-events rule withheld reads `NE` in all
+#' three cells. The decision is the per-protocol horizon record, which s3
+#' computes on the truncated weight only. `.tte_horizon_withhold()` writes its
+#' status into `interval_status` of both per-protocol risk differences, and
+#' `.rd_sheet_cells()` reads that status.
+#'
+#' @param rd_row A one-row `$get_estimates()` table from `.results_rd_row()`,
+#'   or `NULL` when the row holds no stored risk difference.
+#' @return A list of three cells: the risk difference per 10,000 (numeric),
+#'   its interval and the number needed to treat (both character). The list
+#'   carries the attribute `marker`. It is `"NE"` for a withheld estimate,
+#'   `.SHEET_NOT_COMPUTED` for `rd_row = NULL`, and `NA` otherwise. The sheet
+#'   writer puts the marker into the numeric cell after the table.
+#' @noRd
+.sensitivity_rd_cells <- function(rd_row) {
+  if (is.null(rd_row)) {
+    cells <- list(NA_real_, .SHEET_NOT_COMPUTED, .SHEET_NOT_COMPUTED)
+    attr(cells, "marker") <- .SHEET_NOT_COMPUTED
+    return(cells)
+  }
+  rd <- .rd_sheet_cells(rd_row)
+  if (isTRUE(attr(rd, "withheld"))) {
+    cells <- list(NA_real_, "NE", "NE")
+    attr(cells, "marker") <- "NE"
+    return(cells)
+  }
+  nnt <- .tte_nntb_cell(
+    rd_row$nnt,
+    rd_row$nnt_lo,
+    rd_row$nnt_hi,
+    nnt_direction = rd_row$nnt_direction
+  )
+  cells <- list(rd[[3]], rd[[4]], if (nzchar(nnt)) nnt else NA_character_)
+  attr(cells, "marker") <- NA_character_
+  return(cells)
+}
+
+
+#' Write one marker text per row into the cells of a number column
+#'
+#' @param wb An openxlsx workbook.
+#' @param sheet_name Character(1).
+#' @param rows Integer vector, the sheet rows.
+#' @param col Integer(1), the sheet column.
+#' @param markers Character vector as long as `rows`. `NA` writes nothing.
+#' @return `invisible(NULL)`.
+#' @noRd
+.sheet_write_markers <- function(wb, sheet_name, rows, col, markers) {
+  for (k in which(!is.na(markers))) {
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      markers[[k]],
+      startCol = col,
+      startRow = rows[[k]]
+    )
+  }
+  return(invisible(NULL))
+}
+
+
 #' Write the "Full results" sheet: one row per ETT, with 5
 #' identifier columns (Enrollment | Intervention | Comparator | Outcome |
-#' Follow-up) and two side-by-side measurement blocks.
+#' Follow-up) and two side-by-side blocks.
 #'
 #' Order: **truncated weights on the left, untruncated weights on the
 #' right**. The untruncated block is shaded light grey to emphasise the
@@ -350,6 +433,24 @@
 #' `Events (int)`, `PY (int)`, etc. (no `[truncated]`/`[untruncated]`
 #' suffix) -- the merged group header row carries the distinction. The
 #' interval header states the study level `.s3_conf_level()`.
+#'
+#' Each block holds 12 columns: the 9 measurement columns, then
+#' `Risk difference per 10,000`, `Risk difference <level>% CI` and
+#' `NNT (<level>% CI)`. `.sensitivity_rd_cells()` builds the last three. The
+#' two headers state the level stored on the risk-difference rows, through
+#' `.rd_sheet_conf_pct()`. A sheet with no stored risk difference states the
+#' study level.
+#'
+#' `trunc_rd_slot` and `untrunc_rd_slot` default to the risk-difference slot
+#' of the ratio slot of their side. So `"irr_pp"` gives `"rd_pp"`, and
+#' `"irr_itt"` gives `"rd_itt"`. Each MUST name the estimand and weighting
+#' combination of the ratio slot of its side, as the rates slot MUST.
+#'
+#' A risk difference that the minimum-events rule withheld reads `NE` in its
+#' three cells, as the withheld ratio does. A row without a stored risk
+#' difference reads `.SHEET_NOT_COMPUTED` there. A result saved by swereg
+#' 27.3.9 holds no `rd_pp`, so its untruncated block reads that text and the
+#' export does not stop.
 #'
 #' @noRd
 .write_combined_sensitivity <- function(
@@ -360,6 +461,8 @@
   trunc_irr_slot,
   untrunc_rates_slot,
   untrunc_irr_slot,
+  trunc_rd_slot = sub("^irr_", "rd_", trunc_irr_slot),
+  untrunc_rd_slot = sub("^irr_", "rd_", untrunc_irr_slot),
   title = NULL,
   left_label = "Truncated weights",
   right_label = "Untruncated weights"
@@ -378,13 +481,15 @@
     row_ptr <- row_ptr + 2L
   }
 
-  # Each side names ONE estimand and weighting combination, and the two slot
+  # Each side names ONE estimand and weighting combination, and the three slot
   # arguments of a side MUST agree about which. `$get_estimates()` keys the
   # result on the combination, so a mismatched pair would silently report the
   # rates of one weighting beside the ratio of another.
   for (pair in list(
     c(trunc_rates_slot, trunc_irr_slot),
-    c(untrunc_rates_slot, untrunc_irr_slot)
+    c(trunc_rd_slot, trunc_irr_slot),
+    c(untrunc_rates_slot, untrunc_irr_slot),
+    c(untrunc_rd_slot, untrunc_irr_slot)
   )) {
     if (!identical(.tte_slot_combo(pair[1]), .tte_slot_combo(pair[2]))) {
       stop(
@@ -409,13 +514,29 @@
     return(invisible(NULL))
   }
 
-  display_names <- .measurement_headers(.s3_conf_level(plan$spec))
+  study_level <- .s3_conf_level(plan$spec)
+  display_names <- .measurement_headers(study_level)
+
+  # The stored risk-difference row of one ETT and one combination, or NULL.
+  rd_row_of <- function(eid, rd_slot) {
+    combo <- .tte_slot_combo(rd_slot)
+    hit <- which(
+      est$ett_id == eid &
+        est$estimand == combo[["estimand"]] &
+        est$weights == combo[["weights"]]
+    )
+    return(.results_rd_row(est, hit, rd_slot))
+  }
+  rd_keys <- c("rd", "rd_ci", "nnt")
 
   # Build one row per ETT. Truncated columns come first, then untruncated.
   est <- plan$get_estimates()
   rows <- list()
   ne_left <- logical(0)
   ne_right <- logical(0)
+  marker_left <- character(0)
+  marker_right <- character(0)
+  rd_levels <- numeric(0)
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     untrunc_m <- .sensitivity_row_measurements(est, eid, untrunc_irr_slot)
@@ -423,6 +544,15 @@
     if (is.null(trunc_m) && is.null(untrunc_m)) {
       next
     }
+    trunc_rd <- rd_row_of(eid, trunc_rd_slot)
+    untrunc_rd <- rd_row_of(eid, untrunc_rd_slot)
+    for (rd_row in list(trunc_rd, untrunc_rd)) {
+      if (!is.null(rd_row)) {
+        rd_levels <- c(rd_levels, as.numeric(rd_row[["conf_level"]])[1])
+      }
+    }
+    trunc_rd_cells <- .sensitivity_rd_cells(trunc_rd)
+    untrunc_rd_cells <- .sensitivity_rd_cells(untrunc_rd)
 
     enr_id <- ett$enrollment_id[i]
     enr_name <- .enrollment_label(plan, enr_id)
@@ -445,11 +575,19 @@
       Outcome = ett$outcome_name[i],
       `Follow-up (weeks)` = as.integer(ett$follow_up[i])
     )
-    left_cols <- .sensitivity_row_fmt(trunc_m, "t_")
-    right_cols <- .sensitivity_row_fmt(untrunc_m, "u_")
+    left_cols <- c(
+      .sensitivity_row_fmt(trunc_m, "t_"),
+      setNames(as.list(trunc_rd_cells), paste0("t_", rd_keys))
+    )
+    right_cols <- c(
+      .sensitivity_row_fmt(untrunc_m, "u_"),
+      setNames(as.list(untrunc_rd_cells), paste0("u_", rd_keys))
+    )
     rows[[length(rows) + 1L]] <- c(id_cols, left_cols, right_cols)
     ne_left <- c(ne_left, isTRUE(trunc_m$withheld))
     ne_right <- c(ne_right, isTRUE(untrunc_m$withheld))
+    marker_left <- c(marker_left, attr(trunc_rd_cells, "marker"))
+    marker_right <- c(marker_right, attr(untrunc_rd_cells, "marker"))
   }
 
   if (length(rows) == 0L) {
@@ -464,9 +602,23 @@
 
   dt <- data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
 
+  # The interval headers of the risk difference and of the number needed to
+  # treat state the level stored on the rows. A sheet with no stored risk
+  # difference states the study level.
+  rd_pct <- .rd_sheet_conf_pct(
+    if (length(rd_levels) > 0L) rd_levels else study_level
+  )
+  block_names <- c(
+    display_names,
+    names(.RD_SHEET_NUMFMT)[3L],
+    paste0("Risk difference ", rd_pct, "% CI"),
+    paste0("NNT (", rd_pct, "% CI)")
+  )
+
   # Layout constants
   n_id <- 5L
-  n_block <- length(display_names)
+  n_meas <- length(display_names)
+  n_block <- length(block_names)
   trunc_cols_start <- n_id + 1L
   trunc_cols_end <- n_id + n_block
   untrunc_cols_start <- trunc_cols_end + 1L
@@ -559,7 +711,7 @@
     "Outcome",
     "Follow-up (weeks)"
   )
-  header_row <- c(id_names, display_names, display_names)
+  header_row <- c(id_names, block_names, block_names)
   for (k in seq_along(header_row)) {
     openxlsx::writeData(
       wb,
@@ -618,8 +770,28 @@
     .apply_measurement_numfmt(wb, sheet_name, trunc_cols_start, body_rows)
     .apply_measurement_numfmt(wb, sheet_name, untrunc_cols_start, body_rows)
     # The p-value of a withheld ratio reads `NE`, as the ratio does.
-    .sheet_write_ne(wb, sheet_name, body_rows[ne_left], trunc_cols_end)
-    .sheet_write_ne(wb, sheet_name, body_rows[ne_right], untrunc_cols_end)
+    p_left <- trunc_cols_start + n_meas - 1L
+    p_right <- untrunc_cols_start + n_meas - 1L
+    .sheet_write_ne(wb, sheet_name, body_rows[ne_left], p_left)
+    .sheet_write_ne(wb, sheet_name, body_rows[ne_right], p_right)
+    # The risk difference per 10,000 is a number column. A withheld or
+    # missing risk difference gets its marker after the write.
+    rd_fmt <- openxlsx::createStyle(numFmt = .RD_SHEET_NUMFMT[[3L]])
+    for (side in list(
+      list(col = p_left + 1L, markers = marker_left),
+      list(col = p_right + 1L, markers = marker_right)
+    )) {
+      openxlsx::addStyle(
+        wb,
+        sheet_name,
+        style = rd_fmt,
+        rows = body_rows,
+        cols = side$col,
+        gridExpand = TRUE,
+        stack = TRUE
+      )
+      .sheet_write_markers(wb, sheet_name, body_rows, side$col, side$markers)
+    }
   }
 
   openxlsx::setColWidths(
@@ -632,8 +804,7 @@
       20,
       30,
       12,
-      rep(14, n_block),
-      rep(14, n_block)
+      rep(c(rep(14, n_meas), 14, 20, 24), 2L)
     )
   )
   return(openxlsx::freezePane(

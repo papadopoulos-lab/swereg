@@ -72,15 +72,23 @@
 
 # The result slots of each estimand that the rule withholds. The subgroup
 # and interaction-test slots end in `_pp` or `_itt`, and
-# `.tte_horizon_withhold()` finds them by that suffix.
+# `.tte_horizon_withhold()` finds them by that suffix. Per-protocol has two
+# risk differences, one on each weight. The record of the truncated weight
+# withholds both.
 .HORIZON_SLOTS <- list(
   pp = list(
     irr = c("irr_pp_trunc", "irr_pp"),
-    rd = "rd_pp_trunc",
-    curve = "rd_curve_pp_trunc"
+    rd = c("rd_pp_trunc", "rd_pp"),
+    curve = c("rd_curve_pp_trunc", "rd_curve_pp")
   ),
   itt = list(irr = "irr_itt", rd = "rd_itt", curve = "rd_curve_itt")
 )
+
+# The weight on which s3 computes the horizon record of each estimand. The
+# risk-difference item on any other weight computes no record and returns
+# none. So the stored `horizon_pp` is the record of the truncated weight,
+# whatever the order of the items.
+.HORIZON_WEIGHTS <- c(pp = "analysis_weight_pp_trunc", itt = "ipw_trunc")
 
 
 #' Does the spec exempt an enrollment from the minimum-events rule?
@@ -513,8 +521,10 @@
 
 #' Withhold the effect estimates of one estimand of one ETT result
 #'
-#' Sets the ratios, the risk difference and the number needed to treat of the
-#' estimand to `NA`, with its subgroup ratios and interaction tests. Events,
+#' Sets the ratios, the risk differences and the numbers needed to treat of
+#' the estimand to `NA`, with its subgroup ratios and interaction tests. For
+#' per-protocol that is the slots of both weights in `.HORIZON_SLOTS$pp`, and
+#' `record` is the record of the truncated weight. Events,
 #' person-years, rates and the survival columns stay. A skip envelope stays
 #' as it is.
 #'
@@ -540,22 +550,26 @@
       res[[s]] <- v
     }
   }
-  if (is_table(res[[slots$rd]])) {
-    res[[slots$rd]] <- .tte_rd_withhold_rows(
-      data.table::copy(res[[slots$rd]]),
-      TRUE,
-      record$status
-    )
+  for (s in slots$rd) {
+    if (is_table(res[[s]])) {
+      res[[s]] <- .tte_rd_withhold_rows(
+        data.table::copy(res[[s]]),
+        TRUE,
+        record$status
+      )
+    }
   }
-  curve <- res[[slots$curve]]
-  if (is_table(curve)) {
-    time_col <- setdiff(names(curve), .ACC_CURVE_KNOWN_COLS)
-    time_col <- if ("tstop" %in% time_col) "tstop" else time_col[1L]
-    res[[slots$curve]] <- .tte_rd_withhold_rows(
-      data.table::copy(curve),
-      curve[[time_col]] > record$reportable_weeks,
-      record$status
-    )
+  for (s in slots$curve) {
+    curve <- res[[s]]
+    if (is_table(curve)) {
+      time_col <- setdiff(names(curve), .ACC_CURVE_KNOWN_COLS)
+      time_col <- if ("tstop" %in% time_col) "tstop" else time_col[1L]
+      res[[s]] <- .tte_rd_withhold_rows(
+        data.table::copy(curve),
+        curve[[time_col]] > record$reportable_weeks,
+        record$status
+      )
+    }
   }
   sfx <- paste0("_", estimand, "$")
   for (s in grep(paste0("^subgroup_.+", sfx), names(res), value = TRUE)) {

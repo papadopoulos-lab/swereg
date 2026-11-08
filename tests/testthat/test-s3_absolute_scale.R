@@ -41,6 +41,11 @@ skip_if_not_installed("qs2")
 # probabilities in the intervention and comparator arms. Every person holds two
 # person-trials, so the person and the person-trial differ, which is the shape
 # the person-level bootstrap needs.
+#
+# The untruncated per-protocol weight is the truncated one times a factor of
+# 1, 1.75 or 2.5 that differs by person. It is NOT a constant multiple. A
+# constant would cancel in the weighted survival of each arm, and `rd_pp`
+# would then equal `rd_pp_trunc` whatever weight s3 passed.
 .abs_panel <- function(n_persons, n_intervals, h_int, h_cmp, seed) {
   set.seed(seed)
   persons <- sprintf("p%04d", seq_len(n_persons))
@@ -70,7 +75,10 @@ skip_if_not_installed("qs2")
   }
   d <- data.table::rbindlist(rows)
   d[, analysis_weight_pp_trunc := 1 + 0.2 * (seq_len(.N) %% 3L)]
-  d[, analysis_weight_pp := analysis_weight_pp_trunc]
+  d[,
+    analysis_weight_pp := analysis_weight_pp_trunc *
+      (1 + 0.75 * (as.integer(sub("^p", "", id)) %% 3L))
+  ]
   d[, ipw_trunc := analysis_weight_pp_trunc]
   d[]
 }
@@ -198,7 +206,7 @@ test_that("every ETT carries the absolute scale, ungated", {
   expect_identical(length(plan$results_ett), 4L)
 
   seen_status <- character(0)
-  for (slot in c("rd_pp_trunc", "rd_itt")) {
+  for (slot in c("rd_pp_trunc", "rd_pp", "rd_itt")) {
     for (eid in ids) {
       row <- plan$results_ett[[eid]][[slot]]
       info <- paste0(eid, " / ", slot)
@@ -244,6 +252,14 @@ test_that("every ETT carries the absolute scale, ungated", {
   # one constant cannot satisfy the loop above.
   expect_setequal(unique(seen_status), .ABS_STATUSES)
 
+  # The untruncated per-protocol row is its own estimate, on its own weight.
+  # The fixture weight is not a constant multiple of the truncated one, so a
+  # copy of `rd_pp_trunc` cannot pass.
+  for (eid in ids) {
+    r <- plan$results_ett[[eid]]
+    expect_gt(abs(r$rd_pp$rd - r$rd_pp_trunc$rd), 1e-6, label = eid)
+  }
+
   # The sign convention, on the two cells built to disagree about it.
   expect_lt(plan$results_ett[["ett01"]]$rd_pp_trunc$rd, 0)
   expect_identical(
@@ -261,7 +277,7 @@ test_that("every ETT carries the stored survival curve", {
   output_dir <- withr::local_tempdir()
   plan <- .abs_run_s3(.abs_plan(output_dir), output_dir)
 
-  for (slot in c("rd_curve_pp_trunc", "rd_curve_itt")) {
+  for (slot in c("rd_curve_pp_trunc", "rd_curve_pp", "rd_curve_itt")) {
     for (eid in plan$ett$ett_id) {
       curve <- plan$results_ett[[eid]][[slot]]
       info <- paste0(eid, " / ", slot)
@@ -319,7 +335,7 @@ test_that("s3 reads the confidence level from the study specification", {
   default <- .abs_run_s3(.abs_plan(default_dir), default_dir)
 
   # The specification names 0.80, so 0.80 is on every row and every curve.
-  for (slot in c("rd_pp_trunc", "rd_itt")) {
+  for (slot in c("rd_pp_trunc", "rd_pp", "rd_itt")) {
     for (eid in wide$ett$ett_id) {
       row <- wide$results_ett[[eid]][[slot]]
       expect_equal(
@@ -384,7 +400,7 @@ test_that("s3 reads the confidence level from the study specification", {
   })
 })
 
-test_that("s3 emits exactly two risk-difference work items per ETT", {
+test_that("s3 emits exactly three risk-difference work items per ETT", {
   # The cost of the invariant, measured rather than assumed. Each item is its
   # own worker process with its own read of the analysis file, so this count
   # is the count of extra reads a production grid pays.
@@ -413,16 +429,27 @@ test_that("s3 emits exactly two risk-difference work items per ETT", {
   methods <- vapply(captured, function(it) it$method, character(1))
   rd_items <- captured[methods == "risk_difference"]
   n_ett <- nrow(plan$ett)
-  expect_identical(length(rd_items), 2L * n_ett)
-  expect_identical(length(captured), 7L * n_ett)
+  expect_identical(length(rd_items), 3L * n_ett)
+  expect_identical(length(captured), 8L * n_ett)
 
-  # One per estimand and weight combination. Per-protocol on the untruncated
-  # weight carries rates and the IRR only.
+  # One per estimand and weight combination, and one of each per ETT.
+  # Per-protocol carries two, one on each weight.
   weights <- vapply(rd_items, function(it) it$weight_col, character(1))
+  for (w in c("analysis_weight_pp_trunc", "analysis_weight_pp", "ipw_trunc")) {
+    expect_identical(sum(weights == w), n_ett, info = w)
+  }
   expect_setequal(
-    unique(weights),
-    c("analysis_weight_pp_trunc", "ipw_trunc")
+    vapply(rd_items, function(it) it$ett_id, character(1)),
+    plan$ett$ett_id
   )
+
+  # Both per-protocol items read the per-protocol panel.
+  pp <- rd_items[weights != "ipw_trunc"]
+  expect_false(any(grepl(
+    "analysis_itt_",
+    vapply(pp, function(it) basename(it$analysis_path), character(1)),
+    fixed = TRUE
+  )))
 
   # The ITT item reads the ITT panel. Reading the PP panel under the ITT
   # weight would report a per-protocol quantity under an ITT heading.
@@ -476,7 +503,8 @@ test_that("the risk-difference item survives the real batch worker boundary", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "absprod",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -485,7 +513,6 @@ test_that("the risk-difference item survives the real batch worker boundary", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()
@@ -508,7 +535,7 @@ test_that("the risk-difference item survives the real batch worker boundary", {
   expect_gt(length(plan$results_ett), 0L)
   for (eid in plan$ett$ett_id) {
     r <- plan$results_ett[[eid]]
-    for (slot in c("rd_pp_trunc", "rd_itt")) {
+    for (slot in c("rd_pp_trunc", "rd_pp", "rd_itt")) {
       row <- r[[slot]]
       info <- paste0(eid, " / ", slot)
       expect_true(data.table::is.data.table(row), info = info)
@@ -519,7 +546,7 @@ test_that("the risk-difference item survives the real batch worker boundary", {
         info = info
       )
     }
-    for (slot in c("rd_curve_pp_trunc", "rd_curve_itt")) {
+    for (slot in c("rd_curve_pp_trunc", "rd_curve_pp", "rd_curve_itt")) {
       curve <- r[[slot]]
       expect_true(data.table::is.data.table(curve), info = slot)
       expect_true(

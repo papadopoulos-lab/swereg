@@ -65,7 +65,10 @@
 #'     NOT repeat an id, and each string MUST be the `id` of an enrollment.
 #'     The checker writes one row for each bad entry. The message names the follow-up label and the bad value.}
 #'   \item{`read_error`}{[tteplan_read_spec()] stops after its key gate. The
-#'     message is the message of that error.}
+#'     message is the message of that error. A missing or bad design key
+#'     gives one row of this kind on the path `$`, also when the key gate
+#'     fails. The two design keys are `period_width` and
+#'     `admin_censoring_isoyearweek`, and the message names both.}
 #' }
 #'
 #' The checker reports every undeclared key path and every retired key path.
@@ -73,7 +76,7 @@
 #' calls [tteplan_read_spec()] only when no key path is undeclared or retired,
 #' because the key gate stops it first. [tteplan_read_spec()] stops at its
 #' first problem after the key gate, so a table holds at most one
-#' `read_error` row.
+#' `read_error` row. The design keys are its first check after the key gate.
 #'
 #' A warning from [tteplan_read_spec()], for example on an open question,
 #' reaches the caller unchanged.
@@ -130,6 +133,16 @@ tteplan_check_spec <- function(spec_path) {
   rows <- c(rows, .tte_check_spec_feasibility_follow_up(feasibility_found))
   only_found <- .tte_follow_up_only_enrollments_problems(spec)
   rows <- c(rows, .tte_check_spec_only_enrollments(only_found))
+  # The design keys get their row also when the key gate fails.
+  design_problems <- .tte_design_key_problems(
+    spec,
+    setdiff(.TTE_DESIGN_KEYS, names(spec))
+  )
+  design_message <- NULL
+  if (length(design_problems) > 0L) {
+    design_message <- .tte_design_keys_message(design_problems)
+    rows <- c(rows, list(.tte_check_spec_row("$", "read_error", design_message)))
+  }
 
   # `tteplan_read_spec()` runs the key gate first, so it can report a later
   # problem only when the gate passes. The keys above are its first stop.
@@ -147,6 +160,9 @@ tteplan_check_spec <- function(spec_path) {
     # on a bad feasibility_follow_up_weeks, then on a bad only_enrollments,
     # then on the repeated enrollment ids, as its last six stops. The rows above already report each
     # finding.
+    if (identical(read_error, design_message)) {
+      read_error <- NULL
+    }
     if (
       length(id_value_rows) > 0L &&
         identical(read_error, .tte_enrollment_id_message(id_value_rows))

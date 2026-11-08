@@ -76,7 +76,9 @@ skip_if_not_installed("qs2")
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    min_expected_events_per_arm_per_year = 0
+    min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   )
   if (identical(block, "global_inclusion")) {
     spec$inclusion_criteria$criteria <- list(entry)
@@ -387,24 +389,22 @@ test_that("the CONSORT lookup labels the eligibility column by its name or its r
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel_path)
 
-  .opv_write(
-    .opv_spec_list(
-      "additional_inclusion",
-      .opv_entry(
-        "only_prior_value",
-        "local_or_none_mht",
-        source_variable = "rd_approach1_wide"
-      )
-    ),
-    dir_spec
+  spec <- .opv_spec_list(
+    "additional_inclusion",
+    .opv_entry(
+      "only_prior_value",
+      "local_or_none_mht",
+      source_variable = "rd_approach1_wide"
+    )
   )
+  spec$admin_censoring_isoyearweek <- max(sk$isoyearweek)
+  .opv_write(spec, dir_spec)
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dir_meta),
     candidate_dir_spec = dir_spec,
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek),
     check_skeletons = FALSE
   ))
   return(list(plan = plan, skel_path = skel_path))

@@ -246,7 +246,20 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
 # One trial per person, 4-week intervals to `end_wk`. Every intervention
 # person stops at week 52, except the first `tail_keep`, so the intervention
 # arm holds a thin tail in window 2.
-.hz_panel <- function(n = 160L, tail_keep = 4L, end_wk = 104L, seed = 7L) {
+#
+# `untrunc` sets the untruncated per-protocol weight. `"proportional"` is the
+# truncated weight times 1.1. A constant factor cancels in the weighted
+# survival of each arm, so that weight gives the risk difference of the
+# truncated weight. `"person"` multiplies by 1, 1.75 or 2.5 by person, so the
+# two weights give two different risk differences (swereg#66).
+.hz_panel <- function(
+  n = 160L,
+  tail_keep = 4L,
+  end_wk = 104L,
+  seed = 7L,
+  untrunc = c("proportional", "person")
+) {
+  untrunc <- match.arg(untrunc)
   set.seed(seed)
   rows <- vector("list", n)
   for (k in seq_len(n)) {
@@ -270,7 +283,14 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
   d <- data.table::rbindlist(rows)
   w <- 1 + 0.2 * (d$tstop %/% 4L %% 3L)
   d[, analysis_weight_pp_trunc := w]
-  d[, analysis_weight_pp := w * 1.1]
+  if (untrunc == "proportional") {
+    d[, analysis_weight_pp := w * 1.1]
+  } else {
+    d[,
+      analysis_weight_pp := w *
+        (1 + 0.75 * (as.integer(sub("^p", "", id)) %% 3L))
+    ]
+  }
   d[, ipw := 1]
   d[, ipw_trunc := w]
   return(d)
@@ -278,9 +298,9 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
 
 # Write one enrollment of two ETTs: ETT00001 at 52 weeks and ETT00002 at 104
 # weeks, on the same panel. Returns the plan, with the stage stamps set and
-# nothing computed.
-.hz_build <- function(dir, min_events = 5) {
-  d <- .hz_panel()
+# nothing computed. `untrunc` is passed to `.hz_panel()`.
+.hz_build <- function(dir, min_events = 5, untrunc = "proportional") {
+  d <- .hz_panel(untrunc = untrunc)
   design <- swereg::TTEDesign$new(
     person_id_var = "id",
     id_var = "enrollment_person_trial_id",
@@ -346,7 +366,9 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
         arms = list(intervention = "Treated", comparator = "Untreated")
       )
     )),
-    min_expected_events_per_arm_per_year = min_events
+    min_expected_events_per_arm_per_year = min_events,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   )
   tte_stamp_stages(plan)
   return(plan)
@@ -416,7 +438,7 @@ test_that("(c) s3 withholds the 2-window ETT and reports the 1-window ETT", {
   expect_equal(unique(w2$horizon_reportable_weeks), 52)
   expect_true(all(is.na(w2$irr)))
   rd2 <- w2[!is.na(interval_status)]
-  expect_identical(nrow(rd2), 2L)
+  expect_identical(nrow(rd2), 3L)
   expect_true(all(is.na(rd2$rd)))
   expect_true(all(is.na(rd2$nnt)))
   expect_identical(unique(rd2$interval_status), status)
@@ -629,7 +651,9 @@ test_that("(f) read-back matrix: estimates, subgroups and results.qs2", {
       w <- e[ett_id == "ETT00002" & estimand == combo[1] & weights == combo[2]]
       r <- e[ett_id == "ETT00001" & estimand == combo[1] & weights == combo[2]]
       lab <- paste(src, combo[1], combo[2])
-      has_rd <- combo[2] == "truncated"
+      # Every combination carries a risk difference: per-protocol on the
+      # untruncated weight too (swereg#66).
+      has_rd <- TRUE
       for (nm in withheld_num) {
         expect_true(is.na(w[[nm]]), info = paste(lab, "withheld", nm))
         if (has_rd || startsWith(nm, "irr")) {
@@ -753,8 +777,23 @@ test_that("(f) read-back matrix: Sensitivity sheet", {
   w <- s[s[["Follow-up (weeks)"]] == "104", ]
   r <- s[s[["Follow-up (weeks)"]] == "52", ]
   # Both blocks, truncated then untruncated: make.unique() names the second
-  # block's columns `IRR.1`, `95% CI.1` and `p-value.1`.
-  for (nm in c("IRR", "95% CI", "p-value", "IRR.1", "95% CI.1", "p-value.1")) {
+  # block's columns `IRR.1`, `95% CI.1` and `p-value.1`. Each block also
+  # carries the risk difference, its interval and the number needed to treat.
+  rd_cols <- c(
+    "Risk difference per 10,000",
+    "Risk difference 95% CI",
+    "NNT (95% CI)"
+  )
+  for (nm in c(
+    "IRR",
+    "95% CI",
+    "p-value",
+    rd_cols,
+    "IRR.1",
+    "95% CI.1",
+    "p-value.1",
+    paste0(rd_cols, ".1")
+  )) {
     expect_identical(w[[nm]], "NE", info = paste("withheld", nm))
     expect_false(r[[nm]] %in% c("NE", NA, ""), info = paste("reported", nm))
   }
@@ -791,10 +830,12 @@ test_that("(f) read-back matrix: Effect modification sheet", {
 })
 
 test_that("(f) read-back matrix: no workbook sheet carries a number needed to treat", {
-  # The number needed to treat reaches the forest figure only. The PP
-  # results, ITT results and Summary sheets have no NNT column, so no
-  # withheld NNT can show there. This pins that, so a future NNT column
-  # arrives through a failing test and gets its own NE rule.
+  # The number needed to treat reaches the forest figure and the Weight
+  # truncation (PP) sheet only. The PP results, ITT results and Summary
+  # sheets have no NNT column, so no withheld NNT can show there. This pins
+  # that, so a future NNT column arrives through a failing test and gets its
+  # own NE rule. The sensitivity read-back test above pins the NE rule of
+  # the Weight truncation (PP) sheet.
   .hz_skip()
   fx <- .hz_fixture()
   for (sh in c("PP results", "ITT results", "Summary")) {
@@ -1010,4 +1051,373 @@ test_that("(m) the writers accept a record of the current rule", {
     )))
     expect_true(file.exists(xlsx))
   }
+})
+
+
+# ---- swereg#66: the untruncated per-protocol risk difference -----------------
+
+# s3 runs in this process, through the real item builder, worker and parent
+# merge, and then `$export_tables()` writes the workbook and results.qs2. Only
+# the subprocess transport is replaced, so these blocks need no
+# `skip_on_cran()`. The panel multiplies the untruncated per-protocol weight
+# by a factor that differs by person. `min_events = 0` withholds nothing, and
+# `min_events = 5` withholds ETT00002 as in (c).
+.hz66_cache <- new.env()
+.hz66_fixture <- function(min_events) {
+  key <- paste0("min_", min_events)
+  if (!is.null(.hz66_cache[[key]])) {
+    return(.hz66_cache[[key]])
+  }
+  dir <- tempfile("hz66_")
+  dir.create(dir)
+  withr::defer(unlink(dir, recursive = TRUE), envir = testthat::teardown_env())
+  plan <- .hz_build(dir, min_events = min_events, untrunc = "person")
+  testthat::local_mocked_bindings(
+    .batch_run = .hz_inproc(lenient = FALSE),
+    .package = "swereg"
+  )
+  utils::capture.output(suppressWarnings(plan$s3_analyze(
+    output_dir = dir,
+    n_workers = 1L
+  )))
+  xlsx <- file.path(dir, "tables.xlsx")
+  suppressMessages(suppressWarnings(plan$export_tables(path = xlsx)))
+  fx <- list(dir = dir, plan = plan, xlsx = xlsx)
+  .hz66_cache[[key]] <- fx
+  return(fx)
+}
+
+.hz66_skip <- function() {
+  skip_if_not_installed("openxlsx")
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("survey")
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+}
+
+# A direct `$risk_difference()` call on one analysis file, with the settings
+# s3 fixes.
+.hz66_direct_rd <- function(dir, file, weight_col) {
+  enr <- swereg::qs2_read(file.path(dir, file))
+  fresh <- swereg::TTEEnrollment$new(
+    enr$data,
+    enr$design,
+    data_level = "trial"
+  )
+  return(fresh$risk_difference(
+    weight_col,
+    n_boot = 500L,
+    seed = 1L,
+    conf_level = 0.95
+  ))
+}
+
+# One sheet as a character matrix, every row and column kept.
+.hz66_cells <- function(xlsx, sheet) {
+  m <- openxlsx::read.xlsx(
+    xlsx,
+    sheet = sheet,
+    colNames = FALSE,
+    skipEmptyRows = FALSE,
+    skipEmptyCols = FALSE
+  )
+  m[] <- lapply(m, as.character)
+  return(as.matrix(m))
+}
+
+.HZ66_RD_FIELDS <- c("rd", "rd_lo", "rd_hi", "nnt", "nnt_lo", "nnt_hi")
+
+test_that("#66 the untruncated per-protocol RD equals a direct call in every reader", {
+  .hz66_skip()
+  fx <- .hz66_fixture(0)
+  plan <- fx$plan
+  ro <- qs2::qs_read(file.path(fx$dir, "results.qs2"))
+  expect_identical(nrow(plan$ett), 2L)
+  for (k in seq_len(nrow(plan$ett))) {
+    eid <- plan$ett$ett_id[k]
+    curve <- .hz66_direct_rd(
+      fx$dir,
+      plan$ett$file_analysis[k],
+      "analysis_weight_pp"
+    )
+    last <- curve[which.max(curve$tstop)]
+    for (src in c("get_estimates", "results.qs2")) {
+      tab <- if (src == "get_estimates") plan$get_estimates() else ro$estimates
+      u <- tab[ett_id == eid & estimand == "pp" & weights == "untruncated"]
+      tr <- tab[ett_id == eid & estimand == "pp" & weights == "truncated"]
+      lab <- paste(eid, src)
+      expect_identical(nrow(u), 1L, label = lab)
+      expect_true(u$rd_stored, info = lab)
+      # Every compared field is a number, so the equality below is not NA
+      # against NA. The NNT bounds of ETT00002 are NA on the untruncated
+      # weight, because its interval does not exclude zero.
+      for (nm in c("rd", "rd_lo", "rd_hi", "nnt")) {
+        expect_true(is.finite(u[[nm]]), info = paste(lab, nm))
+      }
+      for (nm in .HZ66_RD_FIELDS) {
+        expect_equal(
+          u[[nm]],
+          last[[nm]],
+          tolerance = 1e-10,
+          info = paste(lab, nm)
+        )
+      }
+      expect_identical(u$nnt_direction, last$nnt_direction, info = lab)
+      expect_identical(u$interval_status, last$interval_status, info = lab)
+      expect_identical(
+        u$interval_status,
+        if (eid == "ETT00002") "spans null" else "ok",
+        info = lab
+      )
+      expect_identical(u$n_boot, 500, info = lab)
+      expect_identical(u$seed, 1, info = lab)
+      expect_identical(u$conf_level, 0.95, info = lab)
+      # Its own estimate: the truncated weight gives another one.
+      for (nm in c("rd", "rd_lo", "rd_hi", "nnt")) {
+        expect_gt(abs(u[[nm]] - tr[[nm]]), 1e-6, label = paste(lab, nm))
+      }
+    }
+    # The stored curve, read through `$get_curves()` and from results.qs2.
+    for (src in c("get_curves", "results.qs2")) {
+      cv <- if (src == "get_curves") plan$get_curves() else ro$curves
+      for (a in c("comparator", "intervention")) {
+        got <- cv[
+          ett_id == eid & estimand == "pp" & weights == "untruncated" & arm == a
+        ]
+        data.table::setorder(got, follow_up_interval)
+        lab <- paste(eid, src, a)
+        expect_identical(got$follow_up_interval, as.numeric(curve$tstop))
+        expect_equal(
+          got$surv,
+          curve[[paste0("surv_", a)]],
+          tolerance = 1e-10,
+          info = lab
+        )
+      }
+    }
+  }
+})
+
+test_that("#66 a withheld truncated per-protocol estimate withholds the untruncated RD", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  plan <- fx$plan
+  res <- plan$results_ett$ETT00002
+  rec <- res$horizon_pp
+  status <- "below minimum-events rule: intervention arm, weeks 52-104"
+  # The decision is the record of the truncated weight.
+  expect_identical(rec$weight_col, "analysis_weight_pp_trunc")
+  expect_true(rec$withheld)
+  expect_identical(rec$status, status)
+  # On its own weight the untruncated estimate passes the rule in every
+  # year. So the withholding below is the decision of the truncated weight.
+  enr <- swereg::qs2_read(file.path(fx$dir, "analysis_104.qs2"))
+  own <- swereg:::.tte_horizon_record(
+    enr$data,
+    "analysis_weight_pp",
+    104,
+    list(min_expected_events = 5, exempt = FALSE),
+    "rd_intervention",
+    "tstart",
+    "tstop"
+  )
+  expect_false(own$withheld)
+  expect_true(all(own$windows$pass))
+
+  e <- plan$get_estimates()
+  for (w in c("truncated", "untruncated")) {
+    row <- e[ett_id == "ETT00002" & estimand == "pp" & weights == w]
+    expect_true(row$rd_stored, info = w)
+    for (nm in .HZ66_RD_FIELDS) {
+      expect_true(is.na(row[[nm]]), info = paste(w, "withheld", nm))
+    }
+    expect_true(is.na(row$nnt_direction), info = w)
+    expect_identical(row$interval_status, rec$status, info = w)
+  }
+  # The untruncated curve carries no risk difference after the reportable
+  # horizon, and keeps it before.
+  cu <- res$rd_curve_pp
+  late <- cu$tstop > rec$reportable_weeks
+  expect_true(any(late))
+  expect_true(all(is.na(cu$rd[late])))
+  expect_true(all(cu$interval_status[late] == status))
+  expect_true(all(is.finite(cu$rd[!late])))
+
+  # ETT00001 passes, so its untruncated risk difference is reported.
+  r1 <- e[ett_id == "ETT00001" & estimand == "pp" & weights == "untruncated"]
+  expect_true(is.finite(r1$rd))
+  expect_false(startsWith(r1$interval_status, swereg:::.HORIZON_STATUS_PREFIX))
+})
+
+test_that("#66 the stored horizon_pp is the record of the truncated weight", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  plan <- fx$plan
+  rule <- list(min_expected_events = 5, exempt = FALSE)
+  for (k in seq_len(nrow(plan$ett))) {
+    eid <- plan$ett$ett_id[k]
+    fu <- as.numeric(plan$ett$follow_up[k])
+    enr <- swereg::qs2_read(file.path(fx$dir, plan$ett$file_analysis[k]))
+    record_on <- function(w) {
+      return(swereg:::.tte_horizon_record(
+        enr$data,
+        w,
+        fu,
+        rule,
+        "rd_intervention",
+        "tstart",
+        "tstop"
+      ))
+    }
+    want <- record_on("analysis_weight_pp_trunc")
+    other <- record_on("analysis_weight_pp")
+    expect_equal(plan$results_ett[[eid]]$horizon_pp, want, info = eid)
+    # The two weights give different windows, so a record of the untruncated
+    # weight cannot pass the line above.
+    expect_false(isTRUE(all.equal(other$windows, want$windows)), info = eid)
+  }
+
+  # The untruncated item computes no record and returns none.
+  out <- swereg:::.s3_ett_worker(
+    analysis_path = file.path(fx$dir, "analysis_104.qs2"),
+    method = "risk_difference",
+    weight_col = "analysis_weight_pp",
+    ett_id = "ETT00002",
+    n_threads = 1L,
+    subgroup_var = NULL,
+    conf_level = 0.95,
+    horizon_rule = rule,
+    follow_up = 104
+  )
+  expect_true(all(c("rd_pp", "rd_curve_pp") %in% names(out)))
+  expect_false(any(startsWith(names(out), "horizon_")))
+})
+
+test_that("#66 the Weight truncation (PP) sheet shows the RD, its interval and the NNT for each weight", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  m <- .hz66_cells(fx$xlsx, "Weight truncation (PP)")
+  h <- which(m[, 1L] == "Enrollment")[1L]
+  meas <- c(
+    "Events (int)",
+    "PY (int)",
+    "Rate/100k (int)",
+    "Events (cmp)",
+    "PY (cmp)",
+    "Rate/100k (cmp)",
+    "IRR",
+    "95% CI",
+    "p-value"
+  )
+  rd_h <- c(
+    "Risk difference per 10,000",
+    "Risk difference 95% CI",
+    "NNT (95% CI)"
+  )
+  ids <- c(
+    "Enrollment",
+    "Intervention",
+    "Comparator",
+    "Outcome",
+    "Follow-up (weeks)"
+  )
+  # The header names and their positions: columns 15 to 17 and 27 to 29.
+  expect_identical(ncol(m), 29L)
+  expect_identical(unname(m[h, ]), c(ids, meas, rd_h, meas, rd_h))
+  expect_identical(
+    unname(m[h - 1L, c(6L, 18L)]),
+    c("Truncated weights", "Untruncated weights")
+  )
+
+  e <- fx$plan$get_estimates()
+  body <- m[-seq_len(h), , drop = FALSE]
+  for (side in list(
+    list(w = "truncated", col = 15L),
+    list(w = "untruncated", col = 27L)
+  )) {
+    for (eid in c("ETT00001", "ETT00002")) {
+      fu <- fx$plan$ett[ett_id == eid]$follow_up
+      cells <- body[body[, 5L] == as.character(fu), , drop = TRUE]
+      x <- e[ett_id == eid & estimand == "pp" & weights == side$w]
+      lab <- paste(side$w, eid)
+      got <- unname(cells[side$col + 0:2])
+      if (eid == "ETT00002") {
+        expect_identical(got, rep("NE", 3L), info = lab)
+        next
+      }
+      expect_equal(
+        as.numeric(got[1L]),
+        x$rd * 10000,
+        tolerance = 1e-10,
+        info = lab
+      )
+      expect_identical(
+        got[2L],
+        sprintf("%+.2f to %+.2f", x$rd_lo * 10000, x$rd_hi * 10000),
+        info = lab
+      )
+      expect_identical(
+        got[3L],
+        swereg:::.tte_nntb_cell(
+          x$nnt,
+          x$nnt_lo,
+          x$nnt_hi,
+          nnt_direction = x$nnt_direction
+        ),
+        info = lab
+      )
+      expect_match(got[3L], "^NNT[BH] [0-9,]+ \\([0-9,]+ to [0-9,]+\\)$")
+    }
+  }
+  # The two weights give two different cells.
+  r1 <- body[body[, 5L] == "52", , drop = TRUE]
+  expect_false(identical(r1[[15L]], r1[[27L]]))
+})
+
+test_that("#66 a result saved without rd_pp exports, and its untruncated RD reads not computed", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  plan <- fx$plan
+  old <- plan$results_ett
+  on.exit(plan$results_ett <- old, add = TRUE)
+  # swereg 27.3.9 stored no `rd_pp` and no `rd_curve_pp`.
+  plan$results_ett <- lapply(old, function(r) {
+    r$rd_pp <- NULL
+    r$rd_curve_pp <- NULL
+    return(r)
+  })
+  out_dir <- file.path(fx$dir, "saved_2739")
+  dir.create(out_dir)
+  xlsx <- file.path(out_dir, "tables.xlsx")
+  expect_no_error(suppressMessages(suppressWarnings(
+    plan$export_tables(path = xlsx)
+  )))
+
+  e <- plan$get_estimates()
+  u <- e[estimand == "pp" & weights == "untruncated"]
+  expect_identical(nrow(u), 2L)
+  expect_false(any(u$rd_stored))
+  ro <- qs2::qs_read(file.path(out_dir, "results.qs2"))
+  expect_false(any(
+    ro$estimates[estimand == "pp" & weights == "untruncated"]$rd_stored
+  ))
+  expect_identical(
+    nrow(ro$curves[estimand == "pp" & weights == "untruncated"]),
+    0L
+  )
+
+  m <- .hz66_cells(xlsx, "Weight truncation (PP)")
+  h <- which(m[, 1L] == "Enrollment")[1L]
+  body <- m[-seq_len(h), , drop = FALSE]
+  expect_identical(nrow(body), 2L)
+  for (r in seq_len(nrow(body))) {
+    expect_identical(
+      unname(body[r, 27:29]),
+      rep("not computed", 3L),
+      info = paste("row", r)
+    )
+  }
+  # The truncated block is the block of the export that held `rd_pp`.
+  full <- .hz66_cells(fx$xlsx, "Weight truncation (PP)")
+  expect_identical(body[, 1:26], full[-seq_len(h), 1:26, drop = FALSE])
 })

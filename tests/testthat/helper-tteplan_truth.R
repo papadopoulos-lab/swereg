@@ -199,7 +199,12 @@ ttm_disc_itt_truth <- function(
 }
 
 # ---- spec YAML ---------------------------------------------------------------
-ttm_write_spec <- function(path, project_prefix, confounder_vars) {
+ttm_write_spec <- function(
+  path,
+  project_prefix,
+  confounder_vars,
+  admin = "2025-01"
+) {
   confs <- lapply(confounder_vars, function(v) {
     list(name = v, implementation = list(variable = v))
   })
@@ -233,6 +238,8 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
     ),
     follow_up = list(list(label = "1 year", weeks = 52L)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = admin,
     enrollments = list(
       list(
         id = "01",
@@ -308,7 +315,8 @@ ttm_run_cell <- function(sk, cell_name, confounder_vars) {
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
     paste0("ttm", gsub("[^A-Za-z0-9]", "", cell_name)),
-    confounder_vars
+    confounder_vars,
+    admin = global_max
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -317,7 +325,6 @@ ttm_run_cell <- function(sk, cell_name, confounder_vars) {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = global_max,
     check_skeletons = FALSE
   )
 

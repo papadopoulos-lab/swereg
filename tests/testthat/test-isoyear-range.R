@@ -77,7 +77,9 @@ skip_if_not_installed("qs2")
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    min_expected_events_per_arm_per_year = 0
+    min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   ))
 }
 
@@ -323,6 +325,7 @@ test_that("an enrolled week satisfies both the age range and the year range", {
 
   skel_path <- file.path(dir_tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel_path)
+  spec$admin_censoring_isoyearweek <- max(sk$isoyearweek)
   .iyr_write(spec, dir_spec)
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dir_meta),
@@ -330,7 +333,6 @@ test_that("an enrolled week satisfies both the age range and the year range", {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek),
     check_skeletons = FALSE
   ))
   return(list(plan = plan, skel_path = skel_path))
@@ -358,11 +360,11 @@ test_that("an enrolled week satisfies both the age range and the year range", {
 }
 
 test_that("every week the preparation step keeps lies in the range", {
-  built <- .iyr_plan(
-    environment(),
-    .iyr_spec_list(),
-    .iyr_skeleton(.iyr_weeks(2015L, 2018L))
-  )
+  # s0 validates the skeleton, and the validation needs the intervention value
+  # in the treatment column. Person 2 takes it in the last week, in 2018.
+  sk <- .iyr_skeleton(.iyr_weeks(2015L, 2018L))
+  sk[id == 2L & isoyearweek == max(isoyearweek), rd_approach1_single := "systemic_mht"]
+  built <- .iyr_plan(environment(), .iyr_spec_list(), sk)
   expect_identical(built$plan[[1]]$enrollment_id, "01")
 
   prepared <- .iyr_prepare(built, 1L)

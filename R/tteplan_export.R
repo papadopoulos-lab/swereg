@@ -312,6 +312,8 @@
     trunc_irr_slot = "irr_pp_trunc",
     untrunc_rates_slot = "rates_pp",
     untrunc_irr_slot = "irr_pp",
+    trunc_rd_slot = "rd_pp_trunc",
+    untrunc_rd_slot = "rd_pp",
     title = paste0(
       "Weight-truncation robustness (per-protocol): truncated (left) vs ",
       "untruncated (right) weights - all ETTs"
@@ -320,7 +322,7 @@
   toc_names <- c(toc_names, "Weight truncation (PP)")
   toc_desc <- c(
     toc_desc,
-    "Supplementary - PP IRRs, truncated vs untruncated weights"
+    "Supplementary - PP IRRs, RDs and NNTs, truncated vs untruncated weights"
   )
 
   # --- Effect modification sheet (only if any subgroups are configured) ---

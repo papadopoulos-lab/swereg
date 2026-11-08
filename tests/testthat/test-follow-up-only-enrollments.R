@@ -223,6 +223,14 @@ test_that("(c) a spec without the key gives the grid, print and OSF text of 27.3
     want$osf,
     fixed = TRUE
   )
+  # 27.3.1 wrote the OSF text without an administrative censoring week. Since
+  # 27.3.10 the spec holds it, and `.ff_plan()` writes FF_ADMIN, 2023-52.
+  osf_want <- sub(
+    "the administrative end of the data; and",
+    "the administrative end of the data, at the end of ISO week 2023-52 (31 December 2023); and",
+    osf_want,
+    fixed = TRUE
+  )
   expect_identical(.oe_osf(built$path), osf_want)
 
   # A key that lists every enrollment keeps the whole ETT table and print().

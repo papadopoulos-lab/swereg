@@ -299,7 +299,7 @@
   # Do not write the two-word grouping expression here. Its literal text
   # is what `test-no_na_period_key_in_aggregates.R` scans this file for,
   # and a comment is not a call site.
-  pw <- as.integer(plan$period_width %||% 4L)
+  pw <- as.integer(plan$period_width)
   pw_weeks <- paste0(pw, if (pw == 1L) " week" else " weeks")
   stratum_text <- if (pw > 1L) {
     paste0(

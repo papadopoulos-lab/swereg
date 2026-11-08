@@ -1,8 +1,8 @@
 # tteplan_excel_spec_summary() writes the specification workbook from the spec
 # alone. Its Study Specification and Target trial protocol sheets MUST hold the
 # cells of plan$excel_spec_summary() for the same spec and code registry. The
-# Admin censoring row is the exception. It MUST read no skeleton, rawbatch or
-# registry data file.
+# spec holds the Admin censoring week, so that row is no exception. It MUST read
+# no skeleton, rawbatch or registry data file.
 #
 # The spec is spr_report_spec() of helper-sparse_report.R, which carries a
 # rare_condition_rule, plus one exclusion criterion on an operation code variable.
@@ -11,8 +11,8 @@ skip_if_not_installed("openxlsx")
 skip_if_not_installed("yaml")
 skip_if_not_installed("withr")
 
+# The admin_censoring_isoyearweek of spr_spec_list().
 SSX_ADMIN <- "2019-26"
-SSX_SPEC_ONLY <- "not built (spec only)"
 SSX_SHEETS <- c("Study Specification", "Target trial protocol")
 
 # The expected arrow line is a literal. It is never built from the registry
@@ -78,12 +78,11 @@ ssx_cells <- function(path) {
 }
 
 # plan$excel_spec_summary() at s0. The plan names a skeleton file that does
-# not exist: with global_max_isoyearweek supplied, s0 reads no skeleton.
+# not exist, so s0 reads no skeleton.
 ssx_plan_workbook <- function(
   root,
   study,
-  protocol_ett_id = NULL,
-  period_width = 4L
+  protocol_ett_id = NULL
 ) {
   dirs <- file.path(root, c("tteplan", "results", "meta"))
   for (d in dirs) {
@@ -102,8 +101,6 @@ ssx_plan_workbook <- function(
     candidate_dir_tteplan = dirs[1],
     candidate_dir_results = dirs[2],
     spec_version = "v001",
-    global_max_isoyearweek = SSX_ADMIN,
-    period_width = period_width,
     check_skeletons = FALSE
   ))
   path <- file.path(root, "plan.xlsx")
@@ -135,7 +132,7 @@ test_that("the arrow line of an operation variable lists every registry code and
   expect_identical(ss[[2]][at + 1L], SSX_ARROW)
 })
 
-test_that("the spec-only workbook equals plan$excel_spec_summary() cell for cell outside the Admin censoring row", {
+test_that("the spec-only workbook equals plan$excel_spec_summary() cell for cell, the Admin censoring row included", {
   root <- ssx_root()
   study <- ssx_registry(file.path(root, "data"))
   plan <- ssx_cells(ssx_plan_workbook(root, study, "ETT00002"))
@@ -158,31 +155,22 @@ test_that("the spec-only workbook equals plan$excel_spec_summary() cell for cell
   row <- which(a[[1]] == "Admin censoring:")
   expect_length(row, 1L)
   expect_identical(a[[2]][row], SSX_ADMIN)
-  expect_identical(b[[1]][row], "Admin censoring:")
-  expect_identical(b[[2]][row], SSX_SPEC_ONLY)
-  expect_identical(b[-row, ], a[-row, ])
+  expect_identical(b, a)
   # The registry reached both workbooks.
   expect_true(SSX_ARROW %in% a[[2]])
 })
 
-test_that("a supplied global_max_isoyearweek and period_width make every cell equal", {
-  root <- ssx_root()
+test_that("a spec with period_width 2 makes every cell equal, and differs from a width of 4", {
+  spec <- ssx_spec()
+  spec$period_width <- 2L
+  root <- ssx_root(spec)
   study <- ssx_registry(file.path(root, "data"))
-  plan <- ssx_cells(ssx_plan_workbook(root, study, period_width = 2L))
-  only <- ssx_cells(ssx_spec_only(
-    root,
-    study,
-    global_max_isoyearweek = SSX_ADMIN,
-    period_width = 2L
-  ))
+  plan <- ssx_cells(ssx_plan_workbook(root, study))
+  only <- ssx_cells(ssx_spec_only(root, study))
   expect_identical(only, plan)
   # The protocol sheet states the width, so a width of 4 differs.
-  four <- ssx_cells(ssx_spec_only(
-    root,
-    study,
-    global_max_isoyearweek = SSX_ADMIN,
-    name = "four.xlsx"
-  ))
+  root_four <- ssx_root()
+  four <- ssx_cells(ssx_spec_only(root_four, study, name = "four.xlsx"))
   expect_false(identical(
     four[["Target trial protocol"]],
     plan[["Target trial protocol"]]
@@ -207,8 +195,7 @@ test_that("a NULL code registry writes every variable unresolved, as a plan with
   only <- ssx_cells(ssx_spec_only(root, NULL))
   a <- plan[["Study Specification"]]
   b <- only[["Study Specification"]]
-  row <- which(a[[1]] == "Admin censoring:")
-  expect_identical(b[-row, ], a[-row, ])
+  expect_identical(b, a)
   expect_identical(
     only[["Target trial protocol"]],
     plan[["Target trial protocol"]]

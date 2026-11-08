@@ -8,8 +8,6 @@ tteplan_excel_spec_summary(
   spec_path,
   path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   protocol_ett_id = NULL
 )
 }
@@ -31,14 +29,6 @@ data.
 \code{name}, \code{codes}, \code{label} and \code{generated_columns}.
 }}
 
-\item{period_width}{Integer, the width in weeks of the enrollment period.
-It has the default of \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}. The
-Target trial protocol sheet states it.}
-
-\item{global_max_isoyearweek}{Character(1) or \code{NULL}, the administrative
-censoring boundary as an isoyearweek, for example \code{"2023-52"}. \code{NULL}
-writes \verb{not built (spec only)} in the \verb{Admin censoring:} row.}
-
 \item{protocol_ett_id}{Character(1) or \code{NULL}, the ETT that the Target
 trial protocol sheet documents. \code{NULL} takes the first ETT of the grid.
 An id that the grid does not hold gives a warning, and the sheet then
@@ -54,11 +44,9 @@ rawbatch or registry data file, so it runs before s0.
 }
 \details{
 Each cell holds the value that \code{TTEPlan$excel_spec_summary()} writes for a
-plan at s0 from the same spec, code registry, \code{period_width} and
-\code{protocol_ett_id}. The one exception is the \verb{Admin censoring:} row. s0
-reads that value from the first skeleton unless you supply it. Here the
-row reads \verb{not built (spec only)} unless you supply
-\code{global_max_isoyearweek}.
+plan at s0 from the same spec, code registry and \code{protocol_ett_id}. The
+\verb{Admin censoring:} row and the width of the enrollment period come from the
+spec keys \code{admin_censoring_isoyearweek} and \code{period_width}.
 
 Only s1 decides the rare-condition rule. The workbook therefore states the
 rule as not decided yet, and it has no Rare conditions sheet. The
@@ -96,6 +84,8 @@ writeLines(
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
     "min_expected_events_per_arm_per_year: 5",
+    "period_width: 4",
+    "admin_censoring_isoyearweek: '2025-01'",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

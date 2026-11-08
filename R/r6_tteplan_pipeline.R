@@ -733,15 +733,19 @@ TTEPlan$set(
 #' names, it also computes the stratified IRRs and the effect-modification
 #' test.
 #'
-#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
-#' estimand and weight combinations carry it: per-protocol on
-#' `analysis_weight_pp_trunc`, stored under `rd_pp_trunc`, and
-#' intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores one
-#' summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`, `nnt`,
-#' `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each also stores
-#' the full curve, one row per stop time, under `rd_curve_pp_trunc` or
-#' `rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside the
-#' risk difference.
+#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Three
+#' estimand and weight combinations carry it:
+#' \itemize{
+#'   \item per-protocol on `analysis_weight_pp_trunc`, stored under
+#'     `rd_pp_trunc`;
+#'   \item per-protocol on `analysis_weight_pp`, stored under `rd_pp`;
+#'   \item intention-to-treat on `ipw_trunc`, stored under `rd_itt`.
+#' }
+#' Each stores one summary row at the end of follow-up, with `rd`, `rd_lo`,
+#' `rd_hi`, `nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`.
+#' Each also stores the full curve, one row per stop time, under
+#' `rd_curve_pp_trunc`, `rd_curve_pp` or `rd_curve_itt`, with
+#' `surv_comparator` and `surv_intervention` beside the risk difference.
 #'
 #' The curve also carries `n_persons_at_risk_comparator` and
 #' `n_persons_at_risk_intervention`. Each is a head count of distinct people in
@@ -755,15 +759,15 @@ TTEPlan$set(
 #' those numbers and never recomputes them. The IRR intervals and the
 #' interval of the ratio of stratum IRRs use the same level.
 #'
-#' The minimum-events rule. The RD item of each estimand also cuts follow-up
-#' into 52-week windows. In each window it computes the expected events of
-#' each arm under the null. They are the pooled weighted rate of both arms
+#' The minimum-events rule. The RD item on the truncated weight of each
+#' estimand also cuts follow-up into 52-week windows. In each window it
+#' computes the expected events of each arm under the null. They are the pooled weighted rate of both arms
 #' times the weighted person-years of that arm. A window passes when both arms
 #' reach `spec$min_expected_events_per_arm_per_year`. When a window fails, the
 #' method withholds the estimates of that estimand. It sets these to `NA`:
 #' \itemize{
 #'   \item the incidence rate ratios and the subgroup ratios;
-#'   \item the risk difference and the number needed to treat;
+#'   \item the risk differences and the numbers needed to treat;
 #'   \item the interaction tests.
 #' }
 #' Their `interval_status` and `horizon_status` then read
@@ -773,6 +777,10 @@ TTEPlan$set(
 #' `$get_horizon_windows()` returns its window table. Which windows pass depends
 #' on the observed events, through the pooled rate.
 #'
+#' The RD item on `analysis_weight_pp` computes no windows. The per-protocol
+#' decision is the decision on `analysis_weight_pp_trunc`, and it withholds
+#' both per-protocol risk differences.
+#'
 #' An enrollment that sets `minimum_events_rule_exempt: true` is exempt. The
 #' method computes and stores the decision of its ETTs as for any ETT, and
 #' withholds none of their estimates. Their `horizon_status` reads
@@ -781,7 +789,7 @@ TTEPlan$set(
 #' A feasibility-horizon ETT, one with `feasibility_horizon = TRUE` in
 #' `$ett`, gets one work item per estimand. Each item computes the horizon
 #' record of its estimand through the same `.tte_horizon_record()` call as
-#' the RD item. The intention-to-treat record then takes the per-protocol
+#' the RD item on the truncated weight. The intention-to-treat record then takes the per-protocol
 #' decision. The method stores no estimate for the ETT: no summary, rate,
 #' ratio, risk difference, number needed to treat, survival curve or
 #' subgroup result. The enrollment loop reads an analysis file of a reported
@@ -792,8 +800,12 @@ TTEPlan$set(
 #' run has no horizon decision for an estimand.
 #'
 #' Cost. Each risk difference is its own work item, so it is its own worker
-#' process with its own read of the analysis file. That is two more reads
-#' per ETT, or 1,080 more reads on a 540-ETT grid.
+#' process with its own read of the analysis file. That is three more reads
+#' per ETT, or 1,620 more reads on a 540-ETT grid. The bootstrap of the third
+#' item was measured on a synthetic panel of 50,000 person-trials, under
+#' swereg 27.3.9. It took 3.97 s, the mean of 3 runs at 500 replicates. The
+#' 7 items per ETT of swereg 27.3.9 took 27.14 s on that panel, so the third
+#' item adds 14.6% to that compute. The file reads are not in either number.
 #'
 #' Results are stored in `self$results_enrollment` and `self$results_ett`.
 #' Every targeted result is recomputed on each call (no skip cache). Use
@@ -1032,9 +1044,9 @@ TTEPlan$set(
         }
 
         # The absolute scale, for EVERY ETT and with nothing to switch it
-        # off. One call per estimand, on that estimand's baseline weight.
-        # Per-protocol on the untruncated weight carries rates and the
-        # incidence rate ratio only.
+        # off. Three calls per ETT, one per `rd_calls` entry: per-protocol on
+        # the truncated and on the untruncated weight, and intention-to-treat
+        # on its baseline weight.
         #
         # It used to be computed in the export path, behind a figure option.
         # A production script that did not set the option drew every figure
@@ -1042,16 +1054,18 @@ TTEPlan$set(
         # switch off is a quantity a script can forget to ask for. So this
         # stage computes it. The export path only formats it.
         for (est in est_s3) {
-          all_items[[length(all_items) + 1L]] <- s3_item(
-            est$path,
-            r,
-            "risk_difference",
-            est$weight
-          )
-          item_map[[length(item_map) + 1L]] <- list(
-            ett_i = i,
-            slot = est$rd_slot
-          )
+          for (cl in est$rd_calls) {
+            all_items[[length(all_items) + 1L]] <- s3_item(
+              est$path,
+              r,
+              "risk_difference",
+              cl$weight_col
+            )
+            item_map[[length(item_map) + 1L]] <- list(
+              ett_i = i,
+              slot = cl$slot
+            )
+          }
         }
 
         # Effect modification: for each subgroup variable, stratified IRRs
@@ -1384,7 +1398,10 @@ TTEPlan$set(
 #'   the ETT, and `FALSE` otherwise. `estimands` is keyed by estimand and subset by
 #'   `.TTE_ESTIMANDS`. Each element holds `path`, the analysis file s2 wrote
 #'   for that estimand, and `weight`, the baseline weight column. It also holds
-#'   `ratio_calls` and `rd_slot`, which only s3 reads.
+#'   `ratio_calls` and `rd_calls`, which only s3 reads. `rd_calls` names the
+#'   weight column and the slot of each risk-difference call: two for
+#'   per-protocol (`rd_pp_trunc` and `rd_pp`) and one for intention-to-treat
+#'   (`rd_itt`).
 #' @noRd
 .tte_s3_resolve_ett <- function(ett, i, output_dir, rule, spec = NULL) {
   apath <- file.path(output_dir, ett$file_analysis[i])
@@ -1408,7 +1425,7 @@ TTEPlan$set(
   # which order, so an estimand it drops contributes no item at all. `path`
   # is the analysis file s2 wrote for that estimand, `weight` is the baseline
   # weight column s3 reads on that file, and `ratio_calls` are the ratio and
-  # rate calls it takes.
+  # rate calls it takes. `rd_calls` are its risk-difference calls.
   estimands <- list(
     pp = list(
       path = apath,
@@ -1425,7 +1442,10 @@ TTEPlan$set(
           slot = "irr_pp"
         )
       ),
-      rd_slot = "rd_pp_trunc"
+      rd_calls = list(
+        list(weight_col = "analysis_weight_pp_trunc", slot = "rd_pp_trunc"),
+        list(weight_col = "analysis_weight_pp", slot = "rd_pp")
+      )
     ),
     itt = list(
       path = itt_apath,
@@ -1442,7 +1462,9 @@ TTEPlan$set(
           slot = "rates_itt"
         )
       ),
-      rd_slot = "rd_itt"
+      rd_calls = list(
+        list(weight_col = "ipw_trunc", slot = "rd_itt")
+      )
     )
   )[names(.TTE_ESTIMANDS)]
 

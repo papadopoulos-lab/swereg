@@ -266,6 +266,8 @@ follow_up:
   - { label: "5 years", weeks: 260 }
 
 min_expected_events_per_arm_per_year: 5    # number >= 0
+period_width: 4                            # weeks per enrollment period
+admin_censoring_isoyearweek: "2025-01"     # last ISO week of follow-up
 
 enrollments:
   - id: "01"

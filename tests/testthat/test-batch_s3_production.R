@@ -38,7 +38,8 @@
   qs2::qs_save(sk, skel_path)
   global_max <- sk[, max(isoyearweek, na.rm = TRUE)]
   ttm_write_spec(file.path(dirs$spec, "spec_v001.yaml"), "ttmprod",
-    "rd_age_continuous")
+    "rd_age_continuous",
+    admin = global_max)
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
@@ -46,7 +47,6 @@
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = global_max,
     check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()

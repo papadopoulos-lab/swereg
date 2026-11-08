@@ -170,6 +170,10 @@
 #   ETT00007 enr 01 fu 52  ratio of exactly 0, which is not estimable
 #   ETT00008 enr 01 fu 52  ratio of 150, above the display cap
 #
+# In the `new` fixture, each ETT that stores `rd_pp_trunc` also stores
+# `rd_pp`, with a risk difference 0.001 further from zero. s3 stores both
+# since swereg#66. The `legacy` fixture stores no risk difference at all.
+#
 # Enrollment 01 stores every baseline panel. Enrollment 02 stores NO raw panel
 # and NO matching block, and one of its attrition criteria has no global row.
 # That last one costs enrollment 02 its attrition sheet and its CONSORT
@@ -293,6 +297,8 @@
       implementation = list(project_prefix = "xp", conf_level = 0.95)
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     enrollments = list(
       list(
         id = "01",
@@ -366,6 +372,7 @@
       )
     ),
     mk_rd("rd_pp_trunc", -0.010, "ETT00001"),
+    mk_rd("rd_pp", -0.011, "ETT00001"),
     mk_rd("rd_itt", -0.006, "ETT00001")
   )
 
@@ -383,7 +390,8 @@
       # Interaction only: no stratified table.
       emtest_rd_parity_pp = .xp_emtest(0.07, 1.35, 0.97, 1.88, "rd_parity")
     ),
-    mk_rd("rd_pp_trunc", 0.004, "ETT00002")
+    mk_rd("rd_pp_trunc", 0.004, "ETT00002"),
+    mk_rd("rd_pp", 0.005, "ETT00002")
   )
 
   r3 <- c(
@@ -399,6 +407,7 @@
       irr_itt = .xp_irr(0.90, 0.70, 1.16, 0.415, stored)
     ),
     mk_rd("rd_pp_trunc", -0.002, "ETT00003"),
+    mk_rd("rd_pp", -0.003, "ETT00003"),
     mk_rd("rd_itt", -0.001, "ETT00003")
   )
 
@@ -425,7 +434,8 @@
       irr_pp = .xp_irr(0.74, 0.56, 0.98, 0.035, stored),
       irr_itt = .xp_irr(0.79, 0.61, 1.02, 0.071, stored)
     ),
-    mk_rd("rd_pp_trunc", -0.015, "ETT00005")
+    mk_rd("rd_pp_trunc", -0.015, "ETT00005"),
+    mk_rd("rd_pp", -0.016, "ETT00005")
   )
 
   # Ratio of exactly zero: finite, and not estimable.

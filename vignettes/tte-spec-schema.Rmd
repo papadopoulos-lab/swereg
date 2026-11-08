@@ -126,6 +126,31 @@ knitr::kable(
 )
 ```
 
+# The design keys
+
+Every specification MUST declare two flat top-level keys. They are design
+choices, so the specification holds them and no function argument does.
+
+```yaml
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
+```
+
+| Key | Meaning | Type | Required |
+|:--|:--|:--|:--|
+| `period_width` | The width in weeks of the enrollment period. The same width sets each follow-up interval. | One whole number of at least 1 | Yes |
+| `admin_censoring_isoyearweek` | The administrative censoring week. Follow-up includes that week. | One string `YYYY-WW`, with the week from 01 to 53 | Yes |
+
+`tteplan_read_spec()` stops on a specification without one or both keys, and
+on a bad value. The one message names both keys, states each problem and
+shows the example above. `tteplan_check_spec()` reports the same message as
+one `read_error` row on the path `$`. s0 reads both values from the
+specification. It does not compare the week with the skeleton.
+
+`$/standing_methods/admin_censoring` stays an optional `metadata` note.
+swereg does not read it. When the note states a week, keep it equal to
+`admin_censoring_isoyearweek`.
+
 # The global inclusion container
 
 `inclusion_criteria` is a fixed container. It holds `isoyears` and `criteria`,

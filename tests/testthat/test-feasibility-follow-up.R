@@ -105,7 +105,10 @@ test_that("(a) reload_spec refuses a change of the key as structural", {
   # The real method: the plan keeps the old value and records the refusal.
   root <- withr::local_tempdir()
   plan <- .ff_plan(.ff_spec(FF_W), root)
-  path <- spr_write_spec(.ff_spec(312L), withr::local_tempdir())
+  # The new spec keeps the week of the plan, so the key is the only change.
+  new_spec <- .ff_spec(312L)
+  new_spec$admin_censoring_isoyearweek <- FF_ADMIN
+  path <- spr_write_spec(new_spec, withr::local_tempdir())
   expect_warning(
     plan$reload_spec(path, quiet = TRUE),
     "feasibility_follow_up_weeks: 260 -> 312",
@@ -539,6 +542,7 @@ test_that("(d) the forest data and the survival figure input are identical", {
   if (key) {
     spec$feasibility_follow_up_weeks <- FF_W
   }
+  spec$admin_censoring_isoyearweek <- sk[, max(isoyearweek, na.rm = TRUE)]
   spr_write_spec(spec, dirs[1])
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs[4]),
@@ -546,7 +550,6 @@ test_that("(d) the forest data and the survival figure input are identical", {
     candidate_dir_tteplan = dirs[2],
     candidate_dir_results = dirs[3],
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   ))
   dev <- swereg:::.swereg_dev_path()

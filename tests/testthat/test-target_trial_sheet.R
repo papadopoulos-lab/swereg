@@ -76,6 +76,8 @@ skip_if_not_installed("data.table")
       list(label = "5 years", weeks = 260)
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2025-01",
     enrollments = list(
       list(
         id = "01",

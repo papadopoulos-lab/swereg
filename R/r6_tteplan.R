@@ -115,6 +115,8 @@ TTEPlan <- R6::R6Class(
     #' @field skeleton_files Character vector of skeleton file paths.
     skeleton_files = NULL,
     #' @field global_max_isoyearweek Admin censoring boundary.
+    #'   [tteplan_from_spec_and_registrystudy()] sets it from the spec key
+    #'   `admin_censoring_isoyearweek`.
     global_max_isoyearweek = NULL,
     #' @field spec Parsed study spec (from [tteplan_read_spec()]), or NULL.
     spec = NULL,
@@ -132,6 +134,8 @@ TTEPlan <- R6::R6Class(
     skeleton_created_at = NULL,
     #' @field period_width Integer, the width in weeks of the enrollment period
     #'   (default: 4L). The same width sets each follow-up interval.
+    #'   [tteplan_from_spec_and_registrystudy()] sets it from the spec key
+    #'   `period_width`.
     period_width = 4L,
     #' @field enrollment_counts Named list of per-enrollment TARGET Item 8 data.
     #'   Each element is a list with:

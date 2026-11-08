@@ -109,7 +109,8 @@ test_that("a completed s1 reports the work directory it removed", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttms1clear",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -118,7 +119,6 @@ test_that("a completed s1 reports the work directory it removed", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 
@@ -171,7 +171,8 @@ test_that("a completed s1 works under work_root and sweeps that root first", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttms1root",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   # Two stale entries for the sweep, one of them a dotfile. Populate first:
@@ -190,7 +191,6 @@ test_that("a completed s1 works under work_root and sweeps that root first", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 
@@ -245,7 +245,8 @@ test_that("s1 refuses a relative work_root and creates nothing", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttms1rel",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -254,7 +255,6 @@ test_that("s1 refuses a relative work_root and creates nothing", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 
@@ -306,7 +306,8 @@ test_that("s1 refuses a work_root that does not exist and creates nothing", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttms1absent",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -315,7 +316,6 @@ test_that("s1 refuses a work_root that does not exist and creates nothing", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 
@@ -367,7 +367,8 @@ test_that("s1 clears a pre-27.1.1 plain data.table from the work directory befor
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttms1old",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
@@ -375,7 +376,6 @@ test_that("s1 clears a pre-27.1.1 plain data.table from the work directory befor
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 

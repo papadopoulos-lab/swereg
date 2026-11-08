@@ -4,8 +4,8 @@
 
 #' The value of each workbook cell that a spec cannot supply
 #'
-#' A plan reads these values from the skeletons. The spec-only workbook has no
-#' skeleton, so the cell says that.
+#' A plan reads `skeleton_files` from the skeleton store. The spec-only
+#' workbook has no skeleton, so the cell says that.
 #' @noRd
 .TTE_SPEC_ONLY <- "not built (spec only)"
 
@@ -16,11 +16,9 @@
 #' rawbatch or registry data file, so it runs before s0.
 #'
 #' Each cell holds the value that `TTEPlan$excel_spec_summary()` writes for a
-#' plan at s0 from the same spec, code registry, `period_width` and
-#' `protocol_ett_id`. The one exception is the `Admin censoring:` row. s0
-#' reads that value from the first skeleton unless you supply it. Here the
-#' row reads `not built (spec only)` unless you supply
-#' `global_max_isoyearweek`.
+#' plan at s0 from the same spec, code registry and `protocol_ett_id`. The
+#' `Admin censoring:` row and the width of the enrollment period come from the
+#' spec keys `admin_censoring_isoyearweek` and `period_width`.
 #'
 #' Only s1 decides the rare-condition rule. The workbook therefore states the
 #' rule as not decided yet, and it has no Rare conditions sheet. The
@@ -40,12 +38,6 @@
 #'     data.
 #'   * A `data.table` with the columns of `RegistryStudy$summary_table()`:
 #'     `name`, `codes`, `label` and `generated_columns`.
-#' @param period_width Integer, the width in weeks of the enrollment period.
-#'   It has the default of [tteplan_from_spec_and_registrystudy()]. The
-#'   Target trial protocol sheet states it.
-#' @param global_max_isoyearweek Character(1) or `NULL`, the administrative
-#'   censoring boundary as an isoyearweek, for example `"2023-52"`. `NULL`
-#'   writes `not built (spec only)` in the `Admin censoring:` row.
 #' @param protocol_ett_id Character(1) or `NULL`, the ETT that the Target
 #'   trial protocol sheet documents. `NULL` takes the first ETT of the grid.
 #'   An id that the grid does not hold gives a warning, and the sheet then
@@ -82,6 +74,8 @@
 #'     "follow_up:",
 #'     "  - {label: 1 year, weeks: 52}",
 #'     "min_expected_events_per_arm_per_year: 5",
+#'     "period_width: 4",
+#'     "admin_censoring_isoyearweek: '2025-01'",
 #'     "enrollments:",
 #'     "  - id: '01'",
 #'     "    name: A vs B",
@@ -122,8 +116,6 @@ tteplan_excel_spec_summary <- function(
   spec_path,
   path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   protocol_ett_id = NULL
 ) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
@@ -141,9 +133,9 @@ tteplan_excel_spec_summary <- function(
     project_prefix = spec$study$implementation$project_prefix %||%
       NA_character_,
     skeleton_files = .TTE_SPEC_ONLY,
-    global_max_isoyearweek = global_max_isoyearweek %||% .TTE_SPEC_ONLY
+    global_max_isoyearweek = spec[["admin_censoring_isoyearweek"]]
   )
-  plan$period_width <- as.integer(period_width)
+  plan$period_width <- spec[["period_width"]]
   plan$spec <- spec
   plan$spec_version <- spec$study$implementation$version
   plan$code_registry <- .tte_spec_only_code_registry(code_registry)

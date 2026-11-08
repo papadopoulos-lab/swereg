@@ -398,7 +398,15 @@ TTEPlan$set(
 #' Structural fields (confounders, exclusion criteria, follow-up windows,
 #' comparator-draw parameters, etc.) are *not* applied - they would invalidate
 #' the cached results. The differences are surfaced via a loud warning
-#' and recorded in `self$spec_reload_skipped_diffs`.
+#' and recorded in `self$spec_reload_skipped_diffs`. The two design keys,
+#' `period_width` and `admin_censoring_isoyearweek`, are structural fields.
+#'
+#' A plan built before swereg 27.3.10 stores a spec without the two design
+#' keys. For such a plan the method fills each design key that the spec file
+#' lacks from `self$period_width` and `self$global_max_isoyearweek`. It fills
+#' the same two values into the copy of `self$spec` that it compares against.
+#' A plan whose stored spec has the keys reads the file with
+#' [tteplan_read_spec()], which refuses a file without them.
 #'
 #' @param spec_path Optional path to a `.yaml` study spec file. If `NULL`
 #'   (default), uses `self$spec_path` (resolved from `dir_spec_cp` +
@@ -412,8 +420,19 @@ TTEPlan$set("public", "reload_spec", function(spec_path = NULL, quiet = FALSE) {
   if (is.null(spec_path)) {
     spec_path <- self$spec_path
   }
-  new_spec <- tteplan_read_spec(spec_path)
-  diffs <- .diff_specs(self$spec, new_spec)
+  old_spec <- self$spec
+  if (!any(.TTE_DESIGN_KEYS %in% names(old_spec))) {
+    # A plan built before swereg 27.3.10. Its two design values are fields.
+    fill <- list(
+      period_width = as.integer(self$period_width),
+      admin_censoring_isoyearweek = self$global_max_isoyearweek
+    )
+    new_spec <- .tte_read_spec(spec_path, fill = fill)
+    old_spec <- .tte_spec_fill_design_keys(old_spec, fill)
+  } else {
+    new_spec <- tteplan_read_spec(spec_path)
+  }
+  diffs <- .diff_specs(old_spec, new_spec)
   if (length(diffs$structural) > 0L) {
     warning(
       "Spec has structural changes that were NOT applied (cached results ",

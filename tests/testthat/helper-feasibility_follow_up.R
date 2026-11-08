@@ -9,6 +9,8 @@ FF_FOLLOW_UP <- list(
 )
 FF_MIN_SHEETS <- c("Minimum events (Y or -)", "Minimum events (#)")
 FF_EXPORT_TIME <- as.POSIXct("2026-10-29 12:00:00", tz = "UTC")
+# The administrative censoring week that `.ff_plan()` writes into every spec.
+FF_ADMIN <- "2023-52"
 
 # ---- the spec -----------------------------------------------------------------
 
@@ -45,6 +47,7 @@ FF_EXPORT_TIME <- as.POSIXct("2026-10-29 12:00:00", tz = "UTC")
   for (d in dirs) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }
+  spec$admin_censoring_isoyearweek <- FF_ADMIN
   spr_write_spec(spec, dirs[1])
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(
@@ -55,7 +58,6 @@ FF_EXPORT_TIME <- as.POSIXct("2026-10-29 12:00:00", tz = "UTC")
     candidate_dir_tteplan = dirs[2],
     candidate_dir_results = dirs[3],
     spec_version = "v001",
-    global_max_isoyearweek = "2023-52",
     check_skeletons = FALSE
   ))
   return(plan)

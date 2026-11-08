@@ -37,6 +37,8 @@ follow_up:
   - { label: "3 years", weeks: 156 }
 
 min_expected_events_per_arm_per_year: 0
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
 
 enrollments:
   - id: "01"

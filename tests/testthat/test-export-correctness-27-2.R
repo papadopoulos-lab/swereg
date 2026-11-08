@@ -59,7 +59,9 @@ ec_plan <- function() {
     ),
     # `tte_stamp_stages()` gives each result a horizon record of this rule.
     # The writers stop on a result without one.
-    min_expected_events_per_arm_per_year = 0
+    min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   )
   one <- function(eid, enr) {
     rt <- data.table::data.table(

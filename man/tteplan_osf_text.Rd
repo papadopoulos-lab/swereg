@@ -7,8 +7,6 @@
 tteplan_osf_text(
   spec_path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   people = c("person", "persons")
 )
 }
@@ -20,13 +18,6 @@ reads it with \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
 codes, as in \code{\link[=tteplan_excel_spec_summary]{tteplan_excel_spec_summary()}}: \code{NULL}, a \link{RegistryStudy},
 or a \code{data.table} with the columns of \code{RegistryStudy$summary_table()}.
 With \code{NULL}, every code cell of the code list reads \verb{not resolved}.}
-
-\item{period_width}{Integer, the width in weeks of the enrollment period.
-It has the default of \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}.}
-
-\item{global_max_isoyearweek}{Character(1) or \code{NULL}, the administrative
-censoring boundary as an isoyearweek, for example \code{"2025-01"}. Follow-up
-includes that week. \code{NULL} writes "the administrative end of the data".}
 
 \item{people}{Character(2), the singular and plural noun for a study
 participant, for example \code{c("woman", "women")}.}
@@ -51,7 +42,9 @@ The other fields point to it as \code{'Field/Subheading'}.
 }
 \details{
 The function reads the spec and the code registry only. It reads no
-skeleton, rawbatch or registry data file, so it runs before s0. Every spec
+skeleton, rawbatch or registry data file, so it runs before s0. The width
+of the enrollment period and the administrative censoring week come from
+the spec keys \code{period_width} and \code{admin_censoring_isoyearweek}. Every spec
 entry appears in the text: no criterion, covariate or outcome is left out.
 
 The text uses the \code{name} of each criterion, covariate and outcome, the
@@ -95,6 +88,8 @@ writeLines(
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
     "min_expected_events_per_arm_per_year: 5",
+    "period_width: 4",
+    "admin_censoring_isoyearweek: '2025-01'",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",

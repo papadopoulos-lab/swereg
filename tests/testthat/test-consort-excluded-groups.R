@@ -188,7 +188,9 @@ skip_if_not_installed("data.table")
       implementation = list(variable = "osd_a")
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
-    min_expected_events_per_arm_per_year = 0
+    min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   )
   dir <- withr::local_tempdir()
   path <- file.path(dir, "spec_v001.yaml")

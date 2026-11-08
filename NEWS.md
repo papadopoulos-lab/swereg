@@ -1,3 +1,24 @@
+# swereg 27.3.10
+
+No plan needs a rerun for the new spec keys. A plan gets the untruncated per-protocol risk difference only on its next rerun of `$s3_analyze()`.
+
+## Breaking changes
+
+* **A spec MUST set the top-level keys `period_width` and `admin_censoring_isoyearweek`.** `period_width` is one integer of at least 1. `admin_censoring_isoyearweek` is one string `"YYYY-WW"`, with a week from 01 to 53. Add two lines to the spec, for example `period_width: 4` and `admin_censoring_isoyearweek: "2025-01"`.
+* **`tteplan_read_spec()` refuses a spec without both keys, with one message that names both.** Do not edit an existing spec file. Cut a new spec version for each project.
+* **`tteplan_from_spec_and_registrystudy()`, `tteplan_osf_text()` and `tteplan_excel_spec_summary()` lose the arguments `period_width` and `global_max_isoyearweek`.** They take both values from the spec. A call that passes either argument stops with an unused-argument error.
+* **No result changes when the spec values equal the values the plan used before.** Those values are the arguments, or else the defaults: 4 and the last isoyearweek of the first skeleton file.
+* **`tteplan_from_spec_and_registrystudy()` runs `tteplan_validate_spec()` in every build that finds the first skeleton file.** Before, it ran only when the call did not pass `global_max_isoyearweek`. The function no longer reads the admin week from the skeleton.
+* **A plan saved before 27.3.10 reloads its own spec.** `$reload_spec()` takes both values from the plan, so the s4 export of an existing plan needs no rerun.
+* `standing_methods.admin_censoring` stays an optional note. swereg does not read it.
+
+## New features
+
+* **`$s3_analyze()` also estimates the risk difference, its bootstrap interval and the NNT on the untruncated per-protocol weight.** It stores them as `rd_pp` and `rd_curve_pp`, beside `rd_pp_trunc` and `rd_curve_pp_trunc`. `$get_estimates()`, `$get_curves()` and `results.qs2` carry them on the untruncated per-protocol row.
+* **The minimum-events rule withholds the untruncated per-protocol risk difference exactly when it withholds the truncated per-protocol estimate.** The stored per-protocol horizon record stays the one computed on the truncated weight.
+* **The sheet "Weight truncation (PP)" gains "Risk difference per 10,000", "Risk difference <level>% CI" and "NNT (<level>% CI)" for each weight.** A result saved before 27.3.10 shows "not computed" in the cells of the untruncated weight.
+* **The extra bootstrap adds a projected 14.6% to the s3 compute per ETT.** It took 3.97 s against a sum of 27.14 s for the 7 existing items. The base is a synthetic panel of 50,000 person-trials (25,000 persons), 500 replicates, under swereg 27.3.9. It excludes the analysis-file reads and the subgroup items. (#66)
+
 # swereg 27.3.9
 
 No plan needs a rerun of s1, s2 or s3. A stale feasibility result clears only on the next `$s3_feasibility()`.

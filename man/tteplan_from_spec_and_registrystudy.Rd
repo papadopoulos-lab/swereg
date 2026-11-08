@@ -12,8 +12,6 @@ tteplan_from_spec_and_registrystudy(
   spec_version = NULL,
   project_id = NULL,
   n_skeleton_files = NULL,
-  global_max_isoyearweek = NULL,
-  period_width = 4L,
   check_skeletons = TRUE
 )
 }
@@ -24,9 +22,8 @@ A list MAY stand in for it, as the package tests do. The list MUST carry
 \code{skeleton_files}. Without a \code{work_root}, s1 reads \code{data_meta_dir} from
 it for its work directory. A list has no \verb{$assert_skeletons_consistent()}, so pass
 \code{check_skeletons = FALSE} here and to
-\verb{$s1_generate_enrollments_and_ipw()}. With
-\code{global_max_isoyearweek = NULL} and a first file named
-\verb{skeleton_<n>.qs2}, the list also needs \verb{$load_skeleton()}.}
+\verb{$s1_generate_enrollments_and_ipw()}. When the first file exists and is
+named \verb{skeleton_<n>.qs2}, the list also needs \verb{$load_skeleton()}.}
 
 \item{candidate_dir_spec}{Character vector of candidate directories that
 contain the spec YAML \code{spec_vXXX.yaml}. The first existing directory is
@@ -49,15 +46,6 @@ spec YAML. When \code{NULL}, read from \code{spec$study$implementation$version}.
 \code{n_skeleton_files} files are used (for faster dev iterations). Stored
 on the plan as \code{n_skeleton_files_limit} so \code{\link[=tteplan_load]{tteplan_load()}} can
 re-apply it after a host transfer.}
-
-\item{global_max_isoyearweek}{Administrative censoring boundary
-(isoyearweek string, e.g., "2023-52"). If \code{NULL} (default), auto-detected
-from \code{max(isoyearweek)} in the first skeleton file. Also runs
-\code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} on that skeleton.}
-
-\item{period_width}{Integer, the width in weeks of the enrollment period
-(default: 4L). The same width sets each follow-up interval. Stored on the
-plan and passed through to TTEDesign.}
 
 \item{check_skeletons}{Logical (default \code{TRUE}). Run
 \link{RegistryStudy}\verb{$assert_skeletons_consistent()} before reading any
@@ -90,6 +78,15 @@ Stage scripts (\code{s1.R}, \code{s2.R}, \code{s3.R}, \code{s4_export.R}) can th
 the plan on any host with \code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}} and call
 \code{plan$save()}, \code{plan$s1_generate_enrollments_and_ipw()}, etc. without
 re-specifying any paths.
+
+The plan takes \code{period_width} and \code{global_max_isoyearweek} from the spec
+keys \code{period_width} and \code{admin_censoring_isoyearweek}. See the design keys
+section of \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}. The function does not compare the week
+with the skeleton.
+
+When the first skeleton file exists, the function loads it and runs
+\code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} on it. When the file does not exist, the
+function gives the message \verb{prevalent-user check skipped: no skeleton loaded}.
 }
 \seealso{
 \code{\link[=registrystudy_load]{registrystudy_load()}}, \code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}

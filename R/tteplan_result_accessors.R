@@ -55,8 +55,9 @@
 #' untruncated, and intention-to-treat truncated. The intention-to-treat
 #' estimates use the truncated baseline inverse-probability weight, `ipw_trunc`.
 #'
-#' `rd` is `NA` for per-protocol on the untruncated weight. s3 computes the
-#' absolute scale on the truncated per-protocol weight and on `ipw_trunc` only.
+#' Each combination has a risk difference. Per-protocol on the untruncated
+#' weight reads `rd_pp`, which swereg 27.3.9 and earlier did not store. Its
+#' `rd` columns are then `NA` and `rd_stored` is `FALSE`.
 #' @noRd
 .ACC_ESTIMATE_SLOTS <- list(
   list(
@@ -71,7 +72,7 @@
     weights = "untruncated",
     rates = "rates_pp",
     irr = "irr_pp",
-    rd = NA_character_
+    rd = "rd_pp"
   ),
   list(
     estimand = "itt",
@@ -128,10 +129,11 @@
 )
 
 
-#' The two risk-difference curve slots, and the combination each stands for.
+#' The three risk-difference curve slots, and the combination each stands for.
 #' @noRd
 .ACC_CURVE_SLOTS <- list(
   list(slot = "rd_curve_pp_trunc", estimand = "pp", weights = "truncated"),
+  list(slot = "rd_curve_pp", estimand = "pp", weights = "untruncated"),
   list(slot = "rd_curve_itt", estimand = "itt", weights = "truncated")
 )
 

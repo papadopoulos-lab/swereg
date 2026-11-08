@@ -82,7 +82,9 @@ skip_if_not_installed("yaml")
       name = "Subgroup",
       implementation = list(variable = "rd_sg")
     )),
-    min_expected_events_per_arm_per_year = min_events
+    min_expected_events_per_arm_per_year = min_events,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52"
   ))
 }
 

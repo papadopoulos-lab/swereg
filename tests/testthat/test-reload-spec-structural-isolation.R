@@ -85,6 +85,8 @@ rsi_spec <- function(tag = "old", criterion_source = "osd_f20_to_f29") {
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2016-52",
     confounders = list(list(
       name = "Age",
       implementation = list(variable = "rd_age_continuous")
@@ -487,6 +489,8 @@ rsi_full_spec <- function(variant = "sentinel") {
       candidates = "rd_no_rd_exposure_everbefore"
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2016-52",
     open_questions = list(list(
       question = "Which comparator window?",
       raised_by = "A Person",
@@ -647,6 +651,11 @@ RSI_LEAF_SIDE <- c(
 
   # Feasibility horizon. It adds ETTs to the grid and changes the s2 output.
   "$/feasibility_follow_up_weeks" = "structural",
+
+  # Design keys. Every cached enrollment period, follow-up interval and
+  # administrative censoring was computed against them.
+  "$/period_width" = "structural",
+  "$/admin_censoring_isoyearweek" = "structural",
 
   # Global inclusion. The container decides who enters the study.
   "$/inclusion_criteria/criteria[]/implementation/computed" = "structural",

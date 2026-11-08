@@ -94,6 +94,8 @@ lc_write_spec <- function(enrollments = list(lc_enrollment()), env = parent.fram
     ),
     follow_up = list(list(label = "1 year", weeks = 52L)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     confounders = list(
       list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     )
@@ -480,7 +482,6 @@ lc_propagation_plan <- function(env = parent.frame()) {
     candidate_dir_tteplan = dir,
     candidate_dir_results = dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 }

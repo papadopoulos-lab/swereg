@@ -436,14 +436,13 @@ test_that("the TARGET methods name the trial for the outcome model and the calen
   )
   skel <- file.path(dir, "tteplan", "skel_a.qs2")
   qs2::qs_save(sk, skel)
-  ttm_write_spec(file.path(dir, "spec", "spec_v001.yaml"), "tt", "ri_highrisk")
+  ttm_write_spec(file.path(dir, "spec", "spec_v001.yaml"), "tt", "ri_highrisk", admin = max(sk$isoyearweek, na.rm = TRUE))
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel, data_meta_dir = file.path(dir, "meta")),
     candidate_dir_spec = file.path(dir, "spec"),
     candidate_dir_tteplan = file.path(dir, "tteplan"),
     candidate_dir_results = file.path(dir, "results"),
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek, na.rm = TRUE),
     check_skeletons = FALSE
   )
   lines <- utils::capture.output(plan$print_target_checklist())

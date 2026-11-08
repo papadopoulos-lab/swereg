@@ -127,6 +127,7 @@
 .TTE_SPEC_SCHEMA <- list(
   "$" = list(
     consumed = c(
+      "admin_censoring_isoyearweek",
       "confounders",
       "enrollments",
       "exclusion_criteria",
@@ -136,6 +137,7 @@
       "min_expected_events_per_arm_per_year",
       "open_questions",
       "outcomes",
+      "period_width",
       "rare_condition_rule",
       "standing_methods",
       "study",

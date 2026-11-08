@@ -103,8 +103,10 @@ TTEPlan$set("public", "get_estimates", function() {
 #' One row per emulated trial, estimand, weighting, arm and stop time.
 #' `follow_up_interval` holds the stop time, in weeks from time zero, of the
 #' rows the curve was evaluated at.
-#' `$s3_analyze()` stores one wide curve per estimand, with a survival
-#' column for each arm. This method returns one row per arm instead.
+#' `$s3_analyze()` stores one wide curve per estimand and weight, with a
+#' survival column for each arm. Per-protocol has two curves, on the truncated
+#' weight (`rd_curve_pp_trunc`) and the untruncated weight (`rd_curve_pp`).
+#' Intention-to-treat has one. This method returns one row per arm instead.
 #'
 #' The table carries the numbers at risk beside survival. `n_persons_at_risk` is
 #' an unweighted count of distinct people, per arm per stop time.

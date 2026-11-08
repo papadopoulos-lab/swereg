@@ -278,14 +278,13 @@ test_that("TARGET item 7a lists the inclusion criteria of the spec", {
   )
   skel <- file.path(dir_tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel)
-  ttm_write_spec(file.path(dir_spec, "spec_v001.yaml"), "s51", "ri_highrisk")
+  ttm_write_spec(file.path(dir_spec, "spec_v001.yaml"), "s51", "ri_highrisk", admin = max(sk$isoyearweek, na.rm = TRUE))
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel, data_meta_dir = dir_meta),
     candidate_dir_spec = dir_spec,
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek, na.rm = TRUE),
     check_skeletons = FALSE
   ))
   txt <- paste(

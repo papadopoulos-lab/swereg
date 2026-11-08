@@ -355,7 +355,8 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
     "lpbentry",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -364,7 +365,6 @@ test_that("baseline IPW fits the entry snapshot, not the landmark value", {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 

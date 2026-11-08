@@ -120,6 +120,8 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
     trunc_irr_slot = "irr_pp_trunc",
     untrunc_rates_slot = "rates_pp",
     untrunc_irr_slot = "irr_pp",
+    trunc_rd_slot = "rd_pp_trunc",
+    untrunc_rd_slot = "rd_pp",
     title = "Test sensitivity"
   )
 
@@ -150,4 +152,23 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
   # And confirm the OLD labels are absent.
   expect_false("Exposure" %in% flat)
   expect_false("Events (exp)" %in% flat)
+
+  # Each block ends in the three risk-difference columns (swereg#66). This
+  # plan stores no risk difference, the shape of a result from before s3
+  # computed one. All six cells read "not computed", and the write does not
+  # stop.
+  m <- as.matrix(contents)
+  h <- which(m[, 1L] == "Enrollment")[1L]
+  rd_h <- c(
+    "Risk difference per 10,000",
+    "Risk difference 95% CI",
+    "NNT (95% CI)"
+  )
+  expect_identical(ncol(m), 29L)
+  expect_identical(unname(m[h, 15:17]), rd_h)
+  expect_identical(unname(m[h, 27:29]), rd_h)
+  expect_identical(
+    unname(as.character(m[h + 1L, c(15:17, 27:29)])),
+    rep("not computed", 6L)
+  )
 })

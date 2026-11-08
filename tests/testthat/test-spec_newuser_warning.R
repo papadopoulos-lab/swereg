@@ -94,7 +94,9 @@ skip_if_not_installed("data.table")
     "      variable: os_x\n",
     "follow_up:\n",
     "  - weeks: 52\n",
-    "min_expected_events_per_arm_per_year: 0\n"
+    "min_expected_events_per_arm_per_year: 0\n",
+    "period_width: 4\n",
+    "admin_censoring_isoyearweek: \"2015-52\"\n"
   )
 }
 
@@ -525,7 +527,6 @@ test_that("the build says it skipped the check when no skeleton is loaded", {
         candidate_dir_tteplan = dir_tteplan,
         candidate_dir_results = dir_results,
         spec_version = "v001",
-        global_max_isoyearweek = "2015-52",
         check_skeletons = FALSE
       )
     )

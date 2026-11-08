@@ -194,11 +194,12 @@
 
 
 #' Classify the two criteria containers, the follow-up grid, the feasibility
-#' horizon and the rare_condition_rule.
+#' horizon, the rare_condition_rule and the two design keys.
 #'
 #' Each one decides who enters the study, or for how long swereg follows them.
 #' A cached result cannot be refreshed with a new value, so every change inside
-#' the five blocks is structural. `feasibility_follow_up_weeks` adds ETTs to
+#' the seven blocks is structural. The design keys are `period_width` and
+#' `admin_censoring_isoyearweek`. `feasibility_follow_up_weeks` adds ETTs to
 #' the grid and changes the s2 output. A changed `follow_up` can also add or
 #' remove a horizon-only ETT. That ETT is the next whole year of a follow-up
 #' that is not a whole number of years.
@@ -218,6 +219,13 @@
   b <- new[["feasibility_follow_up_weeks"]]
   if (!identical(a, b)) {
     ps("feasibility_follow_up_weeks", a, b)
+  }
+  # The enrollment periods, the follow-up intervals and the administrative
+  # censoring of every cached result were computed against these two values.
+  for (k in c("period_width", "admin_censoring_isoyearweek")) {
+    if (!identical(old[[k]], new[[k]])) {
+      ps(k, old[[k]], new[[k]])
+    }
   }
   # The rare_condition_rule decides who is enrolled and which confounders stay.
   # Each field is a definition the frozen decision was made under.
@@ -546,6 +554,7 @@
 # The top-level blocks that `.diff_specs()` classifies. A key outside this
 # vector is unclassified, and `.ds_residual()` calls it structural.
 .DS_TOP_LEVEL_BLOCKS <- c(
+  "admin_censoring_isoyearweek",
   "confounders",
   "enrollments",
   "exclusion_criteria",
@@ -555,6 +564,7 @@
   "min_expected_events_per_arm_per_year",
   "open_questions",
   "outcomes",
+  "period_width",
   "rare_condition_rule",
   "standing_methods",
   "study",

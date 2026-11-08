@@ -327,13 +327,14 @@
 #' The replicate matrix is DROPPED. `.tte_rd_curve()` attaches the whole
 #' `n_boot` by `n_interval` bootstrap matrix as the `rd_boot` attribute.
 #' Measured on a 39-row curve at 500 replicates it is 156,216 bytes. Kept,
-#' it would add 169 MB to a 540-ETT plan across two estimands. The stored
+#' it would add 253 MB to a 540-ETT plan across the three risk differences of
+#' each ETT. The stored
 #' percentiles already summarise it.
 #'
 #' What stays is small. The row and the curve serialise to 2,335 bytes
-#' together, which is 2.5 MB across that same plan.
+#' together, which is 3.8 MB across that same plan.
 #'
-#' @param slot Character(1), the row slot name (`"rd_pp_trunc"` or
+#' @param slot Character(1), the row slot name (`"rd_pp_trunc"`, `"rd_pp"` or
 #'   `"rd_itt"`). The curve slot is the same name with `rd_curve_` in place of
 #'   `rd_`.
 #' @param curve The `$risk_difference()` return value, or the skip envelope
@@ -390,7 +391,9 @@
 #'   `min_expected_events` and `exempt`, or `NULL`. `exempt` is the
 #'   exemption of the ETT's enrollment, from `.tte_s3_resolve_ett()`. The
 #'   `risk_difference` method reads it, with `follow_up`, and returns the
-#'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. The
+#'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. It does
+#'   so only on a weight of `.HORIZON_WEIGHTS`. On `analysis_weight_pp` it
+#'   computes no record and returns none. The
 #'   `horizon` method returns that record alone, and stops without a rule.
 #'   s3 calls it for a feasibility-horizon ETT. The parent passes both on
 #'   every item. A direct `risk_difference` call without them returns no
@@ -535,9 +538,9 @@
     ))
   } else if (method == "risk_difference") {
     # The absolute scale. ITT weights on ipw_trunc -> rd_itt; PP weights on
-    # analysis_weight_pp_trunc -> rd_pp_trunc. Nothing gates this branch: the
-    # item builder emits it for every ETT, and the export path only formats
-    # what it stores.
+    # analysis_weight_pp_trunc -> rd_pp_trunc, and on analysis_weight_pp ->
+    # rd_pp. Nothing gates this branch: the item builder emits it for every
+    # ETT, and the export path only formats what it stores.
     slot <- if (identical(weight_col, "ipw_trunc")) {
       "rd_itt"
     } else {
@@ -546,8 +549,13 @@
     # The minimum-events rule, OUTSIDE `safe_call()`. An error here stops the
     # item, and the item error stops `$s3_analyze()`. A skip envelope in its
     # place would let the parent report estimates no rule has judged.
+    #
+    # Only a weight of `.HORIZON_WEIGHTS` decides the rule. The item on
+    # analysis_weight_pp computes no record and returns none. Its `horizon_pp`
+    # would otherwise replace the record of the truncated weight whenever the
+    # parent merged it later.
     horizon <- NULL
-    if (!is.null(horizon_rule)) {
+    if (!is.null(horizon_rule) && weight_col %in% .HORIZON_WEIGHTS) {
       horizon <- horizon_of()
     }
     curve <- safe_call(

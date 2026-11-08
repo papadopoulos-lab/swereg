@@ -126,7 +126,10 @@ skip_if_not_installed("data.table")
   )
 }
 
-# ETT00001 carries every slot of all three combinations.
+# ETT00001 carries every slot of all three combinations that swereg 27.3.9
+# stored. It holds no `rd_pp` and no `rd_curve_pp`, the two slots swereg#66
+# added. The test "per-protocol untruncated reads rd_pp and rd_curve_pp" adds
+# them.
 # ETT00002 deliberately carries fewer:
 #   - per-protocol truncated: rates and a LEGACY ratio with no stored
 #     `irr_estimable`;
@@ -1218,4 +1221,62 @@ test_that("a stored table with NA values is still a stored table", {
   panel <- bl[bl$weighting == "ipw_trunc" & bl$variant == "supplementary"]
   expect_true(all(panel$smd_stored))
   expect_true(all(is.na(panel$smd_numeric)))
+})
+
+
+# --- (7) swereg#66: the untruncated per-protocol risk difference -------------
+
+test_that("per-protocol untruncated reads rd_pp and rd_curve_pp", {
+  plan <- .acc_fix_plan()
+  key <- function(tab) {
+    return(tab[ett_id == "ETT00001" & estimand == "pp" & weights == "untruncated"])
+  }
+
+  # The shape swereg 27.3.9 stored: no `rd_pp`, so no risk difference.
+  before <- key(plan$get_estimates())
+  expect_identical(nrow(before), 1L)
+  expect_false(before$rd_stored)
+  expect_true(is.na(before$rd))
+  expect_identical(nrow(key(plan$get_curves())), 0L)
+
+  # A curve with values of its own, so a read of `rd_pp_trunc` cannot pass.
+  cv <- .acc_fix_curve()
+  data.table::set(cv, j = "surv_intervention", value = c(0.993, 0.985))
+  data.table::set(cv, j = "rd", value = c(-0.003, -0.005))
+  data.table::set(cv, j = "rd_lo", value = c(-0.006, -0.009))
+  data.table::set(cv, j = "rd_hi", value = c(-0.001, -0.002))
+  data.table::set(cv, j = "nnt", value = c(1 / 0.003, 200))
+  data.table::set(cv, j = "nnt_lo", value = c(1 / 0.006, 1 / 0.009))
+  data.table::set(cv, j = "nnt_hi", value = c(1000, 500))
+  stored <- swereg:::.s3_rd_result("rd_pp", cv, "ETT00001", "tstop")
+  expect_named(stored, c("rd_pp", "rd_curve_pp"))
+  plan$results_ett$ETT00001 <- c(plan$results_ett$ETT00001, stored)
+
+  after <- key(plan$get_estimates())
+  expect_true(after$rd_stored)
+  expect_identical(after$rd, -0.005)
+  expect_identical(after$rd_lo, -0.009)
+  expect_identical(after$rd_hi, -0.002)
+  expect_identical(after$nnt, 200)
+  expect_identical(after$nnt_lo, 1 / 0.009)
+  expect_identical(after$nnt_hi, 500)
+  expect_identical(after$nnt_direction, "benefit")
+  expect_identical(after$n_boot, 500)
+  expect_identical(after$seed, 1)
+  # The truncated row keeps its own risk difference.
+  tr <- plan$get_estimates()[
+    ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"
+  ]
+  expect_identical(tr$rd, -0.010)
+
+  curves <- key(plan$get_curves())
+  expect_identical(nrow(curves), 4L)
+  expect_identical(
+    curves[arm == "intervention" & follow_up_interval == 52]$surv,
+    0.985
+  )
+  expect_identical(
+    curves[arm == "comparator" & follow_up_interval == 52]$surv,
+    0.980
+  )
 })

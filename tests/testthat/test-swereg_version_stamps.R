@@ -493,7 +493,8 @@ test_that("real s2 and s3 workers carry the s2 stamp to the stored results", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttmsv",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
@@ -501,7 +502,6 @@ test_that("real s2 and s3 workers carry the s2 stamp to the stored results", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()

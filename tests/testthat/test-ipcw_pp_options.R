@@ -47,7 +47,7 @@ skip_if_not_installed("yaml")
   skel <- file.path(dirs$tteplan, "skel_a.qs2")
   qs2::qs_save(sk, skel)
   spec_path <- file.path(dirs$spec, "spec_v001.yaml")
-  ttm_write_spec(spec_path, prefix, "ri_highrisk")
+  ttm_write_spec(spec_path, prefix, "ri_highrisk", admin = max(sk$isoyearweek, na.rm = TRUE))
   spec <- yaml::read_yaml(spec_path)
   spec$follow_up <- list(
     list(label = "1 year", weeks = 52L),
@@ -60,7 +60,6 @@ skip_if_not_installed("yaml")
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek, na.rm = TRUE),
     check_skeletons = FALSE
   ))
 }
@@ -388,7 +387,8 @@ test_that("real s2 and s3 workers carry non-default settings into item 6h", {
   ttm_write_spec(
     file.path(dirs$spec, "spec_v001.yaml"),
     "ttmipo",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
@@ -396,7 +396,6 @@ test_that("real s2 and s3 workers carry non-default settings into item 6h", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()

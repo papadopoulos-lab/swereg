@@ -87,14 +87,15 @@ sto_run <- function() {
   sk <- spr_skeleton()
   skel_path <- file.path(dirs[2], SPR_SKELETON)
   qs2::qs_save(sk, skel_path)
-  spr_write_spec(spr_report_spec(spr_report_rule()), dirs[1])
+  spec <- spr_report_spec(spr_report_rule())
+  spec$admin_censoring_isoyearweek <- sk[, max(isoyearweek, na.rm = TRUE)]
+  spr_write_spec(spec, dirs[1])
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs[4]),
     candidate_dir_spec = dirs[1],
     candidate_dir_tteplan = dirs[2],
     candidate_dir_results = dirs[3],
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   ))
   dev_path <- swereg:::.swereg_dev_path()

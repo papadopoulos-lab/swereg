@@ -36,7 +36,9 @@
 #' The other fields point to it as `'Field/Subheading'`.
 #'
 #' The function reads the spec and the code registry only. It reads no
-#' skeleton, rawbatch or registry data file, so it runs before s0. Every spec
+#' skeleton, rawbatch or registry data file, so it runs before s0. The width
+#' of the enrollment period and the administrative censoring week come from
+#' the spec keys `period_width` and `admin_censoring_isoyearweek`. Every spec
 #' entry appears in the text: no criterion, covariate or outcome is left out.
 #'
 #' The text uses the `name` of each criterion, covariate and outcome, the
@@ -57,11 +59,6 @@
 #'   codes, as in [tteplan_excel_spec_summary()]: `NULL`, a [RegistryStudy],
 #'   or a `data.table` with the columns of `RegistryStudy$summary_table()`.
 #'   With `NULL`, every code cell of the code list reads `not resolved`.
-#' @param period_width Integer, the width in weeks of the enrollment period.
-#'   It has the default of [tteplan_from_spec_and_registrystudy()].
-#' @param global_max_isoyearweek Character(1) or `NULL`, the administrative
-#'   censoring boundary as an isoyearweek, for example `"2025-01"`. Follow-up
-#'   includes that week. `NULL` writes "the administrative end of the data".
 #' @param people Character(2), the singular and plural noun for a study
 #'   participant, for example `c("woman", "women")`.
 #' @return A named character vector. Each element is the Markdown text of one
@@ -102,6 +99,8 @@
 #'     "follow_up:",
 #'     "  - {label: 1 year, weeks: 52}",
 #'     "min_expected_events_per_arm_per_year: 5",
+#'     "period_width: 4",
+#'     "admin_censoring_isoyearweek: '2025-01'",
 #'     "enrollments:",
 #'     "  - id: '01'",
 #'     "    name: A vs B",
@@ -131,8 +130,6 @@
 tteplan_osf_text <- function(
   spec_path,
   code_registry = NULL,
-  period_width = 4L,
-  global_max_isoyearweek = NULL,
   people = c("person", "persons")
 ) {
   if (!is.character(people) || length(people) != 2L || anyNA(people)) {
@@ -145,8 +142,8 @@ tteplan_osf_text <- function(
   ctx <- list(
     spec = spec,
     codes = .osf_code_map(.tte_spec_only_code_registry(code_registry)),
-    width = as.integer(period_width),
-    admin = global_max_isoyearweek,
+    width = spec[["period_width"]],
+    admin = spec[["admin_censoring_isoyearweek"]],
     one = people[[1L]],
     many = people[[2L]],
     comparison = .osf_comparison_numbers(spec)
@@ -419,17 +416,13 @@ tteplan_osf_text <- function(
     function(f) paste0(f$label, " (", f$weeks, " weeks)"),
     character(1)
   )
-  admin <- if (is.null(ctx$admin)) {
-    "the administrative end of the data"
-  } else {
-    paste0(
-      "the administrative end of the data, at the end of ISO week ",
-      ctx$admin,
-      " (",
-      .osf_isoweek_sunday(ctx$admin),
-      ")"
-    )
-  }
+  admin <- paste0(
+    "the administrative end of the data, at the end of ISO week ",
+    ctx$admin,
+    " (",
+    .osf_isoweek_sunday(ctx$admin),
+    ")"
+  )
   tol <- vapply(
     ctx$spec$enrollments,
     function(e) {

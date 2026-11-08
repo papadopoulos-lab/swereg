@@ -61,6 +61,8 @@
       list(label = "1 year", weeks = 52L)
     ),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    admin_censoring_isoyearweek = "2020-52",
     confounders = list(
       list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     )
@@ -85,7 +87,6 @@ test_that("tteplan_from_spec_and_registrystudy wires up CandidatePath fields", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -112,7 +113,6 @@ test_that("derived file paths use stub-free filenames", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -132,7 +132,6 @@ test_that("plan$save writes tteplan.qs2 and clears caches", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 
@@ -165,7 +164,6 @@ test_that("tteplan_locate_and_load round-trip preserves spec + CandidatePath fie
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
   plan$save()
@@ -198,7 +196,6 @@ test_that("spec_version mismatch between arg and YAML errors", {
       candidate_dir_tteplan = env$tteplan_dir,
       candidate_dir_results = env$results_dir,
       spec_version = "v999",
-      global_max_isoyearweek = "2020-52",
       check_skeletons = FALSE
     ),
     "not found"
@@ -215,7 +212,6 @@ test_that("check_version errors on old TTEPlan schema", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52",
     check_skeletons = FALSE
   )
 

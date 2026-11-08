@@ -28,7 +28,8 @@ Window conversion rules:
 Validation checks:
 \itemize{
 \item Required sections: study, enrollments, outcomes, follow_up,
-min_expected_events_per_arm_per_year
+min_expected_events_per_arm_per_year, period_width and
+admin_censoring_isoyearweek
 \item \code{min_expected_events_per_arm_per_year} MUST be one finite number of
 at least 0
 \item The retired keys \code{horizon_rule} and \code{sparse_rule} are refused. The
@@ -182,6 +183,33 @@ value MUST be one finite number of at least 0. The function refuses a
 missing key, an empty value and a mapping. \verb{$reload_spec()} copies a
 changed value onto a cached plan, because the value does not change who is
 enrolled or how swereg weights them.
+}
+
+\section{The design keys}{
+
+
+Every spec MUST declare two flat top-level keys. They are design choices of
+the study, so the spec holds them and no function argument does.
+
+\preformatted{
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
+}
+\itemize{
+\item \code{period_width} is the width in weeks of the enrollment period. The same
+width sets each follow-up interval. It MUST be one whole number from 1
+to 2147483647, the largest R integer. The function returns it as an
+integer.
+\item \code{admin_censoring_isoyearweek} is the administrative censoring week, as
+\code{YYYY-WW} with the week from 01 to 53. Follow-up includes that week.
+}
+
+A spec without one or both keys stops with one message. The message names
+both keys, states which keys are missing and shows an example. A bad value
+stops with the same form of message. \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}
+reads both values from the spec, and it does not compare the week with the
+skeleton. \code{standing_methods$admin_censoring} MAY still describe the rule in
+prose. swereg does not read it.
 }
 
 \seealso{

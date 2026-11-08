@@ -26,7 +26,8 @@
 #' Validation checks:
 #' \itemize{
 #'   \item Required sections: study, enrollments, outcomes, follow_up,
-#'     min_expected_events_per_arm_per_year
+#'     min_expected_events_per_arm_per_year, period_width and
+#'     admin_censoring_isoyearweek
 #'   \item `min_expected_events_per_arm_per_year` MUST be one finite number of
 #'     at least 0
 #'   \item The retired keys `horizon_rule` and `sparse_rule` are refused. The
@@ -175,11 +176,52 @@
 #' changed value onto a cached plan, because the value does not change who is
 #' enrolled or how swereg weights them.
 #'
+#' @section The design keys:
+#'
+#' Every spec MUST declare two flat top-level keys. They are design choices of
+#' the study, so the spec holds them and no function argument does.
+#'
+#' \preformatted{
+#' period_width: 4
+#' admin_censoring_isoyearweek: "2025-01"
+#' }
+#'
+#' - `period_width` is the width in weeks of the enrollment period. The same
+#'   width sets each follow-up interval. It MUST be one whole number from 1
+#'   to 2147483647, the largest R integer. The function returns it as an
+#'   integer.
+#' - `admin_censoring_isoyearweek` is the administrative censoring week, as
+#'   `YYYY-WW` with the week from 01 to 53. Follow-up includes that week.
+#'
+#' A spec without one or both keys stops with one message. The message names
+#' both keys, states which keys are missing and shows an example. A bad value
+#' stops with the same form of message. [tteplan_from_spec_and_registrystudy()]
+#' reads both values from the spec, and it does not compare the week with the
+#' skeleton. `standing_methods$admin_censoring` MAY still describe the rule in
+#' prose. swereg does not read it.
+#'
 #' @seealso [tteplan_check_spec()], which reports every problem as a row and
 #'   does not stop.
 #' @family tte_spec
 #' @export
 tteplan_read_spec <- function(spec_path) {
+  return(.tte_read_spec(spec_path))
+}
+
+
+#' Read and validate a specification, and fill the design keys of a legacy plan
+#'
+#' The body of [tteplan_read_spec()]. Only `$reload_spec()` passes `fill`, for
+#' a plan whose stored spec lacks both design keys. Such a plan was built
+#' before swereg 27.3.10, when the two values were function arguments.
+#'
+#' @param spec_path Path to the YAML specification file.
+#' @param fill `NULL`, or a named list with `period_width` and
+#'   `admin_censoring_isoyearweek`. Each key the file does not declare takes
+#'   its value from `fill` before the check of the required sections.
+#' @return The parsed specification, as from [tteplan_read_spec()].
+#' @noRd
+.tte_read_spec <- function(spec_path, fill = NULL) {
   if (!file.exists(spec_path)) {
     stop("Spec file not found: ", spec_path, call. = FALSE)
   }
@@ -224,15 +266,31 @@ tteplan_read_spec <- function(spec_path) {
   # the input, so the gate MUST run before any normalisation.
   .tte_spec_check_keys(spec, spec_path)
 
+  if (!is.null(fill)) {
+    spec <- .tte_spec_fill_design_keys(spec, fill)
+  }
+
   # Validate required sections
   required_sections <- c(
     "study",
     "enrollments",
     "outcomes",
     "follow_up",
-    "min_expected_events_per_arm_per_year"
+    "min_expected_events_per_arm_per_year",
+    "period_width",
+    "admin_censoring_isoyearweek"
   )
   missing <- setdiff(required_sections, names(spec))
+  # A missing or bad design key stops with one message that names both keys.
+  design_problems <- .tte_design_key_problems(
+    spec,
+    intersect(.TTE_DESIGN_KEYS, missing)
+  )
+  if (length(design_problems) > 0L) {
+    stop(.tte_design_keys_message(design_problems), call. = FALSE)
+  }
+  spec[["period_width"]] <- as.integer(spec[["period_width"]])
+  missing <- setdiff(missing, .TTE_DESIGN_KEYS)
   if (length(missing) > 0) {
     stop(
       "Missing required sections in spec: ",
@@ -685,6 +743,122 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
+  return(spec)
+}
+
+
+#' The two top-level design keys that every spec MUST declare
+#' @noRd
+.TTE_DESIGN_KEYS <- c("period_width", "admin_censoring_isoyearweek")
+
+#' The pattern of `admin_censoring_isoyearweek`
+#'
+#' A four-digit ISO year, a hyphen, and an ISO week from 01 to 53.
+#' @noRd
+.TTE_ISOYEARWEEK_PATTERN <- "^[0-9]{4}-(0[1-9]|[1-4][0-9]|5[0-3])$"
+
+
+#' List the problems of the two design keys of a parsed specification
+#'
+#' [tteplan_read_spec()] and [tteplan_check_spec()] both call it, so the two
+#' report the same message.
+#'
+#' @param spec The parsed specification.
+#' @param missing Character vector, the design keys the spec does not
+#'   declare.
+#' @return A character vector with one sentence for each problem. It is empty
+#'   when both keys are present and valid.
+#' @noRd
+.tte_design_key_problems <- function(spec, missing) {
+  out <- paste0(missing, " is missing.", recycle0 = TRUE)
+  show <- function(v) {
+    if (is.null(v)) {
+      return("no value")
+    }
+    if (is.list(v)) {
+      return("a list")
+    }
+    if (is.character(v)) {
+      return(paste0("\"", v, "\"", collapse = ", "))
+    }
+    return(paste(format(v), collapse = ", "))
+  }
+  if ("period_width" %in% names(spec)) {
+    v <- spec[["period_width"]]
+    whole <- is.numeric(v) &&
+      length(v) == 1L &&
+      is.finite(v) &&
+      v == round(v) &&
+      v <= .Machine$integer.max
+    if (!whole) {
+      out <- c(
+        out,
+        paste0(
+          "period_width MUST be one whole number of weeks. It holds: ",
+          show(v),
+          "."
+        )
+      )
+    } else if (v < 1) {
+      out <- c(
+        out,
+        paste0("period_width MUST be at least 1. It holds: ", show(v), ".")
+      )
+    }
+  }
+  if ("admin_censoring_isoyearweek" %in% names(spec)) {
+    v <- spec[["admin_censoring_isoyearweek"]]
+    ok <- is.character(v) &&
+      length(v) == 1L &&
+      !is.na(v) &&
+      grepl(.TTE_ISOYEARWEEK_PATTERN, v)
+    if (!ok) {
+      out <- c(
+        out,
+        paste0(
+          "admin_censoring_isoyearweek MUST be one string YYYY-WW, with the ",
+          "week from 01 to 53. It holds: ",
+          show(v),
+          "."
+        )
+      )
+    }
+  }
+  return(out)
+}
+
+
+#' The message for the problems of the two design keys
+#'
+#' @param problems Character vector from `.tte_design_key_problems()`.
+#' @return A character scalar that names both keys, lists each problem and
+#'   ends with a one-line example.
+#' @noRd
+.tte_design_keys_message <- function(problems) {
+  return(paste0(
+    "The spec MUST declare both top-level design keys, period_width and ",
+    "admin_censoring_isoyearweek.\n  ",
+    paste(problems, collapse = "\n  "),
+    "\nFor example: period_width: 4 and admin_censoring_isoyearweek: ",
+    "\"2025-01\"."
+  ))
+}
+
+
+#' Fill the design keys a specification does not declare
+#'
+#' @param spec The parsed specification.
+#' @param fill A named list with `period_width` and
+#'   `admin_censoring_isoyearweek`.
+#' @return `spec`. Each key it does not declare takes its value from `fill`.
+#'   A key it declares keeps its own value.
+#' @noRd
+.tte_spec_fill_design_keys <- function(spec, fill) {
+  for (k in .TTE_DESIGN_KEYS) {
+    if (!k %in% names(spec) && !is.null(fill[[k]])) {
+      spec[[k]] <- fill[[k]]
+    }
+  }
   return(spec)
 }
 

@@ -160,6 +160,9 @@ spr_spec_list <- function(rule = NULL, project_prefix = "sprtest") {
     )),
     follow_up = list(list(label = "1 year", weeks = 52L)),
     min_expected_events_per_arm_per_year = 0,
+    period_width = 4L,
+    # The last week of `spr_skeleton()`, whose `date_max` is 2019-06-30.
+    admin_censoring_isoyearweek = "2019-26",
     enrollments = list(
       spr_enrollment("01", age_max = 80, seed = 1L),
       spr_enrollment("02", age_max = 55, seed = 2L)
@@ -210,7 +213,9 @@ spr_run_s1 <- function(rule = NULL, sk = spr_skeleton()) {
   }
   skel_path <- file.path(dir_tteplan, SPR_SKELETON)
   qs2::qs_save(sk, skel_path)
-  spr_write_spec(spr_spec_list(rule), dir_spec)
+  spec <- spr_spec_list(rule)
+  spec$admin_censoring_isoyearweek <- sk[, max(isoyearweek, na.rm = TRUE)]
+  spr_write_spec(spec, dir_spec)
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dir_meta),
@@ -218,7 +223,6 @@ spr_run_s1 <- function(rule = NULL, sk = spr_skeleton()) {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
 
@@ -276,14 +280,15 @@ spr_plan_no_s1 <- function(rule = spr_rule(), env = parent.frame()) {
   sk <- spr_skeleton(n_persons = 40L)
   skel_path <- file.path(dirs[2], SPR_SKELETON)
   qs2::qs_save(sk, skel_path)
-  spr_write_spec(spr_spec_list(rule), dirs[1])
+  spec <- spr_spec_list(rule)
+  spec$admin_censoring_isoyearweek <- sk[, max(isoyearweek, na.rm = TRUE)]
+  spr_write_spec(spec, dirs[1])
   plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dirs[4]),
     candidate_dir_spec = dirs[1],
     candidate_dir_tteplan = dirs[2],
     candidate_dir_results = dirs[3],
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   ))
   r <- plan$spec$rare_condition_rule

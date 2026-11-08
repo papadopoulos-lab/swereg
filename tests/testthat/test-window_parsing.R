@@ -63,6 +63,8 @@ outcomes:
 follow_up:
   - { label: "1 year", weeks: 52 }
 min_expected_events_per_arm_per_year: 0
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
 enrollments:
   - id: "01"
     name: "E01"
@@ -123,6 +125,8 @@ outcomes:
 follow_up:
   - { label: "1 year", weeks: 52 }
 min_expected_events_per_arm_per_year: 0
+period_width: 4
+admin_censoring_isoyearweek: "2025-01"
 enrollments:
   - id: "01"
     name: "E01"

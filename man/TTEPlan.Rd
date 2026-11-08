@@ -128,7 +128,9 @@ an ETT of that length.
 
     \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
 
-    \item{\code{global_max_isoyearweek}}{Admin censoring boundary.}
+    \item{\code{global_max_isoyearweek}}{Admin censoring boundary.
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}} sets it from the spec key
+\code{admin_censoring_isoyearweek}.}
 
     \item{\code{spec}}{Parsed study spec (from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}), or NULL.}
 
@@ -145,7 +147,9 @@ an ETT of that length.
     \item{\code{skeleton_created_at}}{POSIXct or NULL. When skeleton files were created (from first file's attribute).}
 
     \item{\code{period_width}}{Integer, the width in weeks of the enrollment period
-(default: 4L). The same width sets each follow-up interval.}
+(default: 4L). The same width sets each follow-up interval.
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}} sets it from the spec key
+\code{period_width}.}
 
     \item{\code{enrollment_counts}}{Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:
@@ -788,15 +792,19 @@ with both truncated and untruncated weights. For each subgroup the spec
 names, it also computes the stratified IRRs and the effect-modification
 test.
 
-Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Two
-estimand and weight combinations carry it: per-protocol on
-\code{analysis_weight_pp_trunc}, stored under \code{rd_pp_trunc}, and
-intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}. Each stores one
-summary row at the end of follow-up, with \code{rd}, \code{rd_lo}, \code{rd_hi}, \code{nnt},
-\code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}. Each also stores
-the full curve, one row per stop time, under \code{rd_curve_pp_trunc} or
-\code{rd_curve_itt}, with \code{surv_comparator} and \code{surv_intervention} beside the
-risk difference.
+Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Three
+estimand and weight combinations carry it:
+\itemize{
+\item per-protocol on \code{analysis_weight_pp_trunc}, stored under
+\code{rd_pp_trunc};
+\item per-protocol on \code{analysis_weight_pp}, stored under \code{rd_pp};
+\item intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}.
+}
+Each stores one summary row at the end of follow-up, with \code{rd}, \code{rd_lo},
+\code{rd_hi}, \code{nnt}, \code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}.
+Each also stores the full curve, one row per stop time, under
+\code{rd_curve_pp_trunc}, \code{rd_curve_pp} or \code{rd_curve_itt}, with
+\code{surv_comparator} and \code{surv_intervention} beside the risk difference.
 
 The curve also carries \code{n_persons_at_risk_comparator} and
 \code{n_persons_at_risk_intervention}. Each is a head count of distinct people in
@@ -810,15 +818,15 @@ are recorded on every stored risk-difference row. The export path formats
 those numbers and never recomputes them. The IRR intervals and the
 interval of the ratio of stratum IRRs use the same level.
 
-The minimum-events rule. The RD item of each estimand also cuts follow-up
-into 52-week windows. In each window it computes the expected events of
-each arm under the null. They are the pooled weighted rate of both arms
+The minimum-events rule. The RD item on the truncated weight of each
+estimand also cuts follow-up into 52-week windows. In each window it
+computes the expected events of each arm under the null. They are the pooled weighted rate of both arms
 times the weighted person-years of that arm. A window passes when both arms
 reach \code{spec$min_expected_events_per_arm_per_year}. When a window fails, the
 method withholds the estimates of that estimand. It sets these to \code{NA}:
 \itemize{
 \item the incidence rate ratios and the subgroup ratios;
-\item the risk difference and the number needed to treat;
+\item the risk differences and the numbers needed to treat;
 \item the interaction tests.
 }
 Their \code{interval_status} and \code{horizon_status} then read
@@ -828,6 +836,10 @@ stay. The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
 \verb{$get_horizon_windows()} returns its window table. Which windows pass depends
 on the observed events, through the pooled rate.
 
+The RD item on \code{analysis_weight_pp} computes no windows. The per-protocol
+decision is the decision on \code{analysis_weight_pp_trunc}, and it withholds
+both per-protocol risk differences.
+
 An enrollment that sets \code{minimum_events_rule_exempt: true} is exempt. The
 method computes and stores the decision of its ETTs as for any ETT, and
 withholds none of their estimates. Their \code{horizon_status} reads
@@ -836,7 +848,7 @@ withholds none of their estimates. Their \code{horizon_status} reads
 A feasibility-horizon ETT, one with \code{feasibility_horizon = TRUE} in
 \verb{$ett}, gets one work item per estimand. Each item computes the horizon
 record of its estimand through the same \code{.tte_horizon_record()} call as
-the RD item. The intention-to-treat record then takes the per-protocol
+the RD item on the truncated weight. The intention-to-treat record then takes the per-protocol
 decision. The method stores no estimate for the ETT: no summary, rate,
 ratio, risk difference, number needed to treat, survival curve or
 subgroup result. The enrollment loop reads an analysis file of a reported
@@ -847,8 +859,12 @@ The method stops when the spec has no
 run has no horizon decision for an estimand.
 
 Cost. Each risk difference is its own work item, so it is its own worker
-process with its own read of the analysis file. That is two more reads
-per ETT, or 1,080 more reads on a 540-ETT grid.
+process with its own read of the analysis file. That is three more reads
+per ETT, or 1,620 more reads on a 540-ETT grid. The bootstrap of the third
+item was measured on a synthetic panel of 50,000 person-trials, under
+swereg 27.3.9. It took 3.97 s, the mean of 3 runs at 500 replicates. The
+7 items per ETT of swereg 27.3.9 took 27.14 s on that panel, so the third
+item adds 14.6\% to that compute. The file reads are not in either number.
 
 Results are stored in \code{self$results_enrollment} and \code{self$results_ett}.
 Every targeted result is recomputed on each call (no skip cache). Use
@@ -1068,8 +1084,10 @@ risk-difference interval.
 One row per emulated trial, estimand, weighting, arm and stop time.
 \code{follow_up_interval} holds the stop time, in weeks from time zero, of the
 rows the curve was evaluated at.
-\verb{$s3_analyze()} stores one wide curve per estimand, with a survival
-column for each arm. This method returns one row per arm instead.
+\verb{$s3_analyze()} stores one wide curve per estimand and weight, with a
+survival column for each arm. Per-protocol has two curves, on the truncated
+weight (\code{rd_curve_pp_trunc}) and the untruncated weight (\code{rd_curve_pp}).
+Intention-to-treat has one. This method returns one row per arm instead.
 
 The table carries the numbers at risk beside survival. \code{n_persons_at_risk} is
 an unweighted count of distinct people, per arm per stop time.
@@ -1726,7 +1744,15 @@ writers stop until \verb{$s3_analyze()} reruns.
 Structural fields (confounders, exclusion criteria, follow-up windows,
 comparator-draw parameters, etc.) are \emph{not} applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
-and recorded in \code{self$spec_reload_skipped_diffs}.
+and recorded in \code{self$spec_reload_skipped_diffs}. The two design keys,
+\code{period_width} and \code{admin_censoring_isoyearweek}, are structural fields.
+
+A plan built before swereg 27.3.10 stores a spec without the two design
+keys. For such a plan the method fills each design key that the spec file
+lacks from \code{self$period_width} and \code{self$global_max_isoyearweek}. It fills
+the same two values into the copy of \code{self$spec} that it compares against.
+A plan whose stored spec has the keys reads the file with
+\code{\link[=tteplan_read_spec]{tteplan_read_spec()}}, which refuses a file without them.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$reload_spec(spec_path = NULL, quiet = FALSE)}

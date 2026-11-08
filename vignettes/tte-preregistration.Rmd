@@ -48,28 +48,27 @@ plan$print_target_checklist()
 ```
 
 s0 reads the specification YAML and the registry codes of the
-`RegistryStudy`. It also loads the first skeleton batch to validate the
-specification:
+`RegistryStudy`. The specification sets the width of the enrollment period,
+`period_width`, and the administrative end, `admin_censoring_isoyearweek`.
+s0 also loads the first skeleton batch to validate the specification:
 
 - It checks that each named column exists. It reads the outcome columns by
   name only, and reads no outcome value.
 - It reads the values of the treatment, washout and categorical confounder
   columns, and the type of the observation column.
-- It takes the last week of the data as the administrative end.
 
 A failed check stops s0 or gives a warning. A message can state a count of
 prevalent-user weeks, or a category value that the data hold and the
-specification lacks. You MAY pass `global_max_isoyearweek` to set the administrative end
-yourself, and s0 then skips this validation.
+specification lacks. When the first skeleton file does not exist, s0 skips
+this validation and says so.
 
 `tteplan_excel_spec_summary()` writes the Excel specification from the
 specification YAML and a code registry, without a plan. It reads no skeleton,
 so it runs before s0, and while the skeletons do not yet hold a new code. Pass
 the `RegistryStudy`, or its `$summary_table()`, as `code_registry`, and each
-variable that the registry generates shows its codes. The `Admin censoring:` row reads
-`not built (spec only)` unless you pass `global_max_isoyearweek`. Every other
-cell matches `$excel_spec_summary()` at s0 for the same spec, code registry,
-`period_width` and `protocol_ett_id`. Do not edit the workbook by hand:
+variable that the registry generates shows its codes. Every cell matches
+`$excel_spec_summary()` at s0 for the same spec, code registry and
+`protocol_ett_id`. Do not edit the workbook by hand:
 change the YAML and write the workbook again.
 
 Register after s0 and before s1.
@@ -82,7 +81,6 @@ Register after s0 and before s1.
 osf <- swereg::tteplan_osf_text(
   "/path/to/spec/spec_v001.yaml",
   code_registry = study,
-  global_max_isoyearweek = "2025-01",
   people = c("woman", "women")
 )
 cat(osf[["Data inclusion and exclusion"]])
@@ -112,7 +110,7 @@ Specification sheet, and a row label where one applies. TARGET items come from
 | Data collection procedures | `inclusion_criteria`, `exclusion_criteria`, `enrollments[]$additional_inclusion`, `enrollments[]$additional_exclusion`, `enrollments[]$observed_var` | Inclusion criteria (global); Exclusion criteria (global); Enrollments, rows "Additional inclusion:" and "Additional exclusion:" |
 | Sample size | n/a | n/a. See "Sample size". |
 | Sample size rationale | `enrollments[]$treatment$implementation$comparator_to_intervention_ratio` | Enrollments, row "Comparator-to-intervention ratio:". See "Sample size". |
-| Starting and stopping rules | `inclusion_criteria$isoyears`, `follow_up[]$weeks`, the `global_max_isoyearweek` argument of s0 | Inclusion criteria (global), row "Isoyears:"; Follow-up; Study, row "Admin censoring:" |
+| Starting and stopping rules | `inclusion_criteria$isoyears`, `follow_up[]$weeks`, `admin_censoring_isoyearweek` | Inclusion criteria (global), row "Isoyears:"; Follow-up; Study, row "Admin censoring:" |
 | Manipulated variables | None | n/a |
 | Measured variables | `enrollments[]$treatment`, `outcomes[]`, `confounders[]`, the criteria, `subgroups[]` | Enrollments; Outcomes; Confounders; the criteria sections. The sheet does not list `subgroups[]`. |
 | Indices | `confounders[]` with `implementation$computed: true`, and their `source_variable` and `window` | Confounders, rows "Variable:" and "Window:" |

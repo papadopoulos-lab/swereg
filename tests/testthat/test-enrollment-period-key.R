@@ -37,7 +37,8 @@ skip_if_not_installed("withr")
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
     "epkey",
-    "rd_age_continuous"
+    "rd_age_continuous",
+    admin = sk[, max(isoyearweek, na.rm = TRUE)]
   )
   plan <- swereg::tteplan_from_spec_and_registrystudy(
     study = list(skeleton_files = skel_path, data_meta_dir = dir_meta),
@@ -45,7 +46,6 @@ skip_if_not_installed("withr")
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
     check_skeletons = FALSE
   )
   invisible(utils::capture.output(

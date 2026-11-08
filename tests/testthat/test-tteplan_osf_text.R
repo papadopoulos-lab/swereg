@@ -44,6 +44,8 @@ osf_spec_lines <- function() {
     "follow_up:",
     "  - {label: 1 year, weeks: 52}",
     "min_expected_events_per_arm_per_year: 0",
+    "period_width: 4",
+    "admin_censoring_isoyearweek: '2025-01'",
     "enrollments:",
     "  - id: '01'",
     "    name: A vs B",
@@ -177,7 +179,7 @@ test_that("comparisons are numbered, never named by enrollment id, and carry the
 })
 
 test_that("the administrative end names the last day of its ISO week", {
-  x <- osf_text(osf_write_spec(), global_max_isoyearweek = "2025-01")[["Study design"]]
+  x <- osf_text(osf_write_spec())[["Study design"]]
   expect_match(x, "at the end of ISO week 2025-01 (5 January 2025)", fixed = TRUE)
   expect_identical(swereg:::.osf_isoweek_sunday("2020-53"), "3 January 2021")
   expect_identical(swereg:::.osf_isoweek_sunday("2024-01"), "7 January 2024")
