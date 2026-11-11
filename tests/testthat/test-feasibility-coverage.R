@@ -207,7 +207,7 @@ test_that("the frozen summary wins, and a newer live summary is named", {
   expect_match(raw$source, "live")
 })
 
-test_that("s1 refuses an incomplete skeleton summary and freezes a complete one", {
+test_that("s0 refuses an incomplete skeleton summary, and s1 freezes it without stopping", {
   s <- list(
     columns = .cv_summary(),
     meta = list(
@@ -219,9 +219,14 @@ test_that("s1 refuses an incomplete skeleton summary and freezes a complete one"
     )
   )
   plan <- list(registrystudy = list(summary = s))
-  expect_error(swereg:::.tte_freeze_skeleton_summary(plan), "incomplete")
-  plan$registrystudy$summary$meta$is_complete <- TRUE
+  expect_error(swereg:::.tte_check_skeleton_summary(plan$registrystudy), "incomplete")
   fz <- swereg:::.tte_freeze_skeleton_summary(plan)
+  expect_false(fz$is_complete)
+  plan$registrystudy$summary$meta$is_complete <- TRUE
+  expect_null(swereg:::.tte_check_skeleton_summary(plan$registrystudy))
+  fz <- swereg:::.tte_freeze_skeleton_summary(plan)
+  expect_true(fz$is_complete)
   expect_identical(fz$columns$column_name, .cv_summary()$column_name)
+  expect_null(swereg:::.tte_check_skeleton_summary(NULL))
   expect_null(swereg:::.tte_freeze_skeleton_summary(list(registrystudy = NULL)))
 })

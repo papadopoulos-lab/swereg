@@ -360,34 +360,51 @@
 }
 
 
+#' Refuse a skeleton summary that a reclean left incomplete
+#'
+#' s0 calls this from `tteplan_from_spec_and_registrystudy()`. An incomplete
+#' summary means a reclean has not finished, so the skeletons are a mix of two
+#' builds. s1 to s3 run as queued Slurm jobs and never stop on it.
+#'
+#' @param study A RegistryStudy, or `NULL`.
+#' @return `NULL`, invisibly. Stops when the summary exists and is incomplete.
+#' @noRd
+.tte_check_skeleton_summary <- function(study) {
+  s <- .tte_live_skeleton_summary(list(registrystudy = study))
+  if (!is.null(s) && isFALSE(s$meta$is_complete)) {
+    stop(
+      "tteplan_from_spec_and_registrystudy(): the skeleton summary is incomplete (",
+      s$meta$n_batches_present %||% "?",
+      " of ",
+      s$meta$n_batches_expected %||% "?",
+      " batches). A reclean has not finished. Let it finish, then rerun s0.",
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+
 #' Freeze the skeleton summary at the start of s1
 #'
-#' Stops when the summary exists but a reclean left it incomplete, because
-#' the skeletons s1 is about to read are then a mix of two builds.
+#' s1 never stops here: it runs as a queued Slurm job, and s0 refuses an
+#' incomplete summary. The frozen copy records `is_complete`, so the Coverage
+#' sheet can say when a reclean was running as s1 froze it.
 #'
 #' @param plan A TTEPlan.
-#' @return A list of `columns`, `built_at` and `swereg_version`, or `NULL`
-#'   when the study has no summary.
+#' @return A list of `columns`, `built_at`, `swereg_version` and
+#'   `is_complete`, or `NULL` when the study has no summary.
 #' @noRd
 .tte_freeze_skeleton_summary <- function(plan) {
   s <- .tte_live_skeleton_summary(plan)
   if (is.null(s) || is.null(s$columns)) {
     return(NULL)
   }
-  if (isFALSE(s$meta$is_complete)) {
-    stop(
-      "s1_generate_enrollments_and_ipw(): the skeleton summary is incomplete (",
-      s$meta$n_batches_present %||% "?",
-      " of ",
-      s$meta$n_batches_expected %||% "?",
-      " batches). A reclean has not finished. Let it finish, then rerun s1.",
-      call. = FALSE
-    )
-  }
   return(list(
     columns = data.table::copy(data.table::as.data.table(s$columns)),
     built_at = s$meta$built_at %||% NA,
-    swereg_version = s$meta$swereg_version %||% NA_character_
+    swereg_version = s$meta$swereg_version %||% NA_character_,
+    is_complete = !isFALSE(s$meta$is_complete)
   ))
 }
 
@@ -415,6 +432,13 @@
       summary_columns <- frozen$columns
       built_at <- frozen$built_at %||% NA
       source <- "From the skeleton summary that s1 froze"
+      if (isFALSE(frozen$is_complete)) {
+        source <- paste0(
+          source,
+          ". That summary was incomplete when s1 froze it: a reclean was ",
+          "running, so some counts may be missing"
+        )
+      }
       if (!is.na(live_at) && !is.na(built_at) && live_at > built_at) {
         source <- paste0(
           source,

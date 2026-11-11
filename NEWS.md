@@ -15,7 +15,7 @@ No result changes. No plan needs a rerun. A rerun of the feasibility step, or of
   * *Table 1 (filterable)*: every comparison and both panels in one table with an autofilter, counts and shares in separate columns, and the SMD coloured from 0.1 and 0.2.
   The older sheets follow unchanged, because `tables.xlsx` shares them.
 * **s1b counts the rare-condition candidates in every enrollment**, one subworker per enrollment, and stores them as `plan$sparse_counts`. The decision still reads the driving enrollments only. The Coverage (ETT) sheet shows these counts, so a candidate the rule excluded is visible there too.
-* **s1 stops when the skeleton summary is incomplete**, because a reclean that has not finished leaves the skeletons a mix of two builds.
+* **s0 refuses an incomplete skeleton summary, and s1 never stops on it.** `tteplan_from_spec_and_registrystudy()` stops when a reclean has not finished, because the skeletons are then a mix of two builds. s1 runs as a queued job, so it freezes whatever summary it finds, records whether it was complete, and the Coverage (whole dataset) sheet says when it was not.
 
 ## Documentation
 
