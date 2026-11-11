@@ -199,6 +199,10 @@ TTEPlan$set(
     self$results_enrollment <- NULL
     self$results_ett <- NULL
     self$feasibility <- NULL
+    # Freeze the skeleton summary that this run reads the skeletons under.
+    # The Coverage sheets of feasibility.xlsx read the frozen copy, so a
+    # later reclean cannot change what they describe.
+    self$skeleton_summary <- .tte_freeze_skeleton_summary(self)
     # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
     # rejects a relative `outputs` entry. Create the directory BEFORE
     # normalizing: normalizePath(mustWork = FALSE) returns an absolute path

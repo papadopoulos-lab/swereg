@@ -911,29 +911,93 @@ TTEPlan$set(
 }
 
 
+#' Read the live skeleton summary of the plan's study
+#'
+#' @param plan A TTEPlan.
+#' @return The summary list, or `NULL` when the study or its `summary.qs2` is
+#'   absent.
+#' @noRd
+.tte_live_skeleton_summary <- function(plan) {
+  return(tryCatch(
+    suppressMessages(plan$registrystudy$summary),
+    error = function(e) NULL
+  ))
+}
+
+
+#' Freeze the skeleton summary at the start of s1
+#'
+#' Stops when the summary exists but a reclean left it incomplete, because
+#' the skeletons s1 is about to read are then a mix of two builds.
+#'
+#' @param plan A TTEPlan.
+#' @return A list of `columns`, `built_at` and `swereg_version`, or `NULL`
+#'   when the study has no summary.
+#' @noRd
+.tte_freeze_skeleton_summary <- function(plan) {
+  s <- .tte_live_skeleton_summary(plan)
+  if (is.null(s) || is.null(s$columns)) {
+    return(NULL)
+  }
+  if (isFALSE(s$meta$is_complete)) {
+    stop(
+      "s1_generate_enrollments_and_ipw(): the skeleton summary is incomplete (",
+      s$meta$n_batches_present %||% "?",
+      " of ",
+      s$meta$n_batches_expected %||% "?",
+      " batches). A reclean has not finished. Let it finish, then rerun s1.",
+      call. = FALSE
+    )
+  }
+  return(list(
+    columns = data.table::copy(data.table::as.data.table(s$columns)),
+    built_at = s$meta$built_at %||% NA,
+    swereg_version = s$meta$swereg_version %||% NA_character_
+  ))
+}
+
+
 #' The whole-dataset coverage of every column the spec reads
 #'
 #' @param plan A TTEPlan.
-#' @param summary_columns The `columns` table of the skeleton summary, or
-#'   `NULL`. The default reads `plan$registrystudy$summary`.
+#' @param summary_columns The `columns` table of a skeleton summary, or
+#'   `NULL`. The default reads the summary that s1 froze in
+#'   `plan$skeleton_summary`, and otherwise the live summary of the study.
 #' @return A list: `table`, one row per row of `.tte_spec_columns()` with
 #'   `n_persons` (`NA` when the summary does not count the column), `flag`
-#'   and `rare_rule`; and `built_at`, the time the summary was built, or `NA`.
+#'   and `rare_rule`; `built_at`, the time the summary was built, or `NA`;
+#'   and `source`, a sentence that says which summary the counts come from.
 #' @noRd
 .tte_coverage_raw <- function(plan, summary_columns = NULL) {
   n_persons <- flag <- rare_rule <- NULL
   built_at <- NA
+  source <- ""
   if (is.null(summary_columns)) {
-    s <- tryCatch(
-      suppressMessages(plan$registrystudy$summary),
-      error = function(e) NULL
-    )
-    summary_columns <- s$columns
-    built_at <- s$meta$built_at %||% NA
+    frozen <- plan$skeleton_summary
+    live <- .tte_live_skeleton_summary(plan)
+    live_at <- live$meta$built_at %||% NA
+    if (!is.null(frozen$columns)) {
+      summary_columns <- frozen$columns
+      built_at <- frozen$built_at %||% NA
+      source <- "From the skeleton summary that s1 froze"
+      if (!is.na(live_at) && !is.na(built_at) && live_at > built_at) {
+        source <- paste0(
+          source,
+          ". A newer summary is on disk, built ",
+          format(live_at, "%Y-%m-%d %H:%M"),
+          ": a reclean ran after s1, so these counts may not match the ",
+          "current skeletons"
+        )
+      }
+    } else if (!is.null(live$columns)) {
+      summary_columns <- live$columns
+      built_at <- live_at
+      source <- "From the live skeleton summary: s1 froze none"
+    }
   }
   tab <- .tte_spec_columns(plan$spec)
   if (is.null(summary_columns) || nrow(tab) == 0L) {
-    return(list(table = NULL, built_at = built_at))
+    return(list(table = NULL, built_at = built_at, source = source))
   }
   counts <- stats::setNames(
     as.numeric(summary_columns$n_persons_with),
@@ -980,7 +1044,7 @@ TTEPlan$set(
       tab[i, rare_rule := txt]
     }
   }
-  return(list(table = tab, built_at = built_at))
+  return(list(table = tab, built_at = built_at, source = source))
 }
 
 
@@ -1249,8 +1313,8 @@ TTEPlan$set(
     wb,
     sht,
     paste0(
-      "From the skeleton summary",
-      if (!is.na(raw$built_at)) paste0(" built ", format(raw$built_at, "%Y-%m-%d %H:%M")) else "",
+      if (nzchar(raw$source)) raw$source else "From the skeleton summary",
+      if (!is.na(raw$built_at)) paste0(", built ", format(raw$built_at, "%Y-%m-%d %H:%M")) else "",
       ". Every person in the skeleton, over every week, before any ",
       "eligibility, and blind to arm. A column with 0 persons is not in the ",
       "data delivery or is coded wrongly. An empty count is a column the ",

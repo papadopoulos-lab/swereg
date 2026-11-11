@@ -210,6 +210,13 @@ TTEPlan <- R6::R6Class(
     #'   `$s3_analyze()` does not read it. `$s1_generate_enrollments_and_ipw()`
     #'   and `$s2_generate_analysis_files_and_ipcw_pp()` set it to NULL.
     feasibility = NULL,
+    #' @field skeleton_summary The skeleton summary that s1 froze when it
+    #'   started, or NULL. A list of `columns` (the per-column person counts
+    #'   of `RegistryStudy$summary`), `built_at` and `swereg_version`. The
+    #'   Coverage (whole dataset) sheet of `feasibility.xlsx` reads it, so the
+    #'   counts describe the skeleton the ETTs were built from even after a
+    #'   reclean.
+    skeleton_summary = NULL,
 
     # --- Directory candidates and embedded study ---
 

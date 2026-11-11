@@ -182,3 +182,46 @@ test_that("the two coverage sheets are written when nothing is stored", {
   swereg:::.write_coverage_sheets(wb, plan, list(), list(), openxlsx::createStyle())
   expect_identical(names(wb), c("Coverage (whole dataset)", "Coverage (ETT)"))
 })
+
+test_that("the frozen summary wins, and a newer live summary is named", {
+  live <- list(
+    columns = data.table::data.table(column_name = "os_fracture", n_persons_with = 50L),
+    meta = list(built_at = as.POSIXct("2026-11-10 12:00", tz = "UTC"), is_complete = TRUE)
+  )
+  plan <- list(
+    spec = .cv_spec(),
+    sparse_decision = NULL,
+    registrystudy = list(summary = live),
+    skeleton_summary = list(
+      columns = .cv_summary(),
+      built_at = as.POSIXct("2026-11-01 12:00", tz = "UTC")
+    )
+  )
+  raw <- swereg:::.tte_coverage_raw(plan)
+  expect_identical(unique(raw$table[column == "os_fracture"]$n_persons), 0)
+  expect_match(raw$source, "froze")
+  expect_match(raw$source, "newer summary")
+  plan$skeleton_summary <- NULL
+  raw <- swereg:::.tte_coverage_raw(plan)
+  expect_identical(unique(raw$table[column == "os_fracture"]$n_persons), 50)
+  expect_match(raw$source, "live")
+})
+
+test_that("s1 refuses an incomplete skeleton summary and freezes a complete one", {
+  s <- list(
+    columns = .cv_summary(),
+    meta = list(
+      built_at = Sys.time(),
+      is_complete = FALSE,
+      n_batches_present = 3L,
+      n_batches_expected = 10L,
+      swereg_version = "27.3.13"
+    )
+  )
+  plan <- list(registrystudy = list(summary = s))
+  expect_error(swereg:::.tte_freeze_skeleton_summary(plan), "incomplete")
+  plan$registrystudy$summary$meta$is_complete <- TRUE
+  fz <- swereg:::.tte_freeze_skeleton_summary(plan)
+  expect_identical(fz$columns$column_name, .cv_summary()$column_name)
+  expect_null(swereg:::.tte_freeze_skeleton_summary(list(registrystudy = NULL)))
+})
