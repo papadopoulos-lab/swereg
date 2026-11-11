@@ -1763,6 +1763,7 @@ TTEPlan$set(
         cands[[length(cands) + 1L]] <<- list(v = v, label = paste0(prefix, cr$name))
       }
     }
+    return(invisible(NULL))
   }
   add("Incl. ", spec$inclusion_criteria$criteria)
   add("Incl. ", enr$additional_inclusion)
