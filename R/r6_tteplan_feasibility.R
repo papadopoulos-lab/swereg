@@ -68,7 +68,9 @@
 #'
 #' The decision depends on the observed events, through the pooled rate.
 #' Neither `self$feasibility` nor `feasibility.xlsx` holds an event count, a
-#' rate or expected events after time zero, or an effect estimate. The
+#' rate or expected events after time zero by arm, or an effect estimate. The
+#' Coverage (whole dataset) sheet counts the persons with each outcome column
+#' in the whole skeleton, before eligibility and blind to arm. The
 #' record keeps `max_passing_cut`: the largest cut of a coarse grid at which
 #' the estimand passes. The
 #' Attrition sheet keeps the eligibility counts by arm, including people
@@ -101,6 +103,19 @@
 #'     the comparator than for the intervention, and `Comparator pool short
 #'     of the target ratio` when the comparator pool is larger but cannot fill
 #'     the ratio. The sheet holds no outcome.}
+#'   \item{Coverage (whole dataset)}{One row per skeleton column that the
+#'     spec reads, with its role: outcome, inclusion, exclusion, confounder,
+#'     rare-condition candidate or treatment level. The persons with the
+#'     column come from the skeleton summary of `$process_skeletons()`, over
+#'     every person and week and blind to arm. A column with 0 persons is
+#'     flagged as not in the data. A rare-condition candidate held by fewer
+#'     than `min_n` persons in the whole dataset is marked as a certain
+#'     exclusion.}
+#'   \item{Coverage (ETT)}{Per enrollment: the persons each eligibility
+#'     criterion removed, flagged when it removes nobody, and the
+#'     person-trials of each confounder level per arm at baseline, flagged
+#'     when an arm holds none. Per ETT: the largest cut of the minimum-events
+#'     rule that the outcome passes, flagged when it passes none.}
 #'   \item{Attrition}{The table of `$get_attrition()`.}
 #'   \item{Protocol adherence}{One row per comparison and arm. `N (ITT)`
 #'     counts the person-trials still observed and `N (PP)` those still on
@@ -382,6 +397,25 @@ TTEPlan$set(
 }
 
 
+#' The baseline confounder counts of each enrollment
+#'
+#' Reads the `coverage` of each worker result in `baselines`, and otherwise
+#' the one stored by s3 in `plan$results_enrollment`.
+#'
+#' @param plan A TTEPlan.
+#' @param baselines Named list by enrollment id.
+#' @return A named list by enrollment id.
+#' @noRd
+.tte_coverage_by_enrollment <- function(plan, baselines) {
+  out <- lapply(names(baselines), function(eid) {
+    return(baselines[[eid]][["coverage"]] %||%
+      plan$results_enrollment[[eid]][["coverage"]])
+  })
+  names(out) <- names(baselines)
+  return(out)
+}
+
+
 #' Write the feasibility workbook
 #'
 #' `$s3_feasibility()` and `$export_tables()` both call it, so the two
@@ -404,7 +438,8 @@ TTEPlan$set(
   baselines,
   path,
   adherence,
-  records = lapply(plan$feasibility$records, function(r) r$pp)
+  records = lapply(plan$feasibility$records, function(r) r$pp),
+  coverage = .tte_coverage_by_enrollment(plan, baselines)
 ) {
   wb <- openxlsx::createWorkbook()
   bold <- openxlsx::createStyle(textDecoration = "bold", fontSize = 12)
@@ -418,6 +453,7 @@ TTEPlan$set(
   .write_sparse_conditions_sheet(wb, plan)
   .write_minimum_events_sheets(wb, plan, records)
   .write_arm_sizes_sheet(wb, plan, header)
+  .write_coverage_sheets(wb, plan, coverage, records, header)
 
   sht <- "Attrition"
   openxlsx::addWorksheet(wb, sht)
@@ -741,6 +777,556 @@ TTEPlan$set(
       nrow(tab),
       paste(short, collapse = ", ")
     ))
+  }
+  return(invisible(NULL))
+}
+
+
+# ---- Variable coverage --------------------------------------------------------
+#
+# Two sheets answer "does the data hold what the spec asks for?". The first
+# reads the skeleton summary that `$process_skeletons()` writes, so it covers
+# the whole raw dataset and runs no new pass over the skeletons. The second
+# reads what s1 to s3 stored for each enrollment and ETT: the persons each
+# eligibility criterion removed, the baseline counts of each confounder per
+# arm, and the minimum-events verdict of each outcome.
+
+#' The names of the two coverage sheets.
+#' @noRd
+.SHEET_COVERAGE_RAW <- "Coverage (whole dataset)"
+
+#' @noRd
+.SHEET_COVERAGE_ETT <- "Coverage (ETT)"
+
+#' The flag texts of the coverage sheets.
+#' @noRd
+.COVERAGE_FLAGS <- c(
+  absent = "Not in the data: 0 persons",
+  rare = "Fewer than 5 persons",
+  arm_absent = "0 in an arm",
+  arm_rare = "Fewer than 5 in an arm",
+  removes_nobody = "Removes nobody",
+  no_cut = "Passes no cut, not even 1 expected event per arm per year"
+)
+
+#' Show a count, with 1 to 4 written as `<5`.
+#' @noRd
+.coverage_count <- function(n) {
+  out <- format(n, big.mark = ",", scientific = FALSE, trim = TRUE)
+  out[is.na(n)] <- ""
+  out[!is.na(n) & n > 0 & n < 5] <- "<5"
+  return(out)
+}
+
+
+#' Every skeleton column the spec reads, with its role
+#'
+#' @param spec A spec from `tteplan_read_spec()`.
+#' @return A data.table with one row per item and column: `scope` (`"All"` or
+#'   an enrollment id), `role`, `name`, `variable` (the column the pipeline
+#'   reads, or the derived confounder), `column` (a skeleton column that the
+#'   summary counts) and `level` (a level of a character column, or `NA`).
+#' @noRd
+.tte_spec_columns <- function(spec) {
+  rows <- list()
+  add <- function(scope, role, name, impl, levels = NULL, variable = NULL) {
+    cols <- unlist(impl[["source_variable"]] %||% impl[["variable"]])
+    cols <- as.character(cols)
+    if (length(cols) == 0L) {
+      return(invisible(NULL))
+    }
+    variable <- variable %||%
+      as.character(impl[["variable_combined"]] %||% impl[["variable"]] %||%
+        impl[["source_variable_combined"]] %||% cols[1L])[1L]
+    if (!is.null(impl[["value"]]) && is.null(levels)) {
+      levels <- as.character(impl[["value"]])
+    }
+    levels <- if (length(levels) == 0L) NA_character_ else as.character(levels)
+    for (col in cols) {
+      for (lv in levels) {
+        rows[[length(rows) + 1L]] <<- data.table::data.table(
+          scope = scope,
+          role = role,
+          name = as.character(name %||% variable),
+          variable = variable,
+          column = col,
+          level = lv
+        )
+      }
+    }
+    return(invisible(NULL))
+  }
+  for (o in spec$outcomes) {
+    add("All", "Outcome", o$name, o$implementation)
+  }
+  for (cr in spec$inclusion_criteria$criteria) {
+    add("All", "Inclusion", cr$name, cr$implementation)
+  }
+  for (cr in spec$exclusion_criteria) {
+    add("All", "Exclusion", cr$name, cr$implementation)
+  }
+  cand <- as.character(unlist(spec$rare_condition_rule$candidates))
+  for (cf in spec$confounders) {
+    v <- as.character(cf$implementation[["variable"]] %||% NA_character_)[1L]
+    role <- if (!is.na(v) && v %in% cand) {
+      "Confounder (rare-condition candidate)"
+    } else {
+      "Confounder"
+    }
+    add("All", role, cf$name, cf$implementation, cf$categories, variable = v)
+  }
+  for (enr in spec$enrollments) {
+    for (cr in enr$additional_inclusion) {
+      add(enr$id, "Inclusion", cr$name, cr$implementation)
+    }
+    for (cr in enr$additional_exclusion) {
+      add(enr$id, "Exclusion", cr$name, cr$implementation)
+    }
+    tx <- enr$treatment$implementation
+    if (!is.null(tx[["variable"]])) {
+      vals <- c(tx[["intervention_value"]], tx[["comparator_value"]])
+      if (is.logical(vals)) {
+        vals <- NULL
+      }
+      add(
+        enr$id,
+        "Treatment",
+        paste(enr$treatment$arms$intervention, "vs", enr$treatment$arms$comparator),
+        list(variable = tx[["variable"]]),
+        vals
+      )
+    }
+  }
+  if (length(rows) == 0L) {
+    return(data.table::data.table(
+      scope = character(0),
+      role = character(0),
+      name = character(0),
+      variable = character(0),
+      column = character(0),
+      level = character(0)
+    ))
+  }
+  return(unique(data.table::rbindlist(rows)))
+}
+
+
+#' The whole-dataset coverage of every column the spec reads
+#'
+#' @param plan A TTEPlan.
+#' @param summary_columns The `columns` table of the skeleton summary, or
+#'   `NULL`. The default reads `plan$registrystudy$summary`.
+#' @return A list: `table`, one row per row of `.tte_spec_columns()` with
+#'   `n_persons` (`NA` when the summary does not count the column), `flag`
+#'   and `rare_rule`; and `built_at`, the time the summary was built, or `NA`.
+#' @noRd
+.tte_coverage_raw <- function(plan, summary_columns = NULL) {
+  n_persons <- flag <- rare_rule <- NULL
+  built_at <- NA
+  if (is.null(summary_columns)) {
+    s <- tryCatch(
+      suppressMessages(plan$registrystudy$summary),
+      error = function(e) NULL
+    )
+    summary_columns <- s$columns
+    built_at <- s$meta$built_at %||% NA
+  }
+  tab <- .tte_spec_columns(plan$spec)
+  if (is.null(summary_columns) || nrow(tab) == 0L) {
+    return(list(table = NULL, built_at = built_at))
+  }
+  counts <- stats::setNames(
+    as.numeric(summary_columns$n_persons_with),
+    as.character(summary_columns$column_name)
+  )
+  key <- ifelse(is.na(tab$level), tab$column, paste0(tab$column, "=", tab$level))
+  n <- unname(counts[key])
+  # A level the summary does not hold, of a column it counts by level, is a
+  # level with no person.
+  by_level <- unique(sub("=.*$", "", grep("=", names(counts), value = TRUE)))
+  n[is.na(n) & !is.na(tab$level) & tab$column %in% by_level] <- 0
+  tab[, n_persons := n]
+  tab[,
+    flag := data.table::fifelse(
+      is.na(n_persons),
+      "",
+      data.table::fifelse(
+        n_persons == 0,
+        .COVERAGE_FLAGS[["absent"]],
+        data.table::fifelse(n_persons < 5, .COVERAGE_FLAGS[["rare"]], "")
+      )
+    )
+  ]
+  # The rare-condition rule turns a candidate into an exclusion when its
+  # smallest arm holds fewer than min_n persons. A candidate held by fewer
+  # than min_n persons in the whole dataset always becomes one.
+  min_n <- plan$spec$rare_condition_rule$min_n
+  dec <- plan$sparse_decision
+  tab[, rare_rule := ""]
+  if (!is.null(min_n)) {
+    for (v in unique(tab$variable[grepl("rare-condition", tab$role)])) {
+      i <- which(tab$variable == v & grepl("rare-condition", tab$role))
+      tot <- sum(tab$n_persons[i], na.rm = TRUE)
+      txt <- if (all(!is.na(tab$n_persons[i])) && tot == 0) {
+        "Becomes an exclusion that removes nobody"
+      } else if (all(!is.na(tab$n_persons[i])) && tot < min_n) {
+        paste0("Certain exclusion: fewer than ", min_n, " persons in the whole dataset")
+      } else {
+        "Decided at s1b from the eligible population"
+      }
+      if (data.table::is.data.table(dec) && v %in% dec$variable) {
+        txt <- paste0(txt, "; s1b decision: ", dec$decision[match(v, dec$variable)])
+      }
+      tab[i, rare_rule := txt]
+    }
+  }
+  return(list(table = tab, built_at = built_at))
+}
+
+
+#' Baseline counts of each confounder per arm, from one enrollment
+#'
+#' Reads the baseline rows of an enrollment object. A logical confounder
+#' counts its `TRUE` rows, a character or factor confounder each level, and a
+#' numeric one its non-missing rows. Every count is of person-trials.
+#'
+#' @param enrollment A TTEEnrollment, from the raw s1 file.
+#' @return A data.table with `variable`, `level`, `n_intervention` and
+#'   `n_comparator`, or `NULL` when the object holds no design.
+#' @noRd
+.tte_confounder_coverage <- function(enrollment) {
+  des <- enrollment$design
+  d <- enrollment$data
+  if (is.null(des) || is.null(d)) {
+    return(NULL)
+  }
+  base <- d[d[[des$tstart_var]] == 0]
+  tx <- base[[des$treatment_var]] == TRUE
+  tx[is.na(tx)] <- FALSE
+  rows <- list()
+  for (v in intersect(des$confounder_vars, names(base))) {
+    x <- base[[v]]
+    if (is.logical(x)) {
+      hit <- x %in% TRUE
+      rows[[length(rows) + 1L]] <- data.table::data.table(
+        variable = v,
+        level = "TRUE",
+        n_intervention = sum(hit & tx),
+        n_comparator = sum(hit & !tx)
+      )
+    } else if (is.character(x) || is.factor(x)) {
+      x <- as.character(x)
+      for (lv in sort(unique(stats::na.omit(x)))) {
+        hit <- x %in% lv
+        rows[[length(rows) + 1L]] <- data.table::data.table(
+          variable = v,
+          level = lv,
+          n_intervention = sum(hit & tx),
+          n_comparator = sum(hit & !tx)
+        )
+      }
+    } else {
+      hit <- !is.na(x)
+      rows[[length(rows) + 1L]] <- data.table::data.table(
+        variable = v,
+        level = "(non-missing)",
+        n_intervention = sum(hit & tx),
+        n_comparator = sum(hit & !tx)
+      )
+    }
+  }
+  if (length(rows) == 0L) {
+    return(NULL)
+  }
+  return(data.table::rbindlist(rows))
+}
+
+
+#' The coverage of each enrollment and ETT
+#'
+#' @param plan A TTEPlan.
+#' @param coverage A named list by enrollment id of the tables of
+#'   `.tte_confounder_coverage()`.
+#' @param records A list keyed by ETT id: the per-protocol horizon records.
+#' @return A data.table with `enrollment_id`, `ett_id`, `section`, `name`,
+#'   `variable`, `level`, `intervention`, `comparator`, `persons`, `flag`
+#'   and `note`, all character.
+#' @noRd
+.tte_coverage_ett <- function(plan, coverage, records) {
+  enrollment_period_id <- enrollment_id <- step_order <- section <- NULL
+  rows <- list()
+  row <- function(...) {
+    rows[[length(rows) + 1L]] <<- data.table::data.table(...)
+    return(invisible(NULL))
+  }
+  # Eligibility: the persons each criterion removed, after the criteria
+  # above it. The global rows count persons across trials.
+  att <- plan$get_attrition()
+  if (nrow(att) > 0L) {
+    glob <- att[is.na(enrollment_period_id)]
+    for (eid in unique(glob$enrollment_id)) {
+      g <- glob[enrollment_id == eid][order(step_order)]
+      if (nrow(g) < 2L) {
+        next
+      }
+      for (k in 2:nrow(g)) {
+        removed <- g$n_persons[k - 1L] - g$n_persons[k]
+        row(
+          enrollment_id = eid,
+          ett_id = "",
+          section = "Eligibility",
+          name = g$step_name[k],
+          variable = "",
+          level = "",
+          intervention = .coverage_count(g$n_arm_intervention[k - 1L] - g$n_arm_intervention[k]),
+          comparator = .coverage_count(g$n_arm_comparator[k - 1L] - g$n_arm_comparator[k]),
+          persons = .coverage_count(removed),
+          flag = if (isTRUE(removed == 0)) .COVERAGE_FLAGS[["removes_nobody"]] else "",
+          note = "Removed by this criterion, after the criteria above it"
+        )
+      }
+    }
+  }
+  # Confounders at baseline, per arm. A declared category that no baseline
+  # row holds counts 0.
+  conf_name <- list()
+  conf_cats <- list()
+  for (cf in plan$spec$confounders) {
+    v <- as.character(cf$implementation[["variable"]] %||% NA_character_)[1L]
+    if (!is.na(v)) {
+      conf_name[[v]] <- cf$name
+      conf_cats[[v]] <- as.character(unlist(cf$categories))
+    }
+  }
+  dec <- plan$sparse_decision
+  for (eid in names(coverage)) {
+    cov <- coverage[[eid]]
+    if (!data.table::is.data.table(cov) || nrow(cov) == 0L) {
+      next
+    }
+    for (v in unique(cov$variable)) {
+      cats <- conf_cats[[v]]
+      if (length(cats) > 0L) {
+        miss <- setdiff(cats, cov$level[cov$variable == v])
+        if (length(miss) > 0L) {
+          cov <- data.table::rbindlist(list(
+            cov,
+            data.table::data.table(
+              variable = v,
+              level = miss,
+              n_intervention = 0,
+              n_comparator = 0
+            )
+          ))
+        }
+      }
+    }
+    for (i in seq_len(nrow(cov))) {
+      v <- cov$variable[i]
+      ni <- cov$n_intervention[i]
+      nc <- cov$n_comparator[i]
+      excluded <- data.table::is.data.table(dec) &&
+        v %in% dec$variable &&
+        identical(dec$decision[match(v, dec$variable)], "excluded")
+      flag <- if (excluded || cov$level[i] == "(non-missing)") {
+        ""
+      } else if (min(ni, nc) == 0) {
+        .COVERAGE_FLAGS[["arm_absent"]]
+      } else if (min(ni, nc) < 5) {
+        .COVERAGE_FLAGS[["arm_rare"]]
+      } else {
+        ""
+      }
+      row(
+        enrollment_id = eid,
+        ett_id = "",
+        section = "Confounder at baseline",
+        name = as.character(conf_name[[v]] %||% v),
+        variable = v,
+        level = cov$level[i],
+        intervention = .coverage_count(ni),
+        comparator = .coverage_count(nc),
+        persons = "",
+        flag = flag,
+        note = if (excluded) {
+          "The rare-condition rule made it an exclusion, so every baseline row is FALSE"
+        } else {
+          "Person-trials at baseline, before imputation"
+        }
+      )
+    }
+  }
+  # Outcomes: the minimum-events verdict at the horizon of each ETT.
+  ett <- plan$ett
+  for (eid_ett in names(records)) {
+    rec <- records[[eid_ett]]
+    j <- match(eid_ett, ett$ett_id)
+    if (is.na(j) || !is.list(rec)) {
+      next
+    }
+    cut <- rec$max_passing_cut
+    row(
+      enrollment_id = as.character(ett$enrollment_id[j]),
+      ett_id = eid_ett,
+      section = "Outcome",
+      name = as.character(ett$outcome_name[j] %||% ett$outcome_var[j]),
+      variable = as.character(ett$outcome_var[j]),
+      level = paste0(ett$follow_up[j], " weeks"),
+      intervention = "",
+      comparator = "",
+      persons = "",
+      flag = if (length(cut) == 1L && is.na(cut)) .COVERAGE_FLAGS[["no_cut"]] else "",
+      note = paste0(
+        "Largest passing cut: ",
+        if (length(cut) == 1L && !is.na(cut)) format(cut) else "none",
+        "; ",
+        rec$status %||% ""
+      )
+    )
+  }
+  if (length(rows) == 0L) {
+    return(NULL)
+  }
+  out <- data.table::rbindlist(rows, use.names = TRUE)
+  section_order <- c("Eligibility", "Confounder at baseline", "Outcome")
+  out <- out[order(enrollment_id, match(section, section_order))]
+  return(out)
+}
+
+
+#' Fill the rows of a sheet that carry a red or a yellow flag
+#' @noRd
+.coverage_fill <- function(wb, sht, flags, start_row, n_col) {
+  red <- c(
+    .COVERAGE_FLAGS[["absent"]],
+    .COVERAGE_FLAGS[["arm_absent"]],
+    .COVERAGE_FLAGS[["removes_nobody"]],
+    .COVERAGE_FLAGS[["no_cut"]]
+  )
+  fills <- list(
+    red = list(hit = which(flags %in% red), fill = "#F4B6B6"),
+    yellow = list(hit = which(nzchar(flags) & !flags %in% red), fill = "#FFE699")
+  )
+  for (f in fills) {
+    if (length(f$hit) > 0L) {
+      openxlsx::addStyle(
+        wb,
+        sht,
+        openxlsx::createStyle(fgFill = f$fill),
+        rows = start_row + f$hit,
+        cols = seq_len(n_col),
+        gridExpand = TRUE
+      )
+    }
+  }
+  return(invisible(NULL))
+}
+
+
+#' Write the two coverage sheets of the feasibility workbook
+#'
+#' @param wb An openxlsx workbook.
+#' @param plan A TTEPlan.
+#' @param coverage A named list by enrollment id of the tables of
+#'   `.tte_confounder_coverage()`.
+#' @param records A list keyed by ETT id: the per-protocol horizon records.
+#' @param header The header style of the workbook.
+#' @return `invisible(NULL)`.
+#' @noRd
+.write_coverage_sheets <- function(wb, plan, coverage, records, header) {
+  bold <- openxlsx::createStyle(textDecoration = "bold", fontSize = 12)
+
+  sht <- .SHEET_COVERAGE_RAW
+  openxlsx::addWorksheet(wb, sht)
+  openxlsx::writeData(
+    wb,
+    sht,
+    "Coverage in the whole dataset: persons with each skeleton column the specification reads"
+  )
+  openxlsx::addStyle(wb, sht, bold, rows = 1L, cols = 1L)
+  raw <- .tte_coverage_raw(plan)
+  openxlsx::writeData(
+    wb,
+    sht,
+    paste0(
+      "From the skeleton summary",
+      if (!is.na(raw$built_at)) paste0(" built ", format(raw$built_at, "%Y-%m-%d %H:%M")) else "",
+      ". Every person in the skeleton, over every week, before any ",
+      "eligibility, and blind to arm. A column with 0 persons is not in the ",
+      "data delivery or is coded wrongly. An empty count is a column the ",
+      "summary does not count, such as a numeric column. 1 to 4 show as <5."
+    ),
+    startRow = 2L
+  )
+  tab <- raw$table
+  if (is.null(tab)) {
+    openxlsx::writeData(wb, sht, "(no skeleton summary found)", startRow = 4L)
+  } else {
+    out <- data.table::data.table(
+      Scope = tab$scope,
+      Role = tab$role,
+      Name = tab$name,
+      `Skeleton column` = tab$column,
+      Level = data.table::fifelse(is.na(tab$level), "", tab$level),
+      Persons = .coverage_count(tab$n_persons),
+      Flag = tab$flag,
+      `Rare-condition rule` = tab$rare_rule
+    )
+    openxlsx::writeData(wb, sht, out, startRow = 4L, headerStyle = header)
+    .coverage_fill(wb, sht, tab$flag, 4L, ncol(out))
+    openxlsx::setColWidths(
+      wb,
+      sht,
+      cols = seq_len(ncol(out)),
+      widths = c(10, 24, 60, 40, 24, 12, 30, 50)
+    )
+  }
+
+  sht <- .SHEET_COVERAGE_ETT
+  openxlsx::addWorksheet(wb, sht)
+  openxlsx::writeData(
+    wb,
+    sht,
+    "Coverage in each enrollment and ETT"
+  )
+  openxlsx::addStyle(wb, sht, bold, rows = 1L, cols = 1L)
+  openxlsx::writeData(
+    wb,
+    sht,
+    paste0(
+      "Eligibility: persons each criterion removed, after the criteria above ",
+      "it, with the person-trials per arm. Confounder at baseline: ",
+      "person-trials per arm at time zero, from the s1 raw file. Outcome: ",
+      "the largest cut of the minimum-events rule that the per-protocol ",
+      "estimate passes at the horizon of the ETT. 1 to 4 show as <5."
+    ),
+    startRow = 2L
+  )
+  ett_tab <- .tte_coverage_ett(plan, coverage, records)
+  if (is.null(ett_tab)) {
+    openxlsx::writeData(wb, sht, "(no stored counts)", startRow = 4L)
+  } else {
+    out <- data.table::data.table(
+      Enrollment = ett_tab$enrollment_id,
+      ETT = ett_tab$ett_id,
+      Section = ett_tab$section,
+      Name = ett_tab$name,
+      Variable = ett_tab$variable,
+      `Level or follow-up` = ett_tab$level,
+      Intervention = ett_tab$intervention,
+      Comparator = ett_tab$comparator,
+      `Persons removed` = ett_tab$persons,
+      Flag = ett_tab$flag,
+      Note = ett_tab$note
+    )
+    openxlsx::writeData(wb, sht, out, startRow = 4L, headerStyle = header)
+    .coverage_fill(wb, sht, ett_tab$flag, 4L, ncol(out))
+    openxlsx::setColWidths(
+      wb,
+      sht,
+      cols = seq_len(ncol(out)),
+      widths = c(12, 12, 22, 60, 36, 18, 14, 14, 14, 30, 60)
+    )
   }
   return(invisible(NULL))
 }

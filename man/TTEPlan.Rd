@@ -632,6 +632,19 @@ they give, the ratio the spec asks for, and the person-trials the
 comparator draw took. \code{Flag} reads \verb{Comparator rarer than intervention: consider reversing the arms} when fewer person-trials are eligible for
 the comparator than for the intervention, and \verb{Comparator pool short of the target ratio} when the comparator pool is larger but cannot fill
 the ratio. The sheet holds no outcome.}
+\item{Coverage (whole dataset)}{One row per skeleton column that the
+  spec reads, with its role: outcome, inclusion, exclusion, confounder,
+  rare-condition candidate or treatment level. The persons with the
+  column come from the skeleton summary of \verb{$process_skeletons()}, over
+  every person and week and blind to arm. A column with 0 persons is
+  flagged as not in the data. A rare-condition candidate held by fewer
+  than \code{min_n} persons in the whole dataset is marked as a certain
+  exclusion.}
+\item{Coverage (ETT)}{Per enrollment: the persons each eligibility
+  criterion removed, flagged when it removes nobody, and the
+  person-trials of each confounder level per arm at baseline, flagged
+  when an arm holds none. Per ETT: the largest cut of the minimum-events
+  rule that the outcome passes, flagged when it passes none.}
 \item{Attrition}{The table of \verb{$get_attrition()}.}
 \item{Protocol adherence}{One row per comparison and arm. \code{N (ITT)}
 counts the person-trials still observed and \code{N (PP)} those still on

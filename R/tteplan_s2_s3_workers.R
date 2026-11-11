@@ -197,9 +197,14 @@
   # outcome and no imputed value. Without the file the value is NULL, and the
   # name is still returned. See `.tte_adherence_counts()`.
   adherence <- NULL
+  coverage <- NULL
   if (file.exists(raw_path)) {
     enrollment_raw <- swereg::qs2_read(raw_path, nthreads = 1L)
     adherence <- .tte_adherence_counts(enrollment_raw)
+    coverage <- tryCatch(
+      .tte_confounder_coverage(enrollment_raw),
+      error = function(e) NULL
+    )
     table1_raw <- tryCatch(
       do.call(
         .s3_enrollment_table1,
@@ -232,6 +237,7 @@
     arm_labels = arm_labels,
     fill_summary = fill_summary,
     adherence = adherence,
+    coverage = coverage,
     swereg_version_s2 = enrollment_s2_version,
     computed_at = Sys.time()
   ))

@@ -647,16 +647,20 @@ The method reads the analysis file, weight, follow-up and threshold that
 decision s3 makes. It stores the decision in `plan$feasibility` and writes
 `feasibility.xlsx` to `plan$dir_results`.
 
-The workbook holds six to eight sheets, in this order:
+The workbook holds eight to ten sheets, in this order:
 
 1. Study Specification.
 2. Rare conditions, only when the spec carries `rare_condition_rule`.
 3. Minimum events (Y or -).
 4. Minimum events (#).
 5. Arm sizes.
-6. Attrition.
-7. Protocol adherence, only when an enrollment has an adherence table.
-8. Table 1, unweighted.
+6. Coverage (whole dataset).
+7. Coverage (ETT).
+8. Attrition.
+9. Protocol adherence, only when an enrollment has an adherence table.
+10. Table 1, unweighted.
+
+The two Coverage sheets show whether the data holds what the spec asks for. Coverage (whole dataset) lists every skeleton column the spec reads, with its role, and the persons who have it in the whole skeleton, from the summary that `$process_skeletons()` writes. A column with 0 persons is flagged red: the data delivery does not hold it, or its codes are wrong. A rare-condition candidate held by fewer than `min_n` persons in the whole dataset is marked as a certain exclusion, and one held by nobody as an exclusion that removes nobody. Coverage (ETT) shows, per enrollment, the persons each eligibility criterion removed and the person-trials of each confounder level per arm at baseline, and, per ETT, the largest cut of the minimum-events rule that the outcome passes. A criterion that removes nobody, a confounder level that an arm lacks, and an outcome that passes no cut are flagged red.
 
 The Arm sizes sheet holds one row per enrollment. It shows the person-trials eligible for each arm, summed over trials, the comparators per intervention they give, the ratio the spec asks for, and the person-trials the comparator draw took. A row is flagged red when fewer person-trials are eligible for the comparator than for the intervention. The draw then cannot fill a 1:1 or larger ratio, and reversing the arms of that enrollment in a new spec version lets it fill. A row is flagged yellow when the comparator pool is larger than the intervention arm but short of the target ratio. `$s3_feasibility()` also names each red enrollment on the console.
 
