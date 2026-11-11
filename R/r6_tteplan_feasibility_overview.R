@@ -143,7 +143,19 @@
   yn <- pivot(tab_yn)
   return(list(
     ids = enr_ids,
-    names = vapply(enr_ids, function(e) .enrollment_label(plan, e), character(1)),
+    # An exempt comparison shows the verdict of the rule, as the older
+    # Minimum events sheets do, and its name says that s3 reports it anyway.
+    names = vapply(
+      enr_ids,
+      function(e) {
+        label <- .enrollment_label(plan, e)
+        if (.tte_enrollment_rule_exempt(plan$spec, e)) {
+          label <- paste0(label, " (exempt)")
+        }
+        return(label)
+      },
+      character(1)
+    ),
     outcomes = outcomes,
     years = years,
     cut = cut,
@@ -169,7 +181,9 @@
       "follow-up year up to that horizon, from 1, 2, 3, 4, 5, 10 and 20. ",
       "The current cut is ",
       if (is.null(k)) "not set" else format(k),
-      ". An empty cell has no ETT. A 6-month horizon takes the 1-year verdict."
+      ". An empty cell has no ETT. A 6-month horizon takes the 1-year verdict. ",
+      "(exempt): the specification exempts the comparison, so s3 reports its ",
+      "estimates whatever the cell shows."
     ),
     c(
       green = "20 or more",
@@ -240,7 +254,8 @@
       "expected events per arm per year. none: the first year fails. The ",
       "specification uses ",
       if (is.null(k)) "no threshold" else format(k),
-      "."
+      ". (exempt): the specification exempts the comparison, so s3 reports ",
+      "its estimates to the full follow-up whatever the cell shows."
     ),
     c(green = "Reported to the longest horizon", yellow = "Reported to a shorter horizon", red = "none")
   )

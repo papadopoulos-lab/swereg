@@ -136,3 +136,35 @@ test_that("Longest reportable reads the specification threshold from the stored 
   expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 0")])), "2 years")
   expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 5")])), "none")
 })
+
+test_that("The overview cuts mark an exempt comparison", {
+  testthat::local_mocked_bindings(
+    .minimum_events_wide = function(plan, records) {
+      tab <- data.frame(
+        Outcome = c("Death", NA),
+        `#` = 1:2,
+        Comparison = c("a", "b"),
+        `1 year` = c("5", "-"),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      )
+      yn <- tab
+      yn[["1 year"]] <- c("Y", "-")
+      return(list(cut = tab, yn = yn))
+    },
+    .enrollment_label = function(plan, eid) {
+      return(paste("Comparison", eid))
+    },
+    .package = "swereg"
+  )
+  plan <- list(
+    ett = data.frame(enrollment_id = c("01", "02"), stringsAsFactors = FALSE),
+    spec = list(enrollments = list(
+      list(id = "01"),
+      list(id = "02", minimum_events_rule_exempt = TRUE)
+    ))
+  )
+  x <- swereg:::.overview_cuts(plan, list())
+  expect_identical(unname(x$names), c("Comparison 01", "Comparison 02 (exempt)"))
+  expect_identical(x$yn$Death[, 1], c("Y", "-"))
+})
