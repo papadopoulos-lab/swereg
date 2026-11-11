@@ -15,7 +15,9 @@ jobs:
     with:
       extra-packages: any::rcmdcheck, any::TrialEmulation
       # Pinned: RcppParallel 6.1.1 dropped a TBB symbol stringfish 0.19.0 references, so qs2 dies at dyn.load. This snapshot predates it.
-      cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23
+      # The distro in the URL MUST match the ubuntu-latest image of the shared workflow. Noble binaries
+      # failed on 2026-11-11: stringi needs libicui18n.so.74, which the newer image does not carry.
+      cran: https://packagemanager.posit.co/cran/__linux__/resolute/2026-07-23
 
       # 86 is the exact measured ceiling in R/ today. The
       # TTEEnrollment <- R6::R6Class( expression at R/r6_tteenrollment.R:151
