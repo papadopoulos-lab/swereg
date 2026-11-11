@@ -62,13 +62,14 @@ test_that("every undeclared key path is a row, not only the first", {
 })
 
 
-test_that("a retired key is a row that names its replacement", {
+test_that("a retired key is an undeclared_key row that lists the accepted keys", {
   r <- tteplan_check_spec(check_spec_fixture("retired_key"))
 
-  # The walk does not descend into a retired key, so its children add no row.
+  # The walk does not descend into an undeclared key, so its children add no
+  # row.
   expect_identical(r$path, "$/inclusion_criteria/additional_inclusion")
-  expect_identical(r$kind, "retired_key")
-  expect_match(r$message, "Move each entry to inclusion_criteria$criteria.", fixed = TRUE)
+  expect_identical(r$kind, "undeclared_key")
+  expect_match(r$message, "accepts: criteria, isoyears.", fixed = TRUE)
 })
 
 

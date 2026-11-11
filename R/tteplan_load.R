@@ -62,10 +62,10 @@ tteplan_load <- function(path) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
   }
-  # A plan saved by 27.2.14 or earlier holds the two retired rule keys.
-  plan$spec <- .tte_spec_rename_rule_keys(plan$spec)
-  # It also holds statuses with the legacy prefix of the minimum-events rule.
-  plan$results_ett <- .tte_rename_legacy_statuses(plan$results_ett)
+  # A plan built before swereg 27.3.10 stores a spec without the two design
+  # keys. swereg keeps no code that reads such a plan, so refuse it here
+  # rather than let a later step misread it.
+  .tte_stop_on_pre_27_3_10_plan(plan$spec, path)
   # A plan saved by 27.3.0 or earlier has no feasibility-horizon column. None
   # of its ETTs is a feasibility-horizon ETT.
   plan$ett <- .tte_ett_backfill_feasibility(plan$ett)
@@ -192,50 +192,6 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Rewrite the legacy status prefix in stored results
-#'
-#' swereg 27.2.14 started each withheld status with
-#' `.HORIZON_STATUS_PREFIX_LEGACY`. This helper replaces that prefix with
-#' `.HORIZON_STATUS_PREFIX`. It changes the `interval_status` column of each
-#' stored table, and the `status` field of each `horizon_<estimand>` record.
-#'
-#' @param results_ett `plan$results_ett`.
-#' @return `results_ett`, with no status that starts with the legacy prefix.
-#' @noRd
-.tte_rename_legacy_statuses <- function(results_ett) {
-  old <- .HORIZON_STATUS_PREFIX_LEGACY
-  swap <- function(v) {
-    hit <- is.character(v) & !is.na(v) & startsWith(as.character(v), old)
-    v[hit] <- paste0(.HORIZON_STATUS_PREFIX, substring(v[hit], nchar(old) + 1L))
-    return(v)
-  }
-  for (id in names(results_ett)) {
-    res <- results_ett[[id]]
-    if (!is.list(res)) {
-      next
-    }
-    for (s in names(res)) {
-      x <- res[[s]]
-      if (data.table::is.data.table(x) && "interval_status" %in% names(x)) {
-        x <- data.table::copy(x)
-        data.table::set(
-          x,
-          j = "interval_status",
-          value = swap(x$interval_status)
-        )
-        res[[s]] <- x
-      } else if (
-        startsWith(s, "horizon_") && is.list(x) && is.character(x$status)
-      ) {
-        res[[s]]$status <- swap(x$status)
-      }
-    }
-    results_ett[[id]] <- res
-  }
-  return(results_ett)
-}
-
-
 #' Give an ETT grid without a `feasibility_horizon` column that column
 #'
 #' A plan saved by swereg 27.3.0 or earlier has no `feasibility_horizon`
@@ -253,4 +209,31 @@ registrystudy_load <- function(candidate_dir_meta) {
   ett <- data.table::copy(ett)
   data.table::set(ett, j = "feasibility_horizon", value = rep(FALSE, nrow(ett)))
   return(ett)
+}
+
+
+#' Refuse a plan built before swereg 27.3.10
+#'
+#' From 27.3.10, every specification carries `period_width` and
+#' `admin_censoring_isoyearweek`, so every plan built since stores both in
+#' `plan$spec`. A stored spec without them comes from an older swereg. Such a
+#' plan may also hold the rule keys and the result statuses that swereg 27.2.14
+#' wrote, and swereg no longer translates either.
+#'
+#' @param spec The stored specification, or `NULL`.
+#' @param path The plan file, for the message.
+#' @return `invisible(NULL)`, called for the error.
+#' @noRd
+.tte_stop_on_pre_27_3_10_plan <- function(spec, path) {
+  if (!is.list(spec) || all(.TTE_DESIGN_KEYS %in% names(spec))) {
+    return(invisible(NULL))
+  }
+  stop(
+    path,
+    " was built by a swereg older than 27.3.10. Its stored spec has no ",
+    "period_width and no admin_censoring_isoyearweek. Cut a spec version ",
+    "that declares both keys, point s0_init.R at it, and rerun s0_init.R ",
+    "to build a new plan.",
+    call. = FALSE
+  )
 }

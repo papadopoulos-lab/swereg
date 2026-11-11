@@ -386,7 +386,16 @@ vignette("rowdep-rowind-concept", package = "swereg")
 ## TTE (Target Trial Emulation) system
 
 ### Spec-driven configuration
-`tteplan_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`, `min_expected_events_per_arm_per_year`, `period_width`, `admin_censoring_isoyearweek`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`, `rare_condition_rule`, `standing_methods`, `subgroups`, `target_trial`. The retired keys `horizon_rule` and `sparse_rule` are refused.
+`tteplan_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`, `min_expected_events_per_arm_per_year`, `period_width`, `admin_censoring_isoyearweek`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`, `rare_condition_rule`, `standing_methods`, `subgroups`, `target_trial`. Every other key is refused, and the message lists the keys its
+context accepts. A retired key name gets that message too.
+
+**Do not keep compatibility code for a retired spec key or an old plan format.** When a key is
+renamed, the old name is refused as an unknown key, and no migration message names the new
+one. A plan that an older swereg built is refused by `tteplan_load()`, and the fix is to rerun
+s0. swereg 27.3.12 removed the last such shims: the `legacy` key class, the plan-load rename of
+`horizon_rule` and `sparse_rule`, the 27.2.14 status prefix and the `$reload_spec()` fallback
+for plans without the design keys. Record a rename in `NEWS.md` under "Breaking changes"
+instead.
 
 Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`
@@ -791,13 +800,8 @@ that names it.
 
 **A test that reads the source tree skips under `R CMD check`.** Tests run from a built tarball
 there, so the source tree is absent and the `skip_if()` fires. The file is then red locally and
-green in CI. Two current instances:
+green in CI. A current instance:
 
-- `tests/testthat/test-comparator-ratio-rename-complete.R`, through `.crr_root()`. It asserts
-  that the retired comparator-ratio key survives in exactly seven files, and that every
-  occurrence in `R/tteplan_read_spec.R` is a comment inside `tteplan_read_spec()`. Move that
-  function to another file and the test breaks. That test file holds the literal key. Do not
-  copy the key into `CLAUDE.md`: this file is not one of the seven, and the test then fails.
 - `tests/testthat/test-batch_lockdown.R`, through
   `skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")`.
 

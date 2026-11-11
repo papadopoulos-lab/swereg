@@ -15,22 +15,20 @@
 #'     \item{`path`}{The normalised key path of the problem, for example
 #'       `$/study/implementation/version`. A problem with the whole file has
 #'       the path `$`.}
-#'     \item{`kind`}{The problem kind. The Details section lists the twelve
+#'     \item{`kind`}{The problem kind. The Details section lists the eleven
 #'       kinds.}
 #'     \item{`message`}{What is wrong, and the repair where swereg knows it.}
 #'   }
 #'   The table has zero rows when the checker finds no problem.
 #'
 #' @details
-#' The checker reports twelve kinds of problem:
+#' The checker reports eleven kinds of problem:
 #' \describe{
 #'   \item{`unreadable`}{The file is missing, is not valid UTF-8, or is not
 #'     valid YAML. This row is the only row, because the checker has no
 #'     parsed specification to check.}
 #'   \item{`undeclared_key`}{The schema does not declare the key path. The
 #'     message lists the keys that the context accepts.}
-#'   \item{`retired_key`}{The schema refuses the key path. The message names
-#'     the replacement.}
 #'   \item{`invalid_enrollment_id`}{An enrollment has no `id`, or its `id` is
 #'     not one non-empty character string or one number. The checker refuses
 #'     a sequence, a mapping, and an empty or whitespace-only string. It
@@ -71,9 +69,10 @@
 #'     `admin_censoring_isoyearweek`, and the message names both.}
 #' }
 #'
-#' The checker reports every undeclared key path and every retired key path.
-#' [tteplan_read_spec()] reports them too, but stops after them. The checker
-#' calls [tteplan_read_spec()] only when no key path is undeclared or retired,
+#' The checker reports every undeclared key path. A retired key is an
+#' undeclared key. [tteplan_read_spec()] reports them too, but stops after
+#' them. The checker calls [tteplan_read_spec()] only when no key path is
+#' undeclared,
 #' because the key gate stops it first. [tteplan_read_spec()] stops at its
 #' first problem after the key gate, so a table holds at most one
 #' `read_error` row. The design keys are its first check after the key gate.
@@ -347,7 +346,7 @@ tteplan_check_spec <- function(spec_path) {
 }
 
 
-#' Rows for every undeclared and every retired key path
+#' Rows for every undeclared key path
 #'
 #' @param spec The parsed specification.
 #' @return A list of rows, in the order of the walk.
@@ -355,7 +354,7 @@ tteplan_check_spec <- function(spec_path) {
 .tte_check_spec_keys <- function(spec) {
   paths <- unique(.tte_spec_walk_keys(spec))
   cls <- .tte_spec_key_class(paths)
-  bad <- is.na(cls) | cls == "legacy"
+  bad <- is.na(cls)
   rows <- list()
   for (i in which(bad)) {
     path <- paths[i]
@@ -366,8 +365,7 @@ tteplan_check_spec <- function(spec_path) {
     if (startsWith(finding, prefix)) {
       finding <- substring(finding, nchar(prefix) + 1L)
     }
-    kind <- if (is.na(cls[i])) "undeclared_key" else "retired_key"
-    rows <- c(rows, list(.tte_check_spec_row(path, kind, finding)))
+    rows <- c(rows, list(.tte_check_spec_row(path, "undeclared_key", finding)))
   }
   return(rows)
 }

@@ -6,13 +6,22 @@
 # specifications runs `tteplan_check_spec()` over them instead.
 
 
-test_that("the two matching_ratio keys carry different classes", {
-  expect_identical(
-    .tte_spec_key_class(
-      "$/enrollments[]/treatment/implementation/matching_ratio"
-    ),
-    "legacy"
-  )
+# The key paths swereg retired. The schema declares none of them, so each is
+# refused as an unknown key.
+.SCHEMA_RETIRED_PATHS <- c(
+  "$/enrollments[]/treatment/implementation/matching_ratio",
+  "$/horizon_rule",
+  "$/inclusion_criteria/additional_inclusion",
+  "$/inclusion_criteria/implementation",
+  "$/inclusion_criteria/name",
+  "$/inclusion_criteria/rationale",
+  "$/sparse_rule"
+)
+
+
+test_that("a retired key path is undeclared", {
+  expect_true(all(is.na(.tte_spec_key_class(.SCHEMA_RETIRED_PATHS))))
+  # `matching_ratio_default` is a different key at a different path.
   expect_identical(
     .tte_spec_key_class("$/standing_methods/matching_ratio_default"),
     "metadata"
@@ -24,34 +33,21 @@ test_that("the two matching_ratio keys carry different classes", {
 })
 
 
-# TRUE when `path` has a migration message that contains `needle`. Returns
-# FALSE rather than NA for a path that carries no message, so a broken schema
-# fails the assertion instead of erroring inside it.
-msg_names <- function(path, needle) {
-  msg <- .tte_spec_legacy_message(path)
-  if (length(msg) != 1L || is.na(msg)) {
-    return(FALSE)
+test_that("the finding for a retired key lists the key that replaced it", {
+  # The finding lists every key its context accepts. For each rename the new
+  # key sits in the same context, so the reader finds it in that list.
+  replaced_by <- c(
+    "$/enrollments[]/treatment/implementation/matching_ratio" =
+      "comparator_to_intervention_ratio",
+    "$/horizon_rule" = "min_expected_events_per_arm_per_year",
+    "$/inclusion_criteria/additional_inclusion" = "criteria",
+    "$/sparse_rule" = "rare_condition_rule"
+  )
+  for (p in names(replaced_by)) {
+    finding <- .tte_spec_key_finding(p)
+    expect_match(finding, "Unknown key", fixed = TRUE, label = p)
+    expect_match(finding, replaced_by[[p]], fixed = TRUE, label = p)
   }
-  return(grepl(needle, msg, fixed = TRUE))
-}
-
-
-test_that("each legacy key carries a migration message naming its replacement", {
-  expect_true(msg_names(
-    "$/enrollments[]/treatment/implementation/matching_ratio",
-    "comparator_to_intervention_ratio"
-  ))
-  for (p in .tte_spec_paths("legacy")) {
-    if (startsWith(p, "$/inclusion_criteria")) {
-      expect_true(msg_names(p, "inclusion_criteria$criteria"))
-    }
-  }
-  expect_true(msg_names("$/horizon_rule", "min_expected_events_per_arm_per_year"))
-  expect_true(msg_names("$/sparse_rule", "rare_condition_rule"))
-  # A consumed key has no migration message.
-  expect_true(is.na(
-    .tte_spec_legacy_message("$/study/implementation/project_prefix")
-  ))
 })
 
 
@@ -62,32 +58,11 @@ test_that("the schema leaves an undeclared key path unclassified", {
 })
 
 
-test_that("the schema pins the measured legacy and metadata sets", {
-  # 17 paths are refused and 10 are accepted without being read. 15 of the
-  # refused paths and 4 of the accepted ones are measured across the 34
-  # parseable specifications of the fleet. The other 6 accepted paths are the
-  # two `standing_methods` blocks no code in `R/` reads. The other 2 refused
-  # paths are the rule keys that 27.2.15 renamed. This test is the gate on the
-  # classification.
-  legacy <- c(
-    "$/enrollments[]/treatment/implementation/matching_ratio",
-    "$/horizon_rule",
-    "$/inclusion_criteria/additional_inclusion",
-    "$/inclusion_criteria/additional_inclusion[]/implementation",
-    "$/inclusion_criteria/additional_inclusion[]/implementation/computed",
-    "$/inclusion_criteria/additional_inclusion[]/implementation/source_variable",
-    "$/inclusion_criteria/additional_inclusion[]/implementation/window",
-    "$/inclusion_criteria/additional_inclusion[]/name",
-    "$/inclusion_criteria/additional_inclusion[]/rationale",
-    "$/inclusion_criteria/additional_inclusion[]/type",
-    "$/inclusion_criteria/implementation",
-    "$/inclusion_criteria/implementation/computed",
-    "$/inclusion_criteria/implementation/source_variable",
-    "$/inclusion_criteria/implementation/window",
-    "$/inclusion_criteria/name",
-    "$/inclusion_criteria/rationale",
-    "$/sparse_rule"
-  )
+test_that("the schema has two key classes and pins the metadata set", {
+  # 10 paths are accepted without being read. 4 of them are measured across
+  # the 34 parseable specifications of the fleet. The other 6 are the two
+  # `standing_methods` blocks no code in `R/` reads. This test is the gate on
+  # the classification.
   metadata <- c(
     "$/open_questions[]/resolution",
     "$/standing_methods/admin_censoring",
@@ -100,14 +75,21 @@ test_that("the schema pins the measured legacy and metadata sets", {
     "$/standing_methods/matching_ratio_default/handling",
     "$/standing_methods/matching_ratio_default/note"
   )
-
-  expect_identical(.tte_spec_key_class(legacy), rep("legacy", length(legacy)))
   expect_identical(
     .tte_spec_key_class(metadata),
     rep("metadata", length(metadata))
   )
-  expect_identical(.tte_spec_paths("legacy"), sort(legacy))
   expect_identical(.tte_spec_paths("metadata"), sort(metadata))
+  expect_setequal(
+    unique(.tte_spec_key_class(.tte_spec_paths())),
+    c("consumed", "metadata")
+  )
+  for (context in names(.TTE_SPEC_SCHEMA)) {
+    expect_true(
+      all(names(.TTE_SPEC_SCHEMA[[context]]) %in% c("consumed", "metadata")),
+      label = context
+    )
+  }
 
   # 37 mapping contexts are measured across the 34 parseable specifications.
   # The schema declares those plus the contexts no specification uses yet.

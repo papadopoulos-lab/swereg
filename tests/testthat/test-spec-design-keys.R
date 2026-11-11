@@ -10,8 +10,8 @@
 #       values from the spec, and the three entry points have no argument for
 #       either value;
 #   (e) a plan built before swereg 27.3.10 stores a spec without the keys.
-#       It loads, reloads its own spec file and exports. A plan whose stored
-#       spec has the keys reloads strictly.
+#       tteplan_load() refuses it. A plan whose stored spec has the keys
+#       reloads strictly.
 #
 # The spec is spr_spec_list() of helper-sparse_rule.R.
 
@@ -373,46 +373,17 @@ test_that("the Study Specification sheet takes the week and the width from the s
 # (e) the reload
 # ---------------------------------------------------------------------------
 
-test_that("a plan saved by 27.3.9 loads, reloads its own spec without the keys, and exports", {
+test_that("tteplan_load() refuses a plan saved by 27.3.9", {
   skip_if_not_installed("qs2")
-  skip_if_not_installed("openxlsx")
   root <- withr::local_tempdir()
-  spec <- dk_spec(4L, "2025-01")
-  plan <- dk_plan(spec, root)
-  # The state that swereg 27.3.9 left: the spec file and the stored spec have
-  # no design key, and the two values sit only in the plan fields.
-  legacy <- spec
-  legacy[DK_KEYS] <- NULL
-  spr_write_spec(legacy, plan$dir_spec)
+  plan <- dk_plan(dk_spec(4L, "2025-01"), root)
+  # The state that swereg 27.3.9 left: the stored spec has no design key, and
+  # the two values sit only in the plan fields.
   plan$spec[DK_KEYS] <- NULL
   plan$period_width <- 4L
   plan$global_max_isoyearweek <- "2025-01"
   saved <- plan$save()
-
-  loaded <- tteplan_load(saved)
-  expect_false(any(DK_KEYS %in% names(loaded$spec)))
-  expect_no_warning(expect_no_error(loaded$reload_spec(quiet = TRUE)))
-  expect_null(loaded$spec_reload_skipped_diffs)
-  expect_identical(loaded$period_width, 4L)
-  expect_identical(loaded$global_max_isoyearweek, "2025-01")
-  # The stored spec stays as it was, so the next reload takes the same path.
-  expect_false(any(DK_KEYS %in% names(loaded$spec)))
-
-  out <- file.path(root, "spec.xlsx")
-  expect_no_error(suppressMessages(loaded$excel_spec_summary(path = out)))
-  expect_identical(
-    dk_value(dk_cells(out, "Study Specification"), "Admin censoring:"),
-    "2025-01"
-  )
-})
-
-test_that("a legacy plan reloads a new spec file whose keys differ from its fields as structural", {
-  root <- withr::local_tempdir()
-  plan <- dk_plan(dk_spec(4L, "2025-01"), root)
-  plan$spec[DK_KEYS] <- NULL
-  spr_write_spec(dk_spec(2L, "2025-01"), plan$dir_spec)
-  expect_warning(plan$reload_spec(quiet = TRUE), "period_width: 4 -> 2", fixed = TRUE)
-  expect_identical(plan$spec_reload_skipped_diffs, "period_width: 4 -> 2")
+  expect_error(tteplan_load(saved), "older than 27.3.10", fixed = TRUE)
 })
 
 test_that("a plan built with the keys refuses a reload of a spec file that lost period_width", {

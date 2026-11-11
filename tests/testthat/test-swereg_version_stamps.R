@@ -47,6 +47,10 @@ skip_if_not_installed("qs2")
     ett = ett
   )
   plan$spec$min_expected_events_per_arm_per_year <- 0
+  # Every plan built since swereg 27.3.10 stores both design keys, and
+  # tteplan_load() refuses a plan without them.
+  plan$spec$period_width <- 4L
+  plan$spec$admin_censoring_isoyearweek <- "2020-52"
   # The stamps that the real s1, s2 and s3 set. s2, s3 and the writers stop
   # without them.
   tte_stamp_stages(plan)

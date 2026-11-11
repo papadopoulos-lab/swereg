@@ -16,7 +16,7 @@ character columns:
 \item{\code{path}}{The normalised key path of the problem, for example
 \verb{$/study/implementation/version}. A problem with the whole file has
 the path \code{$}.}
-\item{\code{kind}}{The problem kind. The Details section lists the twelve
+\item{\code{kind}}{The problem kind. The Details section lists the eleven
 kinds.}
 \item{\code{message}}{What is wrong, and the repair where swereg knows it.}
 }
@@ -28,15 +28,13 @@ It never stops on a bad specification, so a caller can check many files in
 one pass.
 }
 \details{
-The checker reports twelve kinds of problem:
+The checker reports eleven kinds of problem:
 \describe{
 \item{\code{unreadable}}{The file is missing, is not valid UTF-8, or is not
 valid YAML. This row is the only row, because the checker has no
 parsed specification to check.}
 \item{\code{undeclared_key}}{The schema does not declare the key path. The
 message lists the keys that the context accepts.}
-\item{\code{retired_key}}{The schema refuses the key path. The message names
-the replacement.}
 \item{\code{invalid_enrollment_id}}{An enrollment has no \code{id}, or its \code{id} is
 not one non-empty character string or one number. The checker refuses
 a sequence, a mapping, and an empty or whitespace-only string. It
@@ -77,9 +75,10 @@ fails. The two design keys are \code{period_width} and
 \code{admin_censoring_isoyearweek}, and the message names both.}
 }
 
-The checker reports every undeclared key path and every retired key path.
-\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} reports them too, but stops after them. The checker
-calls \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} only when no key path is undeclared or retired,
+The checker reports every undeclared key path. A retired key is an
+undeclared key. \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} reports them too, but stops after
+them. The checker calls \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} only when no key path is
+undeclared,
 because the key gate stops it first. \code{\link[=tteplan_read_spec]{tteplan_read_spec()}} stops at its
 first problem after the key gate, so a table holds at most one
 \code{read_error} row. The design keys are its first check after the key gate.

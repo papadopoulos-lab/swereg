@@ -7,8 +7,7 @@
 #
 # `tteplan_read_spec()` refuses a spec without the key, through its vector of
 # required sections. `.tte_check_horizon_rule()` below checks the value. The
-# key gate in `R/tteplan_spec_schema.R` refuses a mapping under the key, and
-# refuses the retired block `horizon_rule`.
+# key gate in `R/tteplan_spec_schema.R` refuses a mapping under the key.
 # =============================================================================
 
 #' Validate and normalise the minimum-events rule of a parsed specification

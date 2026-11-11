@@ -1746,13 +1746,8 @@ comparator-draw parameters, etc.) are \emph{not} applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in \code{self$spec_reload_skipped_diffs}. The two design keys,
 \code{period_width} and \code{admin_censoring_isoyearweek}, are structural fields.
-
-A plan built before swereg 27.3.10 stores a spec without the two design
-keys. For such a plan the method fills each design key that the spec file
-lacks from \code{self$period_width} and \code{self$global_max_isoyearweek}. It fills
-the same two values into the copy of \code{self$spec} that it compares against.
-A plan whose stored spec has the keys reads the file with
-\code{\link[=tteplan_read_spec]{tteplan_read_spec()}}, which refuses a file without them.
+\code{\link[=tteplan_load]{tteplan_load()}} refuses a plan built before swereg 27.3.10, whose stored
+spec lacks them.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$reload_spec(spec_path = NULL, quiet = FALSE)}

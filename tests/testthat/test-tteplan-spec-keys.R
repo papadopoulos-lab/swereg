@@ -81,7 +81,7 @@ test_that("an unknown key inside a treatment implementation is refused", {
 })
 
 
-test_that("the retired matching_ratio key carries its migration message", {
+test_that("the retired matching_ratio key is refused as an unknown key", {
   withr::local_options(swereg.warn_prevalent_user = FALSE)
   f <- spec_keys_write(function(spec) {
     spec$enrollments[[2]]$treatment$implementation$matching_ratio <- 2
@@ -94,11 +94,15 @@ test_that("the retired matching_ratio key carries its migration message", {
     "$/enrollments[]/treatment/implementation/matching_ratio",
     fixed = TRUE
   )
-  # The schema carries this rule now. `tteplan_read_spec()` held a second
-  # copy of it until this gate landed.
+  # The finding lists the keys the context accepts, the new name among them.
   expect_error(
     swereg::tteplan_read_spec(f),
-    "Rename it to comparator_to_intervention_ratio.",
+    "Unknown key 'matching_ratio'",
+    fixed = TRUE
+  )
+  expect_error(
+    swereg::tteplan_read_spec(f),
+    "comparator_to_intervention_ratio",
     fixed = TRUE
   )
 })
@@ -121,10 +125,10 @@ test_that("inclusion_criteria$additional_inclusion is refused and names criteria
     "$/inclusion_criteria/additional_inclusion",
     fixed = TRUE
   )
-  # The repair is the container swereg does read.
+  # The finding lists the keys the container accepts.
   expect_error(
     swereg::tteplan_read_spec(f),
-    "Move each entry to inclusion_criteria$criteria.",
+    "$/inclusion_criteria accepts: criteria, isoyears.",
     fixed = TRUE
   )
 })

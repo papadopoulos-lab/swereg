@@ -1,3 +1,18 @@
+# swereg 27.3.12
+
+No result changes. A plan built by swereg 27.3.10 or later needs no rerun. An older plan no longer loads. Rerun its `s0_init.R`, then s1 to s3.
+
+## Breaking changes
+
+* **`tteplan_load()` refuses a plan built before swereg 27.3.10.** Such a plan stores a spec without `period_width` and `admin_censoring_isoyearweek`. The message says to cut a spec version that declares both keys and rerun `s0_init.R`. Before, `$reload_spec()` filled the two keys from the plan's fields.
+* **A plan saved by swereg 27.2.14 or earlier is no longer translated.** `tteplan_load()` renamed its spec keys `horizon_rule` and `sparse_rule`, and rewrote the result statuses that began "below horizon rule". Both steps are gone. The 27.3.10 check above refuses every such plan first.
+* **The schema has no `legacy` key class any more.** `horizon_rule`, `sparse_rule`, `matching_ratio` under a treatment implementation, `inclusion_criteria$additional_inclusion`, and a criterion written straight under `inclusion_criteria` are now refused as unknown keys. The message lists the keys the context accepts, and no longer names the replacement. No spec version that a project pins today uses one of them.
+* **`tteplan_check_spec()` reports a retired key as `undeclared_key`.** The problem kind `retired_key` is gone, so the checker reports eleven kinds.
+
+## Documentation
+
+* **`vignette("tte-spec-schema")` describes two key classes**, `consumed` and `metadata`. Its section on refused keys shows the message for a key under `inclusion_criteria` that the container does not accept.
+
 # swereg 27.3.11
 
 No result changes. No plan needs a rerun.

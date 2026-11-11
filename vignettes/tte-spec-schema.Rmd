@@ -51,7 +51,7 @@ Each context declares its own children. There is no generic rule for an
 `implementation` block. A treatment implementation, an outcome implementation
 and a confounder implementation accept different keys.
 
-# The three key classes
+# The two key classes
 
 Each key path carries one class.
 
@@ -62,8 +62,7 @@ rows <- do.call(rbind, lapply(names(schema), function(context) {
   node <- schema[[context]]
   keys <- list(
     consumed = node[["consumed"]],
-    metadata = node[["metadata"]],
-    legacy = names(node[["legacy"]])
+    metadata = node[["metadata"]]
   )
   data.frame(
     context = context,
@@ -88,13 +87,15 @@ knitr::kable(
 |:---|:---|:---|
 | `consumed` | swereg reads it. | accepted |
 | `metadata` | swereg accepts it and never reads it. | accepted |
-| `legacy` | swereg refuses it. The message names the replacement. | refused |
 
-## Why two classes are not enough
+Every other key is refused. A retired key is refused the same way: swereg
+keeps no list of old key names.
 
-A two-class table holds "swereg reads it" and "swereg refuses it". Under that
-table, every key swereg does not read is refused. That table would refuse the
-valid key paths below.
+## Why one class is not enough
+
+A one-class table holds "swereg reads it", and refuses everything else. Under
+that table, every key swereg does not read is refused. That table would refuse
+the valid key paths below.
 
 ```{r metadata}
 meta <- rows[rows$class == "metadata", ]
@@ -408,9 +409,9 @@ outcome. Section 1.8.6 of `vignette("tte-methods")` states that rule.
 # What you see when a key is refused
 
 `tteplan_read_spec()` reports every refused key in one message, and reads no
-data first. The message for a `legacy` key names its replacement.
+data first. Each finding lists the keys its context accepts.
 
-```{r legacy}
+```{r refused-container}
 spec_path <- file.path(tempdir(), "spec_v001.yaml")
 writeLines(
   c(
@@ -433,8 +434,7 @@ The report names one key, not six. The walk stops at a refused key, because the
 schema declares no context below it. Move the entries into `criteria`, and
 swereg reads each one.
 
-A key the schema does not name anywhere carries the list of keys its context
-accepts.
+A misspelt key gets the same message.
 
 ```{r unknown}
 writeLines(
@@ -474,7 +474,7 @@ past them. It also reports these problems:
 `tteplan_read_spec()` stops on a missing, bad or repeated `id`, because
 `$reload_spec()` and the Summary sheet find an enrollment by its `id`. It does
 not compare the version with the file name. `?tteplan_check_spec` lists the
-twelve problem kinds.
+eleven problem kinds.
 
 # See also
 

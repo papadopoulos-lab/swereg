@@ -37,8 +37,6 @@
 #'     admin_censoring_isoyearweek
 #'   \item `min_expected_events_per_arm_per_year` MUST be one finite number of
 #'     at least 0
-#'   \item The retired keys `horizon_rule` and `sparse_rule` are refused. The
-#'     message names the replacement key
 #'   \item `study$implementation$project_prefix` must exist
 #'   \item Each entry in `inclusion_criteria$criteria` must declare
 #'     `implementation$source_variable`, and must generate an eligibility
@@ -216,19 +214,14 @@ tteplan_read_spec <- function(spec_path) {
 }
 
 
-#' Read and validate a specification, and fill the design keys of a legacy plan
+#' Read and validate a specification
 #'
-#' The body of [tteplan_read_spec()]. Only `$reload_spec()` passes `fill`, for
-#' a plan whose stored spec lacks both design keys. Such a plan was built
-#' before swereg 27.3.10, when the two values were function arguments.
+#' The body of [tteplan_read_spec()].
 #'
 #' @param spec_path Path to the YAML specification file.
-#' @param fill `NULL`, or a named list with `period_width` and
-#'   `admin_censoring_isoyearweek`. Each key the file does not declare takes
-#'   its value from `fill` before the check of the required sections.
 #' @return The parsed specification, as from [tteplan_read_spec()].
 #' @noRd
-.tte_read_spec <- function(spec_path, fill = NULL) {
+.tte_read_spec <- function(spec_path) {
   if (!file.exists(spec_path)) {
     stop("Spec file not found: ", spec_path, call. = FALSE)
   }
@@ -272,10 +265,6 @@ tteplan_read_spec <- function(spec_path) {
   # `observed_var`), and the schema names none of them. The schema describes
   # the input, so the gate MUST run before any normalisation.
   .tte_spec_check_keys(spec, spec_path)
-
-  if (!is.null(fill)) {
-    spec <- .tte_spec_fill_design_keys(spec, fill)
-  }
 
   # Validate required sections
   required_sections <- c(
@@ -444,9 +433,6 @@ tteplan_read_spec <- function(spec_path) {
         call. = FALSE
       )
     }
-    # The key gate above refuses the retired `matching_ratio` key. The schema
-    # carries that rule at
-    # `$/enrollments[]/treatment/implementation/matching_ratio`.
     # `[[` is exact; `$` would partial-match a longer key.
     tx_impl <- enr$treatment$implementation
     if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {
@@ -849,24 +835,6 @@ tteplan_read_spec <- function(spec_path) {
     "\nFor example: period_width: 4 and admin_censoring_isoyearweek: ",
     "\"2025-01\"."
   ))
-}
-
-
-#' Fill the design keys a specification does not declare
-#'
-#' @param spec The parsed specification.
-#' @param fill A named list with `period_width` and
-#'   `admin_censoring_isoyearweek`.
-#' @return `spec`. Each key it does not declare takes its value from `fill`.
-#'   A key it declares keeps its own value.
-#' @noRd
-.tte_spec_fill_design_keys <- function(spec, fill) {
-  for (k in .TTE_DESIGN_KEYS) {
-    if (!k %in% names(spec) && !is.null(fill[[k]])) {
-      spec[[k]] <- fill[[k]]
-    }
-  }
-  return(spec)
 }
 
 

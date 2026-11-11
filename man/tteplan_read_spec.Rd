@@ -39,8 +39,6 @@ min_expected_events_per_arm_per_year, period_width and
 admin_censoring_isoyearweek
 \item \code{min_expected_events_per_arm_per_year} MUST be one finite number of
 at least 0
-\item The retired keys \code{horizon_rule} and \code{sparse_rule} are refused. The
-message names the replacement key
 \item \code{study$implementation$project_prefix} must exist
 \item Each entry in \code{inclusion_criteria$criteria} must declare
 \code{implementation$source_variable}, and must generate an eligibility

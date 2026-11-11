@@ -9,76 +9,26 @@
 # so the third enrollment's treatment block is `$/enrollments[]/treatment`.
 #
 # The table is keyed by the mapping context, which is the path of the mapping
-# that holds the key. Path keys are what separate the two `matching_ratio`
-# keys. `$/standing_methods/matching_ratio_default` is accepted, and
-# `$/enrollments[]/treatment/implementation/matching_ratio` is refused. A
-# table keyed by key name alone cannot state that.
+# that holds the key. Path keys are what separate two keys that share a name.
+# `$/enrollments[]/additional_inclusion` is accepted, and
+# `$/inclusion_criteria/additional_inclusion` is refused. A table keyed by key
+# name alone cannot state that.
 #
 # Every context declares its own children. There is no generic rule for an
 # `implementation` block. A treatment implementation, an outcome
 # implementation and a confounder implementation accept different keys.
 #
-# Each key carries one of three classes.
+# Each key carries one of two classes.
 #
 #   consumed  swereg reads it.
 #   metadata  swereg accepts it and never reads it. A spec MAY carry it.
-#   legacy    swereg refuses it. A message names the replacement.
+#
+# Every other key is refused. The message names the keys its context accepts.
+# A retired key gets that message too. swereg keeps no list of old names.
 #
 # The `metadata` class is what makes the whole table usable. Without it, a
 # rule that refuses every key swereg does not read would refuse specifications
 # that are correct today.
-
-# -----------------------------------------------------------------------------
-# Migration messages for the legacy keys
-# -----------------------------------------------------------------------------
-# The caller states the path. Each message states the repair for that path and
-# nothing else.
-
-# `matching_ratio` was the old name for the same number.
-.TTE_SPEC_MSG_MATCHING_RATIO <- paste0(
-  "That key is gone. Rename it to comparator_to_intervention_ratio. The ",
-  "number is unchanged: the draw takes that many times a trial's count of ",
-  "intervention individuals. swereg draws comparators by incidence density ",
-  "sampling within each sequential trial, and builds no matched set. The old ",
-  "name named a scheme swereg does not use."
-)
-
-# `inclusion_criteria$additional_inclusion` copied the per-enrollment key name
-# to the global container. swereg never read it there.
-.TTE_SPEC_MSG_ADDITIONAL_INCLUSION <- paste0(
-  "That key is gone. swereg never read it, so it never restricted the study ",
-  "population. Move each entry to inclusion_criteria$criteria. Each ",
-  "criterion there declares name, type: has_event, and ",
-  "implementation$source_variable."
-)
-
-# `horizon_rule: {min_expected_events: k}` was the old form of the flat key
-# `min_expected_events_per_arm_per_year: k`. The number is unchanged.
-.TTE_SPEC_MSG_HORIZON_RULE <- paste0(
-  "That key is gone. Replace the block with the flat key ",
-  "min_expected_events_per_arm_per_year, and give it the number that ",
-  "min_expected_events held. The rule and its threshold are unchanged. Copy ",
-  "the spec to a new version for this change. Never edit a released spec ",
-  "version."
-)
-
-# `sparse_rule` was the old name of `rare_condition_rule`. Its three fields
-# keep their names.
-.TTE_SPEC_MSG_SPARSE_RULE <- paste0(
-  "That key is gone. Rename it to rare_condition_rule. Its fields min_n, ",
-  "decided_by and candidates are unchanged. Copy the spec to a new version ",
-  "for this change. Never edit a released spec version."
-)
-
-# A criterion written as direct children of `inclusion_criteria`, with no
-# `criteria` list around it.
-.TTE_SPEC_MSG_FLAT_CRITERION <- paste0(
-  "A criterion's fields do not sit directly under inclusion_criteria. That ",
-  "container holds isoyears and criteria, and nothing else. Move name, ",
-  "rationale and implementation into one entry of inclusion_criteria",
-  "$criteria. Each criterion there declares type: has_event."
-)
-
 
 # -----------------------------------------------------------------------------
 # The rule types a criterion can declare
@@ -104,25 +54,11 @@
 .TTE_INCLUSION_RULE_TYPES <- c("has_event", .TTE_WASHOUT_TYPES)
 
 
-#' Declare a set of legacy keys that share one migration message
-#'
-#' @param keys Character vector of key names.
-#' @param msg Character scalar, the migration message.
-#' @return A named character vector: names are the keys, values are `msg`.
-#' @noRd
-.tte_spec_legacy <- function(keys, msg) {
-  out <- rep(msg, length(keys))
-  names(out) <- keys
-  return(out)
-}
-
-
 # -----------------------------------------------------------------------------
 # The table
 # -----------------------------------------------------------------------------
-# Each element is one mapping context. Each context declares `consumed`,
-# `metadata` and `legacy` children. `legacy` is a named character vector, so a
-# context can hold two groups of legacy keys with different messages.
+# Each element is one mapping context. Each context declares `consumed` and
+# `metadata` children.
 
 .TTE_SPEC_SCHEMA <- list(
   "$" = list(
@@ -143,10 +79,6 @@
       "study",
       "subgroups",
       "target_trial"
-    ),
-    legacy = c(
-      .tte_spec_legacy("horizon_rule", .TTE_SPEC_MSG_HORIZON_RULE),
-      .tte_spec_legacy("sparse_rule", .TTE_SPEC_MSG_SPARSE_RULE)
     )
   ),
 
@@ -224,10 +156,6 @@
       "intervention_value",
       "seed",
       "variable"
-    ),
-    legacy = .tte_spec_legacy(
-      "matching_ratio",
-      .TTE_SPEC_MSG_MATCHING_RATIO
     )
   ),
 
@@ -254,20 +182,9 @@
 
   # --- inclusion criteria ----------------------------------------------------
   # `inclusion_criteria` is a fixed container. It holds `isoyears` and
-  # `criteria`, and nothing else. The two legacy groups are the two shapes a
-  # collaborator wrote instead, and swereg read neither.
+  # `criteria`, and nothing else.
   "$/inclusion_criteria" = list(
-    consumed = c("criteria", "isoyears"),
-    legacy = c(
-      .tte_spec_legacy(
-        "additional_inclusion",
-        .TTE_SPEC_MSG_ADDITIONAL_INCLUSION
-      ),
-      .tte_spec_legacy(
-        c("implementation", "name", "rationale"),
-        .TTE_SPEC_MSG_FLAT_CRITERION
-      )
-    )
+    consumed = c("criteria", "isoyears")
   ),
   "$/inclusion_criteria/criteria[]" = list(
     consumed = c("implementation", "name", "rationale", "type")
@@ -275,25 +192,6 @@
   "$/inclusion_criteria/criteria[]/implementation" = list(
     consumed = c("computed", "source_variable", "type", "value", "window")
   ),
-  "$/inclusion_criteria/additional_inclusion[]" = list(
-    legacy = .tte_spec_legacy(
-      c("implementation", "name", "rationale", "type"),
-      .TTE_SPEC_MSG_ADDITIONAL_INCLUSION
-    )
-  ),
-  "$/inclusion_criteria/additional_inclusion[]/implementation" = list(
-    legacy = .tte_spec_legacy(
-      c("computed", "source_variable", "window"),
-      .TTE_SPEC_MSG_ADDITIONAL_INCLUSION
-    )
-  ),
-  "$/inclusion_criteria/implementation" = list(
-    legacy = .tte_spec_legacy(
-      c("computed", "source_variable", "window"),
-      .TTE_SPEC_MSG_FLAT_CRITERION
-    )
-  ),
-
   # --- open questions --------------------------------------------------------
   "$/open_questions[]" = list(
     consumed = c("question", "raised_by", "status"),
@@ -315,9 +213,6 @@
   ),
 
   # --- standing methods ------------------------------------------------------
-  # `matching_ratio_default` is accepted here and refused under a treatment
-  # implementation. The path is what tells them apart.
-  #
   # `calendar_time` is the one block swereg reads.
   # `R/tteplan_spec_summary_sheet.R:590` reads it, then reads its `handling`
   # and `note`. Nothing in `R/` reads `admin_censoring` or
@@ -411,8 +306,8 @@
 #' Classify one key path
 #'
 #' @param path Character scalar, a normalised key path.
-#' @return One of "consumed", "metadata", "legacy", or `NA_character_` when
-#'   the schema does not declare the path.
+#' @return One of "consumed" and "metadata", or `NA_character_` when the
+#'   schema does not declare the path.
 #' @noRd
 .tte_spec_key_class_one <- function(path) {
   parts <- .tte_spec_split_path(path)
@@ -427,9 +322,6 @@
   if (key %in% node[["metadata"]]) {
     return("metadata")
   }
-  if (key %in% names(node[["legacy"]])) {
-    return("legacy")
-  }
   return(NA_character_)
 }
 
@@ -438,8 +330,8 @@
 #'
 #' @param path Character vector of normalised key paths.
 #' @return A character vector the same length as `path`. Each element is
-#'   "consumed", "metadata", "legacy", or `NA_character_` for a path the
-#'   schema does not declare.
+#'   "consumed", "metadata", or `NA_character_` for a path the schema does
+#'   not declare.
 #' @noRd
 .tte_spec_key_class <- function(path) {
   return(vapply(
@@ -451,26 +343,10 @@
 }
 
 
-#' Read the migration message for a legacy key path
-#'
-#' @param path Character scalar, a normalised key path.
-#' @return The migration message, or `NA_character_` when the path is not
-#'   legacy.
-#' @noRd
-.tte_spec_legacy_message <- function(path) {
-  parts <- .tte_spec_split_path(path)
-  legacy <- .TTE_SPEC_SCHEMA[[parts[1]]][["legacy"]]
-  if (!parts[2] %in% names(legacy)) {
-    return(NA_character_)
-  }
-  return(unname(legacy[[parts[2]]]))
-}
-
-
 #' List every key path the schema declares
 #'
-#' @param class Optional character scalar: "consumed", "metadata" or
-#'   "legacy". `NULL` returns every declared path.
+#' @param class Optional character scalar: "consumed" or "metadata". `NULL`
+#'   returns every declared path.
 #' @return A sorted character vector of normalised key paths.
 #' @noRd
 .tte_spec_paths <- function(class = NULL) {
@@ -479,8 +355,7 @@
     node <- .TTE_SPEC_SCHEMA[[context]]
     keys <- list(
       consumed = node[["consumed"]],
-      metadata = node[["metadata"]],
-      legacy = names(node[["legacy"]])
+      metadata = node[["metadata"]]
     )
     if (!is.null(class)) {
       keys <- keys[class]
@@ -505,7 +380,7 @@
 #' The walk normalises a path the way the schema is written. The root is `$`.
 #' A mapping key appends `/<key>`. A sequence index becomes `[]`.
 #'
-#' The walk does not descend into a key the schema refuses or does not name.
+#' The walk does not descend into a key the schema does not name.
 #' That key is the finding, and the schema declares no context below it.
 #'
 #' @param x A parsed YAML value.
@@ -529,7 +404,7 @@
     child <- paste0(path, "/", k)
     out <- c(out, child)
     cls <- .tte_spec_key_class_one(child)
-    if (!is.na(cls) && cls != "legacy") {
+    if (!is.na(cls)) {
       out <- c(out, .tte_spec_walk_keys(x[[k]], child))
     }
   }
@@ -539,17 +414,13 @@
 
 #' State what is wrong with one key path
 #'
-#' A legacy key carries its own migration message. An undeclared key carries
-#' the keys its context accepts, so the reader can find the name it meant.
+#' The finding names the keys the context accepts, so the reader can find the
+#' name they meant.
 #'
 #' @param path Character scalar, a normalised key path.
 #' @return A single string, indented for a multi-finding report.
 #' @noRd
 .tte_spec_key_finding <- function(path) {
-  msg <- .tte_spec_legacy_message(path)
-  if (!is.na(msg)) {
-    return(paste0("  ", path, "\n    ", msg))
-  }
   parts <- .tte_spec_split_path(path)
   node <- .TTE_SPEC_SCHEMA[[parts[1]]]
   allowed <- sort(c(node[["consumed"]], node[["metadata"]]))
@@ -592,7 +463,7 @@
 .tte_spec_check_keys <- function(spec, spec_path) {
   paths <- unique(.tte_spec_walk_keys(spec))
   cls <- .tte_spec_key_class(paths)
-  bad <- paths[is.na(cls) | cls == "legacy"]
+  bad <- paths[is.na(cls)]
   if (length(bad) == 0L) {
     return(invisible(TRUE))
   }
@@ -613,35 +484,4 @@
     paste(findings, collapse = "\n"),
     call. = FALSE
   )
-}
-
-
-# -----------------------------------------------------------------------------
-# The rule keys of a plan saved by swereg 27.2.14 or earlier
-# -----------------------------------------------------------------------------
-
-#' Rename the two retired rule keys of a stored specification
-#'
-#' A plan saved by swereg 27.2.14 or earlier stores its specification with the
-#' keys `horizon_rule` and `sparse_rule`. [tteplan_load()] calls this function,
-#' so the loaded plan holds the same rule under the keys
-#' `min_expected_events_per_arm_per_year` and `rare_condition_rule`. The values
-#' do not change, so the plan's `sparse_rule_hash` still matches its rule.
-#'
-#' @param spec The stored specification, or `NULL`.
-#' @return `spec`, with each old key replaced by its new key.
-#' @noRd
-.tte_spec_rename_rule_keys <- function(spec) {
-  if (!is.list(spec)) {
-    return(spec)
-  }
-  if ("horizon_rule" %in% names(spec)) {
-    value <- spec[["horizon_rule"]][["min_expected_events"]]
-    spec[["horizon_rule"]] <- NULL
-    spec[["min_expected_events_per_arm_per_year"]] <- value
-  }
-  if ("sparse_rule" %in% names(spec)) {
-    names(spec)[names(spec) == "sparse_rule"] <- "rare_condition_rule"
-  }
-  return(spec)
 }

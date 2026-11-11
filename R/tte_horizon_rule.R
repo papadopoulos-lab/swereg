@@ -40,9 +40,6 @@
 # rule writes for a withheld estimand. Match it with `startsWith()`.
 .HORIZON_STATUS_PREFIX <- "below minimum-events rule"
 
-# The status text that swereg 27.2.14 stored for a withheld estimand.
-.HORIZON_STATUS_PREFIX_LEGACY <- "below horizon rule"
-
 # The `horizon_status` of an estimand whose windows all pass.
 .HORIZON_STATUS_PASS <- "all windows pass"
 
@@ -161,18 +158,13 @@
 
 #' Is a stored status a status of the minimum-events rule?
 #'
-#' A result that swereg 27.2.14 stored carries the legacy prefix. It counts
-#' as withheld too, so its estimates still read `NE` on export.
-#'
 #' @param status Character vector, `NULL` allowed.
 #' @return A logical vector as long as `status`. `NA` gives `FALSE`.
 #' @noRd
 .tte_horizon_withheld <- function(status) {
   status <- as.character(status)
   return(
-    !is.na(status) &
-      (startsWith(status, .HORIZON_STATUS_PREFIX) |
-        startsWith(status, .HORIZON_STATUS_PREFIX_LEGACY))
+    !is.na(status) & startsWith(status, .HORIZON_STATUS_PREFIX)
   )
 }
 
