@@ -400,16 +400,16 @@ TTEPlan$set(
 #' The baseline confounder counts of each enrollment
 #'
 #' Reads the `coverage` of each worker result in `baselines`, and otherwise
-#' the one stored by s3 in `plan$results_enrollment`.
+#' the one s3 stored, through `.acc_coverage()`.
 #'
 #' @param plan A TTEPlan.
 #' @param baselines Named list by enrollment id.
 #' @return A named list by enrollment id.
 #' @noRd
 .tte_coverage_by_enrollment <- function(plan, baselines) {
+  stored <- .acc_coverage(plan, names(baselines))
   out <- lapply(names(baselines), function(eid) {
-    return(baselines[[eid]][["coverage"]] %||%
-      plan$results_enrollment[[eid]][["coverage"]])
+    return(baselines[[eid]][["coverage"]] %||% stored[[eid]])
   })
   names(out) <- names(baselines)
   return(out)
