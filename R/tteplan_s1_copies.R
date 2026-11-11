@@ -183,14 +183,26 @@
   batch <- person <- n_copies <- i.person <- i.n_copies <- NULL # nolint
   batches <- .skeleton_batch_number(files)
   # s1 finds a file's batch by its name. A name without a batch number gives
-  # no batch, and s1 then drops no copy. So refuse it here, when the study
-  # gives some person two copies.
+  # no batch, and s1 then drops no copy. So refuse it here when the files the
+  # run reads hold a person twice. A skeleton ID belongs to one person across
+  # the study, so the IDs in the files give their persons without a batch.
   if (anyNA(batches)) {
     all_copies <- .tte_copies(study, seq_len(.tte_n_batches(study)))
-    if (!is.null(all_copies) && anyDuplicated(all_copies[["person"]]) > 0L) {
+    if (is.null(all_copies) || anyDuplicated(all_copies[["person"]]) == 0L) {
+      return(invisible(NULL))
+    }
+    owner <- unique(all_copies[, c("skeleton_id", "person")])
+    read <- data.table::rbindlist(lapply(seq_along(files), function(j) {
+      return(data.table::data.table(
+        file = j,
+        skeleton_id = unique(.s1_load_skeleton(files[j], 1L)[["id"]])
+      ))
+    }))
+    read[owner, on = "skeleton_id", person := i.person]
+    if (anyDuplicated(read[!is.na(person)][["person"]]) > 0L) {
       stop(
-        "tteplan_from_spec_and_registrystudy(): the study gives a person ",
-        "more than one copy, and skeleton file '",
+        "tteplan_from_spec_and_registrystudy(): the skeleton files hold a ",
+        "person more than once, and skeleton file '",
         basename(files[is.na(batches)][1L]),
         "' is not named skeleton_NNNNN.qs2. s1 finds the batch of a file ",
         "by that name, and reads one copy per person only when it can.",

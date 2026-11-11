@@ -370,9 +370,21 @@ test_that("s0 refuses copies in a file whose name gives no batch", {
     swereg:::.tte_check_copies_agree(study, renamed, plan$spec, list()),
     "'first.qs2' is not named skeleton_NNNNN.qs2"
   )
-  # Without copies, such a name is fine.
-  study <- .mc_study(renamed, file.path(root, "meta"), "reference")
-  expect_null(swereg:::.tte_check_copies_agree(study, renamed, plan$spec, list()))
+  # A run that reads batch 2 only holds each person once there, so such a
+  # name is fine, although the study gives persons copies in other batches.
+  expect_null(
+    swereg:::.tte_check_copies_agree(study, renamed[2], plan$spec, list())
+  )
+  # A study without copies is fine too.
+  ref <- withr::local_tempdir()
+  ref_plan <- .mc_plan(ref, "reference")
+  ref_files <- ref_plan$skeleton_files
+  ref_renamed <- file.path(dirname(ref_files), c("first.qs2", "second.qs2"))
+  file.rename(ref_files, ref_renamed)
+  study <- .mc_study(ref_renamed, file.path(ref, "meta"), "reference")
+  expect_null(
+    swereg:::.tte_check_copies_agree(study, ref_renamed, ref_plan$spec, list())
+  )
 })
 
 test_that("s0 accepts copies that differ only in a column the spec does not read", {
