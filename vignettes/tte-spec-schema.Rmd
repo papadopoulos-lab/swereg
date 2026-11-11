@@ -330,6 +330,14 @@ An enrollment MAY set `minimum_events_rule_exempt`, one logical. With `true`,
 the minimum-events rule withholds no estimate of that comparison. An
 enrollment without the key is not exempt.
 
+**A negative-control enrollment normally sets `minimum_events_rule_exempt:
+true`.** A negative control is read for its estimate, whatever its precision,
+because the question it answers is whether that estimate sits near the null.
+Withholding it for too few expected events removes the very check the control
+exists to give. Set the key on every negative-control enrollment, age
+subgroups included, and state in the spec why a control that leaves it unset
+does so.
+
 ```yaml
 enrollments:
   - id: "18"

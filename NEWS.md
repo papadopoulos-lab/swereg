@@ -17,6 +17,10 @@ No result changes. No plan needs a rerun. A rerun of the feasibility step, or of
 * **s1b counts the rare-condition candidates in every enrollment**, one subworker per enrollment, and stores them as `plan$sparse_counts`. The decision still reads the driving enrollments only. The Coverage (ETT) sheet shows these counts, so a candidate the rule excluded is visible there too.
 * **s1 stops when the skeleton summary is incomplete**, because a reclean that has not finished leaves the skeletons a mix of two builds.
 
+## Documentation
+
+* **`vignette("tte-spec-schema")` states that a negative-control enrollment normally sets `minimum_events_rule_exempt: true`**, in its section on the minimum-events exemption. A negative control is read for its estimate, whatever its precision.
+
 # swereg 27.3.12
 
 No result changes. A plan built by swereg 27.3.10 or later needs no rerun. An older plan no longer loads. Rerun its `s0_init.R`, then s1 to s3.
