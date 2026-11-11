@@ -113,6 +113,8 @@ Collate:
     'r6_tteplan_checklist.R'
     'r6_tteplan_export.R'
     'r6_tteplan_feasibility.R'
+    'r6_tteplan_feasibility_coverage.R'
+    'r6_tteplan_feasibility_overview.R'
     'r6_tteplan_pipeline.R'
     'r6_tteplan_print.R'
     'r6_tteplan_results.R'
