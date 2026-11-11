@@ -20,8 +20,15 @@
 #' Window conversion rules:
 #' \itemize{
 #'   \item `"lifetime_before_baseline"` -> `Inf`
-#'   \item `"N year"` or `"N years"` -> `N * 52`
+#'   \item A bare number -> that many weeks. A fraction is truncated, so
+#'     `12.5` reads as 12
+#'   \item `"N year"` or `"N years"`, with N a whole number -> `N * 52`
+#'   \item `"lifetime_before_and_after_baseline"` is not converted. Only an
+#'     exclusion criterion that is not a washout accepts it
 #' }
+#' Any other window is refused, `"52 weeks"` and `"6 months"` among them.
+#' `vignette("tte-spec-schema")`, section "What each rule computes", gives
+#' every rule form, every window form and what no rule can express.
 #'
 #' Validation checks:
 #' \itemize{

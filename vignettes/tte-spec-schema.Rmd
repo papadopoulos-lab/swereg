@@ -232,6 +232,70 @@ An enrollment takes at most one `age_range`. Every `age_range` writes the one
 column `eligible_age`, so a second entry would replace the first.
 `tteplan_read_spec()` refuses the second entry.
 
+# What each rule computes
+
+The schema says which keys a specification may carry. This section says what a
+rule built from them computes. Its tables come from `.TTE_SPEC_RULE_FORMS` and
+`.TTE_SPEC_WINDOW_FORMS`, in `R/tteplan_spec_forms.R`. Each worked case below
+is run when this vignette is built. Its example is read by
+`tteplan_read_spec()`, and then compiled by `tteplan_apply_exclusions()` or
+`tteplan_apply_derived_confounders()`. The printed column is the code's own
+output. `tests/testthat/test-tteplan-spec-forms.R` checks the same cases, and
+it fails when the code accepts a rule type that the registry does not hold.
+
+Every eligibility column is combined with AND into `eligible`. A person-week
+enters a trial only when every column is TRUE.
+
+## The forms
+
+```{r rule-forms, echo = FALSE}
+knitr::kable(
+  swereg:::.tte_spec_form_table(),
+  col.names = c("form", "type", "accepted in", "column written")
+)
+```
+
+```{r rule-form-cases, results = "asis", echo = FALSE}
+for (f in swereg:::.TTE_SPEC_RULE_FORMS) {
+  cat("\n### ", f[["title"]], "\n\n", sep = "")
+  cat("- **Source:** ", f[["source"]], "\n", sep = "")
+  cat("- **Computes:** ", f[["computes"]], "\n", sep = "")
+  cat("- **Unobserved weeks:** ", f[["unobserved"]], "\n\n", sep = "")
+  cat("```yaml\n", f[["yaml"]], "```\n\n", sep = "")
+  out <- swereg:::.tte_spec_form_run(f)
+  cat(
+    knitr::kable(out, row.names = FALSE, format = "pipe"),
+    sep = "\n"
+  )
+  cat("\n")
+}
+```
+
+## The windows
+
+A window counts ISO weeks on the calendar, not rows. A week with no row
+therefore still takes up its place in the window.
+
+```{r window-forms, echo = FALSE}
+knitr::kable(
+  swereg:::.tte_spec_window_table(),
+  col.names = c("written", "in the column name", "accepted in", "meaning")
+)
+```
+
+```{r window-defaults, results = "asis", echo = FALSE}
+cat(paste0("- ", swereg:::.TTE_SPEC_WINDOW_DEFAULTS), sep = "\n")
+```
+
+## What a specification cannot express
+
+```{r not-expressible, results = "asis", echo = FALSE}
+cat(paste0("- ", swereg:::.TTE_SPEC_NOT_EXPRESSIBLE), sep = "\n")
+```
+
+A column built in the skeleton is the route for each of these. A rule then
+reads that column as it reads any other.
+
 # The enrollment family
 
 An enrollment MAY set `family`, a short label that groups enrollments in the

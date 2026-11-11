@@ -397,6 +397,27 @@ Key spec structure:
 - **admin_censoring_isoyearweek**: the administrative censoring week, one string `"YYYY-WW"` with a week from 01 to 53. Follow-up includes that week. It sets `plan$global_max_isoyearweek`
 - **enrollments**: each MAY set `family`, a display label for the Summary sheet. When one enrollment sets it, every enrollment MUST set it. Each has `id`, `observed_var`, `intervention_tolerance_weeks`, `comparator_tolerance_weeks`, `treatment`, `additional_inclusion` (e.g. age range) and `additional_exclusion`. `treatment.implementation` holds `variable`, `intervention_value`, `comparator_value`, `comparator_to_intervention_ratio` and `seed`
 
+### What a spec rule computes: `.TTE_SPEC_RULE_FORMS`
+
+`.TTE_SPEC_SCHEMA` lists the keys a spec may carry. `R/tteplan_spec_forms.R` lists
+what a rule built from them computes: every rule form, every window form, and
+what no rule can express. `vignette("tte-spec-schema")`, section "What each rule
+computes", renders all of it from that file, and runs each worked case through
+the real reader and compiler.
+
+- **A change that adds, removes or alters a rule form, a window form or a
+  limit MUST change `R/tteplan_spec_forms.R` in the same commit.** That covers a
+  new rule type, a new case of `.tte_apply_eligibility_batch()`, a new window
+  string, a new block that accepts a rule, and a change to what a column holds.
+- `tests/testthat/test-tteplan-spec-forms.R` fails when a reader type or an
+  evaluator case has no form, when an example is refused in a block its form
+  names, when a worked case gives another result, and when the vignette stops
+  reading the registry. It cannot see a new limit, so add one by hand to
+  `.TTE_SPEC_NOT_EXPRESSIBLE`.
+- **Never write a rule's behaviour into the vignette as prose.** Add it to the
+  form's fields, so the test checks it and the vignette prints it.
+- Answer "can the spec do X?" from that vignette section, not from memory.
+
 ### Key TTE functions, one per file
 
 - `tteplan_read_spec(path)` in `R/tteplan_read_spec.R`: parses and validates the YAML, converts windows to weeks

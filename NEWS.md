@@ -1,3 +1,20 @@
+# swereg 27.3.11
+
+No result changes. No plan needs a rerun.
+
+## Documentation
+
+* **`vignette("tte-spec-schema")` gains the section "What each rule computes".** It covers every rule form a spec can declare, with the blocks that accept it, the column it writes, a YAML example and a worked case of eight weeks. It also lists every way of writing a window, and what no rule can express, such as a count of weeks or an AND across columns.
+* **Each worked case is run when the vignette is built**, through `tteplan_read_spec()` and then `tteplan_apply_exclusions()` or `tteplan_apply_derived_confounders()`. The tables print the code's own output.
+* **`?tteplan_read_spec` lists every window form.** A bare number is a number of weeks, and a fraction is truncated without a message: `12.5` reads as 12. `"52 weeks"` and `"6 months"` are refused.
+* **`only_prior_value` passes a window that holds no observed week.** Before, the vignette did not say so. The rule does not require any week at `value`.
+* **A list of columns in a washout passes `tteplan_read_spec()` and then stops in the compiler** with a data.table error. The vignette now says so. The behaviour is unchanged.
+
+## Internal
+
+* **`R/tteplan_spec_forms.R` holds the registry the new section renders**: `.TTE_SPEC_RULE_FORMS`, `.TTE_SPEC_WINDOW_FORMS`, `.TTE_SPEC_WINDOW_DEFAULTS` and `.TTE_SPEC_NOT_EXPRESSIBLE`.
+* **`tests/testthat/test-tteplan-spec-forms.R` holds the registry to the code.** It fails when a rule type of the reader, or a case of the batch evaluator, has no form. It also fails when an example is refused in a block its form names, when a worked case gives another result, and when the vignette stops reading the registry.
+
 # swereg 27.3.10
 
 No plan needs a rerun for the new spec keys. A plan gets the untruncated per-protocol risk difference only on its next rerun of `$s3_analyze()`.
