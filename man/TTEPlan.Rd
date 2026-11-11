@@ -626,6 +626,12 @@ comparison is exempt. The comparison of an exempt enrollment ends with
 \code{ (exempt)}.}
 \item{Minimum events (#)}{The same layout. Each cell is the largest cut
 of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
+\item{Arm sizes}{One row per enrollment: the person-trials eligible for
+each arm, summed over trials, the comparator-to-intervention ratio
+they give, the ratio the spec asks for, and the person-trials the
+comparator draw took. \code{Flag} reads \verb{Comparator rarer than intervention: consider reversing the arms} when fewer person-trials are eligible for
+the comparator than for the intervention, and \verb{Comparator pool short of the target ratio} when the comparator pool is larger but cannot fill
+the ratio. The sheet holds no outcome.}
 \item{Attrition}{The table of \verb{$get_attrition()}.}
 \item{Protocol adherence}{One row per comparison and arm. \code{N (ITT)}
 counts the person-trials still observed and \code{N (PP)} those still on

@@ -393,6 +393,7 @@ test_that("no sheet of feasibility.xlsx names a stripped column", {
       "Rare conditions",
       "Minimum events (Y or -)",
       "Minimum events (#)",
+      "Arm sizes",
       "Attrition",
       "Protocol adherence",
       "Table 1"
@@ -640,11 +641,13 @@ test_that("(k) both workbooks of $export_tables() show years 1 to 5, years 3 to 
       "Rare conditions",
       "Minimum events (Y or -)",
       "Minimum events (#)",
+      "Arm sizes",
       "Attrition",
       "Table 1"
     )[c(
       TRUE,
       "Rare conditions" %in% openxlsx::getSheetNames(fx$xlsx),
+      TRUE,
       TRUE,
       TRUE,
       TRUE,

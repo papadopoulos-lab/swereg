@@ -1,3 +1,11 @@
+# swereg 27.3.13
+
+No result changes. No plan needs a rerun. A rerun of the feasibility step, or of `$export_tables()`, writes the new sheet.
+
+## New features
+
+* **`feasibility.xlsx` has an Arm sizes sheet**, after the two Minimum events sheets. One row per enrollment shows the person-trials eligible for each arm, summed over trials, the comparators per intervention they give, the target ratio of the spec, and the person-trials the comparator draw took. A row is flagged red, "Comparator rarer than intervention: consider reversing the arms", when fewer person-trials are eligible for the comparator than for the intervention. A row is flagged yellow when the comparator pool is larger but short of the target ratio. `$s3_feasibility()` also names the red enrollments on the console.
+
 # swereg 27.3.12
 
 No result changes. A plan built by swereg 27.3.10 or later needs no rerun. An older plan no longer loads. Rerun its `s0_init.R`, then s1 to s3.

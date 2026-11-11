@@ -93,6 +93,14 @@
 #'     ` (exempt)`.}
 #'   \item{Minimum events (#)}{The same layout. Each cell is the largest cut
 #'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
+#'   \item{Arm sizes}{One row per enrollment: the person-trials eligible for
+#'     each arm, summed over trials, the comparator-to-intervention ratio
+#'     they give, the ratio the spec asks for, and the person-trials the
+#'     comparator draw took. `Flag` reads `Comparator rarer than intervention:
+#'     consider reversing the arms` when fewer person-trials are eligible for
+#'     the comparator than for the intervention, and `Comparator pool short
+#'     of the target ratio` when the comparator pool is larger but cannot fill
+#'     the ratio. The sheet holds no outcome.}
 #'   \item{Attrition}{The table of `$get_attrition()`.}
 #'   \item{Protocol adherence}{One row per comparison and arm. `N (ITT)`
 #'     counts the person-trials still observed and `N (PP)` those still on
@@ -269,6 +277,7 @@ TTEPlan$set(
     .write_feasibility_xlsx(self, baselines, path, adherence)
     cat("feasibility: wrote ", path, "\n", sep = "")
     .feasibility_report(records)
+    .arm_sizes_report(.tte_arm_sizes(self))
     return(invisible(self))
   }
 )
@@ -408,6 +417,7 @@ TTEPlan$set(
   .write_spec_summary(wb, plan)
   .write_sparse_conditions_sheet(wb, plan)
   .write_minimum_events_sheets(wb, plan, records)
+  .write_arm_sizes_sheet(wb, plan, header)
 
   sht <- "Attrition"
   openxlsx::addWorksheet(wb, sht)
@@ -514,6 +524,222 @@ TTEPlan$set(
       length(exempt),
       n,
       paste(exempt, collapse = ", ")
+    ))
+  }
+  return(invisible(NULL))
+}
+
+
+#' The name of the arm-size sheet of the feasibility workbook.
+#' @noRd
+.SHEET_ARM_SIZES <- "Arm sizes"
+
+#' The flag texts of the arm-size table.
+#' @noRd
+.ARM_SIZE_FLAGS <- c(
+  rarer = "Comparator rarer than intervention: consider reversing the arms",
+  short = "Comparator pool short of the target ratio"
+)
+
+
+#' The eligible and enrolled person-trials of each arm, per enrollment
+#'
+#' Sums the comparator-draw counts of `$get_matching()` over the trials of
+#' each enrollment. The intervention arm enters in full. The draw takes
+#' `round(ratio * n)` comparators per trial, or every comparator when the
+#' pool is smaller, so a comparator pool smaller than the intervention arm
+#' can never fill a ratio of 1 or more.
+#'
+#' @param plan A TTEPlan with s1 counts.
+#' @return A data.table with one row per enrollment that stored counts:
+#'   `enrollment_id`, `comparison`, `intervention`, `comparator`,
+#'   `n_intervention_eligible`, `n_comparator_eligible`,
+#'   `ratio_eligible` (comparator per intervention, `NA` when no intervention
+#'   person-trial is eligible), `ratio_target`, `n_intervention_enrolled`,
+#'   `n_comparator_enrolled`, `comparator_rarer`, `comparator_short` and
+#'   `flag`. Zero rows when no enrollment stored counts.
+#' @noRd
+.tte_arm_sizes <- function(plan) {
+  . <- n_intervention_total <- n_comparator_total <- NULL
+  n_intervention_enrolled <- n_comparator_enrolled <- enrollment_id <- NULL
+  mat <- plan$get_matching()
+  empty <- data.table::data.table(
+    enrollment_id = character(0),
+    comparison = character(0),
+    intervention = character(0),
+    comparator = character(0),
+    n_intervention_eligible = numeric(0),
+    n_comparator_eligible = numeric(0),
+    ratio_eligible = numeric(0),
+    ratio_target = numeric(0),
+    n_intervention_enrolled = numeric(0),
+    n_comparator_enrolled = numeric(0),
+    comparator_rarer = logical(0),
+    comparator_short = logical(0),
+    flag = character(0)
+  )
+  if (nrow(mat) == 0L) {
+    return(empty)
+  }
+  agg <- mat[,
+    .(
+      n_intervention_eligible = sum(n_intervention_total, na.rm = TRUE),
+      n_comparator_eligible = sum(n_comparator_total, na.rm = TRUE),
+      n_intervention_enrolled = sum(n_intervention_enrolled, na.rm = TRUE),
+      n_comparator_enrolled = sum(n_comparator_enrolled, na.rm = TRUE)
+    ),
+    keyby = enrollment_id
+  ]
+  enr_spec <- function(eid) {
+    for (enr in plan$spec$enrollments) {
+      if (isTRUE(enr$id == eid)) {
+        return(enr)
+      }
+    }
+    return(NULL)
+  }
+  rows <- lapply(seq_len(nrow(agg)), function(i) {
+    eid <- agg$enrollment_id[i]
+    enr <- enr_spec(eid)
+    arms <- .lookup_arm_labels(plan$spec, eid)
+    ratio <- enr$treatment$implementation$comparator_to_intervention_ratio
+    ratio <- if (is.null(ratio)) NA_real_ else as.numeric(ratio)
+    n_int <- agg$n_intervention_eligible[i]
+    n_cmp <- agg$n_comparator_eligible[i]
+    rarer <- n_int > 0 && n_cmp < n_int
+    short <- !rarer && n_int > 0 && is.finite(ratio) && n_cmp < ratio * n_int
+    flag <- if (rarer) {
+      .ARM_SIZE_FLAGS[["rarer"]]
+    } else if (short) {
+      .ARM_SIZE_FLAGS[["short"]]
+    } else {
+      ""
+    }
+    return(data.table::data.table(
+      enrollment_id = eid,
+      comparison = .enrollment_label(plan, eid),
+      intervention = if (is.null(arms)) NA_character_ else arms[["intervention"]],
+      comparator = if (is.null(arms)) NA_character_ else arms[["comparator"]],
+      n_intervention_eligible = n_int,
+      n_comparator_eligible = n_cmp,
+      ratio_eligible = if (n_int > 0) round(n_cmp / n_int, 2) else NA_real_,
+      ratio_target = ratio,
+      n_intervention_enrolled = agg$n_intervention_enrolled[i],
+      n_comparator_enrolled = agg$n_comparator_enrolled[i],
+      comparator_rarer = rarer,
+      comparator_short = short,
+      flag = flag
+    ))
+  })
+  return(data.table::rbindlist(c(list(empty), rows), use.names = TRUE))
+}
+
+
+#' Write the Arm sizes sheet of the feasibility workbook
+#'
+#' A flagged row is filled red when the comparator is rarer than the
+#' intervention, and yellow when the comparator pool is short of the target
+#' ratio.
+#'
+#' @param wb An openxlsx workbook.
+#' @param plan A TTEPlan.
+#' @param header The header style of the workbook.
+#' @return `invisible(NULL)`.
+#' @noRd
+.write_arm_sizes_sheet <- function(wb, plan, header) {
+  sht <- .SHEET_ARM_SIZES
+  openxlsx::addWorksheet(wb, sht)
+  openxlsx::writeData(
+    wb,
+    sht,
+    "Arm sizes: person-trials eligible for each arm, before the comparator draw"
+  )
+  openxlsx::addStyle(
+    wb,
+    sht,
+    openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+    rows = 1L,
+    cols = 1L
+  )
+  openxlsx::writeData(
+    wb,
+    sht,
+    paste0(
+      "Summed over trials. The draw takes every eligible intervention ",
+      "person-trial and up to the target ratio of comparators per trial. ",
+      "When the comparator is rarer than the intervention, reversing the arms ",
+      "lets the draw fill the ratio."
+    ),
+    startRow = 2L
+  )
+  tab <- .tte_arm_sizes(plan)
+  if (nrow(tab) == 0L) {
+    openxlsx::writeData(wb, sht, "(no comparator-draw counts)", startRow = 4L)
+    return(invisible(NULL))
+  }
+  out <- data.table::data.table(
+    Enrollment = tab$enrollment_id,
+    Comparison = tab$comparison,
+    Intervention = tab$intervention,
+    Comparator = tab$comparator,
+    `Eligible intervention person-trials` = tab$n_intervention_eligible,
+    `Eligible comparator person-trials` = tab$n_comparator_eligible,
+    `Comparators per intervention (eligible)` = tab$ratio_eligible,
+    `Comparators per intervention (target)` = tab$ratio_target,
+    `Enrolled intervention person-trials` = tab$n_intervention_enrolled,
+    `Enrolled comparator person-trials` = tab$n_comparator_enrolled,
+    Flag = tab$flag
+  )
+  openxlsx::writeData(wb, sht, out, startRow = 4L, headerStyle = header)
+  fills <- list(
+    rarer = openxlsx::createStyle(fgFill = "#F4B6B6"),
+    short = openxlsx::createStyle(fgFill = "#FFE699")
+  )
+  for (k in names(fills)) {
+    hit <- which(tab[[paste0("comparator_", k)]])
+    if (length(hit) > 0L) {
+      openxlsx::addStyle(
+        wb,
+        sht,
+        fills[[k]],
+        rows = 4L + hit,
+        cols = seq_len(ncol(out)),
+        gridExpand = TRUE
+      )
+    }
+  }
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(ncol(out)),
+    widths = c(12, 50, 30, 30, rep(16, 6), 40)
+  )
+  return(invisible(NULL))
+}
+
+
+#' Name every enrollment whose comparator is rarer than its intervention
+#'
+#' @param tab The table of `.tte_arm_sizes()`.
+#' @return `invisible(NULL)`.
+#' @noRd
+.arm_sizes_report <- function(tab) {
+  rarer <- tab$enrollment_id[tab$comparator_rarer]
+  short <- tab$enrollment_id[tab$comparator_short]
+  if (length(rarer) > 0L) {
+    cat(sprintf(
+      "feasibility: the comparator is rarer than the intervention in %d of %d enrollments; consider reversing the arms: %s\n",
+      length(rarer),
+      nrow(tab),
+      paste(rarer, collapse = ", ")
+    ))
+  }
+  if (length(short) > 0L) {
+    cat(sprintf(
+      "feasibility: the comparator pool is short of the target ratio in %d of %d enrollments: %s\n",
+      length(short),
+      nrow(tab),
+      paste(short, collapse = ", ")
     ))
   }
   return(invisible(NULL))

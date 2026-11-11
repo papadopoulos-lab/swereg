@@ -647,15 +647,18 @@ The method reads the analysis file, weight, follow-up and threshold that
 decision s3 makes. It stores the decision in `plan$feasibility` and writes
 `feasibility.xlsx` to `plan$dir_results`.
 
-The workbook holds five to seven sheets, in this order:
+The workbook holds six to eight sheets, in this order:
 
 1. Study Specification.
 2. Rare conditions, only when the spec carries `rare_condition_rule`.
 3. Minimum events (Y or -).
 4. Minimum events (#).
-5. Attrition.
-6. Protocol adherence, only when an enrollment has an adherence table.
-7. Table 1, unweighted.
+5. Arm sizes.
+6. Attrition.
+7. Protocol adherence, only when an enrollment has an adherence table.
+8. Table 1, unweighted.
+
+The Arm sizes sheet holds one row per enrollment. It shows the person-trials eligible for each arm, summed over trials, the comparators per intervention they give, the ratio the spec asks for, and the person-trials the comparator draw took. A row is flagged red when fewer person-trials are eligible for the comparator than for the intervention. The draw then cannot fill a 1:1 or larger ratio, and reversing the arms of that enrollment in a new spec version lets it fill. A row is flagged yellow when the comparator pool is larger than the intervention arm but short of the target ratio. `$s3_feasibility()` also names each red enrollment on the console.
 
 The Protocol adherence sheet shows how much per-protocol follow-up each arm keeps. For each comparison and arm, `N (ITT)` counts the person-trials still observed and `N (PP)` those still on protocol. The sheet shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel. Section 1.8.5 of `vignette("tte-methods")` defines the counts. `$export_tables()` writes the same sheet after the last `Attrition_<id>` and `Love_<id>` sheet.
 
