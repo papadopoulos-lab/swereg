@@ -285,7 +285,7 @@ test_that("a failed s1b keeps the previous decision for the retry", {
   retry$decision[retry$variable == x] <- "adjusted"
   local({
     testthat::local_mocked_bindings(
-      .s1b_run = function(...) retry,
+      .s1b_run = function(...) list(decision = retry, counts = NULL),
       .package = "swereg"
     )
     run_s1()
@@ -371,7 +371,7 @@ spr_two_run_plan <- function(name) {
   dispatch <- swereg:::.batch_run_and_write
   out$error <- local({
     testthat::local_mocked_bindings(
-      .s1b_run = function(...) out$new_decision,
+      .s1b_run = function(...) list(decision = out$new_decision, counts = NULL),
       .batch_run_and_write = function(..., label) {
         if (identical(name, "failed") && identical(label, "s1e")) {
           stop("s1e failed in the test")
