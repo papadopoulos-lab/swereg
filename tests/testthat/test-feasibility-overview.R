@@ -96,7 +96,7 @@ test_that("Rare conditions by comparison shows the smaller arm, marks c and coun
   expect_true(swereg:::.write_overview_rare(wb, .ov_plan()))
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  d <- openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", startRow = 7L, check.names = FALSE)
+  d <- openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", startRow = 7L, check.names = FALSE, sep.names = " ")
   expect_identical(names(d)[2:3], c("M01 (decides)", "M02"))
   # M01, rd_a: intervention 300, comparator 500 -> 300.
   # M01, rd_b: intervention 3, comparator 90 -> <5.
@@ -105,4 +105,34 @@ test_that("Rare conditions by comparison shows the smaller arm, marks c and coun
   expect_identical(d[[2]][1:2], c("300", "<5"))
   expect_identical(d[[3]][1:2], c("120 c", "<5 c"))
   expect_identical(as.numeric(d[["Comparisons < 100"]][1:2]), c(0, 2))
+})
+
+test_that("Longest reportable reads the specification threshold from the stored verdict", {
+  skip_if_not_installed("openxlsx")
+  # One comparison, one outcome, two years. The grid cut is "-" in both
+  # years: the expected events fall below 1. A threshold of 0 still passes
+  # every year, and the stored verdict says so.
+  testthat::local_mocked_bindings(
+    .overview_cuts = function(plan, records) {
+      return(list(
+        ids = "01",
+        names = c(`01` = "Statin vs none"),
+        outcomes = "Death",
+        years = c("1 year", "2 years"),
+        cut = list(Death = matrix(c("-", "-"), 1L)),
+        yn = list(Death = matrix(c("Y", "Y"), 1L))
+      ))
+    },
+    .package = "swereg"
+  )
+  plan <- list(spec = list(min_expected_events_per_arm_per_year = 0))
+  wb <- openxlsx::createWorkbook()
+  swereg:::.write_overview_min_events(wb, plan, list())
+  path <- tempfile(fileext = ".xlsx")
+  openxlsx::saveWorkbook(wb, path)
+  d <- openxlsx::read.xlsx(path, sheet = "Longest reportable", colNames = FALSE, skipEmptyRows = FALSE)
+  row <- d[which(d[[1]] == "01"), , drop = FALSE]
+  hdr <- d[which(d[[1]] == "ID")[2L], , drop = FALSE]
+  expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 0")])), "2 years")
+  expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 5")])), "none")
 })

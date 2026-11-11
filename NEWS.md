@@ -9,7 +9,7 @@ No result changes. No plan needs a rerun. A rerun of the feasibility step, or of
 * **s1 freezes the skeleton summary into the plan**, as `plan$skeleton_summary`. The Coverage (whole dataset) sheet reads that frozen copy, so it describes the skeleton the ETTs were built from. When a newer summary is on disk, the sheet says that a reclean ran after s1. A plan from before this version has no frozen copy, and the sheet reads the live summary and says so.
 * **`feasibility.xlsx` opens with five overview sheets**, one grid per question with colour fills and a legend:
   * *Minimum events*: one row per comparison, one column per outcome and follow-up year, each cell the largest passing cut (≥20, 10, 5, 1 to 4, or -).
-  * *Longest reportable*: the longest horizon each comparison and outcome would report at thresholds 5, 10 and 20, and at the spec's own threshold.
+  * *Longest reportable*: the longest horizon each comparison and outcome would report at thresholds 5, 10 and 20, and at the spec's own threshold. The spec's column reads the stored verdict of the rule, so a threshold off the grid of cuts, such as 0, reads correctly.
   * *Attrition by arm*: each step by its criterion name, with an intervention and a comparator column per comparison, as person-trials left and removed. A step that removes nobody in any comparison is red.
   * *Rare conditions by comparison*: the persons in the smaller arm holding each candidate at baseline, for every comparison, with `c` where the comparator is smaller and the counts below `min_n` on both margins.
   * *Table 1 (filterable)*: every comparison and both panels in one table with an autofilter, counts and shares in separate columns, and the SMD coloured from 0.1 and 0.2.

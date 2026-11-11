@@ -1549,11 +1549,13 @@ TTEPlan$set(
 #' @return A list: `ids` and `names` of the comparisons, `outcomes`,
 #'   `years` (the column labels), and `cut`, a list by outcome of a character
 #'   matrix comparisons x years with the largest passing cut, `"-"` for none
-#'   and `NA` for no ETT.
+#'   and `NA` for no ETT. `yn` has the same shape and holds the verdict of
+#'   the specification's own threshold, `"Y"` or `"-"`.
 #' @noRd
 .overview_cuts <- function(plan, records) {
   wide <- .minimum_events_wide(plan, records)
   tab <- wide$cut
+  tab_yn <- wide$yn
   ett <- plan$ett
   enr <- .osf_comparison_numbers(plan$spec)
   enr_ids <- unique(c(names(enr), unique(ett$enrollment_id)))
@@ -1566,21 +1568,27 @@ TTEPlan$set(
     }
   }
   outcomes <- unique(outcome)
-  cut <- lapply(outcomes, function(o) {
-    m <- matrix(NA_character_, length(enr_ids), length(years))
-    rows <- which(outcome == o)
-    for (r in rows) {
-      m[tab[["#"]][r], ] <- as.character(unlist(tab[r, years]))
-    }
-    return(m)
-  })
-  names(cut) <- outcomes
+  pivot <- function(src) {
+    res <- lapply(outcomes, function(o) {
+      m <- matrix(NA_character_, length(enr_ids), length(years))
+      rows <- which(outcome == o)
+      for (r in rows) {
+        m[src[["#"]][r], ] <- as.character(unlist(src[r, years]))
+      }
+      return(m)
+    })
+    names(res) <- outcomes
+    return(res)
+  }
+  cut <- pivot(tab)
+  yn <- pivot(tab_yn)
   return(list(
     ids = enr_ids,
     names = vapply(enr_ids, function(e) .enrollment_label(plan, e), character(1)),
     outcomes = outcomes,
     years = years,
-    cut = cut
+    cut = cut,
+    yn = yn
   ))
 }
 
@@ -1684,7 +1692,12 @@ TTEPlan$set(
   col <- 2L
   for (o in x$outcomes) {
     m <- x$cut[[o]]
+    m_yn <- x$yn[[o]]
     for (th in thr) {
+      # A cut is a value of the coarse grid, so it decides only a threshold
+      # of that grid. The specification's own threshold reads the stored
+      # verdict of the rule instead, which holds for any threshold.
+      own <- !is.null(k) && th == as.numeric(k)
       col <- col + 1L
       hdr1 <- c(hdr1, if (th == thr[1L]) o else "")
       hdr2 <- c(hdr2, paste0("threshold ", format(th)))
@@ -1694,7 +1707,12 @@ TTEPlan$set(
         avail <- which(!is.na(m[r, ]))
         last <- 0L
         for (j in seq_along(x$years)) {
-          if (is.na(m[r, j]) || is.na(n[j]) || n[j] < th) {
+          fails <- if (own) {
+            !identical(m_yn[r, j], "Y")
+          } else {
+            is.na(m[r, j]) || is.na(n[j]) || n[j] < th
+          }
+          if (fails) {
             break
           }
           last <- j
@@ -2062,6 +2080,7 @@ TTEPlan$set(
         Comparator = cmp$value,
         `Comparator %` = suppressWarnings(as.numeric(cmp$pct)),
         SMD = round(smd, 3),
+        smd_raw = smd,
         check.names = FALSE,
         stringsAsFactors = FALSE
       )
@@ -2072,6 +2091,10 @@ TTEPlan$set(
     return(invisible(NULL))
   }
   d <- do.call(rbind, rows)
+  # The colour band reads the unrounded SMD: 0.0996 shows as 0.1 and stays
+  # uncoloured.
+  smd_raw <- d$smd_raw
+  d$smd_raw <- NULL
   openxlsx::writeDataTable(
     wb,
     sht,
@@ -2081,7 +2104,7 @@ TTEPlan$set(
     withFilter = TRUE
   )
   for (f in c("orange", "red")) {
-    hit <- which(!is.na(d$SMD) & if (f == "red") d$SMD >= 0.2 else d$SMD >= 0.1 & d$SMD < 0.2)
+    hit <- which(!is.na(smd_raw) & if (f == "red") smd_raw >= 0.2 else smd_raw >= 0.1 & smd_raw < 0.2)
     if (length(hit) > 0L) {
       .overview_fill(wb, sht, cbind(start + hit, ncol(d)), f)
     }
