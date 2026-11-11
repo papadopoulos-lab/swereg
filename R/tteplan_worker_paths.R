@@ -146,8 +146,11 @@
 }
 
 #' @noRd
-.s1b_counts_path <- function(work_dir) {
-  return(file.path(work_dir, "s1b_sparse_counts.qs2"))
+.s1b_counts_path <- function(work_dir, eid = NULL) {
+  if (is.null(eid)) {
+    return(file.path(work_dir, "s1b_sparse_counts.qs2"))
+  }
+  return(file.path(work_dir, sprintf("s1b_sparse_counts_enr%s.qs2", eid)))
 }
 #' @noRd
 .s1c_enrolled_ids_path <- function(work_dir, eid) {
