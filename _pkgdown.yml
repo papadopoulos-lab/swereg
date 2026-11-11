@@ -126,6 +126,7 @@ articles:
   - caching-and-resume
   - tte-workflow
   - tte-spec-schema
+  - tte-matched-sets
 
 - title: TTE reference
   navbar: TTE reference

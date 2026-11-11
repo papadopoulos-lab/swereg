@@ -159,7 +159,9 @@ Other skeleton_pipeline:
 
     \item{\code{id_col}}{Character. Person ID column name.}
 
-    \item{\code{n_ids}}{Integer. Total number of IDs across all batches.}
+    \item{\code{n_ids}}{Integer. The number of distinct IDs across all batches.
+After \verb{$set_matched_sets()} these are skeleton IDs, so a person
+with two memberships counts twice.}
 
     \item{\code{n_batches}}{Integer. Number of batches.}
 
@@ -1114,7 +1116,9 @@ batch, which \verb{$set_ids()} cannot do because it shuffles the IDs.
 An ID MAY be in more than one batch. \verb{$save_rawbatch()} then
 writes every row of that ID into each batch that holds it. The
 population and summary counts sum over the batches, so they count
-a person in two batches twice.
+a person in two batches twice. A TTE reads one copy of the person,
+from the first batch that holds the ID. See
+\code{vignette("tte-matched-sets")}.
 
 The method stops when rawbatch or skeleton files are on disk and
 the new composition differs from the recorded one. A study with
@@ -1165,6 +1169,11 @@ do not change. \verb{$save_rawbatch()} also writes the roster rows of
 each batch as the rawbatch group \code{"roster"}, with the person ID and
 the \code{skeleton_id} unchanged. Every phase function reads them as
 \code{batch_data[["roster"]]}.
+
+A TTE built on the study reads one copy of each person: the first
+by (batch, \code{skeleton_id}) among the skeleton files it reads. s0
+stops when two copies of a person differ in a column the spec
+reads. See \code{vignette("tte-matched-sets")}.
 
 A roster where every \code{skeleton_id} equals the person ID gives the
 same rawbatch files as \verb{$set_batches()} on the same IDs, plus the

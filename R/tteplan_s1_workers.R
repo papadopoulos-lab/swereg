@@ -26,7 +26,13 @@
 #'   s1c enrolled-ids file from it.
 #' @return `list(panel = <TTEEnrollment>)`. Writes nothing.
 #' @noRd
-.s1d_worker <- function(enrollment_spec, file_path, spec, work_dir) {
+.s1d_worker <- function(
+  enrollment_spec,
+  file_path,
+  spec,
+  work_dir,
+  drop_ids = NULL
+) {
   eid <- enrollment_spec$enrollment_id
   skel_basename <- basename(file_path)
   cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
@@ -39,7 +45,8 @@
     spec,
     enrolled_ids,
     cache_path,
-    require_cache = TRUE
+    require_cache = TRUE,
+    drop_ids = drop_ids
   )
   return(list(panel = enrollment))
 }
@@ -66,7 +73,8 @@
   spec,
   enrolled_ids,
   cache_path = NULL,
-  require_cache = FALSE
+  require_cache = FALSE,
+  drop_ids = NULL
 ) {
   id <- isoyearweek <- NULL
   # Subset to enrolled persons before expensive confounder computation
@@ -112,11 +120,14 @@
     data.table::setattr(skeleton, ".tte_filtered_to_enrolled", TRUE)
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
   } else {
+    # The cache above already holds one copy per person. This branch reads
+    # the whole skeleton again, so it drops the other copies itself.
     skeleton <- .s1_prepare_skeleton(
       enrollment_spec,
       file_path,
       spec,
-      derive_confounders = FALSE
+      derive_confounders = FALSE,
+      drop_ids = drop_ids
     )
     skeleton <- skeleton[
       .(unique(enrolled_persons)),

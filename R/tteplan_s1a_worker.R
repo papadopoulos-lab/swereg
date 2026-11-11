@@ -164,6 +164,9 @@
 #                    written one frame down by .s1a_finalize_on_skeleton)
 #   pre_{eid}     -> s1a_pre_enr{eid}_{basename}    (tuples + attrition)
 #
+# `drop_ids` holds the skeleton IDs of the copies this file drops, or NULL,
+# see R/tteplan_s1_copies.R.
+#
 # Dispatched via .batch_run_and_write(style = "staged_writer"): the PARENT
 # declares all 2N paths (.s1a_outputs_for_skeleton()) and this worker BUILDS
 # NO PATH of its own -- it resolves each destination by NAME through
@@ -180,13 +183,22 @@
 #
 # The worker returns nothing through the result envelope, so the master never
 # holds 19 (tuples, attrition) chunks in RAM after the pool completes.
-.s1a_worker_multi <- function(file_path, enrollment_specs, spec) {
+.s1a_worker_multi <- function(
+  file_path,
+  enrollment_specs,
+  spec,
+  drop_ids = NULL
+) {
   id <- isoyearweek <- NULL # nolint
   n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
   data.table::setDTthreads(n_threads)
   skel_basename <- basename(file_path)
 
   canonical <- .s1_load_skeleton(file_path, n_threads)
+  # A person's other copies, which the parent chose in
+  # .tte_copies_to_drop(). They go before eligibility, so no count, tuple or
+  # cache below ever holds them. NULL on a study without copies.
+  canonical <- .tte_drop_copies(canonical, drop_ids)
   # Drop unneeded columns in place via `:= NULL` instead of copying the
   # needed subset out to a new data.table. With ~970 columns to drop out
   # of ~1025, the in-place drop is essentially free (each `:= NULL` just

@@ -138,7 +138,9 @@ an ETT of that length.
 
     \item{\code{code_registry}}{data.table from \link{RegistryStudy}\verb{$summary_table()}, or NULL.}
 
-    \item{\code{expected_n_ids}}{Total number of individuals across all batches, or NULL.}
+    \item{\code{expected_n_ids}}{The number of distinct persons across all
+batches, or NULL. On a matched-set study these are the persons of
+the roster, not the skeleton IDs.}
 
     \item{\code{created_at}}{POSIXct. When this plan was created.}
 

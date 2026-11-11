@@ -124,7 +124,9 @@ TTEPlan <- R6::R6Class(
     expected_skeleton_file_count = NULL,
     #' @field code_registry data.table from [RegistryStudy]`$summary_table()`, or NULL.
     code_registry = NULL,
-    #' @field expected_n_ids Total number of individuals across all batches, or NULL.
+    #' @field expected_n_ids The number of distinct persons across all
+    #'   batches, or NULL. On a matched-set study these are the persons of
+    #'   the roster, not the skeleton IDs.
     expected_n_ids = NULL,
     #' @field created_at POSIXct. When this plan was created.
     created_at = NULL,

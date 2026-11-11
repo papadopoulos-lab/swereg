@@ -305,12 +305,21 @@ TTEPlan$set(
       length(files),
       n_enr
     ))
+    # One copy per person (R/tteplan_s1_copies.R). `drop_ids` is NULL for a
+    # file that drops nothing. batchit refuses an item that leaves a formal
+    # out, so every item names it.
+    copies <- .tte_copies_to_drop(self$registrystudy, files)
+    cat(sprintf(
+      "      copies of a person dropped before eligibility: %d\n",
+      copies$n_dropped
+    ))
     p_s1a <- progressr::progressor(steps = length(files))
     s1a_items <- lapply(seq_along(files), function(j) {
       return(list(
         file_path = files[j],
         enrollment_specs = all_es,
-        spec = spec
+        spec = spec,
+        drop_ids = copies$drop[[skel_basenames[j]]]
       ))
     })
     # Stable ids: the skeleton each scout reads, prefixed with the sub-step
@@ -456,7 +465,8 @@ TTEPlan$set(
           enrollment_spec = es,
           file_path = files[j],
           spec = spec,
-          work_dir = work_dir
+          work_dir = work_dir,
+          drop_ids = copies$drop[[skel_basenames[j]]]
         )
         # The panel chunk the worker's return value commits to. `work_dir` is
         # absolute (.s1_work_dir()), which batchit's atomic commit requires.

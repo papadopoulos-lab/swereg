@@ -9,10 +9,12 @@
   enrollment_spec,
   file_path,
   spec,
-  derive_confounders = TRUE
+  derive_confounders = TRUE,
+  drop_ids = NULL
 ) {
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
+  skeleton <- .tte_drop_copies(skeleton, drop_ids)
   return(.s1_prepare_loaded(
     skeleton,
     enrollment_spec,
