@@ -116,7 +116,8 @@ s1a_dispatch <- function(fx, j = 1L, outputs = NULL) {
   items <- list(list(
     file_path = fx$skel_paths[j],
     enrollment_specs = fx$all_es,
-    spec = fx$spec
+    spec = fx$spec,
+    drop_ids = NULL
   ))
   names(items) <- id
   if (is.null(outputs)) {
@@ -162,7 +163,7 @@ s1a_dispatch <- function(fx, j = 1L, outputs = NULL) {
 
 test_that(".s1a_worker_multi is handed no work_dir and no output path", {
   need <- names(formals(swereg:::.s1a_worker_multi))
-  expect_setequal(need, c("file_path", "enrollment_specs", "spec"))
+  expect_setequal(need, c("file_path", "enrollment_specs", "spec", "drop_ids"))
   expect_false("work_dir" %in% need)
   expect_false(any(grepl("path$", setdiff(need, "file_path"))))
 })

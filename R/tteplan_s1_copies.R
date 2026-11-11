@@ -138,6 +138,16 @@
   return(skeleton)
 }
 
+# The number of batches a study describes: the roster batches on a
+# matched-set study, otherwise the batch ID list. 0 when it holds neither.
+.tte_n_batches <- function(study) {
+  roster <- .tte_study_field(study, "matched_set_roster")
+  if (!is.null(roster)) {
+    return(length(roster))
+  }
+  return(length(.tte_study_field(study, "batch_id_list")))
+}
+
 # The number of distinct persons in a study: the persons of the roster on a
 # matched-set study, otherwise the distinct IDs of the batch ID list. NULL when
 # the study holds neither.
@@ -172,6 +182,23 @@
 .tte_check_copies_agree <- function(study, files, spec, enrollment_specs) {
   batch <- person <- n_copies <- i.person <- i.n_copies <- NULL # nolint
   batches <- .skeleton_batch_number(files)
+  # s1 finds a file's batch by its name. A name without a batch number gives
+  # no batch, and s1 then drops no copy. So refuse it here, when the study
+  # gives some person two copies.
+  if (anyNA(batches)) {
+    all_copies <- .tte_copies(study, seq_len(.tte_n_batches(study)))
+    if (!is.null(all_copies) && anyDuplicated(all_copies[["person"]]) > 0L) {
+      stop(
+        "tteplan_from_spec_and_registrystudy(): the study gives a person ",
+        "more than one copy, and skeleton file '",
+        basename(files[is.na(batches)][1L]),
+        "' is not named skeleton_NNNNN.qs2. s1 finds the batch of a file ",
+        "by that name, and reads one copy per person only when it can.",
+        call. = FALSE
+      )
+    }
+    return(invisible(NULL))
+  }
   copies <- .tte_copies(study, batches)
   if (is.null(copies)) {
     return(invisible(NULL))

@@ -234,7 +234,8 @@ tteplan_from_spec_and_registrystudy <- function(
 
   # s1 reads one copy per person (R/tteplan_s1_copies.R). That is only safe
   # when a person's copies agree on what the spec reads, so check it here,
-  # before s1, on the files that hold the first person with two copies.
+  # before s1, on the files that hold the first person with two copies. With
+  # a skeleton file absent, nothing is checked.
   if (all(file.exists(skeleton_files))) {
     enrollment_specs <- lapply(
       seq_along(unique(plan$ett$enrollment_id)),

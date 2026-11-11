@@ -358,6 +358,23 @@ test_that("s0 refuses copies that hold different weeks", {
   )
 })
 
+test_that("s0 refuses copies in a file whose name gives no batch", {
+  skip_on_cran()
+  root <- withr::local_tempdir()
+  plan <- .mc_plan(root, "matched_set")
+  files <- plan$skeleton_files
+  renamed <- file.path(dirname(files), c("first.qs2", "second.qs2"))
+  file.rename(files, renamed)
+  study <- .mc_study(renamed, file.path(root, "meta"), "matched_set")
+  expect_error(
+    swereg:::.tte_check_copies_agree(study, renamed, plan$spec, list()),
+    "'first.qs2' is not named skeleton_NNNNN.qs2"
+  )
+  # Without copies, such a name is fine.
+  study <- .mc_study(renamed, file.path(root, "meta"), "reference")
+  expect_null(swereg:::.tte_check_copies_agree(study, renamed, plan$spec, list()))
+})
+
 test_that("s0 accepts copies that differ only in a column the spec does not read", {
   skip_on_cran()
   edit <- function(batches) {

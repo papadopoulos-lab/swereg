@@ -55,7 +55,7 @@ Both rules need the ID to be the person. A second copy breaks them:
 s1 keeps the first copy of each person by (batch, skeleton ID), among the skeleton files the run reads. s1a drops the rows of every other copy straight after it loads a skeleton, before the eligibility rules run. Then:
 
 - The attrition counts, the tuples, the rare-condition counts, the comparator draw and the panels hold each person once.
-- The skeleton ID of the kept copy is the person, so the clustering on `id` is a clustering on the person.
+- Each person is left with one skeleton ID, the one of the kept copy. A skeleton ID belongs to one person, so the clustering on `id` is a clustering on the person. The kept ID need not equal the person ID.
 
 A copy that is dropped is not an exclusion. The person is still there, as the kept copy. So no attrition or CONSORT step counts the dropped copies. The s1 log prints their number.
 
