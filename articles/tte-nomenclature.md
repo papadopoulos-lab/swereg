@@ -8,12 +8,12 @@ code that uses `TTEDesign`, `TTEEnrollment` or `TTEPlan`.
 
 ## Data levels
 
-| Term                 | Meaning                                                                                                                                                                                                                                                 |
-|:---------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **skeleton**         | Person-week panel created by [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) and enriched with registry data. One row per person per ISO week. Input to the TTE pipeline. Stored as batched `.qs2` files. |
-| **person-week**      | Synonym for skeleton-level data before enrollment. The `data_level` of a `TTEEnrollment` starts as `"person_week"`.                                                                                                                                     |
-| **trial**            | After enrollment via `TTEEnrollment$new(..., ratio = )`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`.                                                                                |
-| **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression.                                                                            |
+| Term | Meaning |
+|:---|:---|
+| **skeleton** | Person-week panel created by [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) and enriched with registry data. One row per person per ISO week. Input to the TTE pipeline. Stored as batched `.qs2` files. |
+| **person-week** | Synonym for skeleton-level data before enrollment. The `data_level` of a `TTEEnrollment` starts as `"person_week"`. |
+| **trial** | After enrollment via `TTEEnrollment$new(..., ratio = )`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`. |
+| **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression. |
 
 ## Time axes
 
@@ -21,22 +21,22 @@ Each trial-level row carries three time axes. One is a function of the
 other two: `period_id` = `enrollment_period_id` + interval number, where
 the interval number is `tstart / period_width + 1`.
 
-| Term                       | Meaning                                                                                                                                                                                                                                                                                                          |
-|:---------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **`period_id`**            | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it.                                                                                                            |
-| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw and the outcome models read it. The attrition table and the comparator-draw counts that `$get_matching()` returns carry it as a key column.                             |
-| **time since time zero**   | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at `tstop`. On the last row of a person-trial, `tstop` is the week where follow-up stops, which can fall inside the interval. |
+| Term | Meaning |
+|:---|:---|
+| **`period_id`** | The calendar period of a row: of a skeleton week before enrollment, and of a follow-up interval after it. `.assign_period_ids()` sets it from a fixed calendar origin. The IPCW denominator reads it. |
+| **`enrollment_period_id`** | The trial: the enrollment period of the person-trial, which ends at time zero. It is constant within a person-trial. The comparator draw and the outcome models read it. The attrition table and the comparator-draw counts that `$get_matching()` returns carry it as a key column. |
+| **time since time zero** | The weeks from time zero to the start of the follow-up interval, held in `tstart` (`design$tstart_var`). Every outcome and censoring model reads it at the interval start, and not at `tstop`. On the last row of a person-trial, `tstop` is the week where follow-up stops, which can fall inside the interval. |
 
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.9 states which axes each model holds, and why.
 
 ## Classes
 
-| Class               | Role                                                                                                                                                                                 |
-|:--------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **`TTEDesign`**     | Column name mappings that define the trial schema: person ID, treatment, outcome, confounder, and time variables. Created once via `TTEDesign$new()` and reused across the workflow. |
-| **`TTEEnrollment`** | Enrollment data container (data.table + design + workflow state). Methods modify in-place via R6 reference semantics and return `invisible(self)` for `$`-chaining.                  |
-| **`TTEPlan`**       | Builder for trial generation. Holds the ETT grid, skeleton file paths, and per-ETT design parameters. Orchestrates Loop 1 via `$s1_generate_enrollments_and_ipw()`.                  |
+| Class | Role |
+|:---|:---|
+| **`TTEDesign`** | Column name mappings that define the trial schema: person ID, treatment, outcome, confounder, and time variables. Created once via `TTEDesign$new()` and reused across the workflow. |
+| **`TTEEnrollment`** | Enrollment data container (data.table + design + workflow state). Methods modify in-place via R6 reference semantics and return `invisible(self)` for `$`-chaining. |
+| **`TTEPlan`** | Builder for trial generation. Holds the ETT grid, skeleton file paths, and per-ETT design parameters. Orchestrates Loop 1 via `$s1_generate_enrollments_and_ipw()`. |
 
 ## ETT grid
 
@@ -45,12 +45,12 @@ class prefix, and ETT names one cell of the grid. ETT is always
 countable. Write “one ETT” or “12 ETTs”. Never write “the ETT approach”,
 which is TTE.
 
-| Term                            | Meaning                                                                                                                                                                                                                           |
-|:--------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **ETT** (emulated target trial) | One combination of outcome × follow-up duration × `enrollment_id`. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`.                                                                            |
-| **enrollment_id**               | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and the same design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
-| **ett_id**                      | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`.                                                                                                                             |
-| **enrollment_spec**             | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers.                                          |
+| Term | Meaning |
+|:---|:---|
+| **ETT** (emulated target trial) | One combination of outcome × follow-up duration × `enrollment_id`. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`. |
+| **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and the same design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
+| **ett_id** | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`. |
+| **enrollment_spec** | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers. |
 
 ## Two-loop architecture
 
@@ -81,46 +81,46 @@ truncated copy `analysis_weight_pp_trunc`. It keeps the three factors of
 
 ## Weights
 
-| Term                                                                   | Meaning                                                                                                                                                                                                                                                                                                                                                                |
-|:-----------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **IPW** (Inverse Probability of treatment Weighting)                   | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$s2_ipw()`.                                                                                                                                                                                                                                                                            |
-| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$s4_prepare_for_analysis()`. `ipcw_pp` is the product `ipcw_pp_time_zero × ipcw_pp_loss × ipcw_pp_deviation`, one factor per censoring model.                                                                                   |
-| **loss model**                                                         | The IPCW model for loss of observation, indicator `censor_loss`. It fits on the rows without an outcome, because loss is observed after the outcome of a row. Its factor is `ipcw_pp_loss`.                                                                                                                                                                            |
-| **deviation model**                                                    | The IPCW model for protocol deviation, indicator `censor_deviation`. It fits on the rows without an outcome that were not lost, because a person who is not observed cannot be seen to deviate. Its factor is `ipcw_pp_deviation`.                                                                                                                                     |
-| **deviation at time zero**                                             | A deviation that stops per-protocol follow-up at time zero, so the person-trial keeps no row. `$time_zero_deviation` records every person-trial under follow-up at time zero, with `deviation_time_zero`. A logistic model fitted on that record gives the factor `ipcw_pp_time_zero`.                                                                                 |
-| **not-fitted sentinel**                                                | `list(fitted = FALSE, reason = )` in `$ipcw_formulas[[stratum]][[cause]]`, for a cause with no censoring in its risk set. Its factor is 1.                                                                                                                                                                                                                             |
-| **analysis_weight_pp**                                                 | Final combined weight (`ipw × ipcw_pp`), not truncated. Created automatically by `$s4_prepare_for_analysis()`.                                                                                                                                                                                                                                                         |
-| **analysis_weight_pp_trunc**                                           | `analysis_weight_pp` truncated at the 1st and 99th percentiles. `$s4_prepare_for_analysis()` writes it.                                                                                                                                                                                                                                                                |
-| **truncation**                                                         | Winsorization of extreme weights at the 1st and 99th percentiles to reduce variance. It writes a copy with the suffix `_trunc` and leaves the original weight unchanged. `$s3_truncate_weights()` truncates `ipw` into `ipw_trunc`, with the percentiles as defaults. `$s4_prepare_for_analysis()` writes `analysis_weight_pp_trunc` at percentiles fixed in the code. |
+| Term | Meaning |
+|:---|:---|
+| **IPW** (Inverse Probability of treatment Weighting) | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$s2_ipw()`. |
+| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$s4_prepare_for_analysis()`. `ipcw_pp` is the product `ipcw_pp_time_zero × ipcw_pp_loss × ipcw_pp_deviation`, one factor per censoring model. |
+| **loss model** | The IPCW model for loss of observation, indicator `censor_loss`. It fits on the rows without an outcome, because loss is observed after the outcome of a row. Its factor is `ipcw_pp_loss`. |
+| **deviation model** | The IPCW model for protocol deviation, indicator `censor_deviation`. It fits on the rows without an outcome that were not lost, because a person who is not observed cannot be seen to deviate. Its factor is `ipcw_pp_deviation`. |
+| **deviation at time zero** | A deviation that stops per-protocol follow-up at time zero, so the person-trial keeps no row. `$time_zero_deviation` records every person-trial under follow-up at time zero, with `deviation_time_zero`. A logistic model fitted on that record gives the factor `ipcw_pp_time_zero`. |
+| **not-fitted sentinel** | `list(fitted = FALSE, reason = )` in `$ipcw_formulas[[stratum]][[cause]]`, for a cause with no censoring in its risk set. Its factor is 1. |
+| **analysis_weight_pp** | Final combined weight (`ipw × ipcw_pp`), not truncated. Created automatically by `$s4_prepare_for_analysis()`. |
+| **analysis_weight_pp_trunc** | `analysis_weight_pp` truncated at the 1st and 99th percentiles. `$s4_prepare_for_analysis()` writes it. |
+| **truncation** | Winsorization of extreme weights at the 1st and 99th percentiles to reduce variance. It writes a copy with the suffix `_trunc` and leaves the original weight unchanged. `$s3_truncate_weights()` truncates `ipw` into `ipw_trunc`, with the percentiles as defaults. `$s4_prepare_for_analysis()` writes `analysis_weight_pp_trunc` at percentiles fixed in the code. |
 
 ## File naming
 
 All output files live in the project-specific data directory.
 
-| Column in `plan$ett` | Pattern                            | When created          |
-|:---------------------|:-----------------------------------|:----------------------|
-| `file_raw`           | `{prefix}_raw_{enrollment_id}.qs2` | Loop 1 (intermediate) |
-| `file_imp`           | `{prefix}_imp_{enrollment_id}.qs2` | Loop 1 (output)       |
-| `file_analysis`      | `{prefix}_analysis_{ett_id}.qs2`   | Loop 2 (output)       |
+| Column in `plan$ett` | Pattern | When created |
+|:---|:---|:---|
+| `file_raw` | `{prefix}_raw_{enrollment_id}.qs2` | Loop 1 (intermediate) |
+| `file_imp` | `{prefix}_imp_{enrollment_id}.qs2` | Loop 1 (output) |
+| `file_analysis` | `{prefix}_analysis_{ett_id}.qs2` | Loop 2 (output) |
 
 ## Variable prefixes
 
-| Prefix | Convention                                                                                                                                                                                                                                                                                                          |
-|:-------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `x_`   | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns.                                                                                                                |
-| `rd_`  | Row-dependent variables (e.g., `rd_age_continuous`, `rd_intervention`). Variables that can change value across rows (time points) for the same person.                                                                                                                                                              |
-| `ri_`  | Row-independent variables (e.g., `ri_birthcountry`, `ri_age_first_dx`, `ri_register_tag`). Variables that are fixed per person across all rows. See [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md) for `rd_` -\> `ri_` transformation patterns. |
+| Prefix | Convention |
+|:---|:---|
+| `x_` | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns. |
+| `rd_` | Row-dependent variables (e.g., `rd_age_continuous`, `rd_intervention`). Variables that can change value across rows (time points) for the same person. |
+| `ri_` | Row-independent variables (e.g., `ri_birthcountry`, `ri_age_first_dx`, `ri_register_tag`). Variables that are fixed per person across all rows. See [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md) for `rd_` -\> `ri_` transformation patterns. |
 
 ## Analysis types
 
 The target trial emulation literature describes three analysis
 strategies:
 
-| Analysis                     | Description                                                                                                   | swereg support                                                                                                                                                                                                     |
-|:-----------------------------|:--------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Intention-to-treat (ITT)** | Compare initiators vs non-initiators regardless of subsequent adherence. No censoring at treatment switching. | **Yes**. `$s4_prepare_for_analysis(estimand = "itt")` keeps follow-up through switching (no IPCW); analyse with `$irr(weight_col = "ipw_trunc")`.                                                                  |
-| **Per-protocol**             | Censor at protocol deviation (treatment switching), adjust for informative censoring with IPCW.               | **Yes**. `$s4_prepare_for_analysis(estimand = "pp")` (default) applies per-protocol censoring, then estimates IPCW-PP weights. The final combined weight `analysis_weight_pp = ipw × ipcw_pp` is used in `$irr()`. |
-| **As-treated**               | Model time-varying treatment status with time-varying IPW.                                                    | **Not implemented.** Requires time-varying treatment weights P(A_t                                                                                                                                                 |
+| Analysis | Description | swereg support |
+|:---|:---|:---|
+| **Intention-to-treat (ITT)** | Compare initiators vs non-initiators regardless of subsequent adherence. No censoring at treatment switching. | **Yes**. `$s4_prepare_for_analysis(estimand = "itt")` keeps follow-up through switching (no IPCW); analyse with `$irr(weight_col = "ipw_trunc")`. |
+| **Per-protocol** | Censor at protocol deviation (treatment switching), adjust for informative censoring with IPCW. | **Yes**. `$s4_prepare_for_analysis(estimand = "pp")` (default) applies per-protocol censoring, then estimates IPCW-PP weights. The final combined weight `analysis_weight_pp = ipw × ipcw_pp` is used in `$irr()`. |
+| **As-treated** | Model time-varying treatment status with time-varying IPW. | **Not implemented.** Requires time-varying treatment weights P(A_t |
 
 The production pipeline produces **both** estimands per ETT:
 per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
@@ -134,12 +134,12 @@ sets the threshold.
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 section 1.8.6 states the rule.
 
-| Term                   | Meaning                                                                                                                                                                                                                                                                                               |
-|:-----------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **follow-up year**     | One 52-week window of follow-up from time zero: `(0, 52]`, `(52, 104]`, and so on. In whole weeks, these are weeks 1 to 52 and weeks 53 to 104. A `follow_up` that is not a multiple of 52 weeks takes the decision of the ETT at the next whole year. The rule does not judge its partial last year. |
-| **expected events**    | An arm’s expected events in a follow-up year: its weighted person-years multiplied by the pooled weighted event rate of both arms in that year. They are computed under the null.                                                                                                                     |
-| **reportable horizon** | The end of the last follow-up year before the first year in which either arm has fewer than `min_expected_events_per_arm_per_year` expected events. It is 0 when the first year fails, and the ETT’s `follow_up` when no year fails.                                                                  |
-| **NE**                 | Not estimable. An IRR, risk difference or number needed to treat that the minimum-events rule withheld reads `NE` in the workbook and in the forest figure.                                                                                                                                           |
+| Term | Meaning |
+|:---|:---|
+| **follow-up year** | One 52-week window of follow-up from time zero: `(0, 52]`, `(52, 104]`, and so on. In whole weeks, these are weeks 1 to 52 and weeks 53 to 104. A `follow_up` that is not a multiple of 52 weeks takes the decision of the ETT at the next whole year. The rule does not judge its partial last year. |
+| **expected events** | An arm’s expected events in a follow-up year: its weighted person-years multiplied by the pooled weighted event rate of both arms in that year. They are computed under the null. |
+| **reportable horizon** | The end of the last follow-up year before the first year in which either arm has fewer than `min_expected_events_per_arm_per_year` expected events. It is 0 when the first year fails, and the ETT’s `follow_up` when no year fails. |
+| **NE** | Not estimable. An IRR, risk difference or number needed to treat that the minimum-events rule withheld reads `NE` in the workbook and in the forest figure. |
 
 ## Enrollment period width
 

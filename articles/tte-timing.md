@@ -44,13 +44,13 @@ exactly the weeks between them.
 
 ### The five boundary quantities
 
-| Column                        | What it names                                  |
-|-------------------------------|------------------------------------------------|
-| `weeks_to_event`              | the week the first outcome occurrence stops in |
-| `weeks_to_protocol_deviation` | the week per-protocol follow-up stops in       |
-| `weeks_to_loss`               | the week observation stops in                  |
-| `weeks_to_admin_end`          | the week the administrative end stops in       |
-| `weeks_to_record_end`         | the week the person’s record stops in          |
+| Column | What it names |
+|----|----|
+| `weeks_to_event` | the week the first outcome occurrence stops in |
+| `weeks_to_protocol_deviation` | the week per-protocol follow-up stops in |
+| `weeks_to_loss` | the week observation stops in |
+| `weeks_to_admin_end` | the week the administrative end stops in |
+| `weeks_to_record_end` | the week the person’s record stops in |
 
 Each of the five is an exclusive stop on the follow-up scale.
 `tests/testthat/test-interval-convention.R` pins each one with its own

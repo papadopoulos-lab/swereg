@@ -27,7 +27,18 @@ Window conversion rules:
 
 - `"lifetime_before_baseline"` -\> `Inf`
 
-- `"N year"` or `"N years"` -\> `N * 52`
+- A bare number -\> that many weeks. A fraction is truncated, so `12.5`
+  reads as 12
+
+- `"N year"` or `"N years"`, with N a whole number -\> `N * 52`
+
+- `"lifetime_before_and_after_baseline"` is not converted. Only an
+  exclusion criterion that is not a washout accepts it
+
+Any other window is refused, `"52 weeks"` and `"6 months"` among them.
+[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md),
+section "What each rule computes", gives every rule form, every window
+form and what no rule can express.
 
 Validation checks:
 
@@ -37,9 +48,6 @@ Validation checks:
 
 - `min_expected_events_per_arm_per_year` MUST be one finite number of at
   least 0
-
-- The retired keys `horizon_rule` and `sparse_rule` are refused. The
-  message names the replacement key
 
 - `study$implementation$project_prefix` must exist
 

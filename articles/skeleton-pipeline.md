@@ -504,15 +504,15 @@ pipeline built.
 
 After the first full build:
 
-| Edit                                      | Cost                                                                                                                                          |
-|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| Nothing                                   | Per-batch no-op: load `Skeleton`, see nothing changed, save. Seconds per batch.                                                               |
-| One code pattern in one primary entry     | Drop that entry’s columns on all batches and re-apply it: roughly `(phase-2 total) / (N primaries)`. Then replay the whole randvars sequence. |
-| One primary’s `fn_args` (e.g. `cod_type`) | Same as above, plus the cascade re-applies any derived entries that depend on it.                                                             |
-| One primary’s registered `fn` body        | Same as above. The fingerprint folds in that function’s body and formals.                                                                     |
-| One phase-3 step’s body                   | Drop that step’s columns on all batches, replay it and everything downstream of it in the randvars sequence.                                  |
-| The trim function’s body                  | Full rebuild from scratch, all four phases.                                                                                                   |
-| The framework function’s body             | Full rebuild from scratch, all four phases. Rare.                                                                                             |
+| Edit | Cost |
+|----|----|
+| Nothing | Per-batch no-op: load `Skeleton`, see nothing changed, save. Seconds per batch. |
+| One code pattern in one primary entry | Drop that entry’s columns on all batches and re-apply it: roughly `(phase-2 total) / (N primaries)`. Then replay the whole randvars sequence. |
+| One primary’s `fn_args` (e.g. `cod_type`) | Same as above, plus the cascade re-applies any derived entries that depend on it. |
+| One primary’s registered `fn` body | Same as above. The fingerprint folds in that function’s body and formals. |
+| One phase-3 step’s body | Drop that step’s columns on all batches, replay it and everything downstream of it in the randvars sequence. |
+| The trim function’s body | Full rebuild from scratch, all four phases. |
+| The framework function’s body | Full rebuild from scratch, all four phases. Rare. |
 
 An “edit one ICD-10 code” run re-applies that one entry and replays the
 whole randvars sequence. It never re-runs the framework, the trim, or

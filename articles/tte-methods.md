@@ -268,11 +268,11 @@ records. A week is discordant when it does not hold the value of the
 assigned arm. A week with a missing treatment value and a week outside
 both arms are discordant in both arms.
 
-Each arm has a tolerance $k$, the number of consecutive discordant weeks
-it allows. A concordant week resets the run. The deviation falls at the
-start of week $(k + 1)$ of a run of consecutive discordant weeks. A
-tolerance of 0 therefore places it at the start of the first discordant
-week.
+Each arm has a tolerance $`{k}`$, the number of consecutive discordant
+weeks it allows. A concordant week resets the run. The deviation falls
+at the start of week $`({k}+1)`$ of a run of consecutive discordant
+weeks. A tolerance of 0 therefore places it at the start of the first
+discordant week.
 
 A run that starts before time zero counts only its weeks from time zero.
 An absent week breaks a run. No grace period applies, and the pipeline
@@ -335,20 +335,23 @@ distribution of the enrolled person-trials.
 
 Each estimand is reported on two scales. The relative scale is the
 marginal incidence rate ratio (IRR) of 1.8.4. The absolute scale is the
-risk difference at follow-up week $t$:
+risk difference at follow-up week $`{t}`$:
 
-$${RD}(t) = \{ 1 - S_{1}(t)\} - \{ 1 - S_{0}(t)\} = S_{0}(t) - S_{1}(t).$$
+``` math
+\mathrm{RD}(t) = \{1 - S_{1}(t)\} - \{1 - S_{0}(t)\} = S_{0}(t) - S_{1}(t).
+```
 
-Here $S_{a}(t)$ is the weighted survival of arm $a$ through week $t$
-(1.8.5). Arm $a = 1$ is the intervention and arm $a = 0$ the comparator.
-A protective intervention gives a negative risk difference. The risk
-difference is estimated at every distinct stop time on the weekly grid,
-and reported at the end of follow-up.
+Here $`S_{a}(t)`$ is the weighted survival of arm $`{a}`$ through week
+$`{t}`$ (1.8.5). Arm $`{a} = 1`$ is the intervention and arm $`{a} = 0`$
+the comparator. A protective intervention gives a negative risk
+difference. The risk difference is estimated at every distinct stop time
+on the weekly grid, and reported at the end of follow-up.
 
-The number needed to treat is $- 1/{RD}(t)$. A positive value is the
-number needed to treat for benefit (NNTB). A negative value is reported
-by its magnitude as the number needed to treat for harm (NNTH) (Altman
-1998). A risk difference of exactly zero has no number needed to treat.
+The number needed to treat is $`-1/\mathrm{RD}(t)`$. A positive value is
+the number needed to treat for benefit (NNTB). A negative value is
+reported by its magnitude as the number needed to treat for harm (NNTH)
+(Altman 1998). A risk difference of exactly zero has no number needed to
+treat.
 
 The minimum-events rule of 1.8.6 can withhold both scales and the number
 needed to treat of an estimand.
@@ -425,21 +428,23 @@ the IRR with its interval and p-value, the risk difference and the
 number needed to treat. The attrition counts persons and person-trials
 separately.
 
-The formulas below index persons by $i$, trials by $m$ and the follow-up
-intervals of a trial by $j = 0,\ldots,K - 1$. Here $K$ is the horizon
-divided by the width of the enrollment period, rounded up. $A_{i,m,0}$
-is the assigned arm, 1 for the intervention. $L_{i,m,j}$ is the
-confounder vector as most recently updated in interval $j$, and
-$L_{i,m,0}$ is its value at the recruiting week. $Y_{i,m,j}$ is the
-outcome indicator. $C_{i,m,j}^{L}$ and $C_{i,m,j}^{D}$ mark censoring by
-loss and by deviation in interval $j$, and $D_{i,m,0}$ marks a deviation
-at time zero (1.8.2).
+The formulas below index persons by $`{i}`$, trials by $`{m}`$ and the
+follow-up intervals of a trial by $`{j} = 0, \ldots, {K}-1`$. Here
+$`{K}`$ is the horizon divided by the width of the enrollment period,
+rounded up. $`A_{i,m,0}`$ is the assigned arm, 1 for the intervention.
+$`L_{i,m,j}`$ is the confounder vector as most recently updated in
+interval $`{j}`$, and $`L_{i,m,0}`$ is its value at the recruiting week.
+$`Y_{i,m,j}`$ is the outcome indicator. $`C^{\mathrm{L}}_{i,m,j}`$ and
+$`C^{\mathrm{D}}_{i,m,j}`$ mark censoring by loss and by deviation in
+interval $`{j}`$, and $`D_{i,m,0}`$ marks a deviation at time zero
+(1.8.2).
 
-$c_{m,j}$ is the calendar period of interval $j$. Calendar periods are
-the blocks of calendar time that define the enrollment periods, so each
-follow-up interval lies in exactly one. A trial with several follow-up
-intervals therefore spans several calendar periods. Section 1.8.9 states
-the three time axes, and the reason for the time terms of each model.
+$`c_{m,j}`$ is the calendar period of interval $`{j}`$. Calendar periods
+are the blocks of calendar time that define the enrollment periods, so
+each follow-up interval lies in exactly one. A trial with several
+follow-up intervals therefore spans several calendar periods. Section
+1.8.9 states the three time axes, and the reason for the time terms of
+each model.
 
 #### 1.8.1 Treatment weights
 
@@ -447,7 +452,10 @@ The baseline row of each person-trial is its first follow-up row, at
 follow-up week 0. A logistic regression of the assigned arm on the
 confounders at the recruiting week, as main effects, is fit there:
 
-$${logit}\,{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right) = \gamma_{0} + \gamma^{\top}L_{m,0}.$$
+``` math
+\mathrm{logit}\,\mathrm{Pr}(A_{m,0} = 1 \mid L_{m,0})
+  = \gamma_{0} + \gamma^\top L_{m,0}.
+```
 
 The model reads the value at the recruiting week, because the value at
 time zero would adjust for the wrong instant. One model covers all
@@ -455,7 +463,13 @@ trials of the enrollment, and it holds no term for the trial. The
 stabilised weight uses the marginal fraction of intervention
 person-trials as numerator:
 
-$$SW^{A} = A_{m,0}\,\frac{\bar{p}}{\widehat{ps}} + \left( 1 - A_{m,0} \right)\,\frac{1 - \bar{p}}{1 - \widehat{ps}},\qquad\bar{p} = \widehat{Pr}\left( A_{m,0} = 1 \right),\qquad\widehat{ps} = \widehat{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right).$$
+``` math
+SW^{A} =
+  A_{m,0}\,\frac{\bar{p}}{\widehat{ps}} +
+  (1 - A_{m,0})\,\frac{1-\bar{p}}{1-\widehat{ps}},
+\qquad \bar{p} = \widehat{\mathrm{Pr}}(A_{m,0}=1),
+\qquad \widehat{ps} = \widehat{\mathrm{Pr}}(A_{m,0}=1 \mid L_{m,0}).
+```
 
 The weight is constant across the rows of a person-trial. The propensity
 model holds main effects only. The protocol encodes strong non-linearity
@@ -464,13 +478,14 @@ or interactions as derived confounders.
 #### 1.8.2 Censoring weights
 
 Two causes censor per-protocol follow-up: loss of observation and
-protocol deviation (1.4). $C_{m,j}^{L}$ marks the row that a loss stops,
-and $C_{m,j}^{D}$ marks the row that a deviation stops. The row of an
-outcome is never marked as censored (1.4). A deviation at time zero
-stops follow-up before the first row, and $D_{m,0}$ marks it.
+protocol deviation (1.4). $`C^{\mathrm{L}}_{m,j}`$ marks the row that a
+loss stops, and $`C^{\mathrm{D}}_{m,j}`$ marks the row that a deviation
+stops. The row of an outcome is never marked as censored (1.4). A
+deviation at time zero stops follow-up before the first row, and
+$`D_{m,0}`$ marks it.
 
 swereg fits one model for each cause, by default separately in each arm
-$a$. Each model fits on the rows where its cause can be observed:
+$`{a}`$. Each model fits on the rows where its cause can be observed:
 
 1.  Loss is observed at the end of a row, after the outcome of that row.
     The loss model fits on the rows without an outcome.
@@ -481,24 +496,28 @@ $a$. Each model fits on the rows where its cause can be observed:
     time zero, including those that deviate there and keep no row.
 
 The two row-level models are discrete-time complementary log-log
-generalised additive models with a person-time offset. For cause $r$,
-loss L or deviation D:
+generalised additive models with a person-time offset. For cause
+$`{r}`$, loss L or deviation D:
 
-$${cloglog}\,{Pr}\left( C_{m,j}^{r} = 1 \mid {\text{at risk of}\mspace{6mu}}r,\ A_{m,0} = a \right) = s_{a}^{r}\left( u_{m,j} \right) + g_{a}^{r}\left( c_{m,j} \right) + \alpha_{a}^{r\top}L_{m,j} + \log\Delta_{m,j}.$$
+``` math
+\mathrm{cloglog}\,\mathrm{Pr}(C^{r}_{m,j} = 1 \mid \text{at risk of } r,\ A_{m,0}=a)
+  = s^{r}_{a}(u_{m,j}) + g^{r}_{a}(c_{m,j}) + \alpha^{r\top}_{a} L_{m,j}
+  + \log \Delta_{m,j}.
+```
 
-Here $u_{m,j}$ is the start of interval $j$ in weeks from time zero.
-$\Delta_{m,j}$ is the width of the row in weeks, and $\eta_{m,j}^{r}$ is
-the linear predictor without the offset. The uncensoring probability is
-then
-$q_{m,j}^{r} = \exp\{ - \exp\left( \eta_{m,j}^{r} \right)\Delta_{m,j}\}$.
-One linear predictor therefore gives $q(4) = q(1)^{4}$.
+Here $`u_{m,j}`$ is the start of interval $`{j}`$ in weeks from time
+zero. $`\Delta_{m,j}`$ is the width of the row in weeks, and
+$`\eta^{r}_{m,j}`$ is the linear predictor without the offset. The
+uncensoring probability is then
+$`q^{r}_{m,j} = \exp\{-\exp(\eta^{r}_{m,j})\Delta_{m,j}\}`$. One linear
+predictor therefore gives $`{q}(4) = {q}(1)^{4}`$.
 
 That identity makes a four-week row and a one-week row comparable. It
 matters because the last row ends at its exact stop, so it can be
 narrower than a whole interval. A logit link carries no such identity.
 
 Both time terms follow the term ladder of 1.8.9. The follow-up term
-$s_{a}^{r}$ depends on the number of distinct interval starts in the
+$`s^{r}_{a}`$ depends on the number of distinct interval starts in the
 risk set of the cause in the arm:
 
 - 10 or more: a penalised spline;
@@ -507,7 +526,7 @@ risk set of the cause in the arm:
 - 1: no term.
 
 A penalised spline asks for 10 basis functions, so it needs 10 distinct
-values. The calendar term $g_{a}^{r}$ follows the same ladder on the
+values. The calendar term $`g^{r}_{a}`$ follows the same ladder on the
 number of distinct calendar periods in the same risk set. Both counts
 exclude the rows of zero width, which hold no person-time.
 
@@ -518,10 +537,14 @@ deviation models. Section 1.8.7 states how a missing value is filled.
 The time-zero model is a logistic regression on the confounders at the
 recruiting week, as the treatment-weight model is (1.8.1):
 
-$${logit}\,{Pr}\left( D_{m,0} = 1 \mid A_{m,0} = a,\ L_{m,0} \right) = \delta_{a} + \beta_{a}^{\top}L_{m,0}.$$
+``` math
+\mathrm{logit}\,\mathrm{Pr}(D_{m,0} = 1 \mid A_{m,0}=a,\ L_{m,0})
+  = \delta_{a} + \beta_{a}^\top L_{m,0}.
+```
 
-$p_{m,0}$ is its fitted probability, and ${\bar{p}}_{a}$ is the
-proportion of the person-trials of arm $a$ that deviate at time zero.
+$`p_{m,0}`$ is its fitted probability, and $`\bar{p}_{a}`$ is the
+proportion of the person-trials of arm $`{a}`$ that deviate at time
+zero.
 
 A cause with no censoring in its risk set fits no model, and its factor
 is exactly 1. swereg records that the cause fitted no model, and the
@@ -532,22 +555,28 @@ factor. Its three models are not fitted, and the run does not stop.
 swereg substitutes no marginal censoring rate for a model it could not
 fit.
 
-The stabilised weight for the row in interval $k$ is
+The stabilised weight for the row in interval $`{k}`$ is
 
-$$SW_{m,k}^{C} = \frac{1 - {\bar{p}}_{a}}{1 - p_{m,0}}\prod\limits_{j = 0}^{k - 1}\frac{{\bar{q}}_{a}^{L}(j)}{q_{m,j}^{L}}\prod\limits_{j = 0}^{k - 1}\frac{{\bar{q}}_{a}^{D}(j)}{q_{m,j}^{D}}.$$
+``` math
+SW^{C}_{m,k}
+ = \frac{1 - \bar{p}_{a}}{1 - p_{m,0}}
+   \prod_{j=0}^{k-1} \frac{\bar{q}^{\mathrm{L}}_{a}(j)}{q^{\mathrm{L}}_{m,j}}
+   \prod_{j=0}^{k-1} \frac{\bar{q}^{\mathrm{D}}_{a}(j)}{q^{\mathrm{D}}_{m,j}}.
+```
 
-Here ${\bar{q}}_{a}^{r}(j)$ is the numerator of cause $r$. It is a
-second fit on the same risk set, with the follow-up term $s_{a}^{r}$ and
-without the calendar term or the confounders (1.8.9). The deviation
-model conditions on not being lost, so $q_{m,j}^{L}\, q_{m,j}^{D}$ is
-the probability of remaining uncensored over row $j$. The denominator of
-$SW_{m,k}^{C}$ is therefore the joint probability of remaining
-uncensored through the start of interval $k$. The time-zero, loss and
-deviation censoring weights are the three factors of $SW_{m,k}^{C}$, and
-swereg keeps each of them beside their product. Two rules govern the
-ratio.
+Here $`\bar{q}^{r}_{a}(j)`$ is the numerator of cause $`{r}`$. It is a
+second fit on the same risk set, with the follow-up term $`s^{r}_{a}`$
+and without the calendar term or the confounders (1.8.9). The deviation
+model conditions on not being lost, so
+$`q^{\mathrm{L}}_{m,j}\,q^{\mathrm{D}}_{m,j}`$ is the probability of
+remaining uncensored over row $`{j}`$. The denominator of
+$`SW^{C}_{m,k}`$ is therefore the joint probability of remaining
+uncensored through the start of interval $`{k}`$. The time-zero, loss
+and deviation censoring weights are the three factors of
+$`SW^{C}_{m,k}`$, and swereg keeps each of them beside their product.
+Two rules govern the ratio.
 
-- The product is lagged. It stops at interval $k - 1$, so the
+- The product is lagged. It stops at interval $`{k}-1`$, so the
   uncensoring probability of a row does not enter its own weight. A
   censored interval stays in the risk set. The empty product gives the
   first interval of every person-trial its time-zero factor alone. An
@@ -558,7 +587,7 @@ ratio.
   which then enter the outcome model too. Here the outcome model holds
   no confounders (1.8.4), so each row-level numerator carries the
   follow-up term alone, and the time-zero numerator is the proportion
-  ${\bar{p}}_{a}$. This keeps the marginal estimand consistent. It
+  $`\bar{p}_{a}`$. This keeps the marginal estimand consistent. It
   stabilises less when baseline covariates strongly predict censoring.
 
 #### 1.8.3 Truncation
@@ -567,7 +596,11 @@ The analysis weight is the product of the two weights for the
 per-protocol estimand, and the treatment weight alone for the
 intention-to-treat analogue:
 
-$$W_{i,m,j} = SW_{i,m}^{A} \times SW_{i,m,j}^{C}\;\;\text{(per-protocol)},\qquad W_{i,m,j} = SW_{i,m}^{A}\;\;\text{(intention-to-treat)}.$$
+``` math
+W_{i,m,j} = SW^{A}_{i,m} \times SW^{C}_{i,m,j} \;\; \text{(per-protocol)},
+\qquad
+W_{i,m,j} = SW^{A}_{i,m} \;\; \text{(intention-to-treat)}.
+```
 
 Truncation sets a weight below the 1st percentile to the 1st percentile,
 and a weight above the 99th percentile to the 99th percentile. It
@@ -603,23 +636,28 @@ less biased. Section 3.8 gives the counts.
 The IRR comes from a weighted quasi-Poisson marginal structural model on
 the analysis data:
 
-$$\log E\left\lbrack Y_{i,m,j} \right\rbrack = \beta_{0} + \beta_{1}A_{i,m,0} + h\left( u_{m,j} \right) + f(m) + \log\left( \text{person-weeks}_{i,m,j} \right).$$
+``` math
+\log \mathrm{E}[Y_{i,m,j}]
+  = \beta_{0} + \beta_{1} A_{i,m,0}
+  + h(u_{m,j})
+  + f(m)
+  + \log(\text{person-weeks}_{i,m,j}).
+```
 
-Here $u_{m,j}$ is the start of interval $j$ in weeks from time zero, and
-$m$ is the trial. The person-weeks are the width of the row up to its
-stop (1.4). Both time terms follow the term ladder of 1.8.9 without the
-penalised spline. Each is a natural cubic spline of 3 degrees of freedom
-with 4 or more distinct values in the analysis data, a factor with 2 or
-3, and absent with 1.
+Here $`u_{m,j}`$ is the start of interval $`{j}`$ in weeks from time
+zero, and $`{m}`$ is the trial. The person-weeks are the width of the
+row up to its stop (1.4). Both time terms follow the term ladder of
+1.8.9 without the penalised spline. Each is a natural cubic spline of 3
+degrees of freedom with 4 or more distinct values in the analysis data,
+a factor with 2 or 3, and absent with 1.
 
-The trial term $f$ adjusts for differences between trials, while one
+The trial term $`{f}`$ adjusts for differences between trials, while one
 treatment coefficient is shared across trials (Danaei et al. 2013;
 Caniglia et al. 2023). Section 1.8.9 states why the model reads the
 trial and the interval start, and not the calendar period of the row or
 the stop of the row. No confounders enter the outcome model, so
-$\exp\left( \beta_{1} \right)$ is the marginal IRR. The model is fit by
-weighted quasi-Poisson regression with survey-linearised variance
-(1.8.6).
+$`\exp(\beta_{1})`$ is the marginal IRR. The model is fit by weighted
+quasi-Poisson regression with survey-linearised variance (1.8.6).
 
 With rare events in each interval, as is typical in register data, the
 IRR approximates the hazard ratio of a proportional-hazards model
@@ -632,18 +670,23 @@ person-years.
 
 #### 1.8.5 Absolute scale
 
-The survival of arm $a$ is a weighted product-limit estimate on the
+The survival of arm $`{a}`$ is a weighted product-limit estimate on the
 distinct stop times of the rows. Every stop is a whole number of weeks,
 so the estimate moves on a weekly grid:
 
-$${\widehat{S}}_{a}(t) = \prod\limits_{u \leq t}\{ 1 - {\widehat{h}}_{a}(u)\},\qquad{\widehat{h}}_{a}(u) = \frac{\sum W_{i,m,j}\, Y_{i,m,j}}{\sum W_{i,m,j}}.$$
+``` math
+\hat S_{a}(t) = \prod_{u \le t} \{1 - \hat h_{a}(u)\},
+\qquad
+\hat h_{a}(u) = \frac{\sum W_{i,m,j} \, Y_{i,m,j}}{\sum W_{i,m,j}}.
+```
 
-Both sums run over the person-trials of arm $a$. The numerator holds the
-events at the stop of their own row. The denominator holds the weight of
-every row at risk at $u$, so the risk set spans the stop time. A row is
-at risk at $u$ when $t_{\text{start}} < u \leq t_{\text{stop}}$.
+Both sums run over the person-trials of arm $`{a}`$. The numerator holds
+the events at the stop of their own row. The denominator holds the
+weight of every row at risk at $`{u}`$, so the risk set spans the stop
+time. A row is at risk at $`{u}`$ when
+$`t_{\text{start}} < u \le t_{\text{stop}}`$.
 
-$W_{i,m,j}$ is the analysis weight of 1.8.3. It is the truncated
+$`W_{i,m,j}`$ is the analysis weight of 1.8.3. It is the truncated
 treatment weight for the intention-to-treat analogue and the truncated
 product weight for the per-protocol estimand. The sensitivity analysis
 of 1.9 repeats the per-protocol estimate with the untruncated product
@@ -651,7 +694,7 @@ weight. So each analysis has three risk differences. Covariates do not
 enter the estimator, so the weights carry the whole adjustment, as in
 the IRR model. A stop time at which an arm has nobody at risk leaves the
 survival of that arm unchanged. The risk difference is
-${\widehat{S}}_{0}(t) - {\widehat{S}}_{1}(t)$.
+$`\hat S_{0}(t) - \hat S_{1}(t)`$.
 
 The stored survival curves run to the end of follow-up, whatever the
 minimum-events rule of 1.8.6 decides. After the reportable horizon, the
@@ -666,18 +709,20 @@ The unit is the person-trial, and the counts are unweighted.
 
 swereg counts from the enrolled person-trials before the outcomes are
 attached, so the counts read no outcome. A person-trial is observed at
-week $t$ when $t \leq \min(r,g,a)$, and a missing boundary is ignored.
-Here $r$ is the record end, $g$ is the first observation gap and $a$ is
-the administrative end. An observed person-trial is on protocol at week
-$t$ when $t \leq d$, or when it has no protocol deviation $d$. A
-deviation at time zero is off protocol at every week. Both comparisons
-are inclusive, as in the risk set above.
+week $`{t}`$ when $`t \le \min(r, g, a)`$, and a missing boundary is
+ignored. Here $`{r}`$ is the record end, $`{g}`$ is the first
+observation gap and $`{a}`$ is the administrative end. An observed
+person-trial is on protocol at week $`{t}`$ when $`t \le d`$, or when it
+has no protocol deviation $`{d}`$. A deviation at time zero is off
+protocol at every week. Both comparisons are inclusive, as in the risk
+set above.
 
-For arm $a$ at week $t$, $N_{a}^{ITT}(t)$ counts the observed
-person-trials, and $N_{a}^{PP}(t)$ counts the on-protocol person-trials.
-The percentage on protocol is $100\, N_{a}^{PP}(t)/N_{a}^{ITT}(t)$. It
-is not defined when $N_{a}^{ITT}(t) = 0$. The counts run from week 1 to
-the last follow-up week of the enrolled person-trials. Enrollment
+For arm $`{a}`$ at week $`{t}`$, $`N^{\mathrm{ITT}}_{a}(t)`$ counts the
+observed person-trials, and $`N^{\mathrm{PP}}_{a}(t)`$ counts the
+on-protocol person-trials. The percentage on protocol is
+$`100\,N^{\mathrm{PP}}_{a}(t) / N^{\mathrm{ITT}}_{a}(t)`$. It is not
+defined when $`N^{\mathrm{ITT}}_{a}(t) = 0`$. The counts run from week 1
+to the last follow-up week of the enrolled person-trials. Enrollment
 reaches the feasibility horizon when the specification sets one, so the
 counts can pass the longest reported follow-up. Adherence is reported at
 week 13, at week 26 and at every multiple of 52 weeks up to the last
@@ -690,9 +735,9 @@ clustered on the person, not the person-trial. That accounts for the
 repeated person-trials and the repeated intervals of one person (Hernán
 et al. 2008; Danaei et al. 2013; Su et al. 2024). The interval of the
 IRR is a Wald interval on the log scale,
-$\exp\left( {\widehat{\beta}}_{1} \pm z\,\widehat{se} \right)$. Here $z$
-is the two-sided normal critical value at the study’s confidence level,
-95% unless the specification sets another, so $z$ is 1.96 at 95%. Two
+$`\exp(\hat\beta_{1} \pm z\,\widehat{se})`$. Here $`{z}`$ is the
+two-sided normal critical value at the study’s confidence level, 95%
+unless the specification sets another, so $`{z}`$ is 1.96 at 95%. Two
 caveats apply:
 
 - The variance treats the estimated weights, the single imputation and
@@ -709,8 +754,8 @@ caveats apply:
 The interval of the risk difference is a percentile interval from a
 person-level (cluster) bootstrap, with 500 replicates and a fixed seed.
 Each analysis runs three bootstraps, one for each risk difference of
-1.8.5, with the same replicate count and seed. Each replicate draws $N$
-persons with replacement, and a drawn person brings all of their
+1.8.5, with the same replicate count and seed. Each replicate draws
+$`{N}`$ persons with replacement, and a drawn person brings all of their
 person-trials. One resample serves both arms. A person can be a
 comparator in an early trial and in the intervention arm of a later one.
 The survival estimates of the two arms are then correlated, and separate
@@ -727,9 +772,9 @@ zero, and the percentiles would reflect the other arm alone. The point
 estimate is still reported.
 
 The interval of the number needed to treat is
-$\left( - 1/{RD}_{lo}, - 1/{RD}_{hi} \right)$. It exists only when the
-risk-difference interval strictly excludes zero, because
-$\left. x\mapsto - 1/x \right.$ is undefined at zero. Otherwise the
+$`(-1/\mathrm{RD}_{\mathrm{lo}}, -1/\mathrm{RD}_{\mathrm{hi}})`$. It
+exists only when the risk-difference interval strictly excludes zero,
+because $`{x} \mapsto -1/{x}`$ is undefined at zero. Otherwise the
 number needed to treat has no interval. Altman (1998) reports such an
 interval as running from an NNTH through infinity to an NNTB, and this
 implementation does not. The sign of the point estimate of the risk
@@ -738,38 +783,41 @@ difference alone decides benefit or harm.
 ##### The minimum-events rule
 
 The minimum-events rule decides whether an estimand is reported.
-Follow-up is cut into years of 52 weeks from time zero: $(0,52\rbrack$,
-$(52,104\rbrack$, and so on. An event at exactly week 52 belongs to the
+Follow-up is cut into years of 52 weeks from time zero: $`(0, 52]`$,
+$`(52, 104]`$, and so on. An event at exactly week 52 belongs to the
 first year, so a table in whole weeks reads weeks 1 to 52 and weeks 53
 to 104. A status such as “weeks 52-104” names the window bounds.
 
-In year $y$, ${PY}_{a,y}$ is the weighted person-time of arm $a$, in
-person-years, and $D_{a,y}$ is its weighted events. A row contributes
-the part of its interval that falls inside the year. An event counts in
-the year that holds the stop time of its row. The weight is the analysis
-weight of 1.8.3 for the estimand. The expected events of arm $a$ are
-computed under the null of no treatment effect, so they use the pooled
-rate of both arms:
+In year $`{y}`$, $`\mathrm{PY}_{a,y}`$ is the weighted person-time of
+arm $`{a}`$, in person-years, and $`D_{a,y}`$ is its weighted events. A
+row contributes the part of its interval that falls inside the year. An
+event counts in the year that holds the stop time of its row. The weight
+is the analysis weight of 1.8.3 for the estimand. The expected events of
+arm $`{a}`$ are computed under the null of no treatment effect, so they
+use the pooled rate of both arms:
 
-$$E_{a,y} = {PY}_{a,y}\,\frac{D_{0,y} + D_{1,y}}{{PY}_{0,y} + {PY}_{1,y}}.$$
+``` math
+E_{a,y} = \mathrm{PY}_{a,y} \,
+\frac{D_{0,y} + D_{1,y}}{\mathrm{PY}_{0,y} + \mathrm{PY}_{1,y}}.
+```
 
-A year with no person-time in either arm has $E_{a,y} = 0$ in both arms.
-A year passes when $E_{0,y}$ and $E_{1,y}$ both reach the threshold that
-the specification states: the minimum expected events per arm per year.
-The reportable horizon is the end of the last year before the first year
-that fails. It is 0 when the first year fails.
+A year with no person-time in either arm has $`E_{a,y} = 0`$ in both
+arms. A year passes when $`E_{0,y}`$ and $`E_{1,y}`$ both reach the
+threshold that the specification states: the minimum expected events per
+arm per year. The reportable horizon is the end of the last year before
+the first year that fails. It is 0 when the first year fails.
 
-A horizon of $h$ weeks that is not a multiple of 52 is not judged on its
-own years. Its per-protocol decision is the decision of its source
+A horizon of $`{h}`$ weeks that is not a multiple of 52 is not judged on
+its own years. Its per-protocol decision is the decision of its source
 analysis. The source analysis has the same comparison and outcome, and a
-follow-up of $\lceil h/52\rceil \times 52$ weeks. So a 26-week estimate
-is reported exactly when the 52-week estimate passes the rule, whatever
-the events in its own 26 weeks. Its reportable horizon is the smaller of
-$h$ and the reportable horizon of the source. When the specification has
-no follow-up of that length for the enrollment, swereg adds an analysis
-of that length that computes only the rule. It gives no estimate.
-Enrollment follows the comparison to the end of that year, because the
-verdict needs data to its end.
+follow-up of $`\lceil h/52 \rceil \times 52`$ weeks. So a 26-week
+estimate is reported exactly when the 52-week estimate passes the rule,
+whatever the events in its own 26 weeks. Its reportable horizon is the
+smaller of $`{h}`$ and the reportable horizon of the source. When the
+specification has no follow-up of that length for the enrollment, swereg
+adds an analysis of that length that computes only the rule. It gives no
+estimate. Enrollment follows the comparison to the end of that year,
+because the verdict needs data to its end.
 
 When any year up to the horizon fails, the estimates of that estimand
 are withheld. The IRR, the risk difference and the number needed to
@@ -860,20 +908,25 @@ analysis data carries all three. This subsection defines each axis,
 because the reasons for the terms of each model depend on what each axis
 holds.
 
-| Axis                 | Symbol    | Meaning                                                                               |
-|:---------------------|:----------|:--------------------------------------------------------------------------------------|
-| Calendar period      | $c_{m,j}$ | The calendar period of the row.                                                       |
-| Trial                | $m$       | The enrollment period, which ends at time zero. It is constant within a person-trial. |
-| Time since time zero | $u_{m,j}$ | The time since time zero at the start of the interval, in weeks.                      |
+| Axis | Symbol | Meaning |
+|:---|:---|:---|
+| Calendar period | $`c_{m,j}`$ | The calendar period of the row. |
+| Trial | $`{m}`$ | The enrollment period, which ends at time zero. It is constant within a person-trial. |
+| Time since time zero | $`u_{m,j}`$ | The time since time zero at the start of the interval, in weeks. |
 
-Follow-up interval $j$ of trial $m$ is interval number $j + 1$. With an
-enrollment period of $w$ weeks, the three axes obey one identity.
+Follow-up interval $`{j}`$ of trial $`{m}`$ is interval number
+$`{j}+1`$. With an enrollment period of $`{w}`$ weeks, the three axes
+obey one identity.
 
-$$c_{m,j} = m + (j + 1),\qquad u_{m,j} = j\, w.$$
+``` math
+c_{m,j} = m + (j + 1),
+\qquad
+u_{m,j} = j\,w .
+```
 
-Together they give $c_{m,j} = m + u_{m,j}/w + 1$, where $u_{m,j}/w + 1$
-is the interval number. Figure A shows the three axes on a Lexis
-diagram.
+Together they give $`c_{m,j} = m + u_{m,j}/w + 1`$, where
+$`u_{m,j}/w + 1`$ is the interval number. Figure A shows the three axes
+on a Lexis diagram.
 
 ![Figure A. Each line is one person-trial from its time zero, and the
 black lines are one person in three successive trials. The dashed lines
@@ -884,18 +937,18 @@ Figure A. Each line is one person-trial from its time zero, and the
 black lines are one person in three successive trials. The dashed lines
 are one calendar period, one trial and one time since time zero.
 
-The models of 1.8 hold the time terms below. Here flex($x$) is the term
-ladder below, and $n$ is the number of trials.
+The models of 1.8 hold the time terms below. Here flex($`{x}`$) is the
+term ladder below, and $`{n}`$ is the number of trials.
 
-| Model                                   | Time terms                        | Other terms                                                               | Offset           | Family                 | Engine                      |
-|:----------------------------------------|:----------------------------------|:--------------------------------------------------------------------------|:-----------------|:-----------------------|:----------------------------|
-| Treatment weights (1.8.1)               | none                              | confounders at the recruiting week                                        | none             | binomial, logit link   | logistic regression         |
-| Loss and deviation denominators (1.8.2) | flex($u_{m,j}$) + flex($c_{m,j}$) | time-updated confounders                                                  | log person-weeks | binomial, cloglog link | penalised GAM, or GLM (1.9) |
-| Loss and deviation numerators (1.8.2)   | flex($u_{m,j}$)                   | none                                                                      | log person-weeks | binomial, cloglog link | as the denominator          |
-| Time-zero deviation (1.8.2)             | none                              | confounders at the recruiting week                                        | none             | binomial, logit link   | logistic regression         |
-| IRR and subgroup IRR (1.8.4, 1.8.8)     | flex($u_{m,j}$) + flex($m$)       | arm                                                                       | log person-weeks | quasi-Poisson          | survey-weighted GLM         |
-| Effect modification (1.8.8)             | flex($u_{m,j}$) + flex($m$)       | arm × indicators of the subgroup level                                    | log person-weeks | quasi-Poisson          | survey-weighted GLM         |
-| Heterogeneity across trials (1.8.8)     | flex($u_{m,j}$)                   | arm × natural cubic spline of $m$ with min(3, $n$ − 1) degrees of freedom | log person-weeks | quasi-Poisson          | survey-weighted GLM         |
+| Model | Time terms | Other terms | Offset | Family | Engine |
+|:---|:---|:---|:---|:---|:---|
+| Treatment weights (1.8.1) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
+| Loss and deviation denominators (1.8.2) | flex($`u_{m,j}`$) + flex($`c_{m,j}`$) | time-updated confounders | log person-weeks | binomial, cloglog link | penalised GAM, or GLM (1.9) |
+| Loss and deviation numerators (1.8.2) | flex($`u_{m,j}`$) | none | log person-weeks | binomial, cloglog link | as the denominator |
+| Time-zero deviation (1.8.2) | none | confounders at the recruiting week | none | binomial, logit link | logistic regression |
+| IRR and subgroup IRR (1.8.4, 1.8.8) | flex($`u_{m,j}`$) + flex($`{m}`$) | arm | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Effect modification (1.8.8) | flex($`u_{m,j}`$) + flex($`{m}`$) | arm × indicators of the subgroup level | log person-weeks | quasi-Poisson | survey-weighted GLM |
+| Heterogeneity across trials (1.8.8) | flex($`u_{m,j}`$) | arm × natural cubic spline of $`{m}`$ with min(3, $`{n}`$ − 1) degrees of freedom | log person-weeks | quasi-Poisson | survey-weighted GLM |
 
 The person-weeks of the offset are the width of the row up to its stop
 (1.8.4). The loss and deviation models each count the distinct values of
@@ -987,8 +1040,8 @@ interval start, and not at the interval stop. The last interval of a
 person-trial is cut short at an event or a censoring, so it stops before
 a whole interval ends. A flexible term read at the interval stop could
 then fit those last rows apart from the other rows. The last rows hold
-the events. Read at the interval start, every row of interval number $k$
-sits at $(k - 1)\, w$ weeks.
+the events. Read at the interval start, every row of interval number
+$`{k}`$ sits at $`({k} - 1)\,{w}`$ weeks.
 
 Danaei et al. (2013, p. 76) index follow-up by month of follow-up.
 TrialEmulation indexes it by the follow-up visit number (Su et al. 2024,
@@ -1007,8 +1060,8 @@ crosses place it at its interval stop.
 
 ##### The term ladder
 
-flex($x$) depends on the number of distinct values of $x$ in the rows
-the model fits.
+flex($`{x}`$) depends on the number of distinct values of $`{x}`$ in the
+rows the model fits.
 
 - 10 or more, in a loss or deviation model fit as a penalised GAM: a
   penalised spline. It asks for 10 basis functions, mgcv’s default, so
@@ -1100,20 +1153,20 @@ unmeasured confounding in the registers.
 
 Replace each placeholder in the text below with the value of the study.
 
-| Placeholder      | Value                                                                                                  |
-|------------------|--------------------------------------------------------------------------------------------------------|
-| `[intervention]` | the intervention treatment                                                                             |
-| `[comparator]`   | the comparator strategy                                                                                |
-| `[outcome]`      | the outcome                                                                                            |
-| `[confounders]`  | the confounders                                                                                        |
-| `[width]`        | the width of the enrollment period, in weeks                                                           |
-| `[washout]`      | the new-user washout window                                                                            |
-| `[k]`            | the number of comparators drawn per intervention person-trial, for example 2                           |
-| `[horizon]`      | the analysis horizon                                                                                   |
-| `[m]`            | the threshold of the minimum-events rule, in expected events per arm per follow-up year, for example 5 |
-| `[end]`          | the administrative end of study                                                                        |
-| `[tolerance]`    | the tolerance of each arm, in weeks                                                                    |
-| `[subgroups]`    | the pre-specified subgroups                                                                            |
+| Placeholder | Value |
+|----|----|
+| `[intervention]` | the intervention treatment |
+| `[comparator]` | the comparator strategy |
+| `[outcome]` | the outcome |
+| `[confounders]` | the confounders |
+| `[width]` | the width of the enrollment period, in weeks |
+| `[washout]` | the new-user washout window |
+| `[k]` | the number of comparators drawn per intervention person-trial, for example 2 |
+| `[horizon]` | the analysis horizon |
+| `[m]` | the threshold of the minimum-events rule, in expected events per arm per follow-up year, for example 5 |
+| `[end]` | the administrative end of study |
+| `[tolerance]` | the tolerance of each arm, in weeks |
+| `[subgroups]` | the pre-specified subgroups |
 
 We emulated a sequence of target trials of `[intervention]` versus
 `[comparator]` for `[outcome]` (Hernán et al. 2008; Hernán and Robins
@@ -1285,12 +1338,12 @@ validation suite of the package ran in continuous integration.
 Every estimate, bias, coverage and limit in this section is computed
 from a results artifact. None is transcribed by hand. The fixed
 simulation design values are stated as inputs, for example the loss
-hazard of 0.06 and ${expit}\left( - 2.4 + 0.9\, L_{0} \right)$. The
-artifact comes from a rerun of the complete validation battery. The
-rerun uses the same data-generating processes, truth calculations and
-fit wrappers that the package’s test suite enforces in continuous
-integration. Section 4.2 maps each layer to its test file and describes
-how to regenerate the artifact.
+hazard of 0.06 and $`\mathrm{expit}(-2.4 + 0.9\,L_{0})`$. The artifact
+comes from a rerun of the complete validation battery. The rerun uses
+the same data-generating processes, truth calculations and fit wrappers
+that the package’s test suite enforces in continuous integration.
+Section 4.2 maps each layer to its test file and describes how to
+regenerate the artifact.
 
 Provenance: generated 2026-11-07 04:14:19 UTC with swereg 27.3.8,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).
@@ -1329,13 +1382,13 @@ truth. A bias against it then includes that difference, which Section
 The battery has five layers. Each layer tests one segment of the
 pipeline, so a failure points to that segment:
 
-| Layer                         | Pipeline segment exercised                                                                                                                                 | Question answered                                                                                                                                                          |
-|:------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Cross-package matrix (3.3)    | Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels                                                                              | Do swereg and TrialEmulation each recover known truth where the estimand’s assumptions hold, and fail identically where they do not?                                       |
-| Stress matrix (3.4)           | The same estimators at design extremes                                                                                                                     | Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback? |
-| Plan-layer truth matrix (3.5) | The complete production pipeline: specification, enrollment periods, sequential eligibility, the comparator draw, worker subprocesses, dual analysis files | Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation?                                       |
-| Coverage calibration (3.6)    | The sandwich variance estimator                                                                                                                            | Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?                                                                                       |
-| Exact-truth cells (3.9)       | The enrollment-layer estimators, on the risk-difference scale as well as the log-IRR scale                                                                 | Is the risk difference at each horizon unbiased against an exact truth, and does its bootstrap interval cover it?                                                          |
+| Layer | Pipeline segment exercised | Question answered |
+|:---|:---|:---|
+| Cross-package matrix (3.3) | Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels | Do swereg and TrialEmulation each recover known truth where the estimand’s assumptions hold, and fail identically where they do not? |
+| Stress matrix (3.4) | The same estimators at design extremes | Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback? |
+| Plan-layer truth matrix (3.5) | The complete production pipeline: specification, enrollment periods, sequential eligibility, the comparator draw, worker subprocesses, dual analysis files | Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation? |
+| Coverage calibration (3.6) | The sandwich variance estimator | Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid? |
+| Exact-truth cells (3.9) | The enrollment-layer estimators, on the risk-difference scale as well as the log-IRR scale | Is the risk difference at each horizon unbiased against an exact truth, and does its bootstrap interval cover it? |
 
 Table 1. The five layers of the validation battery.
 
@@ -1350,31 +1403,40 @@ limit them.
 ### 3.2 Enrollment-layer scenarios: data-generating processes
 
 The enrollment-layer cells (3.3, 3.4) share one person-period
-data-generating process. For person $i$ with standard-normal baseline
-confounder $L_{0i}$ and periods $t = 0,\ldots,19$:
+data-generating process. For person $`i`$ with standard-normal baseline
+confounder $`L_{0i}`$ and periods $`t = 0, \ldots, 19`$:
 
-$${logit}\,{Pr}\left( A_{i0} = 1 \right) = - 0.3 + \phi_{A}L_{0i}\qquad\text{(baseline initiation)}$$
+``` math
+\mathrm{logit}\,\mathrm{Pr}(A_{i0} = 1) = -0.3 + \phi_A L_{0i}
+\qquad \text{(baseline initiation)}
+```
 
-$${logit}\,{Pr}\left( A_{it} = 1 \right) = - 3.0 + \phi_{S}L_{0i} + 8\, A_{i,t - 1},\quad t \geq 1\qquad\text{(switching with persistence)}$$
+``` math
+\mathrm{logit}\,\mathrm{Pr}(A_{it} = 1) = -3.0 + \phi_S L_{0i} + 8\,A_{i,t-1},
+\quad t \ge 1 \qquad \text{(switching with persistence)}
+```
 
-$${logit}\,{Pr}\left( Y_{it} = 1 \right) = - 3.5 + \theta A_{it} + \phi_{Y}L_{0i}\qquad\text{(outcome)}$$
+``` math
+\mathrm{logit}\,\mathrm{Pr}(Y_{it} = 1) = -3.5 + \theta A_{it} + \phi_Y L_{0i}
+\qquad \text{(outcome)}
+```
 
-with true contemporaneous treatment effect $\theta = - 0.7$ unless a
+with true contemporaneous treatment effect $`\theta = -0.7`$ unless a
 cell varies it. The persistence coefficient of 8 keeps most initiators
 on treatment (adherent person-time dominates) while still generating
 enough switching to separate the PP and ITT truths. Loss to follow-up,
 when present, is geometric dropout from a per-person hazard. Independent
 loss has a constant hazard of 0.06 per period. Informative loss has the
-hazard ${expit}\left( - 2.4 + 0.9\, L_{0i} \right)$, so dropout selects
-on the confounder that also drives treatment and outcome. The three
-standard scenarios change the nuisance parameters only. The true effect
-is the same in all three:
+hazard $`\mathrm{expit}(-2.4 + 0.9\,L_{0i})`$, so dropout selects on the
+confounder that also drives treatment and outcome. The three standard
+scenarios change the nuisance parameters only. The true effect is the
+same in all three:
 
-| Scenario | $\phi_{A}$ | $\phi_{S}$ | $\phi_{Y}$ |         Loss to follow-up          | What it induces                                                    |
-|:---------|:----------:|:----------:|:----------:|:----------------------------------:|:-------------------------------------------------------------------|
-| s1       |     0      |     0      |     0      |                none                | clean benchmark: no confounding, no selection                      |
-| s2       |    0.6     |    0.4     |    0.4     |     independent (hazard 0.06)      | baseline confounding plus outcome-independent attrition            |
-| s3       |    0.6     |    0.4     |    0.4     | informative (expit(-2.4 + 0.9 L0)) | baseline confounding plus attrition that selects on the confounder |
+| Scenario | $`\phi_A`$ | $`\phi_S`$ | $`\phi_Y`$ | Loss to follow-up | What it induces |
+|:---|:--:|:--:|:--:|:--:|:---|
+| s1 | 0 | 0 | 0 | none | clean benchmark: no confounding, no selection |
+| s2 | 0.6 | 0.4 | 0.4 | independent (hazard 0.06) | baseline confounding plus outcome-independent attrition |
+| s3 | 0.6 | 0.4 | 0.4 | informative (expit(-2.4 + 0.9 L0)) | baseline confounding plus attrition that selects on the confounder |
 
 Table 2. Nuisance configuration of the three standard scenarios.
 
@@ -1383,10 +1445,10 @@ a fixed seed. Table 3 reports the realized characteristics of the exact
 datasets analysed in 3.3.
 
 | Scenario | Persons | Person-periods | Person-periods lost | Initiators at baseline | Persons with ≥1 event | Event risk per period |
-|:---------|--------:|---------------:|--------------------:|-----------------------:|----------------------:|----------------------:|
-| s1       |  20,000 |        400,000 |                  0% |                  43.0% |                 6,692 |                 2.05% |
-| s2       |  20,000 |        236,519 |                 41% |                  44.0% |                 4,300 |                 2.18% |
-| s3       |  20,000 |        197,823 |                 51% |                  44.0% |                 3,328 |                 1.93% |
+|:---|---:|---:|---:|---:|---:|---:|
+| s1 | 20,000 | 400,000 | 0% | 43.0% | 6,692 | 2.05% |
+| s2 | 20,000 | 236,519 | 41% | 44.0% | 4,300 | 2.18% |
+| s3 | 20,000 | 197,823 | 51% | 44.0% | 3,328 | 1.93% |
 
 Table 3. Realized descriptives of the three scenario datasets.
 
@@ -1402,14 +1464,14 @@ Section 3.7). The truth is the exact log-IRR of Section 3.9.
 `TrialEmulation` must also recover the truth. The comparison does not
 use it as the reference.
 
-| Scenario | Nuisances                      | Estimand | True log-IRR |         swereg \[95% CI\] | TrialEmulation \[95% CI\] | swereg bias | TE bias | swereg − TE |
-|:---------|:-------------------------------|:---------|-------------:|--------------------------:|--------------------------:|------------:|--------:|------------:|
-| s1       | none                           | pp       |       -0.685 | -0.708 \[-0.763, -0.654\] | -0.708 \[-0.764, -0.653\] |      -0.023 |  -0.023 |      +0.000 |
-| s1       | none                           | itt      |       -0.467 | -0.499 \[-0.549, -0.449\] | -0.499 \[-0.549, -0.449\] |      -0.032 |  -0.032 |      -0.000 |
-| s2       | confounding + independent loss | pp       |       -0.667 | -0.639 \[-0.707, -0.570\] | -0.662 \[-0.731, -0.593\] |      +0.028 |  +0.005 |      +0.023 |
-| s2       | confounding + independent loss | itt      |       -0.486 | -0.474 \[-0.538, -0.410\] | -0.480 \[-0.544, -0.417\] |      +0.012 |  +0.006 |      +0.006 |
-| s3       | confounding + informative loss | pp       |       -0.668 | -0.618 \[-0.702, -0.535\] | -0.680 \[-0.759, -0.601\] |      +0.050 |  -0.012 |      +0.061 |
-| s3       | confounding + informative loss | itt      |       -0.502 | -0.537 \[-0.612, -0.461\] | -0.544 \[-0.619, -0.469\] |      -0.035 |  -0.042 |      +0.007 |
+| Scenario | Nuisances | Estimand | True log-IRR | swereg \[95% CI\] | TrialEmulation \[95% CI\] | swereg bias | TE bias | swereg − TE |
+|:---|:---|:---|---:|---:|---:|---:|---:|---:|
+| s1 | none | pp | -0.685 | -0.708 \[-0.763, -0.654\] | -0.708 \[-0.764, -0.653\] | -0.023 | -0.023 | +0.000 |
+| s1 | none | itt | -0.467 | -0.499 \[-0.549, -0.449\] | -0.499 \[-0.549, -0.449\] | -0.032 | -0.032 | -0.000 |
+| s2 | confounding + independent loss | pp | -0.667 | -0.639 \[-0.707, -0.570\] | -0.662 \[-0.731, -0.593\] | +0.028 | +0.005 | +0.023 |
+| s2 | confounding + independent loss | itt | -0.486 | -0.474 \[-0.538, -0.410\] | -0.480 \[-0.544, -0.417\] | +0.012 | +0.006 | +0.006 |
+| s3 | confounding + informative loss | pp | -0.668 | -0.618 \[-0.702, -0.535\] | -0.680 \[-0.759, -0.601\] | +0.050 | -0.012 | +0.061 |
+| s3 | confounding + informative loss | itt | -0.502 | -0.537 \[-0.612, -0.461\] | -0.544 \[-0.619, -0.469\] | -0.035 | -0.042 | +0.007 |
 
 Table 4. Cross-package validation matrix (N = 20,000, T = 20 periods,
 fixed seed), against the exact log-IRR truth. swereg estimates use the
@@ -1425,16 +1487,16 @@ estimates therefore differ visibly from the truth even under an unbiased
 estimator, and sampling variation alone sets the size of any one gap.
 Replication gives stronger evidence. The full triangle is repeated on 20
 independent datasets per scenario. That reduces the Monte Carlo standard
-error of the estimated bias by a factor of $\sqrt{20}$.
+error of the estimated bias by a factor of $`\sqrt{20}`$.
 
 | Scenario | Estimand | Datasets | True log-IRR | swereg, truncated weights: mean bias (MC SE) | swereg, untruncated weights: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) | Mean \|swereg − TE\| |
-|:---------|:---------|---------:|-------------:|---------------------------------------------:|-----------------------------------------------:|----------------------------------:|---------------------:|
-| s1       | pp       |       20 |       -0.685 |                               -0.004 (0.006) |                                 -0.004 (0.006) |                    -0.004 (0.006) |                0.000 |
-| s1       | itt      |       20 |       -0.467 |                               -0.003 (0.005) |                                 -0.003 (0.005) |                    -0.003 (0.005) |                0.000 |
-| s2       | pp       |       20 |       -0.667 |                               +0.020 (0.010) |                                 +0.007 (0.010) |                    -0.010 (0.010) |                0.030 |
-| s2       | itt      |       20 |       -0.486 |                               +0.014 (0.009) |                                 +0.006 (0.009) |                    -0.001 (0.009) |                0.015 |
-| s3       | pp       |       20 |       -0.668 |                               +0.044 (0.010) |                                 +0.037 (0.015) |                    -0.009 (0.010) |                0.054 |
-| s3       | itt      |       20 |       -0.502 |                               -0.017 (0.009) |                                 -0.024 (0.009) |                    -0.029 (0.010) |                0.013 |
+|:---|:---|---:|---:|---:|---:|---:|---:|
+| s1 | pp | 20 | -0.685 | -0.004 (0.006) | -0.004 (0.006) | -0.004 (0.006) | 0.000 |
+| s1 | itt | 20 | -0.467 | -0.003 (0.005) | -0.003 (0.005) | -0.003 (0.005) | 0.000 |
+| s2 | pp | 20 | -0.667 | +0.020 (0.010) | +0.007 (0.010) | -0.010 (0.010) | 0.030 |
+| s2 | itt | 20 | -0.486 | +0.014 (0.009) | +0.006 (0.009) | -0.001 (0.009) | 0.015 |
+| s3 | pp | 20 | -0.668 | +0.044 (0.010) | +0.037 (0.015) | -0.009 (0.010) | 0.054 |
+| s3 | itt | 20 | -0.502 | -0.017 (0.009) | -0.024 (0.009) | -0.029 (0.010) | 0.013 |
 
 Table 5. Replicated cross-package matrix: mean bias against the exact
 log-IRR truth over 20 independent datasets per scenario (N = 20,000
@@ -1529,26 +1591,26 @@ The stress cells reuse the Section 3.2 data-generating process with one
 or two parameters set to an extreme. Each cell tests one failure mode.
 Table 6 gives the designs.
 
-| Cell                          | Design deviation from the base DGP                                                                              | What it probes                                                            |
-|:------------------------------|:----------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
-| Rare outcome                  | Outcome intercept −6.0 (0.18% risk/period), N = 40,000, θ = −0.7                                                | Sparse-event stability of the weighted MSM and the spline IPCW model      |
-| Null effect                   | θ = 0, independent loss, N = 20,000                                                                             | False-positive effects (does the pipeline manufacture signal from noise?) |
-| Informative attrition         | Dropout hazard expit(−1.3 + 0.9 L0): 73% of person-periods lost, selecting on the confounder; N = 30,000        | IPCW under heavy selection; the ITT arm of this cell is expected to fail  |
-| Harmful effect, depletion     | θ = +0.7, three independent seeds at N = 20,000, TrialEmulation cross-check                                     | The person-time-weighted-average interpretation of the pooled IRR (1.6)   |
-| Near-positivity violation     | φA = 1.5: propensity scores span 0–1; ITT fit at three truncation levels                                        | The truncation bias-variance tradeoff (1.8.3)                             |
-| Treatment-confounder feedback | AR(1) confounder Lt = 0.7 Lt−1 − 0.4 At−1 + εt driving both switching (0.8 Lt) and outcome (0.5 Lt); N = 25,000 | The residual bias of the censoring weights under feedback (1.7)           |
-| Determinism                   | Identical data, PP estimator fit twice                                                                          | Uncontrolled stochastic steps anywhere in the fit                         |
+| Cell | Design deviation from the base DGP | What it probes |
+|:---|:---|:---|
+| Rare outcome | Outcome intercept −6.0 (0.18% risk/period), N = 40,000, θ = −0.7 | Sparse-event stability of the weighted MSM and the spline IPCW model |
+| Null effect | θ = 0, independent loss, N = 20,000 | False-positive effects (does the pipeline manufacture signal from noise?) |
+| Informative attrition | Dropout hazard expit(−1.3 + 0.9 L0): 73% of person-periods lost, selecting on the confounder; N = 30,000 | IPCW under heavy selection; the ITT arm of this cell is expected to fail |
+| Harmful effect, depletion | θ = +0.7, three independent seeds at N = 20,000, TrialEmulation cross-check | The person-time-weighted-average interpretation of the pooled IRR (1.6) |
+| Near-positivity violation | φA = 1.5: propensity scores span 0–1; ITT fit at three truncation levels | The truncation bias-variance tradeoff (1.8.3) |
+| Treatment-confounder feedback | AR(1) confounder Lt = 0.7 Lt−1 − 0.4 At−1 + εt driving both switching (0.8 Lt) and outcome (0.5 Lt); N = 25,000 | The residual bias of the censoring weights under feedback (1.7) |
+| Determinism | Identical data, PP estimator fit twice | Uncontrolled stochastic steps anywhere in the fit |
 
 Table 6. Stress-cell designs. All other parameters as in Section 3.2; T
 = 20 periods, fixed seeds.
 
-| Cell                  | Estimand | True log-IRR |       Estimate \[95% CI\] |   Bias | CI covers truth | Note                                |
-|:----------------------|:---------|-------------:|--------------------------:|-------:|:---------------:|:------------------------------------|
-| rare_outcome          | pp       |       -0.696 | -0.655 \[-0.783, -0.528\] | +0.041 |       yes       | event risk 0.18%/follow-up interval |
-| rare_outcome          | itt      |       -0.435 | -0.421 \[-0.534, -0.308\] | +0.014 |       yes       |                                     |
-| null_effect           | itt      |        0.000 |   0.041 \[-0.012, 0.094\] | +0.041 |       yes       | true log-IRR = 0                    |
-| informative_attrition | pp       |       -0.659 | -0.695 \[-0.787, -0.602\] | -0.035 |       yes       | 73% of person-periods lost          |
-| informative_attrition | itt      |       -0.444 | -0.573 \[-0.656, -0.490\] | -0.129 |       no        | biased by design: no loss weight    |
+| Cell | Estimand | True log-IRR | Estimate \[95% CI\] | Bias | CI covers truth | Note |
+|:---|:---|---:|---:|---:|:--:|:---|
+| rare_outcome | pp | -0.696 | -0.655 \[-0.783, -0.528\] | +0.041 | yes | event risk 0.18%/follow-up interval |
+| rare_outcome | itt | -0.435 | -0.421 \[-0.534, -0.308\] | +0.014 | yes |  |
+| null_effect | itt | 0.000 | 0.041 \[-0.012, 0.094\] | +0.041 | yes | true log-IRR = 0 |
+| informative_attrition | pp | -0.659 | -0.695 \[-0.787, -0.602\] | -0.035 | yes | 73% of person-periods lost |
+| informative_attrition | itt | -0.444 | -0.573 \[-0.656, -0.490\] | -0.129 | no | biased by design: no loss weight |
 
 Table 7. Stress cells, single dataset at fixed seed; swereg estimates
 use the primary truncated weights. Log-IRR scale.
@@ -1569,10 +1631,10 @@ the estimate to a maximum absolute difference of 0. The pipeline has no
 uncontrolled stochastic step.
 
 | Seed | True log-IRR (cumulative-rate) | swereg | TrialEmulation | swereg − truth | swereg − TE |
-|:-----|-------------------------------:|-------:|---------------:|---------------:|------------:|
-| 3001 |                          0.393 |  0.479 |          0.502 |         +0.086 |      -0.023 |
-| 3002 |                          0.393 |  0.463 |          0.474 |         +0.070 |      -0.011 |
-| 3003 |                          0.393 |  0.463 |          0.478 |         +0.070 |      -0.014 |
+|:---|---:|---:|---:|---:|---:|
+| 3001 | 0.393 | 0.479 | 0.502 | +0.086 | -0.023 |
+| 3002 | 0.393 | 0.463 | 0.474 | +0.070 | -0.011 |
+| 3003 | 0.393 | 0.463 | 0.478 | +0.070 | -0.014 |
 
 Table 8. Harmful effect (true log-IRR \> 0) with strong depletion of
 susceptibles, ITT with truncated weights, three seeds. Log-IRR scale.
@@ -1587,10 +1649,10 @@ agree to within 0.023 on every seed. Analyses in which the time path of
 the effect matters should report follow-up-specific estimates.
 
 | Truncation percentiles (%) | True log-IRR | Estimate | Bias (attenuation) | Max raw stabilised weight |
-|:---------------------------|-------------:|---------:|-------------------:|--------------------------:|
-| 0.5 / 99.5                 |       -0.444 |   -0.366 |             +0.079 |                      1325 |
-| 1.0 / 99.0                 |       -0.444 |   -0.330 |             +0.114 |                      1325 |
-| 5.0 / 95.0                 |       -0.444 |   -0.226 |             +0.218 |                      1325 |
+|:---|---:|---:|---:|---:|
+| 0.5 / 99.5 | -0.444 | -0.366 | +0.079 | 1325 |
+| 1.0 / 99.0 | -0.444 | -0.330 | +0.114 | 1325 |
+| 5.0 / 95.0 | -0.444 | -0.226 | +0.218 | 1325 |
 
 Table 9. Near-positivity violation: attenuation toward the null grows
 with each tightening of the truncation percentiles. ITT, log-IRR scale.
@@ -1602,11 +1664,11 @@ further toward the null. When extreme weights are structural, not
 sporadic, restrict the eligible population instead of truncating harder
 (1.9).
 
-| Fit                                  | True log-IRR |       Estimate \[95% CI\] |   Bias | \|Bias\| |
-|:-------------------------------------|-------------:|--------------------------:|-------:|---------:|
-| pp, time-updated censoring covariate |       -1.195 | -1.066 \[-1.141, -0.992\] | +0.129 |    0.129 |
-| pp, covariate frozen at baseline     |       -1.195 | -1.039 \[-1.112, -0.966\] | +0.156 |    0.156 |
-| itt                                  |       -0.373 | -0.398 \[-0.442, -0.353\] | -0.024 |    0.024 |
+| Fit | True log-IRR | Estimate \[95% CI\] | Bias | \|Bias\| |
+|:---|---:|---:|---:|---:|
+| pp, time-updated censoring covariate | -1.195 | -1.066 \[-1.141, -0.992\] | +0.129 | 0.129 |
+| pp, covariate frozen at baseline | -1.195 | -1.039 \[-1.112, -0.966\] | +0.156 | 0.156 |
+| itt | -0.373 | -0.398 \[-0.442, -0.353\] | -0.024 | 0.024 |
 
 Table 10. Treatment–confounder feedback: per-protocol bias with the
 censoring covariate time-updated versus frozen at baseline; ITT for
@@ -1680,15 +1742,15 @@ discontinuation.
 Table 11. Skeleton descriptives per plan-layer cell (before eligibility
 and enrollment).
 
-| Cell     | Loss        | PP truth |   PP IRR \[95% CI\] | covers | ITT truth |  ITT IRR \[95% CI\] | covers |
-|:---------|:------------|---------:|--------------------:|:------:|----------:|--------------------:|:------:|
-| A_none   | none        |     2.00 | 1.89 \[1.70, 2.10\] |  yes   |      2.00 | 1.89 \[1.70, 2.10\] |  yes   |
-| A_indep  | independent |     2.00 | 2.20 \[1.78, 2.73\] |  yes   |      2.00 | 2.20 \[1.78, 2.73\] |  yes   |
-| A_inform | informative |     2.00 | 2.24 \[1.90, 2.63\] |  yes   |      2.00 | 2.24 \[1.90, 2.63\] |  yes   |
-| B_none   | none        |     1.98 | 2.03 \[1.81, 2.26\] |  yes   |      1.98 | 2.03 \[1.81, 2.26\] |  yes   |
-| B_indep  | independent |     1.98 | 2.35 \[1.90, 2.90\] |  yes   |      1.98 | 2.37 \[1.92, 2.92\] |  yes   |
-| B_inform | informative |     1.98 | 2.10 \[1.79, 2.47\] |  yes   |      1.98 | 2.04 \[1.73, 2.39\] |  yes   |
-| DISC     | none        |     2.00 | 1.88 \[1.63, 2.18\] |  yes   |      1.44 | 1.24 \[1.10, 1.40\] |   no   |
+| Cell | Loss | PP truth | PP IRR \[95% CI\] | covers | ITT truth | ITT IRR \[95% CI\] | covers |
+|:---|:---|---:|---:|:--:|---:|---:|:--:|
+| A_none | none | 2.00 | 1.89 \[1.70, 2.10\] | yes | 2.00 | 1.89 \[1.70, 2.10\] | yes |
+| A_indep | independent | 2.00 | 2.20 \[1.78, 2.73\] | yes | 2.00 | 2.20 \[1.78, 2.73\] | yes |
+| A_inform | informative | 2.00 | 2.24 \[1.90, 2.63\] | yes | 2.00 | 2.24 \[1.90, 2.63\] | yes |
+| B_none | none | 1.98 | 2.03 \[1.81, 2.26\] | yes | 1.98 | 2.03 \[1.81, 2.26\] | yes |
+| B_indep | independent | 1.98 | 2.35 \[1.90, 2.90\] | yes | 1.98 | 2.37 \[1.92, 2.92\] | yes |
+| B_inform | informative | 1.98 | 2.10 \[1.79, 2.47\] | yes | 1.98 | 2.04 \[1.73, 2.39\] | yes |
+| DISC | none | 2.00 | 1.88 \[1.63, 2.18\] | yes | 1.44 | 1.24 \[1.10, 1.40\] | no |
 
 Table 12. Plan-layer factorial (A = no confounding, B = baseline
 confounding; each × no/independent/informative loss) plus the
@@ -1766,14 +1828,14 @@ scenarios, including the informative loss in s3. The ITT analysis
 carries no loss weight, so s3 also shows how its design bias affects its
 intervals.
 
-| Scenario | Estimand | Nuisances                      | Replicates fit | Mean log bias | MC sd | 95% CI coverage |
-|:---------|:---------|:-------------------------------|---------------:|--------------:|------:|----------------:|
-| s1       | pp       | none                           |        200/200 |        -0.005 | 0.066 | 192/200 (96.0%) |
-| s2       | pp       | confounding + independent loss |        200/200 |        +0.008 | 0.079 | 196/200 (98.0%) |
-| s3       | pp       | confounding + informative loss |        200/200 |        +0.017 | 0.104 | 194/200 (97.0%) |
-| s1       | itt      | none                           |        200/200 |        -0.005 | 0.060 | 192/200 (96.0%) |
-| s2       | itt      | confounding + independent loss |        200/200 |        -0.001 | 0.078 | 192/200 (96.0%) |
-| s3       | itt      | confounding + informative loss |        200/200 |        -0.027 | 0.093 | 189/200 (94.5%) |
+| Scenario | Estimand | Nuisances | Replicates fit | Mean log bias | MC sd | 95% CI coverage |
+|:---|:---|:---|---:|---:|---:|---:|
+| s1 | pp | none | 200/200 | -0.005 | 0.066 | 192/200 (96.0%) |
+| s2 | pp | confounding + independent loss | 200/200 | +0.008 | 0.079 | 196/200 (98.0%) |
+| s3 | pp | confounding + informative loss | 200/200 | +0.017 | 0.104 | 194/200 (97.0%) |
+| s1 | itt | none | 200/200 | -0.005 | 0.060 | 192/200 (96.0%) |
+| s2 | itt | confounding + independent loss | 200/200 | -0.001 | 0.078 | 192/200 (96.0%) |
+| s3 | itt | confounding + informative loss | 200/200 | -0.027 | 0.093 | 189/200 (94.5%) |
 
 Table 15. Coverage calibration against the exact log-IRR truth, M = 200
 replicates per scenario and estimand at N = 3,000, using the primary
@@ -1820,9 +1882,10 @@ adjusts the outcome model, which gives a conditional effect.
 Rate ratios are collapsible, so the two coincide for the IRR. Odds
 ratios are not collapsible, so the `TrialEmulation` OR is converted to a
 rate ratio before comparison. The conversion uses the Zhang–Yu relation
-${RR} = {OR}/\left( 1 - p_{0} + p_{0}\,{OR} \right)$, where $p_{0}$ is
-the reference-arm per-period risk. The conversion removes the scale gap
-only; a residual conditional-versus-marginal difference remains.
+$`\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})`$, where
+$`p_0`$ is the reference-arm per-period risk. The conversion removes the
+scale gap only; a residual conditional-versus-marginal difference
+remains.
 
 In Table 4 the swereg − TE gaps in the confounded ITT cells are small
 (+0.006 in s2, +0.007 in s3). The per-protocol gaps are larger (+0.023
@@ -1842,31 +1905,31 @@ cost. This section varies the design one parameter at a time around the
 s3 configuration:
 
 - the strength of the dependence of loss on the confounder (0.45, 0.9
-  and 1.5 on $L_{0}$);
+  and 1.5 on $`L_0`$);
 
 - the direction of that dependence (−0.9, so that dropout selects
   low-risk rather than high-risk person-time);
 
-- the direction of the treatment effect (harmful, $+ 0.7$);
+- the direction of the treatment effect (harmful, $`+0.7`$);
 
-- dropout driven by an unmeasured prognostic factor $U$;
+- dropout driven by an unmeasured prognostic factor $`U`$;
 
 - a healthy-adherer mechanism, in which treated individuals with high
-  $U$ discontinue preferentially.
+  $`U`$ discontinue preferentially.
 
 In a separate data-generating process, a time-varying covariate that
 treatment itself affects drives the censoring. Every cell uses the
 per-protocol estimand and ten paired replicates.
 
-| Cell                                          | Datasets | Person-periods lost | True log-IRR | swereg truncated: mean bias (MC SE) | swereg untruncated: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) |
-|:----------------------------------------------|---------:|--------------------:|-------------:|------------------------------------:|--------------------------------------:|----------------------------------:|
-| informative loss, mild (0.45·L0)              |       10 |                 51% |       -0.659 |                      +0.031 (0.008) |                        +0.001 (0.010) |                    -0.012 (0.008) |
-| informative loss, base (0.9·L0, = s3)         |       10 |                 50% |       -0.659 |                      +0.041 (0.011) |                        +0.018 (0.027) |                    -0.019 (0.012) |
-| informative loss, harsh (1.5·L0)              |       10 |                 50% |       -0.659 |                      +0.049 (0.013) |                        +0.275 (0.284) |                    +0.009 (0.010) |
-| informative loss, reversed (−0.9·L0)          |       10 |                 50% |       -0.659 |                      +0.002 (0.008) |                        -0.031 (0.010) |                    -0.030 (0.007) |
-| harmful effect (+0.7), informative loss       |       10 |                 50% |        0.639 |                      +0.040 (0.006) |                        -0.022 (0.034) |                    +0.030 (0.005) |
-| unmeasured loss driver (0.9·U)                |       10 |                 50% |       -0.637 |                      -0.031 (0.011) |                        -0.045 (0.011) |                    -0.059 (0.012) |
-| unmeasured adherence driver (healthy-adherer) |       10 |                  0% |       -0.637 |                      -0.013 (0.008) |                        -0.030 (0.009) |                    -0.050 (0.009) |
+| Cell | Datasets | Person-periods lost | True log-IRR | swereg truncated: mean bias (MC SE) | swereg untruncated: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) |
+|:---|---:|---:|---:|---:|---:|---:|
+| informative loss, mild (0.45·L0) | 10 | 51% | -0.659 | +0.031 (0.008) | +0.001 (0.010) | -0.012 (0.008) |
+| informative loss, base (0.9·L0, = s3) | 10 | 50% | -0.659 | +0.041 (0.011) | +0.018 (0.027) | -0.019 (0.012) |
+| informative loss, harsh (1.5·L0) | 10 | 50% | -0.659 | +0.049 (0.013) | +0.275 (0.284) | +0.009 (0.010) |
+| informative loss, reversed (−0.9·L0) | 10 | 50% | -0.659 | +0.002 (0.008) | -0.031 (0.010) | -0.030 (0.007) |
+| harmful effect (+0.7), informative loss | 10 | 50% | 0.639 | +0.040 (0.006) | -0.022 (0.034) | +0.030 (0.005) |
+| unmeasured loss driver (0.9·U) | 10 | 50% | -0.637 | -0.031 (0.011) | -0.045 (0.011) | -0.059 (0.012) |
+| unmeasured adherence driver (healthy-adherer) | 10 | 0% | -0.637 | -0.013 (0.008) | -0.030 (0.009) | -0.050 (0.009) |
 
 Table 16. Truncation-tradeoff grid, per-protocol estimand: one design
 parameter at a time around the s3 configuration, plus two cells in which
@@ -1921,8 +1984,8 @@ unmeasured drivers. To detect those, use design-based approaches
 selection), not weight diagnostics.
 
 | Datasets | True log-IRR | swereg IPCW, time-updated covariate: mean bias (MC SE) | swereg IPCW, covariate frozen at baseline: mean bias (MC SE) | TrialEmulation, baseline conditioning: mean bias (MC SE) |
-|---------:|-------------:|-------------------------------------------------------:|-------------------------------------------------------------:|---------------------------------------------------------:|
-|       10 |       -1.195 |                                         +0.163 (0.015) |                                               +0.190 (0.015) |                                           +0.183 (0.016) |
+|---:|---:|---:|---:|---:|
+| 10 | -1.195 | +0.163 (0.015) | +0.190 (0.015) | +0.183 (0.016) |
 
 Table 17. Feedback boundary, per-protocol estimand: censoring driven by
 a time-varying covariate that treatment affects (the 1.7 regime); both
@@ -2054,9 +2117,9 @@ cell (Section 4.2).
 No simulation enters the two truths:
 
 - **Risk difference.** The cumulative risk of a first event by period
-  $h$ under the strategy of the estimand, intervention minus comparator.
-  A forward recursion over the equations of Section 3.2 computes it,
-  with quadrature over the baseline covariates.
+  $`h`$ under the strategy of the estimand, intervention minus
+  comparator. A forward recursion over the equations of Section 3.2
+  computes it, with quadrature over the baseline covariates.
 
 - **Log-IRR.** The treatment coefficient of swereg’s outcome model
   (1.8.4), fitted to the exact expected events and person-time of each
@@ -2072,30 +2135,30 @@ is 0.064, in s3 ITT. In s1 the hazard ratio is constant, and the two
 truths are equal.
 
 Scenario s4 adds a second standard-normal baseline covariate, so that
-each censoring cause has its own driver. The covariate $L_{0}$ drives
+each censoring cause has its own driver. The covariate $`L_0`$ drives
 the arm, discordance in the first follow-up week and later deviation.
-The covariate $L_{1}$ drives loss to follow-up. Both drive the outcome.
+The covariate $`L_1`$ drives loss to follow-up. Both drive the outcome.
 Because a person can deviate in the first follow-up week, s4 tests the
 time-zero censoring model of 1.8.2.
 
-| Scenario | Estimand | Weights     |        log-IRR |     RD, h = 5 |    RD, h = 10 |     RD, h = 20 |
-|:---------|:---------|:------------|---------------:|--------------:|--------------:|---------------:|
-| s1       | pp       | truncated   | -0.0043 (-0.7) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0013 (-0.8) |
-| s1       | pp       | untruncated | -0.0043 (-0.7) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0013 (-0.8) |
-| s1       | itt      | truncated   | -0.0030 (-0.6) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0006 (-0.4) |
-| s1       | itt      | untruncated | -0.0030 (-0.6) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0006 (-0.4) |
-| s2       | pp       | truncated   |  +0.0203 (2.1) | +0.0026 (2.1) | +0.0028 (1.3) |  +0.0097 (3.5) |
-| s2       | pp       | untruncated |  +0.0069 (0.7) | +0.0019 (1.5) | +0.0007 (0.3) |  +0.0036 (1.3) |
-| s2       | itt      | truncated   |  +0.0140 (1.7) | +0.0024 (1.9) | +0.0021 (1.0) |  +0.0048 (2.4) |
-| s2       | itt      | untruncated |  +0.0064 (0.7) | +0.0016 (1.3) | +0.0009 (0.4) |  +0.0029 (1.4) |
-| s3       | pp       | truncated   |  +0.0298 (5.4) | +0.0037 (4.9) | +0.0096 (8.9) |  +0.0185 (8.6) |
-| s3       | pp       | untruncated |  +0.0016 (0.1) | +0.0003 (0.2) | +0.0013 (0.6) |  +0.0025 (0.5) |
-| s3       | itt      | truncated   | -0.0258 (-4.9) | +0.0038 (5.2) | +0.0051 (5.6) | -0.0003 (-0.2) |
-| s3       | itt      | untruncated | -0.0326 (-6.2) | +0.0032 (4.3) | +0.0042 (4.6) | -0.0018 (-1.3) |
-| s4       | pp       | truncated   |  +0.0442 (6.5) | +0.0037 (3.8) | +0.0106 (4.7) |  +0.0186 (6.0) |
-| s4       | pp       | untruncated |  +0.0014 (0.1) | +0.0008 (0.7) | +0.0024 (0.9) | -0.0015 (-0.3) |
-| s4       | itt      | truncated   | -0.0146 (-2.7) | +0.0029 (4.5) | +0.0041 (3.1) | -0.0001 (-0.1) |
-| s4       | itt      | untruncated | -0.0202 (-3.7) | +0.0023 (3.6) | +0.0031 (2.4) | -0.0016 (-0.9) |
+| Scenario | Estimand | Weights | log-IRR | RD, h = 5 | RD, h = 10 | RD, h = 20 |
+|:---|:---|:---|---:|---:|---:|---:|
+| s1 | pp | truncated | -0.0043 (-0.7) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0013 (-0.8) |
+| s1 | pp | untruncated | -0.0043 (-0.7) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0013 (-0.8) |
+| s1 | itt | truncated | -0.0030 (-0.6) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0006 (-0.4) |
+| s1 | itt | untruncated | -0.0030 (-0.6) | +0.0001 (0.1) | +0.0001 (0.1) | -0.0006 (-0.4) |
+| s2 | pp | truncated | +0.0203 (2.1) | +0.0026 (2.1) | +0.0028 (1.3) | +0.0097 (3.5) |
+| s2 | pp | untruncated | +0.0069 (0.7) | +0.0019 (1.5) | +0.0007 (0.3) | +0.0036 (1.3) |
+| s2 | itt | truncated | +0.0140 (1.7) | +0.0024 (1.9) | +0.0021 (1.0) | +0.0048 (2.4) |
+| s2 | itt | untruncated | +0.0064 (0.7) | +0.0016 (1.3) | +0.0009 (0.4) | +0.0029 (1.4) |
+| s3 | pp | truncated | +0.0298 (5.4) | +0.0037 (4.9) | +0.0096 (8.9) | +0.0185 (8.6) |
+| s3 | pp | untruncated | +0.0016 (0.1) | +0.0003 (0.2) | +0.0013 (0.6) | +0.0025 (0.5) |
+| s3 | itt | truncated | -0.0258 (-4.9) | +0.0038 (5.2) | +0.0051 (5.6) | -0.0003 (-0.2) |
+| s3 | itt | untruncated | -0.0326 (-6.2) | +0.0032 (4.3) | +0.0042 (4.6) | -0.0018 (-1.3) |
+| s4 | pp | truncated | +0.0442 (6.5) | +0.0037 (3.8) | +0.0106 (4.7) | +0.0186 (6.0) |
+| s4 | pp | untruncated | +0.0014 (0.1) | +0.0008 (0.7) | +0.0024 (0.9) | -0.0015 (-0.3) |
+| s4 | itt | truncated | -0.0146 (-2.7) | +0.0029 (4.5) | +0.0041 (3.1) | -0.0001 (-0.1) |
+| s4 | itt | untruncated | -0.0202 (-3.7) | +0.0023 (3.6) | +0.0031 (2.4) | -0.0016 (-0.9) |
 
 Table 18. Mean bias against the exact truth, with z = bias / MC SE in
 brackets. 60 datasets per cell at N = 20,000. RD is the risk difference,
@@ -2157,46 +2220,46 @@ source of the validation evidence.
 
 ### 4.1 SAP step → code
 
-| SAP               | Step                                                        | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-|:------------------|:------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Values, 1.1, 1.4  | Width of the enrollment period                              | The required spec key `period_width`, which [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md) copies to the plan. It also sets the width of each follow-up interval. [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md) states the timing rules with worked examples                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 1.1               | Global and per-enrollment criteria                          | Global: `inclusion_criteria$isoyears`, `inclusion_criteria$criteria` and `exclusion_criteria`. Per enrollment: `additional_inclusion` (`age_range`, `isoyear_range`, `has_event`, washouts) and `additional_exclusion`, applied after the global criteria by [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md). [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) refuses a second `age_range` in one enrollment, because every `age_range` writes the one column `eligible_age`. It also refuses a second `isoyear_range`, and an `isoyear_range` outside `inclusion_criteria$isoyears`. An `isoyear_range` writes a column of its own, so the age range still applies. TARGET item 6a lists the criteria per enrollment, and the protocol table states an enrollment-level exclusion as “is TRUE”                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 1.1               | Look-back windows                                           | `window` takes a number of weeks, `"N year"` or `"N years"` (read as 52N weeks), or `lifetime_before_baseline`. A value of 99999 or more, `Inf` included, means lifetime. The window counts calendar ISO weeks from `isoyearweek`, not rows ([`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)). An exclusion with `window: lifetime_before_and_after_baseline` reads every row of the person, after baseline as well. [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) refuses that window on an outcome variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| 1.1, 1.8.7        | Washout / new-user exclusion                                | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. A missing value in the window makes the rule `NA`, and the week is then ineligible. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`, so it skips missing weeks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 1.1               | Prevalent-user warning                                      | [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md) warns when no washout covers the enrollment’s intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when the first skeleton file does not exist. Set `options(swereg.warn_prevalent_user = FALSE)` to silence it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 1.2, 1.4          | Arm values and the weekly status                            | `treatment.implementation`: `variable`, `intervention_value` and `comparator_value`. The pipeline writes `rd_intervention`: `TRUE` at the intervention value, `FALSE` at the comparator value, `NA` otherwise. It also writes `eligible_valid_treatment`, which is `TRUE` where `rd_intervention` is not `NA`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 1.3               | Arm classification, recruiting week                         | `R/tte_enrollment_periods.R`. Each confounder reaches the panel as `.tte_entry__<v>`, its value at the recruiting week. The panel column `enrollment_period_id` names the trial, and `period_id` names the calendar period of each follow-up interval                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 1.3               | Comparator draw                                             | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) and `seed` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) come from the YAML spec’s `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 1.4               | Time-zero checks                                            | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` (“Candidate person-trials, before the time-zero checks”), `landmark_observed` (“Not under observation at time zero”) and `landmark_event_free` (“Event before time zero”). The observation contract is `observed_var` on each enrollment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 1.4               | Arm tolerance                                               | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 1.4               | Follow-up stop events, ties                                 | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from the required spec key `admin_censoring_isoyearweek`, stored on the plan as `global_max_isoyearweek` and passed to `TTEDesign` as `admin_censor_isoyearweek`. TrialEmulation applies the same deviation rule in `expand_until_switch()`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 1.4               | Loss of observation                                         | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` can lack `weeks_to_observation_gap`. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md) refuses a stored enrollment below schema 7, and a stored enrollment that lacks the column is below schema 7, so such a file cannot be read. Rebuild the plan with s0 and re-run s1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 1.8.1             | Stabilised IPW                                              | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 1.8.2             | IPCW censoring models                                       | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`. When its prediction stops with an “object not found” error, swereg fits the same formula again with `discrete = FALSE`. Other prediction errors stop s2. The denominator is `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum’s proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. `$s4_prepare_for_analysis()` keeps the person-trials that deviate at time zero in `$time_zero_deviation`. The panel keeps the three factors as `ipcw_pp_time_zero`, `ipcw_pp_loss` and `ipcw_pp_deviation`, and `ipcw_pp` is their product                                                                                                                                                                                                                                             |
-| 1.8.3             | Weight truncation                                           | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 1.8.4, 1.8.6      | Outcome model and inference                                 | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it three times on every ETT, at 500 replicates and seed 1. The three weights are `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`), `analysis_weight_pp` (stored as `rd_pp` and `rd_curve_pp`) and `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 1.4, 1.8.5        | Protocol adherence                                          | `.s3_enrollment_worker()` calls `.tte_adherence_counts()` on the s1 raw file and stores the table as `adherence` in each enrollment result. `$get_adherence()` returns it with `share`. `.write_adherence_sheet()` writes the `Protocol adherence` sheet of `tables.xlsx` and `feasibility.xlsx`. The sheet shows `N (ITT)`, `N (PP)` and `%` for each comparison and arm, and `%` is blank when `N (ITT)` is 0. It shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 1.6, 1.8.6        | Minimum-events rule                                         | `min_expected_events_per_arm_per_year` in the YAML spec, which [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work items of `$s3_analyze()` on `analysis_weight_pp_trunc` and `ipw_trunc` compute the years outside `safe_call()`. The parent merge stops when an ETT has no decision. The item on `analysis_weight_pp` computes no years, and the per-protocol decision withholds `rd_pp` with `rd_pp_trunc`. The records are stored as `horizon_pp` and `horizon_itt`, and `.tte_horizon_follow_pp()` gives `horizon_itt` the per-protocol decision. `$get_horizon_windows()` returns the years. The `Minimum events (Y or -)` and `Minimum events (#)` sheets of `$export_tables()` show the per-protocol decision and the largest passing cut. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `min_expected_events_per_arm_per_year`. They also stop when a stored result holds no horizon record, as a result stored before swereg 27.2.14 does. s1 enrolls a horizon-only ETT through its year, and s3 computes only the rule for it. `minimum_events_rule_exempt: true` on an enrollment exempts it. s3 still computes and stores the verdict. The Minimum events sheets mark the comparison with `(exempt)`, and the generated methods text names each exempt comparison. A change of the key needs a rerun of s3 only. `$s3_feasibility()` applies the rule after s2. The Attrition sheet of `feasibility.xlsx` keeps the eligibility counts by arm |
-| 1.8.7             | Missing data                                                | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan’s `impute_fn`, whose default [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md) draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md) counts the filled rows                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 1.8.8             | Subgroups and heterogeneity                                 | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 1.8.9             | Time axes                                                   | Each row of the analysis panel carries the three axes as columns. `period_id` is the calendar period $c_{m,j}$, `enrollment_period_id` is the trial $m$, and `tstart` is the time since time zero $u_{m,j}$. `tstop` is the interval stop. So `period_id` = `enrollment_period_id` + interval number, and the interval number is `tstart` / `period_width` + 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 1.8.10            | Baseline characteristics                                    | `.t1_wtd_quartiles()` computes the weighted quartiles. With equal weights they equal `stats::quantile(type = 2)`, and the median equals [`stats::median()`](https://rdrr.io/r/stats/median.html)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 1.9               | Sensitivity analyses                                        | The untruncated PP IRR is stored as `irr_pp`, and the untruncated PP risk difference as `rd_pp` and `rd_curve_pp`. The `Weight truncation (PP)` sheet of `$export_tables()` shows the risk difference, its interval and the number needed to treat on each weight. A result that swereg 27.3.9 stored has no `rd_pp`, and the sheet reads `not computed` in its three untruncated cells. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the loss and deviation models as cloglog GLMs, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 1.8               | Pre-specification                                           | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| SAP | Step | Implementation |
+|:---|:---|:---|
+| Values, 1.1, 1.4 | Width of the enrollment period | The required spec key `period_width`, which [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md) copies to the plan. It also sets the width of each follow-up interval. [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md) states the timing rules with worked examples |
+| 1.1 | Global and per-enrollment criteria | Global: `inclusion_criteria$isoyears`, `inclusion_criteria$criteria` and `exclusion_criteria`. Per enrollment: `additional_inclusion` (`age_range`, `isoyear_range`, `has_event`, washouts) and `additional_exclusion`, applied after the global criteria by [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md). [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) refuses a second `age_range` in one enrollment, because every `age_range` writes the one column `eligible_age`. It also refuses a second `isoyear_range`, and an `isoyear_range` outside `inclusion_criteria$isoyears`. An `isoyear_range` writes a column of its own, so the age range still applies. TARGET item 6a lists the criteria per enrollment, and the protocol table states an enrollment-level exclusion as “is TRUE” |
+| 1.1 | Look-back windows | `window` takes a number of weeks, `"N year"` or `"N years"` (read as 52N weeks), or `lifetime_before_baseline`. A value of 99999 or more, `Inf` included, means lifetime. The window counts calendar ISO weeks from `isoyearweek`, not rows ([`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)). An exclusion with `window: lifetime_before_and_after_baseline` reads every row of the person, after baseline as well. [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) refuses that window on an outcome variable |
+| 1.1, 1.8.7 | Washout / new-user exclusion | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. A missing value in the window makes the rule `NA`, and the week is then ineligible. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`, so it skips missing weeks |
+| 1.1 | Prevalent-user warning | [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md) warns when no washout covers the enrollment’s intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when the first skeleton file does not exist. Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
+| 1.2, 1.4 | Arm values and the weekly status | `treatment.implementation`: `variable`, `intervention_value` and `comparator_value`. The pipeline writes `rd_intervention`: `TRUE` at the intervention value, `FALSE` at the comparator value, `NA` otherwise. It also writes `eligible_valid_treatment`, which is `TRUE` where `rd_intervention` is not `NA` |
+| 1.3 | Arm classification, recruiting week | `R/tte_enrollment_periods.R`. Each confounder reaches the panel as `.tte_entry__<v>`, its value at the recruiting week. The panel column `enrollment_period_id` names the trial, and `period_id` names the calendar period of each follow-up interval |
+| 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) and `seed` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) come from the YAML spec’s `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
+| 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` (“Candidate person-trials, before the time-zero checks”), `landmark_observed` (“Not under observation at time zero”) and `landmark_event_free` (“Event before time zero”). The observation contract is `observed_var` on each enrollment |
+| 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
+| 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from the required spec key `admin_censoring_isoyearweek`, stored on the plan as `global_max_isoyearweek` and passed to `TTEDesign` as `admin_censor_isoyearweek`. TrialEmulation applies the same deviation rule in `expand_until_switch()` |
+| 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` can lack `weeks_to_observation_gap`. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md) refuses a stored enrollment below schema 7, and a stored enrollment that lacks the column is below schema 7, so such a file cannot be read. Rebuild the plan with s0 and re-run s1 |
+| 1.8.1 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)`, on the `.tte_entry__<v>` columns |
+| 1.8.2 | IPCW censoring models | The private `TTEEnrollment` method `s6_ipcw_pp()`, reached through `$s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`. Three models per stratum. Loss: indicator `censor_loss`, on the rows with `event == 0`. Deviation: indicator `censor_deviation`, on the rows with `event == 0` and `censor_loss == 0`. Both use the GAM engine `mgcv::bam(..., discrete = TRUE)`. When its prediction stops with an “object not found” error, swereg fits the same formula again with `discrete = FALSE`. Other prediction errors stop s2. The denominator is `flex(tstart) + flex(period_id) + confounders`, numerator `flex(tstart)`, each with `offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = TRUE)`. It gives `s(var)` with 10 or more distinct values, `splines::ns(var, df = 3)` with 4 to 9, `factor(var)` with 2 or 3, none with 1. Each count is over the risk set of the cause, after zero-width rows leave. Time zero: `stats::glm(deviation_time_zero ~ confounders, family = binomial())` on `$time_zero_deviation`, numerator the stratum’s proportion. `$ipcw_formulas[[stratum]][[cause]]` records each model, or `list(fitted = FALSE, reason = )` for a cause that fits none. `$s4_prepare_for_analysis()` keeps the person-trials that deviate at time zero in `$time_zero_deviation`. The panel keeps the three factors as `ipcw_pp_time_zero`, `ipcw_pp_loss` and `ipcw_pp_deviation`, and `ipcw_pp` is their product |
+| 1.8.3 | Weight truncation | In the pipeline, `TTEEnrollment$s3_truncate_weights(weight_cols = "ipw")` truncates the treatment weight at its defaults `lower = 0.01` and `upper = 0.99`, and writes `ipw_trunc` (ITT). The private `s6_ipcw_pp()` writes `analysis_weight_pp_trunc` (PP product weight) with 0.01 and 0.99 fixed in the code. Untruncated PP results are exported as a sensitivity sheet |
+| 1.8.4, 1.8.6 | Outcome model and inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` and `survey::svyglm(family = quasipoisson())` with `treatment + flex(tstart) + flex(enrollment_period_id) + offset(log(person_weeks))`. `flex()` is `.tte_time_term(var, n, gam = FALSE)`: `splines::ns(var, df = 3)` with 4 or more distinct values in the fitted rows, `factor(var)` with 2 or 3, none with 1. `tstart` is read through `.tte_interval_start()`. The result carries the formula in `attr(, "model_formula")`. The Wald interval uses `qnorm(1 - (1 - conf_level) / 2)`, and `$s3_analyze()` passes the study level `study.implementation.conf_level` |
+| 1.6, 1.8.5, 1.8.6 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it three times on every ETT, at 500 replicates and seed 1. The three weights are `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`), `analysis_weight_pp` (stored as `rd_pp` and `rd_curve_pp`) and `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95. `TTEPlan$get_curves()` returns the stop time in weeks from time zero as the column `follow_up_interval`, and the stored risk-difference rows use the same name |
+| 1.4, 1.8.5 | Protocol adherence | `.s3_enrollment_worker()` calls `.tte_adherence_counts()` on the s1 raw file and stores the table as `adherence` in each enrollment result. `$get_adherence()` returns it with `share`. `.write_adherence_sheet()` writes the `Protocol adherence` sheet of `tables.xlsx` and `feasibility.xlsx`. The sheet shows `N (ITT)`, `N (PP)` and `%` for each comparison and arm, and `%` is blank when `N (ITT)` is 0. It shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel |
+| 1.6, 1.8.6 | Minimum-events rule | `min_expected_events_per_arm_per_year` in the YAML spec, which [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) requires. The year is the package constant `.HORIZON_WINDOW_WEEKS`, 52 weeks. The risk-difference work items of `$s3_analyze()` on `analysis_weight_pp_trunc` and `ipw_trunc` compute the years outside `safe_call()`. The parent merge stops when an ETT has no decision. The item on `analysis_weight_pp` computes no years, and the per-protocol decision withholds `rd_pp` with `rd_pp_trunc`. The records are stored as `horizon_pp` and `horizon_itt`, and `.tte_horizon_follow_pp()` gives `horizon_itt` the per-protocol decision. `$get_horizon_windows()` returns the years. The `Minimum events (Y or -)` and `Minimum events (#)` sheets of `$export_tables()` show the per-protocol decision and the largest passing cut. `$get_estimates()` carries `horizon_reportable_weeks` and `horizon_status`. `$export()`, `$export_tables()` and `$print_target_checklist()` stop when a stored result was judged with another `min_expected_events_per_arm_per_year`. They also stop when a stored result holds no horizon record, as a result stored before swereg 27.2.14 does. s1 enrolls a horizon-only ETT through its year, and s3 computes only the rule for it. `minimum_events_rule_exempt: true` on an enrollment exempts it. s3 still computes and stores the verdict. The Minimum events sheets mark the comparison with `(exempt)`, and the generated methods text names each exempt comparison. A change of the key needs a rerun of s3 only. `$s3_feasibility()` applies the rule after s2. The Attrition sheet of `feasibility.xlsx` keeps the eligibility counts by arm |
+| 1.8.7 | Missing data | `TTEEnrollment$s1_impute_confounders(seed = 4)`. The method is the plan’s `impute_fn`, whose default [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md) draws one hot-deck value. `TTEEnrollment$s1b_fill_followup_confounders()` carries a follow-up value forward, and [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md) counts the filled rows |
+| 1.8.8 | Subgroups and heterogeneity | `subgroups` in the YAML spec, each with `implementation$variable`. `$s3_analyze()` runs `TTEEnrollment$irr_by_subgroup()` and `TTEEnrollment$effect_modification_test()` for each subgroup and estimand. `$irr_by_subgroup()` and `$effect_modification_test()` take `conf_level`. The effect-modification model is `treatment * factor(subgroup) + flex(tstart) + flex(enrollment_period_id)`. `TTEEnrollment$heterogeneity_test(weight_col)` fits `treatment * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`, where `n` is the number of trials; `$s3_analyze()` does not call it |
+| 1.8.9 | Time axes | Each row of the analysis panel carries the three axes as columns. `period_id` is the calendar period $`c_{m,j}`$, `enrollment_period_id` is the trial $`{m}`$, and `tstart` is the time since time zero $`u_{m,j}`$. `tstop` is the interval stop. So `period_id` = `enrollment_period_id` + interval number, and the interval number is `tstart` / `period_width` + 1 |
+| 1.8.10 | Baseline characteristics | `.t1_wtd_quartiles()` computes the weighted quartiles. With equal weights they equal `stats::quantile(type = 2)`, and the median equals [`stats::median()`](https://rdrr.io/r/stats/median.html) |
+| 1.9 | Sensitivity analyses | The untruncated PP IRR is stored as `irr_pp`, and the untruncated PP risk difference as `rd_pp` and `rd_curve_pp`. The `Weight truncation (PP)` sheet of `$export_tables()` shows the risk difference, its interval and the number needed to treat on each weight. A result that swereg 27.3.9 stored has no `rd_pp`, and the sheet reads `not computed` in its three untruncated cells. `estimate_ipcw_pp_with_gam = FALSE` in `$s2_generate_analysis_files_and_ipcw_pp()` fits the loss and deviation models as cloglog GLMs, `.tte_time_term(var, n, gam = FALSE)` for `tstart` and `period_id`: `splines::ns(var, df = 3)` with 4 or more distinct values, `factor(var)` with 2 or 3, none with 1 |
+| 1.8 | Pre-specification | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()` |
 
 ### 4.2 Where the validation numbers come from
 
 Each evidence layer of Section 3 is an executable test:
 
-| Section | Layer                   | Test file                                     | Gate                                                                 |
-|:--------|:------------------------|:----------------------------------------------|:---------------------------------------------------------------------|
-| 3.3     | Cross-package triangle  | `tests/testthat/test-tte_validation_matrix.R` | runs in CI                                                           |
-| 3.4     | Stress matrix           | `tests/testthat/test-tte_stress_matrix.R`     | fast subset in CI; full battery `SWEREG_RUN_VALIDATION=true`         |
-| 3.5     | Plan-layer truth matrix | `tests/testthat/test-tteplan_truth_matrix.R`  | reduced-N subset in CI; full factorial `SWEREG_RUN_PLAN_MATRIX=true` |
-| 3.6     | Coverage calibration    | `tests/testthat/test-tte_coverage.R`          | `SWEREG_RUN_VALIDATION=true`                                         |
-| 3.9     | Exact truths, fast tier | `tests/testthat/test-validation-fast.R`       | runs in CI, inside `R CMD check`                                     |
-| 3.9     | Exact truths, full tier | `tests/testthat/test-validation-full.R`       | `SWEREG_RUN_VALIDATION=true`                                         |
+| Section | Layer | Test file | Gate |
+|:---|:---|:---|:---|
+| 3.3 | Cross-package triangle | `tests/testthat/test-tte_validation_matrix.R` | runs in CI |
+| 3.4 | Stress matrix | `tests/testthat/test-tte_stress_matrix.R` | fast subset in CI; full battery `SWEREG_RUN_VALIDATION=true` |
+| 3.5 | Plan-layer truth matrix | `tests/testthat/test-tteplan_truth_matrix.R` | reduced-N subset in CI; full factorial `SWEREG_RUN_PLAN_MATRIX=true` |
+| 3.6 | Coverage calibration | `tests/testthat/test-tte_coverage.R` | `SWEREG_RUN_VALIDATION=true` |
+| 3.9 | Exact truths, fast tier | `tests/testthat/test-validation-fast.R` | runs in CI, inside `R CMD check` |
+| 3.9 | Exact truths, full tier | `tests/testthat/test-validation-full.R` | `SWEREG_RUN_VALIDATION=true` |
 
 The workflow `.github/workflows/validation.yml` sets
 `SWEREG_RUN_VALIDATION` and `SWEREG_RUN_PLAN_MATRIX`. It runs weekly, on

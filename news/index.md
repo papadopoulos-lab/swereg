@@ -1,5 +1,84 @@
 # Changelog
 
+## swereg 27.3.12
+
+No result changes. A plan built by swereg 27.3.10 or later needs no
+rerun. An older plan no longer loads. Rerun its `s0_init.R`, then s1 to
+s3.
+
+### Breaking changes
+
+- **[`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+  refuses a plan built before swereg 27.3.10.** Such a plan stores a
+  spec without `period_width` and `admin_censoring_isoyearweek`. The
+  message says to cut a spec version that declares both keys and rerun
+  `s0_init.R`. Before, `$reload_spec()` filled the two keys from the
+  plan’s fields.
+- **A plan saved by swereg 27.2.14 or earlier is no longer translated.**
+  [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+  renamed its spec keys `horizon_rule` and `sparse_rule`, and rewrote
+  the result statuses that began “below horizon rule”. Both steps are
+  gone. The 27.3.10 check above refuses every such plan first.
+- **The schema has no `legacy` key class any more.** `horizon_rule`,
+  `sparse_rule`, `matching_ratio` under a treatment implementation,
+  `inclusion_criteria$additional_inclusion`, and a criterion written
+  straight under `inclusion_criteria` are now refused as unknown keys.
+  The message lists the keys the context accepts, and no longer names
+  the replacement. No spec version that a project pins today uses one of
+  them.
+- **[`tteplan_check_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_check_spec.md)
+  reports a retired key as `undeclared_key`.** The problem kind
+  `retired_key` is gone, so the checker reports eleven kinds.
+
+### Documentation
+
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  describes two key classes**, `consumed` and `metadata`. Its section on
+  refused keys shows the message for a key under `inclusion_criteria`
+  that the container does not accept.
+
+## swereg 27.3.11
+
+No result changes. No plan needs a rerun.
+
+### Documentation
+
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  gains the section “What each rule computes”.** It covers every rule
+  form a spec can declare, with the blocks that accept it, the column it
+  writes, a YAML example and a worked case of eight weeks. It also lists
+  every way of writing a window, and what no rule can express, such as a
+  count of weeks or an AND across columns.
+- **Each worked case is run when the vignette is built**, through
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  and then
+  [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  or
+  [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md).
+  The tables print the code’s own output.
+- **[`?tteplan_read_spec`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  lists every window form.** A bare number is a number of weeks, and a
+  fraction is truncated without a message: `12.5` reads as 12.
+  `"52 weeks"` and `"6 months"` are refused.
+- **`only_prior_value` passes a window that holds no observed week.**
+  Before, the vignette did not say so. The rule does not require any
+  week at `value`.
+- **A list of columns in a washout passes
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  and then stops in the compiler** with a data.table error. The vignette
+  now says so. The behaviour is unchanged.
+
+### Internal
+
+- **`R/tteplan_spec_forms.R` holds the registry the new section
+  renders**: `.TTE_SPEC_RULE_FORMS`, `.TTE_SPEC_WINDOW_FORMS`,
+  `.TTE_SPEC_WINDOW_DEFAULTS` and `.TTE_SPEC_NOT_EXPRESSIBLE`.
+- **`tests/testthat/test-tteplan-spec-forms.R` holds the registry to the
+  code.** It fails when a rule type of the reader, or a case of the
+  batch evaluator, has no form. It also fails when an example is refused
+  in a block its form names, when a worked case gives another result,
+  and when the vignette stops reading the registry.
+
 ## swereg 27.3.10
 
 No plan needs a rerun for the new spec keys. A plan gets the untruncated
@@ -1165,13 +1244,13 @@ only on the next `$s3_feasibility()`.
   [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
   gives the reason for each term.
 
-  | Model                    | Time terms in 26.15.0                                                                                                                                  | Time terms in 27.1.1                                               |
-  |:-------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------|
-  | IRR and subgroup IRRs    | `tx + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values                                                               | `tx + term(tstart) + term(enrollment_period_id)`                   |
-  | Effect-modification test | `tx * factor(sg) + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values                                                  | `tx * factor(sg) + term(tstart) + term(enrollment_period_id)`      |
-  | Heterogeneity test       | `tx * ns(trial_id, df = min(3, n - 1)) + ns(tstop, df = 3)`                                                                                            | `tx * ns(enrollment_period_id, df = min(3, n - 1)) + term(tstart)` |
-  | IPCW denominator         | `term(tstart) + s(trial_id) + confounders`, with a linear `trial_id` outside [`mgcv::bam()`](https://rdrr.io/pkg/mgcv/man/bam.html) or below 10 values | `term(tstart) + term(period_id) + confounders`                     |
-  | IPCW numerator           | `term(tstart) + s(trial_id)`, with a linear `trial_id` outside [`mgcv::bam()`](https://rdrr.io/pkg/mgcv/man/bam.html) or below 10 values               | `term(tstart)`                                                     |
+  | Model | Time terms in 26.15.0 | Time terms in 27.1.1 |
+  |:---|:---|:---|
+  | IRR and subgroup IRRs | `tx + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values | `tx + term(tstart) + term(enrollment_period_id)` |
+  | Effect-modification test | `tx * factor(sg) + ns(tstop, df = 3) + ns(trial_id, df = 3)`, with a linear `trial_id` below 5 values | `tx * factor(sg) + term(tstart) + term(enrollment_period_id)` |
+  | Heterogeneity test | `tx * ns(trial_id, df = min(3, n - 1)) + ns(tstop, df = 3)` | `tx * ns(enrollment_period_id, df = min(3, n - 1)) + term(tstart)` |
+  | IPCW denominator | `term(tstart) + s(trial_id) + confounders`, with a linear `trial_id` outside [`mgcv::bam()`](https://rdrr.io/pkg/mgcv/man/bam.html) or below 10 values | `term(tstart) + term(period_id) + confounders` |
+  | IPCW numerator | `term(tstart) + s(trial_id)`, with a linear `trial_id` outside [`mgcv::bam()`](https://rdrr.io/pkg/mgcv/man/bam.html) or below 10 values | `term(tstart)` |
 
 - **One helper, `.tte_time_term()`, builds every time term.** The table
   shows it as `term(x)`. For `n` distinct values of `x` in the rows of
@@ -4878,12 +4957,12 @@ would be noise.
 `PP results` and `ITT results` gain four columns after the measurement
 block:
 
-| Column                       | What it is                                                  |
-|------------------------------|-------------------------------------------------------------|
-| `Persons with event (int)`   | Distinct people in the intervention arm who had the outcome |
-| `Persons with event (cmp)`   | Distinct people in the comparator arm who had the outcome   |
-| `Risk difference per 10,000` | The signed risk difference at the horizon                   |
-| `Risk difference 95% CI`     | Its interval, at the level the bounds were computed at      |
+| Column | What it is |
+|----|----|
+| `Persons with event (int)` | Distinct people in the intervention arm who had the outcome |
+| `Persons with event (cmp)` | Distinct people in the comparator arm who had the outcome |
+| `Risk difference per 10,000` | The signed risk difference at the horizon |
+| `Risk difference 95% CI` | Its interval, at the level the bounds were computed at |
 
 The counts are unweighted head counts of people. `Events (int)` and
 `Events (cmp)` beside them are weighted sums over event ROWS. The two

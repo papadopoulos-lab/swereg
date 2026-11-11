@@ -30,7 +30,7 @@ with one row per problem, and three character columns:
 
 - `kind`:
 
-  The problem kind. The Details section lists the twelve kinds.
+  The problem kind. The Details section lists the eleven kinds.
 
 - `message`:
 
@@ -40,7 +40,7 @@ The table has zero rows when the checker finds no problem.
 
 ## Details
 
-The checker reports twelve kinds of problem:
+The checker reports eleven kinds of problem:
 
 - `unreadable`:
 
@@ -52,10 +52,6 @@ The checker reports twelve kinds of problem:
 
   The schema does not declare the key path. The message lists the keys
   that the context accepts.
-
-- `retired_key`:
-
-  The schema refuses the key path. The message names the replacement.
 
 - `invalid_enrollment_id`:
 
@@ -121,13 +117,13 @@ The checker reports twelve kinds of problem:
   also when the key gate fails. The two design keys are `period_width`
   and `admin_censoring_isoyearweek`, and the message names both.
 
-The checker reports every undeclared key path and every retired key
-path.
+The checker reports every undeclared key path. A retired key is an
+undeclared key.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 reports them too, but stops after them. The checker calls
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-only when no key path is undeclared or retired, because the key gate
-stops it first.
+only when no key path is undeclared, because the key gate stops it
+first.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
 stops at its first problem after the key gate, so a table holds at most
 one `read_error` row. The design keys are its first check after the key

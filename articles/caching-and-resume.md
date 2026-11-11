@@ -28,12 +28,12 @@ for what s1 to s4 do.
 
 ### The layers
 
-| layer                                    | what it avoids                                                           | invalidated by                                                                          |
-|------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| **1. Rawbatch staging**                  | re-reading tens of GB of raw registry files                              | nothing automatic: swereg checks only that the files exist                              |
-| **2. Skeleton phases**                   | rebuilding 2,000+ skeletons for a one-line change                        | the `body`/`formals` hash of a changed function, or a changed code registry fingerprint |
-| **3. Meta sidecars + derived artifacts** | re-reading whole skeletons to answer provenance and population questions | rewritten with their batch                                                              |
-| **Skeleton manifest**                    | *(a commit record, not a cache)*                                         | cleared before every `$process_skeletons()`, recommitted only if the result validates   |
+| layer | what it avoids | invalidated by |
+|----|----|----|
+| **1. Rawbatch staging** | re-reading tens of GB of raw registry files | nothing automatic: swereg checks only that the files exist |
+| **2. Skeleton phases** | rebuilding 2,000+ skeletons for a one-line change | the `body`/`formals` hash of a changed function, or a changed code registry fingerprint |
+| **3. Meta sidecars + derived artifacts** | re-reading whole skeletons to answer provenance and population questions | rewritten with their batch |
+| **Skeleton manifest** | *(a commit record, not a cache)* | cleared before every `$process_skeletons()`, recommitted only if the result validates |
 
 ------------------------------------------------------------------------
 
@@ -220,12 +220,12 @@ cannot report success over a dataset that nothing will accept.
 
 ### Recovery: what to do
 
-| symptom                                   | do this                                                                                                                                                                              |
-|-------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Regeneration was killed                   | Run a **full** `$process_skeletons()` (`batches = NULL`) to completion. A cleared manifest after a kill is the protocol at work.                                                     |
-| Raw delivery changed, code did not        | Nothing detects this automatically. Run `$delete_rawbatches()`, `$delete_skeletons()`, `$delete_meta_file()`, then re-run the full generator.                                        |
-| “Is my skeleton dir mixed?”               | Run `study$skeleton_pipeline_hashes()`. You want one distinct `pipeline_hash` and no `NA`s. Compare it to `study$pipeline_hash()` to see whether it is *current* as well as uniform. |
-| s1’s work directory survived a killed run | Nothing. The next `$s1_generate_enrollments_and_ipw()` call clears it at start.                                                                                                      |
+| symptom | do this |
+|----|----|
+| Regeneration was killed | Run a **full** `$process_skeletons()` (`batches = NULL`) to completion. A cleared manifest after a kill is the protocol at work. |
+| Raw delivery changed, code did not | Nothing detects this automatically. Run `$delete_rawbatches()`, `$delete_skeletons()`, `$delete_meta_file()`, then re-run the full generator. |
+| “Is my skeleton dir mixed?” | Run `study$skeleton_pipeline_hashes()`. You want one distinct `pipeline_hash` and no `NA`s. Compare it to `study$pipeline_hash()` to see whether it is *current* as well as uniform. |
+| s1’s work directory survived a killed run | Nothing. The next `$s1_generate_enrollments_and_ipw()` call clears it at start. |
 
 ### A worked example
 

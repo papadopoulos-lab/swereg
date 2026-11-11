@@ -2074,15 +2074,9 @@ invalidate the cached results. The differences are surfaced via a loud
 warning and recorded in `self$spec_reload_skipped_diffs`. The two design
 keys, `period_width` and `admin_censoring_isoyearweek`, are structural
 fields.
-
-A plan built before swereg 27.3.10 stores a spec without the two design
-keys. For such a plan the method fills each design key that the spec
-file lacks from `self$period_width` and `self$global_max_isoyearweek`.
-It fills the same two values into the copy of `self$spec` that it
-compares against. A plan whose stored spec has the keys reads the file
-with
-[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
-which refuses a file without them.
+[`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+refuses a plan built before swereg 27.3.10, whose stored spec lacks
+them.
 
 #### Usage
 
