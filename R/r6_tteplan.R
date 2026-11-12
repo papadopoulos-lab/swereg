@@ -189,7 +189,8 @@ TTEPlan <- R6::R6Class(
     #'   row per enrollment, candidate and arm, with `n_persons`, the persons
     #'   who hold the condition at baseline among the eligible person-trials
     #'   of that arm. The decision reads the driving enrollments only. The
-    #'   Rare conditions sheet of `feasibility.xlsx` shows every enrollment.
+    #'   Rare conditions by comparison sheet of `feasibility.xlsx` shows every
+    #'   enrollment.
     sparse_counts = NULL,
     #' @field sparse_rule_hash The hash of the `rare_condition_rule` that made
     #'   `sparse_decision`, or NULL. s1c, s2 and s3 stop when the hash of the

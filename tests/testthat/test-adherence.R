@@ -662,15 +662,25 @@ test_that("the milestone labels merge across three columns, and the sheet and it
     expect_identical(.adh_merges(xlsx), want, info = xlsx)
   }
 
-  # feasibility.xlsx: immediately after Attrition.
+  # feasibility.xlsx: immediately after Table 1 (filterable), its last
+  # sheet.
   sheets <- openxlsx::getSheetNames(x$feasibility)
-  expect_identical(match(ADH_SHEET, sheets), match("Attrition", sheets) + 1L)
+  expect_identical(
+    match(ADH_SHEET, sheets),
+    match("Table 1 (filterable)", sheets) + 1L
+  )
+  expect_identical(sheets[length(sheets)], ADH_SHEET)
 
-  # tables.xlsx: immediately after the last sheet of the per-enrollment loop.
+  # tables.xlsx: the same place in the feasibility sheets, before the
+  # results sheets and the per-enrollment loop.
   sheets <- openxlsx::getSheetNames(x$tables)
+  expect_identical(
+    match(ADH_SHEET, sheets),
+    match("Table 1 (filterable)", sheets) + 1L
+  )
+  expect_identical(sheets[match(ADH_SHEET, sheets) + 1L], "Target trial protocol")
   loop <- grep("^(Attrition_|Love_)", sheets)
-  expect_identical(sheets[max(loop)], "Love_02")
-  expect_identical(match(ADH_SHEET, sheets), max(loop) + 1L)
+  expect_lt(match(ADH_SHEET, sheets), min(loop))
   expect_identical(sum(sheets == ADH_SHEET), 1L)
 
   # One TOC row, in workbook order.

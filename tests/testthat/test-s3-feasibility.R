@@ -385,30 +385,29 @@ test_that("no sheet of feasibility.xlsx names a stripped column", {
   .fz_skip()
   fx <- .fz_fixture()
   # The raw files of this fixture come from s1, so each enrollment has an
-  # adherence table and the Protocol adherence sheet follows Attrition.
+  # adherence table and the Protocol adherence sheet follows Table 1
+  # (filterable). The spec carries a rare_condition_rule.
   expect_identical(
     openxlsx::getSheetNames(fx$xlsx),
     c(
       "Study Specification",
-      "Minimum events",
-      "Longest reportable",
-      "Attrition by arm",
-      "Rare conditions by comparison",
-      "Table 1 (filterable)",
-      "Rare conditions",
-      "Minimum events (Y or -)",
-      "Minimum events (#)",
       "Arm sizes",
       "Coverage (whole dataset)",
       "Coverage (ETT)",
-      "Attrition",
-      "Protocol adherence",
-      "Table 1"
+      "Attrition by arm",
+      "Rare conditions by comparison",
+      "Minimum events",
+      "Longest reportable",
+      "Table 1 (filterable)",
+      "Protocol adherence"
     )
   )
-  for (sh in c("Minimum events (Y or -)", "Minimum events (#)")) {
-    me <- .fz_sheet(fx$xlsx, sh, "Outcome")
-    expect_false(any(grepl("event|rate", names(me), ignore.case = TRUE)))
+  # The column labels under each outcome: follow-up years, or thresholds.
+  for (sh in FF_MIN_SHEETS) {
+    g <- .ff_grid(fx$xlsx, sh)
+    labels <- g$label[-(1:2)]
+    expect_gt(length(labels), 0L)
+    expect_false(any(grepl("event|rate", labels, ignore.case = TRUE)), info = sh)
   }
   cells <- .fz_cells(fx$xlsx)
   for (s in names(cells)) {
@@ -451,10 +450,10 @@ test_that("no stripped value reaches the workbook or the saved plan", {
   expect_length(hit(.fz_numbers(fx$staged$feasibility)), 0L)
 })
 
-test_that("Table 1 of feasibility.xlsx names no outcome", {
+test_that("Table 1 (filterable) of feasibility.xlsx names no outcome", {
   .fz_skip()
   fx <- .fz_fixture()
-  cells <- .fz_cells(fx$xlsx)[["Table 1"]]
+  cells <- .fz_cells(fx$xlsx)[["Table 1 (filterable)"]]
   expect_gt(length(cells), 0L)
   for (o in unique(c(fx$plan$ett$outcome_var, fx$plan$ett$outcome_name))) {
     expect_false(any(grepl(o, cells, fixed = TRUE)), info = o)
@@ -641,92 +640,78 @@ test_that("(k) both workbooks of $export_tables() show years 1 to 5, years 3 to 
   plan <- fx$plan
   feas_xlsx <- file.path(dirname(fx$xlsx), "feasibility.xlsx")
   expect_true(file.exists(feas_xlsx))
+  # The spec of the fixture has no rare_condition_rule, and its raw files
+  # hold no adherence table.
+  expect_null(plan$spec$rare_condition_rule)
   expect_identical(
     openxlsx::getSheetNames(feas_xlsx),
     c(
       "Study Specification",
-      "Minimum events",
-      "Longest reportable",
-      "Attrition by arm",
-      "Rare conditions by comparison",
-      "Table 1 (filterable)",
-      "Rare conditions",
-      "Minimum events (Y or -)",
-      "Minimum events (#)",
       "Arm sizes",
       "Coverage (whole dataset)",
       "Coverage (ETT)",
-      "Attrition",
-      "Table 1"
-    )[c(
-      TRUE,
-      TRUE,
-      TRUE,
-      TRUE,
-      "Rare conditions" %in% openxlsx::getSheetNames(fx$xlsx),
-      TRUE,
-      "Rare conditions" %in% openxlsx::getSheetNames(fx$xlsx),
-      TRUE,
-      TRUE,
-      TRUE,
-      TRUE,
-      TRUE,
-      TRUE,
-      TRUE
-    )]
+      "Attrition by arm",
+      "Minimum events",
+      "Longest reportable",
+      "Table 1 (filterable)"
+    )
   )
   years <- c("1 year", paste(2:5, "years"))
   feas_ids <- swereg:::.plan_ett_feasibility_ids(plan)
   ett <- plan$ett
+  # The spec threshold of `.ff_spec()`.
+  expect_equal(plan$spec$min_expected_events_per_arm_per_year, 1)
   for (xlsx in c(fx$xlsx, feas_xlsx)) {
-    yn <- .fz_sheet(xlsx, "Minimum events (Y or -)", "Comparison")
-    cut <- .fz_sheet(xlsx, "Minimum events (#)", "Comparison")
-    for (d in list(yn, cut)) {
-      expect_identical(
-        names(d),
-        c("Outcome", "#", "Comparison", years),
-        info = basename(xlsx)
-      )
-    }
+    cut <- .ff_grid(xlsx, "Minimum events")
+    lr <- .ff_grid(xlsx, "Longest reportable")
+    expect_identical(
+      .ff_grid_labels(cut, "Outcome A"),
+      years,
+      info = basename(xlsx)
+    )
     for (id in feas_ids) {
       eid <- ett$enrollment_id[ett$ett_id == id]
-      r <- which(yn$`#` == as.character(match(eid, unique(ett$enrollment_id))))
-      expect_length(r, 1L)
+      expect_length(which(cut$id == eid), 1L)
       by_year <- plan$results_ett[[id]]$horizon_pp$by_year
       expect_identical(by_year$year, 1:5)
       for (k in 3:5) {
         info <- paste(basename(xlsx), id, k)
-        want_yn <- if (by_year$reportable[k]) "Y" else "-"
         want_cut <- if (is.na(by_year$max_passing_cut[k])) {
           "-"
+        } else if (by_year$max_passing_cut[k] == 20) {
+          "\u226520"
         } else {
           format(by_year$max_passing_cut[k], trim = TRUE)
         }
-        expect_false(is.na(yn[r, years[k]]), info = info)
-        expect_identical(yn[r, years[k]], want_yn, info = info)
-        expect_identical(cut[r, years[k]], want_cut, info = info)
+        got <- .ff_grid_cell(cut, eid, "Outcome A", years[k])
+        expect_false(is.na(got), info = info)
+        expect_identical(got, want_cut, info = info)
       }
+      # The verdict of each year at the spec threshold: years 1 and 2 from
+      # the 52- and 104-week ETTs, years 3 to 5 from the 260-week ETT.
+      # Longest reportable shows the last year before the first "-".
+      own <- function(weeks) {
+        k <- ett$ett_id[ett$enrollment_id == eid & ett$follow_up == weeks]
+        return(!plan$results_ett[[k]]$horizon_pp$withheld)
+      }
+      verdict <- c(own(52L), own(104L), by_year$reportable[3:5])
+      last <- sum(cumprod(verdict))
+      want <- if (last == 0L) "none" else years[last]
+      expect_identical(
+        .ff_grid_cell(lr, eid, "Outcome A", "threshold 1"),
+        want,
+        info = paste(basename(xlsx), id)
+      )
     }
-    note <- openxlsx::read.xlsx(
-      xlsx,
-      sheet = "Minimum events (Y or -)",
-      colNames = FALSE,
-      rows = 3L,
-      cols = 1L
-    )[[1L]]
-    expect_identical(
-      note,
-      paste0(
-        "Years without their own follow-up are read from the shortest ",
-        "longer follow-up. Years beyond the analysis follow-up come from the ",
-        "feasibility horizon of 260 weeks (feasibility_follow_up_weeks); no ",
-        "estimate is reported for them."
-      ),
-      info = basename(xlsx)
-    )
   }
   # The fixture fails a year after the second, so the 260-week cells are not
-  # all one verdict.
+  # all one verdict, and the horizon at the spec threshold ends at year 3.
   by5 <- plan$results_ett$ETT00005$horizon_pp$by_year
   expect_true(any(by5$reportable) && !all(by5$reportable))
+  lr <- .ff_grid(fx$xlsx, "Longest reportable")
+  expect_identical(.ff_grid_cell(lr, "01", "Outcome A", "threshold 1"), "3 years")
+  # Before swereg 27.3.13 row 3 of the Minimum events (Y or -) sheet said
+  # that years beyond the analysis follow-up come from the 260-week
+  # feasibility horizon. Neither Minimum events nor Longest reportable
+  # carries that note.
 })

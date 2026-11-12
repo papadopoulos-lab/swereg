@@ -72,9 +72,9 @@
 #' Coverage (whole dataset) sheet counts the persons with each outcome column
 #' in the whole skeleton, before eligibility and blind to arm. The
 #' record keeps `max_passing_cut`: the largest cut of a coarse grid at which
-#' the estimand passes. The
-#' Attrition sheet keeps the eligibility counts by arm, including people
-#' excluded for an outcome event before time zero.
+#' the estimand passes. The Attrition by arm sheet keeps the eligibility
+#' counts by arm, including people excluded for an outcome event before time
+#' zero.
 #'
 #' The intention-to-treat record of each ETT takes the decision of its
 #' per-protocol record, as in `$s3_analyze()`. Some ETTs have a follow-up
@@ -83,18 +83,12 @@
 #'
 #' The method writes `feasibility.xlsx` to `self$dir_results`, the directory
 #' of `$export_tables()`. `$export_tables()` also writes it, from the s3
-#' results. The workbook holds these sheets, in this order:
+#' results. `tables.xlsx` holds the same sheets, in the same order, after its
+#' Provenance and Summary sheets. The workbook holds these sheets, in this
+#' order:
 #' \describe{
-#'   \item{Study Specification}{The sheet of `$export_tables()`.}
-#'   \item{Rare conditions}{The sheet of `$export_tables()`. It is absent when
-#'     the plan holds no rare-condition decision.}
-#'   \item{Minimum events (Y or -)}{One row per outcome and comparison, one
-#'     column per whole follow-up year. Y: the per-protocol estimate passes the
-#'     rule. -: it fails the rule, and the estimate is withheld unless the
-#'     comparison is exempt. The comparison of an exempt enrollment ends with
-#'     ` (exempt)`.}
-#'   \item{Minimum events (#)}{The same layout. Each cell is the largest cut
-#'     of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.}
+#'   \item{Study Specification}{The study design, the variables and their
+#'     ICD-10 and ATC codes.}
 #'   \item{Arm sizes}{One row per enrollment: the person-trials eligible for
 #'     each arm, summed over trials, the comparator-to-intervention ratio
 #'     they give, the ratio the spec asks for, and the person-trials the
@@ -116,16 +110,32 @@
 #'     person-trials of each confounder level per arm at baseline, flagged
 #'     when an arm holds none. Per ETT: the largest cut of the minimum-events
 #'     rule that the outcome passes, flagged when it passes none.}
-#'   \item{Attrition}{The table of `$get_attrition()`.}
+#'   \item{Attrition by arm}{One column per comparison and arm: the
+#'     person-trials left after each eligibility step, and removed by it,
+#'     before the comparator draw.}
+#'   \item{Rare conditions by comparison}{One row per candidate of the
+#'     rare-condition rule. `Decision` holds the decision of s1: adjusted or
+#'     excluded. One column per comparison holds the persons in the smaller
+#'     arm who hold the condition at baseline. The sheet is absent when the
+#'     spec has no `rare_condition_rule`.}
+#'   \item{Minimum events}{One row per comparison, and one column per outcome
+#'     and whole follow-up year. Each cell is the largest cut of 1, 2, 3, 4,
+#'     5, 10 and 20 at which the per-protocol estimate passes the rule. The
+#'     comparison of an exempt enrollment ends with ` (exempt)`.}
+#'   \item{Longest reportable}{The same rows, and one column per outcome and
+#'     threshold, at 5, 10, 20 and the threshold of the spec. Each cell is the
+#'     longest horizon up to which every year passes the threshold. The
+#'     column of the spec threshold reads the stored verdict of the rule.}
+#'   \item{Table 1 (filterable)}{The unweighted baseline table of every
+#'     enrollment, in one table with an autofilter. `File` reads
+#'     `s1 (unimputed)` for the s1 raw file, before imputation, and
+#'     `s2 (imputed)` for the smallest s2 analysis file of the enrollment.}
 #'   \item{Protocol adherence}{One row per comparison and arm. `N (ITT)`
 #'     counts the person-trials still observed and `N (PP)` those still on
 #'     protocol. `%` is 100 x N (PP) / N (ITT). The sheet shows weeks 13 and
 #'     26 and every multiple of 52 up to the last stored week. The counts are
 #'     unweighted and come from the s1 raw file. The sheet is absent when no
 #'     enrollment has an adherence table.}
-#'   \item{Table 1}{The unweighted baseline table of each enrollment. One
-#'     panel reads the s1 raw file, before imputation. The other reads the
-#'     smallest s2 analysis file of the enrollment.}
 #' }
 #'
 #' The method stops when the spec has no
@@ -350,23 +360,17 @@ TTEPlan$set(
 }
 
 
-#' Write feasibility.xlsx from the s3 results
+#' The unweighted baseline panels of each enrollment, from the s3 results
 #'
-#' `$export_tables()` calls it, so a normal run gives the feasibility
-#' workbook beside `tables.xlsx`. The sheets and their order are those of
-#' `$s3_feasibility()`, because both call `.write_feasibility_xlsx()`. The
-#' Minimum events sheets read the per-protocol horizon records that s3
-#' stored, feasibility-horizon ETTs included. Table 1 reads the stored
-#' unimputed and imputed unweighted panels of each enrollment, through
-#' `$get_baselines()`.
+#' Reads the stored unimputed and imputed unweighted panels through
+#' `$get_baselines()`, for the Table 1 (filterable) sheet.
 #'
 #' @param plan A `TTEPlan` with s3 results.
-#' @param path Character(1), the `.xlsx` path.
-#' @param enrollment_ids Character, the enrollments of the reported ETTs, in
-#'   the order of Table 1.
-#' @return `path`, invisibly.
+#' @param enrollment_ids Character, the enrollments, in the order of the sheet.
+#' @return A named list by enrollment id, each with `table1_raw` and
+#'   `table1_unweighted`.
 #' @noRd
-.plan_export_feasibility <- function(plan, path, enrollment_ids) {
+.tte_feasibility_baselines <- function(plan, enrollment_ids) {
   base_all <- plan$get_baselines()
   baselines <- lapply(enrollment_ids, function(eid) {
     arms <- .baseline_arm_labels(base_all, eid)
@@ -386,9 +390,28 @@ TTEPlan$set(
     ))
   })
   names(baselines) <- enrollment_ids
+  return(baselines)
+}
+
+
+#' Write feasibility.xlsx from the s3 results
+#'
+#' `$export_tables()` calls it, so a normal run gives the feasibility
+#' workbook beside `tables.xlsx`. Both workbooks, and `$s3_feasibility()`,
+#' write the feasibility sheets through `.write_feasibility_sheets()`. The
+#' Minimum events sheets read the per-protocol horizon records that s3
+#' stored, feasibility-horizon ETTs included.
+#'
+#' @param plan A `TTEPlan` with s3 results.
+#' @param path Character(1), the `.xlsx` path.
+#' @param enrollment_ids Character, the enrollments of the reported ETTs, in
+#'   the order of Table 1 (filterable).
+#' @return `path`, invisibly.
+#' @noRd
+.plan_export_feasibility <- function(plan, path, enrollment_ids) {
   .write_feasibility_xlsx(
     plan,
-    baselines,
+    .tte_feasibility_baselines(plan, enrollment_ids),
     path,
     adherence = .tte_adherence_by_enrollment(plan),
     records = .acc_horizon_records(plan, "pp")
@@ -416,21 +439,77 @@ TTEPlan$set(
 }
 
 
+#' Write the feasibility sheets into a workbook
+#'
+#' The one writer of the feasibility sheets. `feasibility.xlsx` holds these
+#' sheets and no other. `tables.xlsx` holds the same sheets, in the same
+#' order, after Provenance and Summary, and then the results sheets.
+#'
+#' @param wb An openxlsx workbook.
+#' @param plan A TTEPlan.
+#' @param baselines Named list by enrollment id. Each element holds the
+#'   panels `table1_raw` and `table1_unweighted`.
+#' @param adherence A named list by enrollment id, each element a stored
+#'   adherence table or `NULL`.
+#' @param records A list keyed by ETT id: the per-protocol horizon record of
+#'   each ETT.
+#' @param coverage A named list by enrollment id: the baseline confounder
+#'   counts of `.tte_coverage_by_enrollment()`.
+#' @return A named character vector: the description of each sheet written,
+#'   named by the sheet, in order.
+#' @noRd
+.write_feasibility_sheets <- function(
+  wb,
+  plan,
+  baselines,
+  adherence,
+  records,
+  coverage
+) {
+  header <- openxlsx::createStyle(
+    textDecoration = "bold",
+    fgFill = "#EFEFEF",
+    border = "bottom"
+  )
+  .write_spec_summary(wb, plan)
+  .write_arm_sizes_sheet(wb, plan, header)
+  .write_coverage_sheets(wb, plan, coverage, records, header)
+  .write_overview_attrition(wb, plan)
+  .write_overview_rare(wb, plan)
+  .write_overview_min_events(wb, plan, records)
+  .write_overview_table1(wb, plan, baselines)
+  adh <- .write_adherence_sheet(wb, plan, adherence)
+  desc <- c(
+    "Study Specification" = "Study design, variables, ICD-10/ATC codes",
+    "Arm sizes" = "Eligible and enrolled person-trials per arm; a comparator rarer than its intervention is flagged",
+    "Coverage (whole dataset)" = "Persons with each column the spec reads, in the whole skeleton",
+    "Coverage (ETT)" = "Per enrollment and ETT: what each criterion removes, confounder levels per arm, outcome cuts",
+    "Attrition by arm" = "Each eligibility step, left and removed, per arm and comparison",
+    "Rare conditions by comparison" = "The rare-condition rule: persons in the smaller arm, and its decision",
+    "Minimum events" = "The largest passing cut per comparison, outcome and follow-up year",
+    "Longest reportable" = "The longest horizon each threshold would report",
+    "Table 1 (filterable)" = "Unweighted baseline characteristics of every comparison"
+  )
+  sheets <- intersect(names(desc), names(wb))
+  return(c(desc[sheets], adh))
+}
+
+
 #' Write the feasibility workbook
 #'
-#' `$s3_feasibility()` and `$export_tables()` both call it, so the two
-#' workbooks have the same sheets in the same order.
+#' `$s3_feasibility()` and `$export_tables()` both call it. It holds the
+#' sheets of `.write_feasibility_sheets()` and no other.
 #'
 #' @param plan A TTEPlan.
 #' @param baselines Named list by enrollment id. Each element holds the
-#'   panels `table1_raw` and `table1_unweighted`, and the writer reads only
-#'   those two.
+#'   panels `table1_raw` and `table1_unweighted`.
 #' @param path Character(1), the `.xlsx` path.
 #' @param adherence A named list by enrollment id, each element a stored
-#'   adherence table or `NULL`. `.write_adherence_sheet()` writes it after
-#'   the Attrition sheet.
+#'   adherence table or `NULL`.
 #' @param records A list keyed by ETT id: the per-protocol horizon record of
 #'   each ETT. The default reads `plan$feasibility$records`.
+#' @param coverage A named list by enrollment id: the baseline confounder
+#'   counts.
 #' @return `path`, invisibly.
 #' @noRd
 .write_feasibility_xlsx <- function(
@@ -442,75 +521,7 @@ TTEPlan$set(
   coverage = .tte_coverage_by_enrollment(plan, baselines)
 ) {
   wb <- openxlsx::createWorkbook()
-  bold <- openxlsx::createStyle(textDecoration = "bold", fontSize = 12)
-  header <- openxlsx::createStyle(
-    textDecoration = "bold",
-    fgFill = "#EFEFEF",
-    border = "bottom"
-  )
-
-  .write_spec_summary(wb, plan)
-  .write_overview_sheets(wb, plan, records, baselines)
-  .write_sparse_conditions_sheet(wb, plan)
-  .write_minimum_events_sheets(wb, plan, records)
-  .write_arm_sizes_sheet(wb, plan, header)
-  .write_coverage_sheets(wb, plan, coverage, records, header)
-
-  sht <- "Attrition"
-  openxlsx::addWorksheet(wb, sht)
-  openxlsx::writeData(wb, sht, "Attrition of the s1 eligibility cascade")
-  openxlsx::addStyle(wb, sht, bold, rows = 1L, cols = 1L)
-  att <- plan$get_attrition()
-  if (nrow(att) == 0L) {
-    openxlsx::writeData(wb, sht, "(no attrition rows)", startRow = 3L)
-  } else {
-    openxlsx::writeData(wb, sht, att, startRow = 3L, headerStyle = header)
-  }
-
-  .write_adherence_sheet(wb, plan, adherence)
-
-  sht <- "Table 1"
-  openxlsx::addWorksheet(wb, sht)
-  row <- 1L
-  panels <- c(
-    table1_raw = "unimputed, from the s1 raw file",
-    table1_unweighted = "imputed, from the s2 analysis file"
-  )
-  for (eid in names(baselines)) {
-    for (slot in names(panels)) {
-      t1 <- .t1_drop_numeric(baselines[[eid]][[slot]])
-      openxlsx::writeData(
-        wb,
-        sht,
-        paste0(
-          "Table 1, unweighted, ",
-          panels[[slot]],
-          " -- Enrollment ",
-          eid,
-          " (",
-          .enrollment_label(plan, eid),
-          ")"
-        ),
-        startRow = row
-      )
-      openxlsx::addStyle(wb, sht, bold, rows = row, cols = 1L)
-      if (is.null(t1) || nrow(t1) == 0L) {
-        openxlsx::writeData(wb, sht, "(no data)", startRow = row + 1L)
-        row <- row + 3L
-        next
-      }
-      openxlsx::writeData(
-        wb,
-        sht,
-        t1,
-        startRow = row + 1L,
-        headerStyle = header
-      )
-      row <- row + nrow(t1) + 3L
-    }
-  }
-  openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(50, 16))
-
+  .write_feasibility_sheets(wb, plan, baselines, adherence, records, coverage)
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   return(invisible(path))
 }

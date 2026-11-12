@@ -441,7 +441,7 @@
     "Not shown: ",
     .tte_sparse_join(rpt$excluded),
     ". The rare-condition rule made each of these conditions an exclusion ",
-    "criterion. See the Rare conditions sheet."
+    "criterion. See the Rare conditions by comparison sheet."
   ))
 }
 
@@ -672,7 +672,7 @@
         paste0(
           "Not eligible under the rare-condition rule: ",
           .tte_sparse_join(rpt$excluded),
-          " (see the Rare conditions sheet)"
+          " (excluded by the rare-condition rule)"
         ),
         .tte_sparse_protocol_rule(plan, rule, length(rpt$excluded) > 0L),
         paste0(

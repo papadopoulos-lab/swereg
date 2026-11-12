@@ -1,4 +1,4 @@
-# The overview sheets at the front of feasibility.xlsx.
+# The overview sheets of feasibility.xlsx and tables.xlsx.
 
 test_that("an attrition step reads as the spec criterion it applies", {
   spec <- list(
@@ -90,21 +90,61 @@ test_that("Attrition by arm writes each step once, with intervention and compara
   expect_true(any(d == "M02 comparator", na.rm = TRUE))
 })
 
-test_that("Rare conditions by comparison shows the smaller arm, marks c and counts below min_n", {
-  skip_if_not_installed("openxlsx")
+.ov_rare <- function(plan) {
   wb <- openxlsx::createWorkbook()
-  expect_true(swereg:::.write_overview_rare(wb, .ov_plan()))
+  expect_true(swereg:::.write_overview_rare(wb, plan))
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  d <- openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", startRow = 7L, check.names = FALSE, sep.names = " ")
-  expect_identical(names(d)[2:3], c("M01 (decides)", "M02"))
+  return(openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", startRow = 7L, check.names = FALSE, sep.names = " "))
+}
+
+test_that("Rare conditions by comparison shows the smaller arm, marks c and counts below min_n", {
+  skip_if_not_installed("openxlsx")
+  d <- .ov_rare(.ov_plan())
+  expect_identical(names(d)[1:4], c("Condition", "Decision", "M01 (decides)", "M02"))
   # M01, rd_a: intervention 300, comparator 500 -> 300.
   # M01, rd_b: intervention 3, comparator 90 -> <5.
   # M02, rd_a: intervention 150, comparator 120 -> 120 c.
   # M02, rd_b: intervention 40, comparator 2 -> <5 c.
-  expect_identical(d[[2]][1:2], c("300", "<5"))
-  expect_identical(d[[3]][1:2], c("120 c", "<5 c"))
+  expect_identical(d[[3]][1:2], c("300", "<5"))
+  expect_identical(d[[4]][1:2], c("120 c", "<5 c"))
   expect_identical(as.numeric(d[["Comparisons < 100"]][1:2]), c(0, 2))
+  # The plan holds no s1b decision, so the Decision cells are empty.
+  expect_true(all(is.na(d$Decision) | !nzchar(d$Decision)))
+})
+
+test_that("Rare conditions by comparison shows the s1b decision of each condition", {
+  skip_if_not_installed("openxlsx")
+  plan <- .ov_plan()
+  # In the order of the decision table, not of the candidates.
+  plan$sparse_decision <- data.table::data.table(
+    variable = c("rd_b", "rd_a"),
+    decision = c("excluded", "adjusted")
+  )
+  d <- .ov_rare(plan)
+  expect_identical(d$Condition[1:2], c("Condition A", "Condition B"))
+  expect_identical(d$Decision[1:2], c("adjusted", "excluded"))
+  # The total row carries no decision.
+  expect_true(is.na(d$Decision[3L]) || !nzchar(d$Decision[3L]))
+})
+
+test_that("Rare conditions by comparison keeps the s1b decision of a plan without counts per comparison", {
+  skip_if_not_installed("openxlsx")
+  plan <- .ov_plan()
+  plan$sparse_counts <- NULL
+  plan$sparse_decision <- data.table::data.table(
+    variable = c("rd_b", "rd_a"),
+    decision = c("excluded", "adjusted")
+  )
+  wb <- openxlsx::createWorkbook()
+  expect_true(swereg:::.write_overview_rare(wb, plan))
+  path <- tempfile(fileext = ".xlsx")
+  openxlsx::saveWorkbook(wb, path)
+  d <- openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", colNames = FALSE, skipEmptyRows = FALSE)
+  i <- match("Condition", d[[1]])
+  expect_false(is.na(i))
+  expect_identical(d[[2]][i + 1:2], c("adjusted", "excluded"))
+  expect_identical(d[[1]][i + 1:2], c("Condition A", "Condition B"))
 })
 
 test_that("Longest reportable reads the specification threshold from the stored verdict", {

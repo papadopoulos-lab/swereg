@@ -1,5 +1,6 @@
-# The arm-size and variable-coverage sheets of feasibility.xlsx.
-# `.write_feasibility_xlsx()` in r6_tteplan_feasibility.R writes them.
+# The arm-size and variable-coverage sheets of feasibility.xlsx and
+# tables.xlsx. `.write_feasibility_sheets()` in r6_tteplan_feasibility.R
+# writes them into both workbooks.
 
 #' The name of the arm-size sheet of the feasibility workbook.
 #' @noRd
@@ -348,15 +349,25 @@
 
 #' Read the live skeleton summary of the plan's study
 #'
+#' A study held as a plain list is read by exact name: `$` on a list matches
+#' a partial name, so `$summary` would return a `summary_table` element.
+#'
 #' @param plan A TTEPlan.
-#' @return The summary list, or `NULL` when the study or its `summary.qs2` is
-#'   absent.
+#' @return The summary list, or `NULL` when the study, its `summary.qs2` or a
+#'   list summary is absent.
 #' @noRd
 .tte_live_skeleton_summary <- function(plan) {
-  return(tryCatch(
-    suppressMessages(plan$registrystudy$summary),
+  study <- plan$registrystudy
+  s <- tryCatch(
+    suppressMessages(
+      if (is.environment(study)) study$summary else study[["summary", exact = TRUE]]
+    ),
     error = function(e) NULL
-  ))
+  )
+  if (!is.list(s)) {
+    return(NULL)
+  }
+  return(s)
 }
 
 

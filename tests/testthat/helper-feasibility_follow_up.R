@@ -7,7 +7,11 @@ FF_FOLLOW_UP <- list(
   list(label = "1 year", weeks = 52L),
   list(label = "2 years", weeks = 104L)
 )
-FF_MIN_SHEETS <- c("Minimum events (Y or -)", "Minimum events (#)")
+# The two sheets of the minimum-events rule in both workbooks. Minimum events
+# holds the largest passing cut of each comparison, outcome and year. Longest
+# reportable holds the horizon each threshold reports; its column for the
+# spec's own threshold reads the stored verdict of the rule.
+FF_MIN_SHEETS <- c("Minimum events", "Longest reportable")
 FF_EXPORT_TIME <- as.POSIXct("2026-10-29 12:00:00", tz = "UTC")
 # The administrative censoring week that `.ff_plan()` writes into every spec.
 FF_ADMIN <- "2023-52"
@@ -218,4 +222,70 @@ FF_ADMIN <- "2023-52"
   )
   m[] <- lapply(m, as.character)
   return(m)
+}
+
+# One grid sheet of the minimum-events rule, Minimum events or Longest
+# reportable. The sheet holds two header rows: the outcome over its columns,
+# then the column label (a follow-up year, or "threshold <k>"). One row per
+# comparison follows, with its ID in column 1 and its name in column 2.
+# Returns a list:
+#   `outcome`, `label`: the outcome and the label of each sheet column;
+#   `id`, `comparison`: the ID and the name of each comparison row;
+#   `first_row`: the sheet row of the first comparison;
+#   `m`: every cell of the sheet, as text.
+.ff_grid <- function(path, sheet) {
+  m <- .ff_cells(path, sheet)
+  h <- which(m[[1L]] %in% "ID")[1L]
+  outcome <- as.character(unlist(m[h, ], use.names = FALSE))
+  label <- as.character(unlist(m[h + 1L, ], use.names = FALSE))
+  # The outcome stands over the first of its columns only.
+  for (j in seq_along(outcome)[-(1:3)]) {
+    if (is.na(outcome[j]) || !nzchar(outcome[j])) {
+      outcome[j] <- outcome[j - 1L]
+    }
+  }
+  rows <- seq.int(h + 2L, nrow(m))
+  rows <- rows[!is.na(m[[1L]][rows])]
+  return(list(
+    outcome = outcome,
+    label = label,
+    id = m[[1L]][rows],
+    comparison = m[[2L]][rows],
+    first_row = h + 2L,
+    m = m
+  ))
+}
+
+# The sheet column of `outcome` and `label` in a grid of `.ff_grid()`.
+.ff_grid_col <- function(g, outcome, label) {
+  j <- which(g$outcome %in% outcome & g$label %in% label)
+  stopifnot(length(j) == 1L)
+  return(j)
+}
+
+# The cell of comparison `id`, `outcome` and `label` in a grid of
+# `.ff_grid()`. An empty cell reads as `NA` or as "".
+.ff_grid_cell <- function(g, id, outcome, label) {
+  r <- which(g$id %in% id)
+  stopifnot(length(r) == 1L)
+  return(g$m[[.ff_grid_col(g, outcome, label)]][g$first_row + r - 1L])
+}
+
+# The labels of the columns of `outcome`, in sheet order.
+.ff_grid_labels <- function(g, outcome) {
+  return(g$label[g$outcome %in% outcome])
+}
+
+# The fill colour of one cell, as "#RRGGBB", or NA when it has none.
+.ff_fill <- function(path, sheet, row, col) {
+  wb <- openxlsx::loadWorkbook(path)
+  for (so in wb$styleObjects) {
+    if (so$sheet == sheet && any(so$rows == row & so$cols == col)) {
+      f <- so$style$fill$fillFg
+      if (!is.null(f)) {
+        return(toupper(sub("^FF", "#", f[[1]])))
+      }
+    }
+  }
+  return(NA_character_)
 }

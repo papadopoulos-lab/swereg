@@ -441,67 +441,77 @@ test_that("(c) the forest data shows numbers for the exempt ETT and NE for the o
   }
 })
 
-test_that("(c) the Minimum events (Y or -) sheet shows the verdict of the rule and marks the exempt comparison", {
+test_that("(c) Minimum events and Longest reportable show the verdict of the rule and mark the exempt comparison", {
   .hx_skip()
   fx <- .hx_fixture(TRUE)
-  sh <- "Minimum events (Y or -)"
-  head <- .hx_head(fx$xlsx, sh)
+  # Longest reportable, at the spec threshold 5: both 104-week ETTs fail in
+  # year 2, so both report 1 year. The exempt comparison shows the verdict
+  # of the rule, never the reporting of s3.
+  lr <- .ff_grid(fx$xlsx, "Longest reportable")
+  expect_identical(lr$comparison, c("Enrollment one", "Enrollment two (exempt)"))
   expect_identical(
-    head[1L],
-    "Minimum-events rule: per-protocol estimates pass (Y) or fail (-) the rule"
+    vapply(
+      lr$id,
+      function(i) .ff_grid_cell(lr, i, "Outcome A", "threshold 5"),
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    c("1 year", "1 year")
   )
-  expect_match(
-    head[2L],
-    "-: fails the rule; the estimate is withheld unless the comparison is exempt.",
-    fixed = TRUE
+  expect_true(endsWith(
+    .hx_head(fx$xlsx, "Longest reportable")[2L],
+    paste0(
+      " (exempt): the specification exempts the comparison, so s3 reports ",
+      "its estimates to the full follow-up whatever the cell shows."
+    )
+  ))
+  # Minimum events carries the same comparison text. Its cells are the
+  # largest passing cut, 2, for both ETTs, and its note names the cut 5.
+  cut <- .ff_grid(fx$xlsx, "Minimum events")
+  expect_identical(cut$comparison, lr$comparison)
+  expect_identical(
+    vapply(
+      cut$id,
+      function(i) .ff_grid_cell(cut, i, "Outcome A", "2 years"),
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    c("2", "2")
   )
-  exempt_note <- paste0(
-    "Exempt: the specification exempts this comparison; its estimates are ",
-    "reported whatever the rule decides."
-  )
-  expect_true(endsWith(head[2L], paste0(" ", exempt_note)))
-  s <- .hx_sheet(fx$xlsx, sh, "Comparison")
-  expect_identical(s$Comparison, c("Enrollment one", "Enrollment two (exempt)"))
-  # The 104-week ETTs fill the column of year 2.
-  expect_identical(s[["2 years"]], c("-", "-"))
-  # The (#) sheet carries the same comparison text and the same note
-  # sentence. Its cells are the largest passing cut, 2, for both ETTs.
-  cut <- .hx_sheet(fx$xlsx, "Minimum events (#)", "Comparison")
-  expect_identical(cut$Comparison, s$Comparison)
-  expect_identical(cut[["2 years"]], c("2", "2"))
-  # The (#) sheet states the verdict of the rule too, never the reporting.
-  cut_head <- .hx_head(fx$xlsx, "Minimum events (#)")
+  cut_head <- .hx_head(fx$xlsx, "Minimum events")
   expect_identical(
     cut_head[1L],
-    "Minimum-events rule: the largest cut at which each per-protocol estimate passes the rule"
+    "Minimum events: the largest cut each per-protocol estimate passes"
   )
-  expect_identical(
+  expect_match(cut_head[2L], "The current cut is 5.", fixed = TRUE)
+  expect_true(endsWith(
     cut_head[2L],
     paste0(
-      "Each cell is the largest cut, from 1, 2, 3, 4, 5, 10, 20 expected ",
-      "events per arm per follow-up year, at which the estimate passes the ",
-      "rule. -: fails the rule even at 1. The fill shows the decision at the ",
-      "current cut, 5. ",
-      exempt_note
+      " (exempt): the specification exempts the comparison, so s3 reports ",
+      "its estimates whatever the cell shows."
     )
-  )
+  ))
 
-  # Without an exempt enrollment, neither note carries the sentence, and no
-  # comparison carries the marker.
+  # Without an exempt enrollment, no comparison carries the marker, and the
+  # verdict is the same. The notes of both sheets carry their "(exempt):"
+  # sentence whatever the spec, so no note is compared here.
   none <- .hx_fixture(NULL)
-  for (s2 in c(sh, "Minimum events (#)")) {
-    expect_false(grepl("Exempt:", .hx_head(none$xlsx, s2)[2L], fixed = TRUE))
+  for (s2 in c("Minimum events", "Longest reportable")) {
     expect_identical(
-      .hx_sheet(none$xlsx, s2, "Comparison")$Comparison,
-      c("Enrollment one", "Enrollment two")
+      .ff_grid(none$xlsx, s2)$comparison,
+      c("Enrollment one", "Enrollment two"),
+      info = s2
     )
   }
+  lr0 <- .ff_grid(none$xlsx, "Longest reportable")
   expect_identical(
-    .hx_head(none$xlsx, "Minimum events (#)"),
-    c(
-      cut_head[1L],
-      sub(paste0(" ", exempt_note), "", cut_head[2L], fixed = TRUE)
-    )
+    vapply(
+      lr0$id,
+      function(i) .ff_grid_cell(lr0, i, "Outcome A", "threshold 5"),
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    c("1 year", "1 year")
   )
 })
 

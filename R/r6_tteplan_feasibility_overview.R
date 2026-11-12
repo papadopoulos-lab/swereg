@@ -1,16 +1,17 @@
-# The overview sheets at the front of feasibility.xlsx.
-# `.write_feasibility_xlsx()` in r6_tteplan_feasibility.R writes them.
+# The overview sheets of feasibility.xlsx and tables.xlsx.
+# `.write_feasibility_sheets()` in r6_tteplan_feasibility.R writes them into
+# both workbooks.
 
 # ---- Overview sheets ------------------------------------------------------------
 #
-# Four sheets at the front of feasibility.xlsx, each one grid per question,
-# with one comparison per row or column, colour fills and a legend:
+# Five sheets, each one grid per question, with one comparison per row or
+# column, colour fills and a legend:
 #   Minimum events       comparisons x (outcome, follow-up year), largest cut
 #   Longest reportable   comparisons x (outcome, threshold), longest horizon
 #   Attrition by arm     steps x (comparison, arm), remaining and removed
-#   Rare conditions by comparison   candidates x comparisons, smallest arm
+#   Rare conditions by comparison   candidates x (decision, comparisons),
+#                        smallest arm
 #   Table 1 (filterable) one long table with an autofilter, SMD coloured
-# The older sheets follow them unchanged, because tables.xlsx shares them.
 
 #' The overview sheet names, in workbook order.
 #' @noRd
@@ -143,8 +144,8 @@
   yn <- pivot(tab_yn)
   return(list(
     ids = enr_ids,
-    # An exempt comparison shows the verdict of the rule, as the older
-    # Minimum events sheets do, and its name says that s3 reports it anyway.
+    # An exempt comparison shows the verdict of the rule, and its name says
+    # that s3 reports it anyway.
     names = vapply(
       enr_ids,
       function(e) {
@@ -207,7 +208,7 @@
   for (o in x$outcomes) {
     m <- x$cut[[o]]
     shown <- m
-    shown[!is.na(m) & m == "20"] <- "≥20"
+    shown[!is.na(m) & m == "20"] <- "\u226520"
     for (j in seq_along(x$years)) {
       col <- col + 1L
       hdr1 <- c(hdr1, if (j == 1L) o else "")
@@ -505,17 +506,15 @@
       c("lightgreen", "orange", "red")
     )
   )
-  counts <- plan$sparse_counts
-  if (!data.table::is.data.table(counts) || nrow(counts) == 0L) {
-    openxlsx::writeData(
-      wb,
-      sht,
-      "(no counts per comparison: rerun s1 with swereg 27.3.13 or later)",
-      startRow = start
-    )
-    return(invisible(TRUE))
-  }
   cands <- as.character(unlist(rule$candidates))
+  # The s1b decision of each condition: adjusted, or excluded.
+  dec <- plan$sparse_decision
+  decision <- if (data.table::is.data.table(dec)) {
+    as.character(dec$decision[match(cands, dec$variable)])
+  } else {
+    rep(NA_character_, length(cands))
+  }
+  decision[is.na(decision)] <- ""
   labels <- vapply(
     cands,
     function(v) {
@@ -526,6 +525,24 @@
     },
     character(1)
   )
+  counts <- plan$sparse_counts
+  if (!data.table::is.data.table(counts) || nrow(counts) == 0L) {
+    openxlsx::writeData(
+      wb,
+      sht,
+      "(no counts per comparison: rerun s1 with swereg 27.3.13 or later)",
+      startRow = start
+    )
+    if (data.table::is.data.table(dec)) {
+      openxlsx::writeData(
+        wb,
+        sht,
+        data.frame(Condition = unname(labels), Decision = decision),
+        startRow = start + 2L
+      )
+    }
+    return(invisible(TRUE))
+  }
   enr <- .osf_comparison_numbers(plan$spec)
   eids <- names(enr)[names(enr) %in% counts$enrollment_id]
   shown <- matrix("", length(cands), length(eids))
@@ -543,7 +560,11 @@
     }
   }
   below <- !is.na(n_small) & n_small < min_n
-  d <- data.frame(Condition = unname(labels), stringsAsFactors = FALSE)
+  d <- data.frame(
+    Condition = unname(labels),
+    Decision = decision,
+    stringsAsFactors = FALSE
+  )
   hdr <- ifelse(eids %in% unlist(rule$decided_by), paste0(eids, " (decides)"), eids)
   for (j in seq_along(eids)) {
     d[[hdr[j]]] <- shown[, j]
@@ -551,6 +572,7 @@
   d[[paste0("Comparisons < ", min_n)]] <- rowSums(below)
   tot <- data.frame(
     Condition = paste0("Conditions < ", min_n),
+    Decision = "",
     t(colSums(below)),
     0,
     check.names = FALSE
@@ -573,7 +595,7 @@
     )
     w <- which(hit, arr.ind = TRUE)
     if (nrow(w) > 0L) {
-      .overview_fill(wb, sht, cbind(start + w[, 1L], 1L + w[, 2L]), f)
+      .overview_fill(wb, sht, cbind(start + w[, 1L], 2L + w[, 2L]), f)
     }
   }
   openxlsx::addStyle(
@@ -585,7 +607,7 @@
     gridExpand = TRUE,
     stack = TRUE
   )
-  openxlsx::setColWidths(wb, sht, cols = seq_len(ncol(d)), widths = c(45, rep(11, ncol(d) - 1L)))
+  openxlsx::setColWidths(wb, sht, cols = seq_len(ncol(d)), widths = c(45, 11, rep(11, ncol(d) - 2L)))
   return(invisible(TRUE))
 }
 
@@ -688,13 +710,3 @@
   return(invisible(NULL))
 }
 
-
-#' Write the five overview sheets
-#' @noRd
-.write_overview_sheets <- function(wb, plan, records, baselines) {
-  .write_overview_min_events(wb, plan, records)
-  .write_overview_attrition(wb, plan)
-  .write_overview_rare(wb, plan)
-  .write_overview_table1(wb, plan, baselines)
-  return(invisible(NULL))
-}
