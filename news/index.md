@@ -1,5 +1,51 @@
 # Changelog
 
+## swereg 27.3.14
+
+A TTE on a study where one person has more than one copy in the skeleton
+files changes: s1 now reads one copy per person. That covers a study
+built with `$set_matched_sets()` where a person has two memberships, and
+a study built with `$set_batches()` that puts an ID in two batches.
+Rerun s1 to s3 on such a study. A study with one copy per person gives
+the same results as before and needs no rerun
+([\#68](https://github.com/papadopoulos-lab/swereg/issues/68)).
+
+### Bug fixes
+
+- **s1 reads one copy of each person.** It keeps the first copy by
+  (batch, skeleton ID) among the skeleton files the run reads, and s1a
+  drops the rows of every other copy before the eligibility rules run.
+  Before, every copy was enrolled on its own. One person could then be
+  enrolled twice in one enrollment period, sit twice in the comparator
+  pool, and count as two clusters in the variance. The attrition,
+  CONSORT and rare-condition counts counted the copies as persons.
+- **A dropped copy is not an exclusion.** No attrition or CONSORT step
+  counts it. The s1 log prints the number of copies dropped.
+- **`plan$expected_n_ids`, shown as “Individuals”, counts distinct
+  persons.** On a matched-set study it counts the persons of the roster,
+  not the skeleton IDs.
+
+### New features
+
+- **[`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  checks that the copies of a person agree.** It loads the skeleton
+  files that hold the first person with two copies. Every copy of a
+  person there MUST hold the same weeks, and the same value in every
+  column the spec reads. Otherwise s0 stops and names the column. It
+  checks those files only.
+
+### Documentation
+
+- **New
+  [`vignette("tte-matched-sets")`](https://papadopoulos-lab.github.io/swereg/articles/tte-matched-sets.md).**
+  It explains memberships and copies, how the TTE enrolls every
+  intervention and samples comparators per period, and why one copy per
+  person gives one enrollment per person per period and one cluster per
+  person. It runs s1 on a small study with copies and on the same
+  persons without copies, and shows that the two give the same result.
+- **`$set_matched_sets()`, `$set_batches()`, `study$n_ids` and
+  `plan$expected_n_ids` document what a TTE reads and counts.**
+
 ## swereg 27.3.13
 
 No result changes. No plan needs a rerun. A rerun of the feasibility

@@ -141,7 +141,9 @@ Other tte_classes:
 
 - `expected_n_ids`:
 
-  Total number of individuals across all batches, or NULL.
+  The number of distinct persons across all batches, or NULL. On a
+  matched-set study these are the persons of the roster, not the
+  skeleton IDs.
 
 - `created_at`:
 

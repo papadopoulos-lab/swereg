@@ -11,7 +11,7 @@ rawbatch or registry data file, so it runs before s0."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,7 @@ rawbatch or registry data file, so it runs before s0."><meta property="og:image"
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-matched-sets.html">Target trial emulation on a matched-set study</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
@@ -205,7 +206,7 @@ the same ETT for the same <code>protocol_ett_id</code>.</p>
 <span class="r-in"><span>  path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">spec_dir</span>, <span class="st">"spec_v001.xlsx"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  code_registry <span class="op">=</span> <span class="va">study</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Spec summary saved to: /tmp/RtmpccBcVu/file1d25d4ee417/spec_v001.xlsx</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Spec summary saved to: /tmp/RtmpuDXKyn/file1cbda7e06a4/spec_v001.xlsx</span>
 <span class="r-in"><span><span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/getSheetNames.html" class="external-link">getSheetNames</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Study Specification"   "Target trial protocol"</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">spec_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>

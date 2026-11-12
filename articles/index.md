@@ -19,6 +19,8 @@
   results](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md):
 - [The specification
   schema](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md):
+- [Target trial emulation on a matched-set
+  study](https://papadopoulos-lab.github.io/swereg/articles/tte-matched-sets.md):
 
 ### TTE reference
 

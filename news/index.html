@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-matched-sets.html">Target trial emulation on a matched-set study</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, time zero, and the estimand</a></li>
@@ -61,6 +62,30 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.14" id="swereg-27314">swereg 27.3.14<a class="anchor" aria-label="anchor" href="#swereg-27314"></a></h2>
+<p>A TTE on a study where one person has more than one copy in the skeleton files changes: s1 now reads one copy per person. That covers a study built with <code>$set_matched_sets()</code> where a person has two memberships, and a study built with <code>$set_batches()</code> that puts an ID in two batches. Rerun s1 to s3 on such a study. A study with one copy per person gives the same results as before and needs no rerun (<a href="https://github.com/papadopoulos-lab/swereg/issues/68" class="external-link">#68</a>).</p>
+<div class="section level3">
+<h3 id="bug-fixes-27-3-14">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-3-14"></a></h3>
+<ul><li>
+<strong>s1 reads one copy of each person.</strong> It keeps the first copy by (batch, skeleton ID) among the skeleton files the run reads, and s1a drops the rows of every other copy before the eligibility rules run. Before, every copy was enrolled on its own. One person could then be enrolled twice in one enrollment period, sit twice in the comparator pool, and count as two clusters in the variance. The attrition, CONSORT and rare-condition counts counted the copies as persons.</li>
+<li>
+<strong>A dropped copy is not an exclusion.</strong> No attrition or CONSORT step counts it. The s1 log prints the number of copies dropped.</li>
+<li>
+<strong><code>plan$expected_n_ids</code>, shown as “Individuals”, counts distinct persons.</strong> On a matched-set study it counts the persons of the roster, not the skeleton IDs.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-27-3-14">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-14"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> checks that the copies of a person agree.</strong> It loads the skeleton files that hold the first person with two copies. Every copy of a person there MUST hold the same weeks, and the same value in every column the spec reads. Otherwise s0 stops and names the column. It checks those files only.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-27-3-14">Documentation<a class="anchor" aria-label="anchor" href="#documentation-27-3-14"></a></h3>
+<ul><li>
+<strong>New <code><a href="../articles/tte-matched-sets.html">vignette("tte-matched-sets")</a></code>.</strong> It explains memberships and copies, how the TTE enrolls every intervention and samples comparators per period, and why one copy per person gives one enrollment per person per period and one cluster per person. It runs s1 on a small study with copies and on the same persons without copies, and shows that the two give the same result.</li>
+<li><strong><code>$set_matched_sets()</code>, <code>$set_batches()</code>, <code>study$n_ids</code> and <code>plan$expected_n_ids</code> document what a TTE reads and counts.</strong></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.13" id="swereg-27313">swereg 27.3.13<a class="anchor" aria-label="anchor" href="#swereg-27313"></a></h2>
 <p>No result changes. No plan needs a rerun. A rerun of the feasibility step, or of <code>$export_tables()</code>, writes the new sheets.</p>
