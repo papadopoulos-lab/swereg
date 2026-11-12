@@ -31,7 +31,18 @@
   yellow = "#FFE699",
   lightgreen = "#D9EAD3",
   green = "#A9D18E",
-  grey = "#EFEFEF"
+  grey = "#EFEFEF",
+  darkgrey = "#BFBFBF",
+  black = "#000000"
+)
+
+#' The note line that explains the black and grey cells.
+#' @noRd
+.OVERVIEW_NOT_IN_DATA_NOTE <- paste(
+  "Black: the outcome is not in the data (0 persons in the whole dataset);",
+  "see Coverage (whole dataset). Grey comparison: one of its criteria or",
+  "confounders reads a column with 0 persons in the whole dataset; see",
+  "Coverage (whole dataset)."
 )
 
 #' The thresholds of the Longest reportable sheet.
@@ -169,6 +180,7 @@
 #' @noRd
 .write_overview_min_events <- function(wb, plan, records) {
   x <- .overview_cuts(plan, records)
+  nid <- .tte_not_in_data(plan)
   k <- plan$spec[["min_expected_events_per_arm_per_year"]]
 
   # Minimum events: one row per comparison, one column per outcome and year.
@@ -184,7 +196,8 @@
       if (is.null(k)) "not set" else format(k),
       ". An empty cell has no ETT. A 6-month horizon takes the 1-year verdict. ",
       "(exempt): the specification exempts the comparison, so s3 reports its ",
-      "estimates whatever the cell shows."
+      "estimates whatever the cell shows. ",
+      .OVERVIEW_NOT_IN_DATA_NOTE
     ),
     c(
       green = "20 or more",
@@ -209,12 +222,13 @@
     m <- x$cut[[o]]
     shown <- m
     shown[!is.na(m) & m == "20"] <- "\u226520"
+    absent <- o %in% nid$outcomes
     for (j in seq_along(x$years)) {
       col <- col + 1L
       hdr1 <- c(hdr1, if (j == 1L) o else "")
       hdr2 <- c(hdr2, x$years[j])
-      body[[paste0("c", col)]] <- shown[, j]
-      f <- .overview_cut_fill(m[, j])
+      body[[paste0("c", col)]] <- if (absent) rep("", n_cmp) else shown[, j]
+      f <- if (absent) rep("black", n_cmp) else .overview_cut_fill(m[, j])
       for (r in which(!is.na(f))) {
         fills[[f[r]]] <- rbind(fills[[f[r]]], c(start + 1L + r, col))
       }
@@ -237,6 +251,10 @@
       openxlsx::mergeCells(wb, sht, cols = from:(from + length(x$years) - 1L), rows = start)
     }
   }
+  grey_rows <- which(x$ids %in% nid$enrollments)
+  if (length(grey_rows) > 0L) {
+    fills[["darkgrey"]] <- rbind(fills[["darkgrey"]], cbind(start + 1L + grey_rows, 2L))
+  }
   for (f in names(fills)) {
     .overview_fill(wb, sht, fills[[f]], f)
   }
@@ -256,7 +274,8 @@
       "specification uses ",
       if (is.null(k)) "no threshold" else format(k),
       ". (exempt): the specification exempts the comparison, so s3 reports ",
-      "its estimates to the full follow-up whatever the cell shows."
+      "its estimates to the full follow-up whatever the cell shows. ",
+      .OVERVIEW_NOT_IN_DATA_NOTE
     ),
     c(green = "Reported to the longest horizon", yellow = "Reported to a shorter horizon", red = "none")
   )
@@ -294,6 +313,10 @@
         }
         val[r] <- if (length(avail) == 0L) "" else if (last == 0L) "none" else x$years[last]
         f <- if (length(avail) == 0L) NA else if (last == 0L) "red" else if (last == max(avail)) "green" else "yellow"
+        if (o %in% nid$outcomes) {
+          val[r] <- ""
+          f <- "black"
+        }
         if (!is.na(f)) {
           fills[[f]] <- rbind(fills[[f]], c(start + 1L + r, col))
         }
@@ -317,6 +340,10 @@
     if (length(thr) > 1L) {
       openxlsx::mergeCells(wb, sht, cols = from:(from + length(thr) - 1L), rows = start)
     }
+  }
+  grey_rows <- which(x$ids %in% nid$enrollments)
+  if (length(grey_rows) > 0L) {
+    fills[["darkgrey"]] <- rbind(fills[["darkgrey"]], cbind(start + 1L + grey_rows, 2L))
   }
   for (f in names(fills)) {
     .overview_fill(wb, sht, fills[[f]], f)

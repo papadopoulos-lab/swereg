@@ -681,6 +681,12 @@ the rule. A failed estimate is withheld unless its comparison is exempt. The
 name of an exempt comparison ends with ` (exempt)`, and its cells still show
 the verdict of the rule.
 
+Both sheets also mark what the data does not hold. They read the
+whole-dataset coverage of Coverage (whole dataset). An outcome whose column
+holds 0 persons has empty black cells. A comparison with an inclusion
+criterion, exclusion criterion or confounder whose column holds 0 persons has
+a grey name. A count of 1 to 4 counts as present.
+
 Neither output holds an event count, a rate or expected events after time
 zero, and neither holds an effect estimate. The Attrition by arm sheet keeps
 the eligibility counts by arm, including people excluded for an outcome event
