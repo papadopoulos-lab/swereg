@@ -93,6 +93,8 @@
 <em>Table 1 (filterable)</em>: every comparison and both panels in one table with an autofilter, counts and shares in separate columns, and the SMD coloured from 0.1 and 0.2.</li>
 </ul></li>
 <li>
+<strong>The Minimum events and Longest reportable sheets mark what the data does not hold.</strong> An outcome whose column holds 0 persons in the whole dataset has empty black cells in every year and threshold. A comparison with an inclusion criterion, exclusion criterion or confounder whose column holds 0 persons has a grey name. Both read the whole-dataset coverage of the Coverage (whole dataset) sheet. A count of 1 to 4 counts as present.</li>
+<li>
 <strong>s1b counts the rare-condition candidates in every enrollment</strong>, one subworker per enrollment, and stores them as <code>plan$sparse_counts</code>. The decision still reads the driving enrollments only. The Coverage (ETT) sheet shows these counts, so a candidate the rule excluded is visible there too.</li>
 <li>
 <strong>s0 refuses an incomplete skeleton summary, and s1 never stops on it.</strong> <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> stops when a reclean has not finished, because the skeletons are then a mix of two builds. s1 runs as a queued job, so it freezes whatever summary it finds, records whether it was complete, and the Coverage (whole dataset) sheet says when it was not.</li>

@@ -72,6 +72,13 @@ step, or of `$export_tables()`, writes the new sheets.
   - *Table 1 (filterable)*: every comparison and both panels in one
     table with an autofilter, counts and shares in separate columns, and
     the SMD coloured from 0.1 and 0.2.
+- **The Minimum events and Longest reportable sheets mark what the data
+  does not hold.** An outcome whose column holds 0 persons in the whole
+  dataset has empty black cells in every year and threshold. A
+  comparison with an inclusion criterion, exclusion criterion or
+  confounder whose column holds 0 persons has a grey name. Both read the
+  whole-dataset coverage of the Coverage (whole dataset) sheet. A count
+  of 1 to 4 counts as present.
 - **s1b counts the rare-condition candidates in every enrollment**, one
   subworker per enrollment, and stores them as `plan$sparse_counts`. The
   decision still reads the driving enrollments only. The Coverage (ETT)
