@@ -1,11 +1,13 @@
-# The two "Minimum events" sheets of `$export_tables()`, and the rule that
-# the intention-to-treat estimate follows the per-protocol decision.
+# The Minimum events and Longest reportable sheets of `$export_tables()`, and
+# the rule that the intention-to-treat estimate follows the per-protocol
+# decision.
 #
-# Both sheets hold one row per outcome and comparison and one column per
-# follow-up horizon, per-protocol only. The test stores horizon records on
+# Both sheets hold one row per comparison and one column group per outcome,
+# per-protocol only. Minimum events has one column per follow-up year, and
+# Longest reportable one per threshold. The test stores horizon records on
 # the export fixture plan, runs the real `$export_tables()`, and reads the
-# sheets back with openxlsx. Every expected value below is computed by hand
-# from the toy panel.
+# sheets back with openxlsx through `.ff_grid()`. Every expected value below
+# is computed by hand from the toy panel.
 #
 # ETT00001 (52 weeks), per-protocol, window 0-52: the intervention arm has
 # 2 weighted events and the comparator arm 4, so the expected events are 2
@@ -85,16 +87,6 @@
   return(path)
 }
 
-.hs_sheet <- function(path, sheet) {
-  return(openxlsx::read.xlsx(
-    path,
-    sheet = sheet,
-    startRow = 4,
-    check.names = FALSE,
-    sep.names = " "
-  ))
-}
-
 test_that("the largest passing cut is the largest grid value the smallest expected events reach", {
   f <- swereg:::.tte_horizon_max_passing_cut
   expect_identical(f(c(5, 7)), 5)
@@ -106,67 +98,84 @@ test_that("the largest passing cut is the largest grid value the smallest expect
   expect_identical(f(c(0, 0)), NA_real_)
 })
 
-test_that("$export_tables() writes the two Minimum events sheets after Study Specification", {
+test_that("$export_tables() writes Minimum events and Longest reportable after Attrition by arm", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
   path <- .hs_export(.hs_plan())
   sheets <- openxlsx::getSheetNames(path)
-  expect_false("Minimum events" %in% sheets)
-  spec <- match("Study Specification", sheets)
+  expect_false(any(
+    c("Minimum events (Y or -)", "Minimum events (#)") %in% sheets
+  ))
+  att <- match("Attrition by arm", sheets)
+  expect_identical(sheets[att + 1:2], c("Minimum events", "Longest reportable"))
+  # The two sheets sit in the feasibility block, before the results sheets.
+  expect_lt(att + 2L, match("Target trial protocol", sheets))
+  expect_lt(match("Study Specification", sheets), att)
+})
+
+# The spec threshold of `.hs_plan()` is 2, so the column "threshold 2" of
+# Longest reportable reads the stored verdict of the rule.
+.HS_OWN <- "threshold 2"
+
+test_that("Longest reportable shows the per-protocol decision at the spec threshold, one column group per outcome", {
+  skip_if_not_installed("openxlsx")
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("withr")
+  g <- .ff_grid(.hs_export(.hs_plan()), "Longest reportable")
+  expect_identical(g$label[1:2], c("ID", "Comparison"))
   expect_identical(
-    sheets[spec + 1:2],
-    c("Minimum events (Y or -)", "Minimum events (#)")
+    unique(g$outcome[-(1:2)]),
+    paste("Outcome", LETTERS[1:6])
   )
-  expect_identical(sheets[spec + 3L], "Target trial protocol")
-})
-
-test_that("the Y or - sheet shows the per-protocol decision, outcome first", {
-  skip_if_not_installed("openxlsx")
-  skip_if_not_installed("qs2")
-  skip_if_not_installed("withr")
-  d <- .hs_sheet(.hs_export(.hs_plan()), "Minimum events (Y or -)")
   expect_identical(
-    names(d),
-    c("Outcome", "#", "Comparison", "1 year", "2 years", "3 years")
+    .ff_grid_labels(g, "Outcome A"),
+    paste("threshold", c(2, 5, 10, 20))
   )
-  expect_identical(d$Outcome[1:3], c("Outcome A", NA, "Outcome B"))
-  expect_equal(d$`#`[1:2], c(1, 2))
-  # ETT00001: per-protocol passes at the cut of 2.
-  expect_identical(d[1, "1 year"], "Y")
-  # ETT00005: per-protocol fails in window 52-104.
-  expect_identical(d[5, "3 years"], "-")
+  expect_identical(g$id, c("01", "02"))
+  # ETT00001: per-protocol passes at the cut of 2, to its own 1 year.
+  expect_identical(.ff_grid_cell(g, "01", "Outcome A", .HS_OWN), "1 year")
+  # ETT00005: per-protocol fails in window 52-104, so years 2 and 3 fail
+  # and the decision reports 1 year of its 3.
+  expect_identical(.ff_grid_cell(g, "01", "Outcome C", .HS_OWN), "1 year")
 })
 
-test_that("the # sheet shows the largest cut of the grid at which each estimate passes", {
+test_that("Minimum events shows the largest cut of the grid at which each estimate passes", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
-  d <- .hs_sheet(.hs_export(.hs_plan()), "Minimum events (#)")
-  expect_identical(as.character(d[1, "1 year"]), "2")
-  expect_identical(as.character(d[5, "3 years"]), "-")
+  g <- .ff_grid(.hs_export(.hs_plan()), "Minimum events")
+  expect_identical(.ff_grid_cell(g, "01", "Outcome A", "1 year"), "2")
+  expect_identical(.ff_grid_cell(g, "01", "Outcome C", "3 years"), "-")
 })
 
-test_that("a reported cell is filled blue and a withheld cell red", {
+test_that("a cell reported to its last year is filled green and a withheld cell yellow or red", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("qs2")
   skip_if_not_installed("withr")
-  wb <- openxlsx::loadWorkbook(.hs_export(.hs_plan()))
-  fill_of <- function(sheet, row, col) {
-    for (so in wb$styleObjects) {
-      if (so$sheet == sheet && any(so$rows == row & so$cols == col)) {
-        f <- so$style$fill$fillFg
-        if (!is.null(f)) return(toupper(sub("^FF", "#", f[[1]])))
-      }
-    }
-    return(NA_character_)
-  }
-  for (sh in c("Minimum events (Y or -)", "Minimum events (#)")) {
-    # Data start on row 5. ETT00001 is row 5, column 4 (year 1); ETT00005
-    # row 9, column 6 (year 3).
-    expect_identical(fill_of(sh, 5L, 4L), "#BDD7EE")
-    expect_identical(fill_of(sh, 9L, 6L), "#F4B6B6")
-  }
+  path <- .hs_export(.hs_plan())
+  # Longest reportable, at the spec threshold: ETT00001 is reported to its
+  # last year, and ETT00005 is withheld after year 1 of 3.
+  sh <- "Longest reportable"
+  g <- .ff_grid(path, sh)
+  row <- g$first_row + match("01", g$id) - 1L
+  col_a <- .ff_grid_col(g, "Outcome A", .HS_OWN)
+  col_c <- .ff_grid_col(g, "Outcome C", .HS_OWN)
+  expect_identical(.ff_fill(path, sh, row, col_a), "#A9D18E")
+  expect_identical(.ff_fill(path, sh, row, col_c), "#FFE699")
+  # Minimum events: the cut 2 takes the fill of 1 to 4, and the failed
+  # year 3 of ETT00005 the fill of "-".
+  sh <- "Minimum events"
+  g <- .ff_grid(path, sh)
+  row <- g$first_row + match("01", g$id) - 1L
+  expect_identical(
+    .ff_fill(path, sh, row, .ff_grid_col(g, "Outcome A", "1 year")),
+    "#F8CBAD"
+  )
+  expect_identical(
+    .ff_fill(path, sh, row, .ff_grid_col(g, "Outcome C", "3 years")),
+    "#F4B6B6"
+  )
 })
 
 test_that("the intention-to-treat estimate follows the per-protocol decision", {
@@ -282,12 +291,12 @@ test_that("(e) follow-ups 52 and 156 give one column per whole year, in both wor
   feas <- file.path(dirname(path), "feasibility.xlsx")
   expect_true(file.exists(feas))
   for (xlsx in c(path, feas)) {
-    for (sh in c("Minimum events (Y or -)", "Minimum events (#)")) {
-      d <- .hs_sheet(xlsx, sh)
+    g <- .ff_grid(xlsx, "Minimum events")
+    for (o in paste("Outcome", LETTERS[1:6])) {
       expect_identical(
-        names(d),
-        c("Outcome", "#", "Comparison", "1 year", "2 years", "3 years"),
-        info = paste(basename(xlsx), sh)
+        .ff_grid_labels(g, o),
+        c("1 year", "2 years", "3 years"),
+        info = paste(basename(xlsx), o)
       )
     }
   }
@@ -306,28 +315,20 @@ test_that("(f) the 2-year cell equals the hand verdict from the 156-week windows
   expect_identical(by_year$reportable, c(TRUE, FALSE, FALSE))
   expect_identical(by_year$max_passing_cut, c(2, NA, NA))
   path <- .hs_export(plan)
-  yn <- .hs_sheet(path, "Minimum events (Y or -)")
-  cut <- .hs_sheet(path, "Minimum events (#)")
-  # Row 5 is Outcome C of enrollment 01, the 156-week ETT00005, which has
-  # no 52-week or 104-week ETT.
-  expect_identical(yn[5, "2 years"], "-")
-  expect_identical(as.character(cut[5, "2 years"]), "-")
-  expect_identical(yn[5, "1 year"], "Y")
-  expect_identical(as.character(cut[5, "1 year"]), "2")
+  lr <- .ff_grid(path, "Longest reportable")
+  cut <- .ff_grid(path, "Minimum events")
+  # Outcome C of enrollment 01 is the 156-week ETT00005, which has no
+  # 52-week or 104-week ETT. Year 2 fails, so the spec threshold reports
+  # 1 year.
+  expect_identical(.ff_grid_cell(lr, "01", "Outcome C", .HS_OWN), "1 year")
+  expect_identical(.ff_grid_cell(cut, "01", "Outcome C", "2 years"), "-")
+  expect_identical(.ff_grid_cell(cut, "01", "Outcome C", "1 year"), "2")
   # No ETT of Outcome A reaches year 2, so its cells are empty, not "-".
-  expect_true(is.na(yn[1, "2 years"]))
-  expect_true(is.na(cut[1, "3 years"]))
-  head <- openxlsx::read.xlsx(
-    path,
-    sheet = "Minimum events (Y or -)",
-    colNames = FALSE,
-    rows = 3L,
-    cols = 1L
-  )[[1L]]
-  expect_identical(
-    head,
-    "Years without their own follow-up are read from the shortest longer follow-up."
-  )
+  expect_true(is.na(.ff_grid_cell(cut, "01", "Outcome A", "2 years")))
+  expect_true(is.na(.ff_grid_cell(cut, "01", "Outcome A", "3 years")))
+  # Before swereg 27.3.13 row 3 of the Minimum events (Y or -) sheet said
+  # that years without their own follow-up read the shortest longer one.
+  # Neither Minimum events nor Longest reportable carries that note.
 })
 
 test_that("(g) the 1-year and 3-year cells equal the records of their own ETTs", {
@@ -411,14 +412,16 @@ test_that("(i) a feasibility record of 27.3.0 stops; an s3 record of 27.3.0 expo
     plan$results_ett$ETT00005[[slot]]$by_year <- NULL
   }
   path <- .hs_export(plan)
-  yn <- .hs_sheet(path, "Minimum events (Y or -)")
-  cut <- .hs_sheet(path, "Minimum events (#)")
+  lr <- .ff_grid(path, "Longest reportable")
+  cut <- .ff_grid(path, "Minimum events")
+  expect_identical(.ff_grid_cell(lr, "01", "Outcome C", .HS_OWN), "1 year")
   expect_identical(
-    unname(unlist(yn[5, c("1 year", "2 years", "3 years")])),
-    c("Y", "-", "-")
-  )
-  expect_identical(
-    unname(as.character(unlist(cut[5, c("1 year", "2 years", "3 years")]))),
+    vapply(
+      c("1 year", "2 years", "3 years"),
+      function(y) .ff_grid_cell(cut, "01", "Outcome C", y),
+      character(1),
+      USE.NAMES = FALSE
+    ),
     c("2", "-", "-")
   )
 })

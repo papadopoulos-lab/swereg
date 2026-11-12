@@ -199,6 +199,10 @@ TTEPlan$set(
     self$results_enrollment <- NULL
     self$results_ett <- NULL
     self$feasibility <- NULL
+    # Freeze the skeleton summary that this run reads the skeletons under.
+    # The Coverage sheets of feasibility.xlsx read the frozen copy, so a
+    # later reclean cannot change what they describe.
+    self$skeleton_summary <- .tte_freeze_skeleton_summary(self)
     # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
     # rejects a relative `outputs` entry. Create the directory BEFORE
     # normalizing: normalizePath(mustWork = FALSE) returns an absolute path
@@ -354,19 +358,25 @@ TTEPlan$set(
     # run leaves the previous decision in place for the retry to restore.
     new_decision <- NULL
     new_hash <- NULL
+    new_counts <- NULL
     if (!is.null(spec[["rare_condition_rule"]])) {
-      cat(
-        "\n[s1b] Decide the rare conditions (driving enrollments, single subworker)\n"
-      )
-      new_decision <- .s1b_run(
+      cat(sprintf(
+        "\n[s1b] Count the rare conditions (per enrollment, x %d) and decide from the driving enrollments\n",
+        length(enrollment_ids)
+      ))
+      s1b <- .s1b_run(
         spec = spec,
         all_es = all_es,
         enrollment_ids = enrollment_ids,
         work_dir = work_dir,
         skel_basenames = skel_basenames,
         dev_path = swereg_dev_path,
-        p = progressr::progressor(steps = 1L)
+        p = progressr::progressor(steps = length(enrollment_ids)),
+        n_workers = n_workers
       )
+      new_decision <- s1b$decision
+      new_counts <- s1b$counts
+      rm(s1b)
       new_hash <- .tte_sparse_rule_hash(spec[["rare_condition_rule"]])
     }
     changed <- .s1b_apply_to_confounders(
@@ -376,6 +386,7 @@ TTEPlan$set(
     )
     self$sparse_decision <- new_decision
     self$sparse_rule_hash <- new_hash
+    self$sparse_counts <- new_counts
     if (changed) {
       all_es <- build_all_es()
     }

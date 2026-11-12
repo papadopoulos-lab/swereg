@@ -4,8 +4,10 @@
 # ETT grid gets one more follow-up of W weeks for every enrollment and
 # outcome. s2 builds those ETTs as any other ETT. s3 computes only the
 # per-protocol horizon record and the intention-to-treat record that follows
-# it, and stores no estimate. Every output other than the two Minimum events
-# sheets is the output of the same plan without the key.
+# it, and stores no estimate. Every output other than the Minimum events,
+# Longest reportable and Coverage (ETT) sheets is the output of the same
+# plan without the key. Coverage (ETT) differs only by the rows of the
+# W-week ETTs.
 #
 # The blocks follow the brief, (a) to (d):
 #   (a) the key: a bad value stops and names the key, an absent key is fine,
@@ -315,13 +317,26 @@ test_that("(c) no public accessor returns a row for a 260-week ETT", {
   return(m)
 }
 
-test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is identical cell by cell, but for the Feasibility horizon row", {
+# The sheet of tables.xlsx that lists each ETT in its column 2, besides the
+# two sheets of the minimum-events rule. It holds a row for each 260-week
+# ETT.
+.FF_COVERAGE_ETT <- "Coverage (ETT)"
+
+# The cells of Coverage (ETT) without the rows of the ETTs `drop`.
+.ff_cells_without_etts <- function(path, drop) {
+  m <- .ff_cells(path, .FF_COVERAGE_ETT)
+  m <- m[!(m[[2L]] %in% drop), , drop = FALSE]
+  rownames(m) <- NULL
+  return(m)
+}
+
+test_that("(d) every sheet of tables.xlsx but the minimum-events and Coverage (ETT) sheets is identical cell by cell, but for the Feasibility horizon row", {
   .ff_skip()
   a <- .ff_fixture(TRUE)
   b <- .ff_fixture(FALSE)
   sheets <- openxlsx::getSheetNames(a$xlsx)
   expect_identical(sheets, openxlsx::getSheetNames(b$xlsx))
-  expect_true(all(FF_MIN_SHEETS %in% sheets))
+  expect_true(all(c(FF_MIN_SHEETS, .FF_COVERAGE_ETT) %in% sheets))
   expect_true(all(
     c("PP results", "ITT results", "Summary", "ETTs") %in% sheets
   ))
@@ -333,16 +348,23 @@ test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is i
     spec_a[[2L]][spec_a[[1L]] %in% "Feasibility horizon:"],
     "260 weeks, minimum-events rule only"
   )
-  for (sh in setdiff(sheets, FF_MIN_SHEETS)) {
+  for (sh in setdiff(sheets, c(FF_MIN_SHEETS, .FF_COVERAGE_ETT))) {
     expect_identical(
       .ff_cells_no_feasibility_row(a$xlsx, sh),
       .ff_cells(b$xlsx, sh),
       info = sh
     )
   }
+  # Coverage (ETT) is identical once the rows of the 260-week ETTs go.
+  feas <- swereg:::.plan_ett_feasibility_ids(a$plan)
+  expect_length(feas, 2L)
+  expect_identical(
+    .ff_cells_without_etts(a$xlsx, feas),
+    .ff_cells(b$xlsx, .FF_COVERAGE_ETT)
+  )
   prov <- .ff_cells(a$xlsx, "Provenance")
   expect_identical(
-    prov[[2L]][prov[[1L]] == "Exported at"],
+    prov[[2L]][prov[[1L]] %in% "Exported at"],
     format(FF_EXPORT_TIME, "%Y-%m-%d %H:%M:%S")
   )
   for (sh in openxlsx::getSheetNames(a$spec_xlsx)) {
@@ -354,20 +376,36 @@ test_that("(d) every sheet of tables.xlsx but the two Minimum events sheets is i
   }
 })
 
-test_that("(d) only the Minimum events sheets show the 260-week ETT", {
+test_that("(d) only the minimum-events and Coverage (ETT) sheets show the 260-week ETT", {
   .ff_skip()
   a <- .ff_fixture(TRUE)
   b <- .ff_fixture(FALSE)
-  for (sh in FF_MIN_SHEETS) {
-    ca <- .ff_cells(a$xlsx, sh)
-    cb <- .ff_cells(b$xlsx, sh)
-    # Since 27.3.1 the 260-week ETT gives the columns of years 3 to 5.
-    for (yr in paste(3:5, "years")) {
-      expect_true(any(ca == yr, na.rm = TRUE), info = paste(sh, yr))
-      expect_false(any(cb == yr, na.rm = TRUE), info = paste(sh, yr))
-    }
-    expect_false(any(ca == "260 weeks", na.rm = TRUE), info = sh)
+  # Since 27.3.1 the 260-week ETT gives the columns of years 3 to 5.
+  ga <- .ff_grid(a$xlsx, "Minimum events")
+  gb <- .ff_grid(b$xlsx, "Minimum events")
+  for (yr in paste(3:5, "years")) {
+    expect_true(yr %in% ga$label, info = yr)
+    expect_false(yr %in% gb$label, info = yr)
   }
+  # Only the 260-week ETT reaches year 3, so only it can report 3 years.
+  ca <- .ff_cells(a$xlsx, "Longest reportable")
+  cb <- .ff_cells(b$xlsx, "Longest reportable")
+  expect_true(any(ca == "3 years", na.rm = TRUE))
+  for (yr in paste(3:5, "years")) {
+    expect_false(any(cb == yr, na.rm = TRUE), info = yr)
+  }
+  for (sh in FF_MIN_SHEETS) {
+    expect_false(any(.ff_cells(a$xlsx, sh) == "260 weeks", na.rm = TRUE), info = sh)
+  }
+  # Coverage (ETT) lists each 260-week ETT on a row of its own.
+  feas <- swereg:::.plan_ett_feasibility_ids(a$plan)
+  cov_a <- .ff_cells(a$xlsx, .FF_COVERAGE_ETT)
+  cov_b <- .ff_cells(b$xlsx, .FF_COVERAGE_ETT)
+  for (id in feas) {
+    expect_identical(cov_a[[6L]][cov_a[[2L]] %in% id], "260 weeks", info = id)
+  }
+  expect_false(any(cov_b[[2L]] %in% feas))
+  expect_false(any(cov_b == "260 weeks", na.rm = TRUE))
 })
 
 test_that("(d) results.qs2, the TARGET checklist and the protocol tables are identical, and print() differs by the ETT count", {

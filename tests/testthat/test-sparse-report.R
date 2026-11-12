@@ -223,7 +223,7 @@ test_that("the Table 1 footnote names the excluded conditions", {
     paste0(
       "Not shown: Prior rare condition B, Prior rare condition A. The ",
       "rare-condition rule made each of these conditions an exclusion ",
-      "criterion. See the Rare conditions sheet."
+      "criterion. See the Rare conditions by comparison sheet."
     )
   )
   t1 <- data.table::data.table(Variable = c("N", "Age"), Level = c("", ""))
@@ -653,7 +653,7 @@ test_that("the protocol emulation cell says how the rule chose the exclusions", 
     c(
       paste0(
         "Not eligible under the rare-condition rule: Prior rare condition B, ",
-        "Prior rare condition A (see the Rare conditions sheet)"
+        "Prior rare condition A (excluded by the rare-condition rule)"
       ),
       rule,
       paste0(

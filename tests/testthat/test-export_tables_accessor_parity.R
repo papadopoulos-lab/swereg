@@ -163,6 +163,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".acc_horizon_records" = "accessor module",
   ".tteplan_fill_summary" = "accessor module",
   ".acc_adherence" = "accessor module",
+  ".acc_coverage" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
   # s2 rewrites every analysis file, so it drops the stored results.

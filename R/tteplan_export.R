@@ -151,25 +151,19 @@
     "One row per ETT - ITT and PP (truncated weights) estimates"
   )
 
-  # --- Study Specification sheet ---
-  .write_spec_summary(wb, plan)
-  toc_names <- c(toc_names, "Study Specification")
-  toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
-
-  # --- Rare conditions sheet (only with a rare_condition_rule decision) ---
-  if (isTRUE(.write_sparse_conditions_sheet(wb, plan))) {
-    toc_names <- c(toc_names, "Rare conditions")
-    toc_desc <- c(toc_desc, "The rare-condition rule: counts and decision")
-  }
-
-  # --- Minimum events sheets (per-protocol decision, wide) ---
-  .write_minimum_events_sheets(wb, plan, .acc_horizon_records(plan, "pp"))
-  toc_names <- c(toc_names, .SHEET_MIN_EVENTS_YN, .SHEET_MIN_EVENTS_CUT)
-  toc_desc <- c(
-    toc_desc,
-    "Minimum-events rule - per-protocol estimates pass (Y) or fail (-) the rule",
-    "Minimum-events rule - the largest cut at which each estimate passes the rule"
+  # --- The feasibility sheets: the same writer, sheets and order as
+  # feasibility.xlsx ---
+  feas_baselines <- .tte_feasibility_baselines(plan, enrollment_ids)
+  feas <- .write_feasibility_sheets(
+    wb,
+    plan,
+    baselines = feas_baselines,
+    adherence = .tte_adherence_by_enrollment(plan),
+    records = .acc_horizon_records(plan, "pp"),
+    coverage = .tte_coverage_by_enrollment(plan, feas_baselines)
   )
+  toc_names <- c(toc_names, names(feas))
+  toc_desc <- c(toc_desc, unname(feas))
 
   # --- Target trial protocol sheet ---
   # One sheet documents ONE ETT, so the caller names it through
@@ -525,11 +519,6 @@
       }
     }
   }
-  # The Protocol adherence sheet follows the last sheet of the loop. It reads
-  # `$get_adherence()`, and it is absent when no enrollment has a table.
-  adh <- .write_adherence_sheet(wb, plan, .tte_adherence_by_enrollment(plan))
-  toc_names <- c(toc_names, names(adh))
-  toc_desc <- c(toc_desc, unname(adh))
   if (length(consort_files) > 0L) {
     toc_names <- c(toc_names, "CONSORT sidecars (standalone files)")
     toc_desc <- c(

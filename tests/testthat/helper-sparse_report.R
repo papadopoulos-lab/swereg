@@ -123,7 +123,7 @@ spr_report_list_after <- function(lines, prefix) {
   hit <- grep(prefix, lines, fixed = TRUE, value = TRUE)[1L]
   at <- regexpr(prefix, hit, fixed = TRUE)
   rest <- substr(hit, at + nchar(prefix), nchar(hit))
-  rest <- sub(" \\(see the Rare conditions sheet\\)$", "", rest)
+  rest <- sub(" \\(excluded by the rare-condition rule\\)$", "", rest)
   rest <- sub("\\.?\\s*$", "", rest)
   return(strsplit(rest, ", ", fixed = TRUE)[[1L]])
 }

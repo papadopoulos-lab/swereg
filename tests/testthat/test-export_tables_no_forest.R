@@ -69,11 +69,11 @@ test_that("export_tables writes no forest sheet and no forest image", {
   # order and then one extra row for the CONSORT sidecar files.
   expect_false(any(grepl("forest", .nf_toc$sheet, ignore.case = TRUE)))
   expect_identical(.nf_toc$sheet[seq_along(sheets)], sheets)
-  # The Protocol adherence sheet follows the last sheet of the per-enrollment
-  # loop, so its row follows the row of that sheet.
+  # The Protocol adherence sheet is the last feasibility sheet. It follows
+  # Table 1 (filterable), so its row follows the row of that sheet.
   expect_identical(
-    .nf_toc$sheet[match("Love_02", sheets) + 0:1],
-    c("Love_02", "Protocol adherence")
+    .nf_toc$sheet[match("Table 1 (filterable)", sheets) + 0:1],
+    c("Table 1 (filterable)", "Protocol adherence")
   )
   expect_identical(
     .nf_toc$sheet[-seq_along(sheets)],

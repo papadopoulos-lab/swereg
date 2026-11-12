@@ -647,31 +647,43 @@ The method reads the analysis file, weight, follow-up and threshold that
 decision s3 makes. It stores the decision in `plan$feasibility` and writes
 `feasibility.xlsx` to `plan$dir_results`.
 
-The workbook holds five to seven sheets, in this order:
+The workbook holds eight to ten sheets, in this order:
 
 1. Study Specification.
-2. Rare conditions, only when the spec carries `rare_condition_rule`.
-3. Minimum events (Y or -).
-4. Minimum events (#).
-5. Attrition.
-6. Protocol adherence, only when an enrollment has an adherence table.
-7. Table 1, unweighted.
+2. Arm sizes.
+3. Coverage (whole dataset).
+4. Coverage (ETT).
+5. Attrition by arm: each step, with an intervention and a comparator column per comparison, left and removed.
+6. Rare conditions by comparison, only when the spec carries `rare_condition_rule`.
+7. Minimum events: one row per comparison, one column per outcome and follow-up year, each cell the largest passing cut, coloured.
+8. Longest reportable: the longest horizon at thresholds 5, 10 and 20, and at the threshold of the spec.
+9. Table 1 (filterable): every comparison in one table with an autofilter.
+10. Protocol adherence, only when an enrollment has an adherence table.
 
-The Protocol adherence sheet shows how much per-protocol follow-up each arm keeps. For each comparison and arm, `N (ITT)` counts the person-trials still observed and `N (PP)` those still on protocol. The sheet shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel. Section 1.8.5 of `vignette("tte-methods")` defines the counts. `$export_tables()` writes the same sheet after the last `Attrition_<id>` and `Love_<id>` sheet.
+`$export_tables()` writes the same sheets, in the same order, into `tables.xlsx`. There they follow the Provenance and Summary sheets, and the results sheets follow them.
 
-The two Minimum events sheets hold one row per outcome and comparison and one
-column per follow-up horizon, for the per-protocol estimand. Minimum events
-(Y or -) shows Y when the estimate passes the minimum-events rule and - when
-it fails the rule. A failed estimate is withheld unless its comparison is
-exempt. Minimum events (#) shows the largest cut at which the estimate still
-passes the rule. The cuts are 1, 2, 3, 4, 5, 10 and 20 expected events per arm
-per year.
-Read a different cut from it without a rerun. `$export_tables()` writes the
-same two sheets, after Rare conditions.
+Rare conditions by comparison holds one row per candidate of the rare-condition rule. The Decision column shows what s1 decided: adjusted or excluded. Each comparison column shows the persons in the smaller arm who hold the condition at baseline. The last row counts the conditions below `min_n` in each comparison.
+
+The two Coverage sheets show whether the data holds what the spec asks for. Coverage (whole dataset) lists every skeleton column the spec reads, with its role, and the persons who have it in the whole skeleton, from the summary that `$process_skeletons()` writes. A column with 0 persons is flagged red: the data delivery does not hold it, or its codes are wrong. A rare-condition candidate held by fewer than `min_n` persons in the whole dataset is marked as a certain exclusion, and one held by nobody as an exclusion that removes nobody. Coverage (ETT) shows, per enrollment, the persons each eligibility criterion removed and the person-trials of each confounder level per arm at baseline, and, per ETT, the largest cut of the minimum-events rule that the outcome passes. A criterion that removes nobody, a confounder level that an arm lacks, and an outcome that passes no cut are flagged red.
+
+The Arm sizes sheet holds one row per enrollment. It shows the person-trials eligible for each arm, summed over trials, the comparators per intervention they give, the ratio the spec asks for, and the person-trials the comparator draw took. A row is flagged red when fewer person-trials are eligible for the comparator than for the intervention. The draw then cannot fill a 1:1 or larger ratio, and reversing the arms of that enrollment in a new spec version lets it fill. A row is flagged yellow when the comparator pool is larger than the intervention arm but short of the target ratio. `$s3_feasibility()` also names each red enrollment on the console.
+
+The Protocol adherence sheet shows how much per-protocol follow-up each arm keeps. For each comparison and arm, `N (ITT)` counts the person-trials still observed and `N (PP)` those still on protocol. The sheet shows weeks 13 and 26 and every multiple of 52, up to the last follow-up week of the raw panel. Section 1.8.5 of `vignette("tte-methods")` defines the counts.
+
+Minimum events and Longest reportable hold one row per comparison and one
+column group per outcome, for the per-protocol estimand. Each cell of Minimum
+events is the largest cut at which the estimate passes the minimum-events rule
+in every follow-up year up to that column. The cuts are 1, 2, 3, 4, 5, 10 and
+20 expected events per arm per year. Read a different cut from it without a
+rerun. Longest reportable shows the longest horizon that each threshold
+reports. Its column for the threshold of the spec reads the stored verdict of
+the rule. A failed estimate is withheld unless its comparison is exempt. The
+name of an exempt comparison ends with ` (exempt)`, and its cells still show
+the verdict of the rule.
 
 Neither output holds an event count, a rate or expected events after time
-zero, and neither holds an effect estimate. The Attrition sheet keeps the
-eligibility counts by arm, including people excluded for an outcome event
+zero, and neither holds an effect estimate. The Attrition by arm sheet keeps
+the eligibility counts by arm, including people excluded for an outcome event
 before time zero. The decision still depends on the observed events,
 through the pooled rate.
 

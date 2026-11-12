@@ -848,7 +848,12 @@
   return(out[])
 }
 
-#' Run s1b: dispatch the counting worker, then build the decision
+#' Run s1b: dispatch the counting workers, then build the decision
+#'
+#' One item per enrollment, so the counts cover every comparison. The
+#' decision reads the driving enrollments only. The counts of the other
+#' enrollments are kept for the Rare conditions sheet, which shows what the
+#' rule would find in each comparison.
 #'
 #' @param spec The plan's parsed specification.
 #' @param all_es The enrollment specs of every enrollment.
@@ -856,8 +861,10 @@
 #' @param work_dir The s1 work directory.
 #' @param skel_basenames The skeleton basenames.
 #' @param dev_path The swereg development path for the subworker, or `NULL`.
-#' @param p The progressor.
-#' @return The decision table of `.s1b_decide()`.
+#' @param p The progressor, with one step per enrollment.
+#' @param n_workers Integer, the concurrent subworkers.
+#' @return A list: `decision`, the table of `.s1b_decide()`, and `counts`,
+#'   the counts of every enrollment, candidate and arm.
 #' @noRd
 .s1b_run <- function(
   spec,
@@ -866,7 +873,8 @@
   work_dir,
   skel_basenames,
   dev_path,
-  p
+  p,
+  n_workers = 1L
 ) {
   rule <- .tte_check_sparse_rule(spec)[["rare_condition_rule"]]
   absent <- setdiff(rule[["decided_by"]], enrollment_ids)
@@ -879,26 +887,36 @@
       call. = FALSE
     )
   }
-  items <- list(
-    s1b_decide = list(
-      enrollment_specs = all_es[match(rule[["decided_by"]], enrollment_ids)],
+  ids <- paste0("s1b_", enrollment_ids)
+  items <- lapply(seq_along(enrollment_ids), function(i) {
+    return(list(
+      enrollment_specs = all_es[i],
       work_dir = work_dir,
       skel_basenames = skel_basenames,
       condition_vars = rule[["candidates"]]
-    )
-  )
-  outputs <- list(s1b_decide = c(counts = .s1b_counts_path(work_dir)))
+    ))
+  })
+  names(items) <- ids
+  outputs <- lapply(enrollment_ids, function(eid) {
+    return(c(counts = .s1b_counts_path(work_dir, eid)))
+  })
+  names(outputs) <- ids
   .batch_run_and_write(
     target = .batch_target("swereg", ".s1b_worker"),
     items = items,
     outputs = outputs,
     style = "return",
-    n_workers = 1L,
+    n_workers = max(1L, min(as.integer(n_workers), length(items))),
     dev_path = dev_path,
     p = p,
     label = "s1b"
   )
-  counts <- qs2_read(.s1b_counts_path(work_dir), nthreads = 1L)
+  counts <- data.table::rbindlist(
+    lapply(enrollment_ids, function(eid) {
+      return(qs2_read(.s1b_counts_path(work_dir, eid), nthreads = 1L))
+    }),
+    use.names = TRUE
+  )
   labels <- vapply(
     .tte_sparse_condition_entries(spec),
     function(conf) {
@@ -906,7 +924,10 @@
     },
     character(1)
   )
-  return(.s1b_decide(counts, rule, labels))
+  return(list(
+    decision = .s1b_decide(counts, rule, labels),
+    counts = counts
+  ))
 }
 
 #' Remove the excluded conditions from every ETT's confounder set

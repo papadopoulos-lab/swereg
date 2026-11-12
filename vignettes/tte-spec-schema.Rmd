@@ -330,6 +330,14 @@ An enrollment MAY set `minimum_events_rule_exempt`, one logical. With `true`,
 the minimum-events rule withholds no estimate of that comparison. An
 enrollment without the key is not exempt.
 
+**A negative-control enrollment normally sets `minimum_events_rule_exempt:
+true`.** A negative control is read for its estimate, whatever its precision,
+because the question it answers is whether that estimate sits near the null.
+Withholding it for too few expected events removes the very check the control
+exists to give. Set the key on every negative-control enrollment, age
+subgroups included, and state in the spec why a control that leaves it unset
+does so.
+
 ```yaml
 enrollments:
   - id: "18"
@@ -338,8 +346,8 @@ enrollments:
 ```
 
 s3 still computes the rule for each ETT of the enrollment and stores its
-verdict. The Minimum events sheets show that verdict, and the comparison name
-ends with ` (exempt)`. `$reload_spec()` applies a changed value as a cosmetic
+verdict. The Minimum events and Longest reportable sheets show that verdict,
+and the comparison name ends with ` (exempt)`. `$reload_spec()` applies a changed value as a cosmetic
 change, so s1 and s2 output stays valid. `$export()`, `$export_tables()` and
 `$print_target_checklist()` then stop until `$s3_analyze()` reruns.
 

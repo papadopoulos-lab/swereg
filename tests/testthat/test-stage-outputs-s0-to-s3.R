@@ -251,19 +251,46 @@ test_that("after s1 the preregistration workbook adds the Rare conditions sheet"
 })
 
 
+# The condition and the decision of each row of a rare-condition sheet,
+# under its header row, as a named character vector sorted by condition.
+sto_decisions <- function(path, sheet) {
+  m <- sto_cells(path, sheet)
+  m[] <- lapply(m, as.character)
+  h <- which(m[[1]] %in% "Condition")[1L]
+  col <- which(unlist(m[h, ]) %in% "Decision")
+  rows <- seq.int(h + 1L, nrow(m))
+  rows <- rows[m[[col]][rows] %in% c("adjusted", "excluded")]
+  out <- stats::setNames(m[[col]][rows], m[[1]][rows])
+  return(out[order(names(out))])
+}
+
 test_that("the preregistration sheets equal the sheets of export_tables", {
   s <- sto_run()
   expect_null(s$tables_s3$error)
-  expect_true(all(
-    STO_PREREG_SHEETS %in% openxlsx::getSheetNames(s$tables_s3$value)
-  ))
-  for (sheet in STO_PREREG_SHEETS) {
+  tables_sheets <- openxlsx::getSheetNames(s$tables_s3$value)
+  # tables.xlsx holds Rare conditions by comparison in place of the Rare
+  # conditions sheet of the preregistration workbook.
+  shared <- setdiff(STO_PREREG_SHEETS, "Rare conditions")
+  expect_true(all(shared %in% tables_sheets))
+  expect_false("Rare conditions" %in% tables_sheets)
+  expect_true("Rare conditions by comparison" %in% tables_sheets)
+  for (sheet in shared) {
     want <- sto_cells(s$tables_s3$value, sheet)
     # The same plan state.
     expect_identical(sto_cells(s$spec_s3$value, sheet), want, label = sheet)
     # After s1, before s2 and s3: no s2 or s3 result reaches these sheets.
     expect_identical(sto_cells(s$spec_s1$value, sheet), want, label = sheet)
   }
+  # The Rare conditions sheet: no s2 or s3 result reaches it, and its
+  # decisions are those of Rare conditions by comparison in tables.xlsx.
+  want <- sto_cells(s$spec_s3$value, "Rare conditions")
+  expect_identical(sto_cells(s$spec_s1$value, "Rare conditions"), want)
+  decisions <- sto_decisions(s$spec_s3$value, "Rare conditions")
+  expect_length(decisions, 2L)
+  expect_identical(
+    sto_decisions(s$tables_s3$value, "Rare conditions by comparison"),
+    decisions
+  )
   protocol <- sto_cells(s$tables_s3$value, "Target trial protocol")
   expect_match(protocol[[1]][1L], STO_PROTOCOL_ETT, fixed = TRUE)
 })
@@ -300,7 +327,7 @@ test_that("the supplementary baseline sheets drop the excluded conditions and ca
     paste0(
       "Not shown: Prior rare condition B. The rare-condition rule made each ",
       "of these conditions an exclusion criterion. See the Rare ",
-      "conditions sheet."
+      "conditions by comparison sheet."
     )
   )
 })
