@@ -458,12 +458,14 @@ test_that("(c) Minimum events and Longest reportable show the verdict of the rul
     ),
     c("1 year", "1 year")
   )
-  expect_true(endsWith(
-    .hx_head(fx$xlsx, "Longest reportable")[2L],
+  # The exempt sentence is followed by the not-in-data sentence.
+  expect_true(grepl(
     paste0(
       " (exempt): the specification exempts the comparison, so s3 reports ",
-      "its estimates to the full follow-up whatever the cell shows."
-    )
+      "its estimates to the full follow-up whatever the cell shows. Black:"
+    ),
+    .hx_head(fx$xlsx, "Longest reportable")[2L],
+    fixed = TRUE
   ))
   # Minimum events carries the same comparison text. Its cells are the
   # largest passing cut, 2, for both ETTs, and its note names the cut 5.
@@ -484,12 +486,13 @@ test_that("(c) Minimum events and Longest reportable show the verdict of the rul
     "Minimum events: the largest cut each per-protocol estimate passes"
   )
   expect_match(cut_head[2L], "The current cut is 5.", fixed = TRUE)
-  expect_true(endsWith(
-    cut_head[2L],
+  expect_true(grepl(
     paste0(
       " (exempt): the specification exempts the comparison, so s3 reports ",
-      "its estimates whatever the cell shows."
-    )
+      "its estimates whatever the cell shows. Black:"
+    ),
+    cut_head[2L],
+    fixed = TRUE
   ))
 
   # Without an exempt enrollment, no comparison carries the marker, and the

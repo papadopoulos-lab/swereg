@@ -230,3 +230,24 @@ test_that("s0 refuses an incomplete skeleton summary, and s1 freezes it without 
   expect_null(swereg:::.tte_check_skeleton_summary(NULL))
   expect_null(swereg:::.tte_freeze_skeleton_summary(list(registrystudy = NULL)))
 })
+
+test_that("not in data lists an outcome with 0 persons and every enrollment a 0-person criterion reaches", {
+  plan <- list(
+    spec = .cv_spec(),
+    sparse_decision = NULL,
+    skeleton_summary = list(columns = .cv_summary(), built_at = Sys.time(), is_complete = TRUE)
+  )
+  nid <- swereg:::.tte_not_in_data(plan)
+  # os_fracture holds 0 persons; os_m81 holds 5000.
+  expect_identical(nid$outcomes, "Fracture")
+  # The exclusion "Prior fracture" reads os_fracture, and it applies to all.
+  expect_identical(nid$enrollments, "A")
+  # Every column holds someone: nothing is absent. os_m80 holds 3, which is
+  # present.
+  cols <- .cv_summary()
+  cols$n_persons_with[cols$column_name == "os_fracture"] <- 1L
+  plan$skeleton_summary$columns <- cols
+  nid <- swereg:::.tte_not_in_data(plan)
+  expect_identical(nid$outcomes, character(0))
+  expect_identical(nid$enrollments, character(0))
+})

@@ -208,3 +208,76 @@ test_that("The overview cuts mark an exempt comparison", {
   expect_identical(unname(x$names), c("Comparison 01", "Comparison 02 (exempt)"))
   expect_identical(x$yn$Death[, 1], c("Y", "-"))
 })
+
+.ov_nid_sheets <- function(nid) {
+  testthat::local_mocked_bindings(
+    .overview_cuts = function(plan, records) {
+      return(list(
+        ids = c("01", "02"),
+        names = c(`01` = "First", `02` = "Second"),
+        outcomes = c("Absent", "Rare"),
+        years = c("1 year", "2 years"),
+        cut = list(
+          Absent = matrix(c("-", "-", "-", "-"), 2L),
+          Rare = matrix(c("5", "2", "1", "-"), 2L)
+        ),
+        yn = list(
+          Absent = matrix(c("-", "-", "-", "-"), 2L),
+          Rare = matrix(c("Y", "-", "-", "-"), 2L)
+        )
+      ))
+    },
+    .tte_not_in_data = function(plan) {
+      return(nid)
+    },
+    .package = "swereg"
+  )
+  wb <- openxlsx::createWorkbook()
+  swereg:::.write_overview_min_events(wb, list(spec = list(min_expected_events_per_arm_per_year = 5)), list())
+  return(wb)
+}
+
+.ov_cell <- function(wb, sht, label, col) {
+  d <- openxlsx::readWorkbook(wb, sht, colNames = FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE)
+  r <- which(d[[1]] == label)
+  return(list(row = r, value = d[r, col]))
+}
+
+.ov_fill_at <- function(wb, sht, row, col) {
+  st <- openxlsx::getStyles(wb)
+  hit <- NULL
+  for (s in wb$styleObjects) {
+    if (identical(s$sheet, sht) && any(s$rows == row & s$cols == col)) {
+      hit <- s$style$fill$fillFg
+    }
+  }
+  return(if (is.null(hit)) NA_character_ else unname(unlist(hit))[1L])
+}
+
+test_that("an outcome not in the data gets empty black cells, and a <5 outcome is unchanged", {
+  skip_if_not_installed("openxlsx")
+  wb <- .ov_nid_sheets(list(outcomes = "Absent", enrollments = character(0)))
+  # The Rare outcome starts after the Absent outcome's columns: 2 years on
+  # Minimum events, 3 thresholds (5, 10, 20) on Longest reportable.
+  rare_col <- c(`Minimum events` = 5L, `Longest reportable` = 6L)
+  for (sht in names(rare_col)) {
+    first <- .ov_cell(wb, sht, "01", 3L)
+    expect_true(is.na(first$value) || !nzchar(first$value))
+    expect_match(.ov_fill_at(wb, sht, first$row, 3L), "000000$")
+    rare <- .ov_cell(wb, sht, "01", rare_col[[sht]])
+    expect_false(is.na(rare$value) || !nzchar(rare$value))
+    expect_false(isTRUE(grepl("000000$", .ov_fill_at(wb, sht, rare$row, rare_col[[sht]]))))
+  }
+  expect_identical(.ov_cell(wb, "Minimum events", "01", 5L)$value, "5")
+})
+
+test_that("a comparison with a criterion not in the data has a grey name cell", {
+  skip_if_not_installed("openxlsx")
+  wb <- .ov_nid_sheets(list(outcomes = character(0), enrollments = "02"))
+  for (sht in c("Minimum events", "Longest reportable")) {
+    second <- .ov_cell(wb, sht, "02", 2L)
+    first <- .ov_cell(wb, sht, "01", 2L)
+    expect_match(.ov_fill_at(wb, sht, second$row, 2L), "BFBFBF$")
+    expect_true(is.na(.ov_fill_at(wb, sht, first$row, 2L)))
+  }
+})

@@ -420,6 +420,38 @@
 }
 
 
+#' What the spec reads that the whole dataset does not hold
+#'
+#' Reads the whole-dataset coverage of `.tte_coverage_raw()`. A column is
+#' absent when it holds 0 persons; a count of 1 to 4 counts as present.
+#'
+#' @param plan A TTEPlan.
+#' @return A list: `outcomes`, the names of the outcomes whose columns hold
+#'   0 persons, and `enrollments`, the ids of the enrollments with an
+#'   inclusion criterion, exclusion criterion or confounder whose column holds
+#'   0 persons.
+#' @noRd
+.tte_not_in_data <- function(plan) {
+  n_persons <- NULL
+  out <- list(outcomes = character(0), enrollments = character(0))
+  tab <- .tte_coverage_raw(plan)$table
+  if (is.null(tab) || nrow(tab) == 0L) {
+    return(out)
+  }
+  tab <- tab[!is.na(tab$n_persons)]
+  by_col <- tab[,
+    list(n = max(n_persons)),
+    by = c("scope", "role", "name", "column")
+  ]
+  absent <- by_col[by_col$n == 0]
+  out$outcomes <- unique(absent$name[absent$role == "Outcome"])
+  crit <- absent[absent$role %in% c("Inclusion", "Exclusion") | startsWith(absent$role, "Confounder")]
+  ids <- vapply(plan$spec$enrollments, function(e) as.character(e$id), character(1))
+  out$enrollments <- if (any(crit$scope == "All")) ids else intersect(ids, unique(crit$scope))
+  return(out)
+}
+
+
 #' The whole-dataset coverage of every column the spec reads
 #'
 #' @param plan A TTEPlan.
