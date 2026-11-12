@@ -341,10 +341,9 @@
 
 #' Write the Protocol adherence sheet
 #'
-#' `.plan_export_tables()` and `.write_feasibility_xlsx()` both call it, so
-#' the sheet of `tables.xlsx` and of `feasibility.xlsx` is the same. The
-#' layout follows the Minimum events sheets. Row 1 holds the title and row 2
-#' the note. Row 4 holds `#`, `Comparison`, `Arm` and the label of each
+#' `.write_feasibility_sheets()` calls it for `tables.xlsx` and
+#' `feasibility.xlsx`, so the sheet of the two workbooks is the same. Row 1
+#' holds the title and row 2 the note. Row 4 holds `#`, `Comparison`, `Arm` and the label of each
 #' milestone, merged across its three columns. Row 5 holds `N (ITT)`,
 #' `N (PP)` and `%` under each milestone. The data start at row 6, and every
 #' count and percentage is a numeric cell. A blank cell is `NA` in

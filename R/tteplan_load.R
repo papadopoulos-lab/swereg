@@ -47,9 +47,13 @@ tteplan_load <- function(path) {
     "spec_reload_skipped_diffs",
     "sparse_decision",
     "sparse_rule_hash",
+    # From swereg 27.3.13. An older plan has none.
+    "sparse_counts",
     "s1_run_id",
     # Set by $s3_feasibility(). A plan saved before 27.2.15 has none.
     "feasibility",
+    # Frozen by s1 from swereg 27.3.13. An older plan has none.
+    "skeleton_summary",
     # New fields added by the CandidatePath migration
     "spec_version",
     "dir_tteplan_cp",

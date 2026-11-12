@@ -15,7 +15,10 @@ skip_if_not_installed("openxlsx")
 
 spr_e2e <- new.env(parent = emptyenv())
 
-# The loaded plan and its workbook, built once for the file.
+# The loaded plan and its workbooks, built once for the file:
+# `$export_tables()` writes tables.xlsx and feasibility.xlsx, and
+# `$excel_spec_summary()` the specification workbook, which keeps the Rare
+# conditions sheet.
 spr_e2e_get <- function() {
   if (is.null(spr_e2e$plan)) {
     run <- spr_report_pipeline()
@@ -23,8 +26,12 @@ spr_e2e_get <- function() {
     suppressWarnings(invisible(utils::capture.output(
       run$plan$export_tables(path = path)
     )))
+    spec_path <- file.path(run$root, "spec.xlsx")
+    suppressMessages(run$plan$excel_spec_summary(path = spec_path))
     spr_e2e$plan <- run$plan
     spr_e2e$path <- path
+    spr_e2e$feas_path <- file.path(run$root, "feasibility.xlsx")
+    spr_e2e$spec_path <- spec_path
   }
   return(spr_e2e)
 }
@@ -39,13 +46,35 @@ spr_e2e_sheet <- function(sheet, ...) {
   ))
 }
 
+# The Rare conditions sheet of the specification workbook.
+spr_e2e_spec_rare <- function() {
+  return(openxlsx::read.xlsx(
+    spr_e2e_get()$spec_path,
+    sheet = "Rare conditions",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  ))
+}
+
+# The Rare conditions by comparison sheet of tables.xlsx: the rows under its
+# header row, named by it. `header_row` is the sheet row of that header.
+spr_e2e_rare <- function() {
+  m <- spr_e2e_sheet("Rare conditions by comparison")
+  m[] <- lapply(m, as.character)
+  h <- which(m[[1]] %in% "Condition")[1L]
+  d <- m[-seq_len(h), , drop = FALSE]
+  names(d) <- as.character(unlist(m[h, ]))
+  rownames(d) <- NULL
+  return(list(d = d, header_row = h))
+}
+
 SPR_E2E_CRITERION <- "Excluded (fewer than 10 at baseline): Prior rare condition B"
 SPR_E2E_LABEL <- paste(
   "Prior rare condition B (rare-condition rule: fewer than 10 persons at",
   "baseline in the smallest arm of the driving comparison)"
 )
 
-test_that("the loaded plan, the Rare conditions sheet and the Attrition step-2 rows agree", {
+test_that("the loaded plan, the Rare conditions by comparison sheet and the Attrition step-2 rows agree", {
   e <- spr_e2e_get()
   d <- e$plan$get_sparse_decision()
   expect_identical(
@@ -56,11 +85,31 @@ test_that("the loaded plan, the Rare conditions sheet and the Attrition step-2 r
   expect_identical(d$smallest[1], 0L)
   expect_true(d$smallest[2] >= 10L)
 
-  expect_true("Rare conditions" %in% openxlsx::getSheetNames(e$path))
-  x <- spr_e2e_sheet("Rare conditions")
-  expect_identical(x[[1]][5:6], d$label)
-  expect_identical(x[[7]][5:6], d$decision)
-  expect_identical(x[[4]][5:6], c("<10", as.character(d$smallest[2])))
+  sheets <- openxlsx::getSheetNames(e$path)
+  expect_true("Rare conditions by comparison" %in% sheets)
+  expect_false("Rare conditions" %in% sheets)
+  r <- spr_e2e_rare()
+  x <- r$d
+  expect_identical(x$Condition[1:2], d$label)
+  expect_identical(x$Decision[1:2], d$decision)
+  # The deciding comparison holds the smallest arm count of the decision.
+  # A count below min_n = 10 is red, and one of at least 2 x 10 light green.
+  expect_identical(x[["01 (decides)"]][1:2], as.character(d$smallest))
+  col <- match("01 (decides)", names(x))
+  expect_identical(
+    .ff_fill(e$path, "Rare conditions by comparison", r$header_row + 1L, col),
+    "#F4B6B6"
+  )
+  expect_identical(
+    .ff_fill(e$path, "Rare conditions by comparison", r$header_row + 2L, col),
+    "#D9EAD3"
+  )
+  # The Rare conditions sheet of the specification workbook still shows the
+  # count below min_n as <10.
+  sr <- spr_e2e_spec_rare()
+  expect_identical(sr[[1]][5:6], d$label)
+  expect_identical(sr[[7]][5:6], d$decision)
+  expect_identical(sr[[4]][5:6], c("<10", as.character(d$smallest[2])))
 
   for (eid in c("01", "02")) {
     att <- spr_e2e_sheet(paste0("Attrition_", eid), startRow = 3L)
@@ -92,7 +141,7 @@ test_that("Table 1 of the real run drops the excluded condition and names it in 
     paste0(
       "Not shown: Prior rare condition B. The rare-condition rule made each ",
       "of these conditions an exclusion criterion. See the Rare ",
-      "conditions sheet."
+      "conditions by comparison sheet."
     )
   )
 })
@@ -147,9 +196,11 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
     expect_identical(unname(conf_names[cv]), SPR_REPORT_ADJUSTMENT_SET)
   }
 
-  # Workbook.
-  x <- spr_e2e_sheet("Rare conditions")
-  excluded$sparse_sheet <- x[[1]][5:6][x[[7]][5:6] == "excluded"]
+  # Workbooks.
+  x <- spr_e2e_rare()$d
+  excluded$sparse_sheet <- x$Condition[x$Decision %in% "excluded"]
+  sr <- spr_e2e_spec_rare()
+  excluded$spec_sparse_sheet <- sr[[1]][5:6][sr[[7]][5:6] == "excluded"]
   ss <- spr_e2e_sheet("Study Specification")
   excluded$spec_sheet <- strsplit(
     spr_report_spec_value(ss, "Excluded conditions:"),
@@ -214,6 +265,7 @@ test_that("workbook, CONSORT, TARGET 6a/6g and protocol table name the same excl
     excluded,
     c(
       "sparse_sheet",
+      "spec_sparse_sheet",
       "spec_sheet",
       "table1",
       "consort_01",
@@ -240,7 +292,8 @@ test_that("no text that states the rule says it never looked at outcomes", {
     "comparator draw and without follow-up outcomes"
   )
   txt <- spr_report_checklist(e$plan)
-  x <- spr_e2e_sheet("Rare conditions")
+  x <- spr_e2e_spec_rare()
+  rare <- spr_e2e_sheet("Rare conditions by comparison")
   ss <- spr_e2e_sheet("Study Specification")
   pt <- openxlsx::read.xlsx(e$path, sheet = "Target trial protocol", startRow = 3L)
   states_rule <- list(
@@ -257,6 +310,7 @@ test_that("no text that states the rule says it never looked at outcomes", {
     unlist(states_rule),
     txt,
     unlist(x),
+    unlist(rare),
     unlist(ss),
     unlist(pt),
     unlist(spr_e2e_sheet("Table 1")),
@@ -268,4 +322,14 @@ test_that("no text that states the rule says it never looked at outcomes", {
       label = phrase
     )
   }
+})
+
+test_that("with a rare_condition_rule, tables.xlsx after Provenance and Summary begins with the sheets of feasibility.xlsx", {
+  e <- spr_e2e_get()
+  tables <- openxlsx::getSheetNames(e$path)
+  feas <- openxlsx::getSheetNames(e$feas_path)
+  expect_true("Rare conditions by comparison" %in% feas)
+  expect_identical(tables[1:2], c("Provenance", "Summary"))
+  expect_identical(tables[2L + seq_along(feas)], feas)
+  expect_identical(tables[3L + length(feas)], "Target trial protocol")
 })

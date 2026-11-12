@@ -205,6 +205,7 @@ tteplan_from_spec_and_registrystudy <- function(
   plan$dir_tteplan_cp <- dir_tteplan_cp
   plan$dir_results_cp <- dir_results_cp
   plan$registrystudy <- study
+  .tte_check_skeleton_summary(study)
   plan$n_skeleton_files_limit <- if (is.null(n_skeleton_files)) {
     NULL
   } else {

@@ -1,4 +1,4 @@
-# swereg 27.3.13
+# swereg 27.3.14
 
 A TTE on a study where one person has more than one copy in the skeleton files changes: s1 now reads one copy per person. That covers a study built with `$set_matched_sets()` where a person has two memberships, and a study built with `$set_batches()` that puts an ID in two batches. Rerun s1 to s3 on such a study. A study with one copy per person gives the same results as before and needs no rerun (#68).
 
@@ -16,6 +16,34 @@ A TTE on a study where one person has more than one copy in the skeleton files c
 
 * **New `vignette("tte-matched-sets")`.** It explains memberships and copies, how the TTE enrolls every intervention and samples comparators per period, and why one copy per person gives one enrollment per person per period and one cluster per person. It runs s1 on a small study with copies and on the same persons without copies, and shows that the two give the same result.
 * **`$set_matched_sets()`, `$set_batches()`, `study$n_ids` and `plan$expected_n_ids` document what a TTE reads and counts.**
+
+# swereg 27.3.13
+
+No result changes. No plan needs a rerun. A rerun of the feasibility step, or of `$export_tables()`, writes the new sheets.
+
+## Breaking changes
+
+* **`tables.xlsx` holds the sheets of `feasibility.xlsx`**, in the same order, after Provenance and Summary. The results sheets follow them. The same code writes these sheets in both workbooks.
+* **Both workbooks drop the Rare conditions, Minimum events (Y or -) and Minimum events (#) sheets.** `feasibility.xlsx` also drops its Attrition and unweighted Table 1 sheets. Rare conditions by comparison, Minimum events, Longest reportable, Attrition by arm and Table 1 (filterable) replace them. The standalone specification workbook of `$excel_spec_summary()` keeps its Rare conditions sheet.
+
+## New features
+
+* **`feasibility.xlsx` has an Arm sizes sheet**, after Study Specification. One row per enrollment shows the person-trials eligible for each arm, summed over trials, the comparators per intervention they give, the target ratio of the spec, and the person-trials the comparator draw took. A row is flagged red, "Comparator rarer than intervention: consider reversing the arms", when fewer person-trials are eligible for the comparator than for the intervention. A row is flagged yellow when the comparator pool is larger but short of the target ratio. `$s3_feasibility()` also names the red enrollments on the console.
+* **`feasibility.xlsx` has two Coverage sheets**, after Arm sizes. Coverage (whole dataset) lists every skeleton column the spec reads, with its role, and the persons who have it in the whole skeleton, from the summary of `$process_skeletons()`. A column with 0 persons is flagged as not in the data. A rare-condition candidate held by fewer than `min_n` persons in the whole dataset is marked as a certain exclusion. Coverage (ETT) shows, per enrollment, the persons each eligibility criterion removed and the person-trials of each confounder level per arm at baseline, and, per ETT, the largest passing cut of the minimum-events rule. A criterion that removes nobody, a confounder level an arm lacks and an outcome that passes no cut are flagged. The baseline counts come from the s1 raw file, so the feasibility step or s3 must rerun to fill them.
+* **s1 freezes the skeleton summary into the plan**, as `plan$skeleton_summary`. The Coverage (whole dataset) sheet reads that frozen copy, so it describes the skeleton the ETTs were built from. When a newer summary is on disk, the sheet says that a reclean ran after s1. A plan from before this version has no frozen copy, and the sheet reads the live summary and says so.
+* **`feasibility.xlsx` has five overview sheets**, after the two Coverage sheets. Each is one grid per question, with colour fills and a legend:
+  * *Minimum events*: one row per comparison, one column per outcome and follow-up year, each cell the largest passing cut (≥20, 10, 5, 1 to 4, or -).
+  * *Longest reportable*: the longest horizon each comparison and outcome would report at thresholds 5, 10 and 20, and at the spec's own threshold. The spec's column reads the stored verdict of the rule, so a threshold off the grid of cuts, such as 0, reads correctly. Both sheets keep the verdict of the rule for an exempt comparison, and add " (exempt)" to its name.
+  * *Attrition by arm*: each step by its criterion name, with an intervention and a comparator column per comparison, as person-trials left and removed. A step that removes nobody in any comparison is red.
+  * *Rare conditions by comparison*: the decision of s1 for each candidate, adjusted or excluded. One column per comparison holds the persons in the smaller arm who hold it at baseline. `c` marks a smaller comparator arm, and both margins count the conditions below `min_n`.
+  * *Table 1 (filterable)*: every comparison and both panels in one table with an autofilter, counts and shares in separate columns, and the SMD coloured from 0.1 and 0.2.
+* **The Minimum events and Longest reportable sheets mark what the data does not hold.** An outcome whose column holds 0 persons in the whole dataset has empty black cells in every year and threshold. A comparison with an inclusion criterion, exclusion criterion or confounder whose column holds 0 persons has a grey name. Both read the whole-dataset coverage of the Coverage (whole dataset) sheet. A count of 1 to 4 counts as present.
+* **s1b counts the rare-condition candidates in every enrollment**, one subworker per enrollment, and stores them as `plan$sparse_counts`. The decision still reads the driving enrollments only. The Coverage (ETT) sheet shows these counts, so a candidate the rule excluded is visible there too.
+* **s0 refuses an incomplete skeleton summary, and s1 never stops on it.** `tteplan_from_spec_and_registrystudy()` stops when a reclean has not finished, because the skeletons are then a mix of two builds. s1 runs as a queued job, so it freezes whatever summary it finds, records whether it was complete, and the Coverage (whole dataset) sheet says when it was not.
+
+## Documentation
+
+* **`vignette("tte-spec-schema")` states that a negative-control enrollment normally sets `minimum_events_rule_exempt: true`**, in its section on the minimum-events exemption. A negative control is read for its estimate, whatever its precision.
 
 # swereg 27.3.12
 

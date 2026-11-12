@@ -1094,6 +1094,25 @@
 }
 
 
+#' The stored baseline confounder counts of each enrollment
+#'
+#' s3 stores them under `coverage` in each enrollment result, from
+#' `.tte_confounder_coverage()`. The Coverage (ETT) sheet reads them.
+#'
+#' @param plan A TTEPlan.
+#' @param enrollment_ids Character, the enrollments to read.
+#' @return A named list by enrollment id. An element is `NULL` when the
+#'   stored result holds no counts.
+#' @noRd
+.acc_coverage <- function(plan, enrollment_ids) {
+  out <- lapply(enrollment_ids, function(eid) {
+    return(.acc_slot(plan$results_enrollment[[eid]], "coverage"))
+  })
+  names(out) <- enrollment_ids
+  return(out)
+}
+
+
 #' Columns the stored comparator-draw table must carry.
 #' @noRd
 .ACC_MATCHING_COLS <- c(

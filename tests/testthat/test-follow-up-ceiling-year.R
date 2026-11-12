@@ -466,7 +466,7 @@ test_that("(h) $s3_feasibility() gives the 26-week record the decision of the 52
   }
 })
 
-test_that("(c) the 104-week ETT has no estimate in a reported output, and the sheet note names it as the deciding whole year", {
+test_that("(c) the 104-week ETT has no estimate in a reported output", {
   .cy_skip()
   fx <- .cy_fx_78()
   plan <- fx$plan
@@ -483,24 +483,10 @@ test_that("(c) the 104-week ETT has no estimate in a reported output, and the sh
   expect_identical(pp$decided_by_ett, "ETT00003")
   expect_identical(pp$fail_hi, NA_real_)
   expect_false(all(pp$windows$pass))
-
-  for (path in c(fx$xlsx, file.path(dirname(fx$xlsx), "feasibility.xlsx"))) {
-    for (sheet in FF_MIN_SHEETS) {
-      note <- .ff_cells(path, sheet)[3, 1]
-      # Year 1 has no ETT of its own, so it reads the 104-week ETT.
-      expect_identical(
-        note,
-        paste0(
-          "Years without their own follow-up are read from the shortest ",
-          "longer follow-up. The 104-week follow-up is the whole year that ",
-          "decides the 78-week follow-up; no estimate is reported for the ",
-          "104-week follow-up."
-        ),
-        info = paste(basename(path), sheet)
-      )
-      expect_false(grepl("feasibility", note, fixed = TRUE))
-    }
-  }
+  # Before swereg 27.3.13 row 3 of the Minimum events (Y or -) and (#)
+  # sheets named the 104-week ETT as the whole year that decides the 78-week
+  # follow-up. Neither Minimum events nor Longest reportable carries that
+  # note.
 })
 
 # ---- (i): the prose --------------------------------------------------------------
