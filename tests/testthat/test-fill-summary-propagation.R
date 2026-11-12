@@ -24,7 +24,8 @@ skip_if_not_installed("processx")
   items <- list(list(
     file_path = skel_path,
     enrollment_specs = es_list,
-    spec = spec
+    spec = spec,
+    drop_ids = NULL
   ))
   names(items) <- id
   eids <- unlist(lapply(es_list, function(e) e$enrollment_id))

@@ -26,7 +26,8 @@ s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
   items <- list(list(
     file_path = skel_path,
     enrollment_specs = es_list,
-    spec = spec
+    spec = spec,
+    drop_ids = NULL
   ))
   names(items) <- id
   eids <- unlist(lapply(es_list, function(e) e$enrollment_id))
@@ -200,7 +201,10 @@ test_that("s1d dispatch declares one absolute output per item via run_and_write"
   # Item formals: complete for .s1d_worker (work_dir included), and no
   # output path among them.
   need <- names(formals(swereg:::.s1d_worker))
-  expect_setequal(need, c("enrollment_spec", "file_path", "spec", "work_dir"))
+  expect_setequal(
+    need,
+    c("enrollment_spec", "file_path", "spec", "work_dir", "drop_ids")
+  )
   for (it in items) {
     expect_setequal(names(it), need)
     expect_false(any(grepl("panel", names(it))))

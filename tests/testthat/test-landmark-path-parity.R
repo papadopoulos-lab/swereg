@@ -95,7 +95,8 @@ skip_if_not_installed("processx")
   items <- list(list(
     file_path = fx$skel_path,
     enrollment_specs = list(fx$es),
-    spec = fx$plan$spec
+    spec = fx$plan$spec,
+    drop_ids = NULL
   ))
   names(items) <- id
   outputs <- list(swereg:::.s1a_outputs_for_skeleton(

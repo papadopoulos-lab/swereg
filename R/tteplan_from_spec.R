@@ -218,7 +218,12 @@ tteplan_from_spec_and_registrystudy <- function(
   if (is.function(study$summary_table)) {
     plan$code_registry <- study$summary_table()
   }
-  if (!is.null(study$n_ids)) {
+  # Distinct persons, not distinct skeleton IDs: on a matched-set study one
+  # person can hold several skeleton IDs.
+  n_persons <- .tte_study_n_persons(study)
+  if (!is.null(n_persons)) {
+    plan$expected_n_ids <- n_persons
+  } else if (!is.null(study$n_ids)) {
     plan$expected_n_ids <- study$n_ids
   }
 
@@ -227,6 +232,18 @@ tteplan_from_spec_and_registrystudy <- function(
   plan$skeleton_created_at <- skeleton_created_at
 
   .tteplan_add_spec_etts(plan, spec)
+
+  # s1 reads one copy per person (R/tteplan_s1_copies.R). That is only safe
+  # when a person's copies agree on what the spec reads, so check it here,
+  # before s1, on the files that hold the first person with two copies. With
+  # a skeleton file absent, nothing is checked.
+  if (all(file.exists(skeleton_files))) {
+    enrollment_specs <- lapply(
+      seq_along(unique(plan$ett$enrollment_id)),
+      plan$enrollment_spec
+    )
+    .tte_check_copies_agree(study, skeleton_files, spec, enrollment_specs)
+  }
 
   return(plan)
 }

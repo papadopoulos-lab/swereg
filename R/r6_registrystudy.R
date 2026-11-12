@@ -187,7 +187,9 @@ RegistryStudy <- R6::R6Class(
 
     # --- Runtime state ---
 
-    #' @field n_ids Integer. Total number of IDs across all batches.
+    #' @field n_ids Integer. The number of distinct IDs across all batches.
+    #'   After `$set_matched_sets()` these are skeleton IDs, so a person
+    #'   with two memberships counts twice.
     n_ids = NULL,
 
     #' @field n_batches Integer. Number of batches.
@@ -890,7 +892,9 @@ RegistryStudy <- R6::R6Class(
     #'   An ID MAY be in more than one batch. `$save_rawbatch()` then
     #'   writes every row of that ID into each batch that holds it. The
     #'   population and summary counts sum over the batches, so they count
-    #'   a person in two batches twice.
+    #'   a person in two batches twice. A TTE reads one copy of the person,
+    #'   from the first batch that holds the ID. See
+    #'   `vignette("tte-matched-sets")`.
     #'
     #'   The method stops when rawbatch or skeleton files are on disk and
     #'   the new composition differs from the recorded one. A study with
@@ -954,6 +958,11 @@ RegistryStudy <- R6::R6Class(
     #'   each batch as the rawbatch group `"roster"`, with the person ID and
     #'   the `skeleton_id` unchanged. Every phase function reads them as
     #'   `batch_data[["roster"]]`.
+    #'
+    #'   A TTE built on the study reads one copy of each person: the first
+    #'   by (batch, `skeleton_id`) among the skeleton files it reads. s0
+    #'   stops when two copies of a person differ in a column the spec
+    #'   reads. See `vignette("tte-matched-sets")`.
     #'
     #'   A roster where every `skeleton_id` equals the person ID gives the
     #'   same rawbatch files as `$set_batches()` on the same IDs, plus the
