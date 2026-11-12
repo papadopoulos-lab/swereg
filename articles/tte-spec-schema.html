@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.12</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.13</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -2178,13 +2178,21 @@ one enrollment sets it, every enrollment MUST set it.</li>
 logical. With <code>true</code>, the minimum-events rule withholds no
 estimate of that comparison. An enrollment without the key is not
 exempt.</p>
+<p><strong>A negative-control enrollment normally sets
+<code>minimum_events_rule_exempt: true</code>.</strong> A negative
+control is read for its estimate, whatever its precision, because the
+question it answers is whether that estimate sits near the null.
+Withholding it for too few expected events removes the very check the
+control exists to give. Set the key on every negative-control
+enrollment, age subgroups included, and state in the spec why a control
+that leaves it unset does so.</p>
 <div class="sourceCode" id="cb18"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
 <span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"18"</span></span>
 <span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none"</span></span>
 <span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="at">    </span><span class="fu">minimum_events_rule_exempt</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
 <p>s3 still computes the rule for each ETT of the enrollment and stores
-its verdict. The Minimum events sheets show that verdict, and the
-comparison name ends with <code>(exempt)</code>.
+its verdict. The Minimum events and Longest reportable sheets show that
+verdict, and the comparison name ends with <code>(exempt)</code>.
 <code>$reload_spec()</code> applies a changed value as a cosmetic
 change, so s1 and s2 output stays valid. <code>$export()</code>,
 <code>$export_tables()</code> and <code>$print_target_checklist()</code>

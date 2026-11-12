@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.12</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.13</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -307,6 +307,15 @@ population, before the comparator draw and without follow-up
 outcomes.</p></dd>
 
 
+    <dt><code>sparse_counts</code></dt>
+<dd><p>The s1b counts of every enrollment, or NULL: one
+row per enrollment, candidate and arm, with <code>n_persons</code>, the persons
+who hold the condition at baseline among the eligible person-trials
+of that arm. The decision reads the driving enrollments only. The
+Rare conditions by comparison sheet of <code>feasibility.xlsx</code> shows every
+enrollment.</p></dd>
+
+
     <dt><code>sparse_rule_hash</code></dt>
 <dd><p>The hash of the <code>rare_condition_rule</code> that made
 <code>sparse_decision</code>, or NULL. s1c, s2 and s3 stop when the hash of the
@@ -336,6 +345,15 @@ each ETT and estimand, with the weighted person-years of each arm and
 window. It holds no event count, rate or expected events.
 <code>$s3_analyze()</code> does not read it. <code>$s1_generate_enrollments_and_ipw()</code>
 and <code>$s2_generate_analysis_files_and_ipcw_pp()</code> set it to NULL.</p></dd>
+
+
+    <dt><code>skeleton_summary</code></dt>
+<dd><p>The skeleton summary that s1 froze when it
+started, or NULL. A list of <code>columns</code> (the per-column person counts
+of <code>RegistryStudy$summary</code>), <code>built_at</code> and <code>swereg_version</code>. The
+Coverage (whole dataset) sheet of <code>feasibility.xlsx</code> reads it, so the
+counts describe the skeleton the ETTs were built from even after a
+reclean.</p></dd>
 
 
     <dt><code>spec_version</code></dt>
@@ -508,38 +526,35 @@ rule withheld reads <code>NE</code> on every sheet. Its events and person-years 
 The method stops, and names <code>$s3_analyze()</code>, when a stored result was
 judged with a <code>min_expected_events_per_arm_per_year</code> other than the one in
 the spec.</p>
-<p>The <code>Minimum events (Y or -)</code> and <code>Minimum events (#)</code> sheets follow the
-Rare conditions sheet. Both hold one row per outcome and comparison and
-one column per whole follow-up year, for the per-protocol estimand. The
-first shows Y when the estimate passes the minimum-events rule and - when
-it fails the rule. A failed estimate is withheld unless its comparison is
-exempt, and an exempt comparison ends with <code> (exempt)</code>. The second shows
-the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the estimate still
-passes the rule. The intention-to-treat estimand follows the per-protocol
-decision.
+<p>The sheets of <code>feasibility.xlsx</code> follow the Summary sheet, in the order
+of <code>$s3_feasibility()</code>. The results sheets follow them. The method also
+writes <code>feasibility.xlsx</code> to the directory of the workbook, and it holds
+those sheets and no other.</p>
+<p>The <code>Minimum events</code> and <code>Longest reportable</code> sheets hold one row per
+comparison, for the per-protocol estimand. The first has one column per
+outcome and whole follow-up year. Each cell is the largest cut, of 1, 2,
+3, 4, 5, 10 and 20, at which the estimate still passes the
+minimum-events rule. The second has one column per outcome and threshold,
+and each cell is the longest horizon that the threshold reports. Its
+column for the threshold of the spec reads the stored verdict of the
+rule. A failed estimate is withheld unless its comparison is exempt, and
+an exempt comparison ends with <code> (exempt)</code>. The intention-to-treat
+estimand follows the per-protocol decision.
 <code>$get_horizon_windows()</code> returns the year-by-year detail.</p>
 <p>The year columns run from 1 to the longest follow-up of all ETTs, in
 whole years of 52 weeks. A follow-up that is not a whole number of years
 gets no column. A year with an ETT of exactly that follow-up shows the
 decision of that ETT. Another year shows the decision up to that year of
 the shortest longer ETT. A year that no ETT of the row reaches is empty.</p>
-<p>The two Minimum events sheets are the only sheets that show a
-horizon-only ETT. The spec key <code>feasibility_follow_up_weeks</code> adds one, and
-a follow-up that is not a whole number of years adds one at its next whole
-year. Its years get columns.
-Every other sheet, <code>results.qs2</code> and <code>$get_horizon_windows()</code> leave it
-out.</p>
-<p>The <code>Protocol adherence</code> sheet follows the last <code>Attrition_&lt;id&gt;</code> and
-<code>Love_&lt;id&gt;</code> sheet, and the Provenance sheet lists it. It holds one row per
-comparison and arm, with <code>N (ITT)</code>, <code>N (PP)</code> and <code>%</code> from
+<p>The two sheets and the <code>Coverage (ETT)</code> sheet show a horizon-only ETT.
+The spec key <code>feasibility_follow_up_weeks</code> adds one, and a follow-up that
+is not a whole number of years adds one at its next whole year. Its years
+get columns. <code>results.qs2</code> and <code>$get_horizon_windows()</code> leave it out.</p>
+<p>The <code>Protocol adherence</code> sheet follows <code>Table 1 (filterable)</code>. It holds
+one row per comparison and arm, with <code>N (ITT)</code>, <code>N (PP)</code> and <code>%</code> from
 <code>$get_adherence()</code>. It shows weeks 13 and 26 and every multiple of 52 up
 to the last stored week. An enrollment without an adherence table gets no
-row. When no enrollment has one, the workbook holds no such sheet.</p>
-<p>The method also writes <code>feasibility.xlsx</code> to the directory of the
-workbook. It holds the sheets of <code>$s3_feasibility()</code>, in the same order.
-Its Minimum events sheets read the decisions that s3 stored. Its
-<code>Protocol adherence</code> sheet holds the same cells as the sheet of this
-workbook.</p>
+row. When no enrollment has one, neither workbook holds such a sheet.</p>
 <p>The workbook carries no forest plot. The <code>PP results</code> and <code>ITT results</code>
 sheets already report every emulated trial with counts, rates, ratios,
 risk differences and intervals. A forest image repeated a subset of those
@@ -750,37 +765,79 @@ Each window keeps <code>window_lo</code>, <code>window_hi</code>, <code>arm</cod
 <code>pass</code>.</p>
 <p>The decision depends on the observed events, through the pooled rate.
 Neither <code>self$feasibility</code> nor <code>feasibility.xlsx</code> holds an event count, a
-rate or expected events after time zero, or an effect estimate. The
+rate or expected events after time zero by arm, or an effect estimate. The
+Coverage (whole dataset) sheet counts the persons with each outcome column
+in the whole skeleton, before eligibility and blind to arm. The
 record keeps <code>max_passing_cut</code>: the largest cut of a coarse grid at which
-the estimand passes. The
-Attrition sheet keeps the eligibility counts by arm, including people
-excluded for an outcome event before time zero.</p>
+the estimand passes. The Attrition by arm sheet keeps the eligibility
+counts by arm, including people excluded for an outcome event before time
+zero.</p>
 <p>The intention-to-treat record of each ETT takes the decision of its
 per-protocol record, as in <code>$s3_analyze()</code>. Some ETTs have a follow-up
 that is not a whole number of years. The per-protocol record of such an ETT
 first takes the decision of the ETT at the next whole year.</p>
 <p>The method writes <code>feasibility.xlsx</code> to <code>self$dir_results</code>, the directory
 of <code>$export_tables()</code>. <code>$export_tables()</code> also writes it, from the s3
-results. The workbook holds these sheets, in this order:</p><dl><dt>Study Specification</dt>
-<dd><p>The sheet of <code>$export_tables()</code>.</p></dd>
+results. <code>tables.xlsx</code> holds the same sheets, in the same order, after its
+Provenance and Summary sheets. The workbook holds these sheets, in this
+order:</p><dl><dt>Study Specification</dt>
+<dd><p>The study design, the variables and their
+ICD-10 and ATC codes.</p></dd>
 
-<dt>Rare conditions</dt>
-<dd><p>The sheet of <code>$export_tables()</code>. It is absent when
-the plan holds no rare-condition decision.</p></dd>
+<dt>Arm sizes</dt>
+<dd><p>One row per enrollment: the person-trials eligible for
+each arm, summed over trials, the comparator-to-intervention ratio
+they give, the ratio the spec asks for, and the person-trials the
+comparator draw took. <code>Flag</code> reads <code>Comparator rarer than intervention: consider reversing the arms</code> when fewer person-trials are eligible for
+the comparator than for the intervention, and <code>Comparator pool short of the target ratio</code> when the comparator pool is larger but cannot fill
+the ratio. The sheet holds no outcome.</p></dd>
 
-<dt>Minimum events (Y or -)</dt>
-<dd><p>One row per outcome and comparison, one
-column per whole follow-up year. Y: the per-protocol estimate passes the
-rule. -: it fails the rule, and the estimate is withheld unless the
-comparison is exempt. The comparison of an exempt enrollment ends with
-<code> (exempt)</code>.</p></dd>
+<dt>Coverage (whole dataset)</dt>
+<dd><p>One row per skeleton column that the
+spec reads, with its role: outcome, inclusion, exclusion, confounder,
+rare-condition candidate or treatment level. The persons with the
+column come from the skeleton summary of <code>$process_skeletons()</code>, over
+every person and week and blind to arm. A column with 0 persons is
+flagged as not in the data. A rare-condition candidate held by fewer
+than <code>min_n</code> persons in the whole dataset is marked as a certain
+exclusion.</p></dd>
 
-<dt>Minimum events (#)</dt>
-<dd><p>The same layout. Each cell is the largest cut
-of 1, 2, 3, 4, 5, 10 and 20 at which the estimate passes the rule.</p></dd>
+<dt>Coverage (ETT)</dt>
+<dd><p>Per enrollment: the persons each eligibility
+criterion removed, flagged when it removes nobody, and the
+person-trials of each confounder level per arm at baseline, flagged
+when an arm holds none. Per ETT: the largest cut of the minimum-events
+rule that the outcome passes, flagged when it passes none.</p></dd>
 
-<dt>Attrition</dt>
-<dd><p>The table of <code>$get_attrition()</code>.</p></dd>
+<dt>Attrition by arm</dt>
+<dd><p>One column per comparison and arm: the
+person-trials left after each eligibility step, and removed by it,
+before the comparator draw.</p></dd>
+
+<dt>Rare conditions by comparison</dt>
+<dd><p>One row per candidate of the
+rare-condition rule. <code>Decision</code> holds the decision of s1: adjusted or
+excluded. One column per comparison holds the persons in the smaller
+arm who hold the condition at baseline. The sheet is absent when the
+spec has no <code>rare_condition_rule</code>.</p></dd>
+
+<dt>Minimum events</dt>
+<dd><p>One row per comparison, and one column per outcome
+and whole follow-up year. Each cell is the largest cut of 1, 2, 3, 4,
+5, 10 and 20 at which the per-protocol estimate passes the rule. The
+comparison of an exempt enrollment ends with <code> (exempt)</code>.</p></dd>
+
+<dt>Longest reportable</dt>
+<dd><p>The same rows, and one column per outcome and
+threshold, at 5, 10, 20 and the threshold of the spec. Each cell is the
+longest horizon up to which every year passes the threshold. The
+column of the spec threshold reads the stored verdict of the rule.</p></dd>
+
+<dt>Table 1 (filterable)</dt>
+<dd><p>The unweighted baseline table of every
+enrollment, in one table with an autofilter. <code>File</code> reads
+<code>s1 (unimputed)</code> for the s1 raw file, before imputation, and
+<code>s2 (imputed)</code> for the smallest s2 analysis file of the enrollment.</p></dd>
 
 <dt>Protocol adherence</dt>
 <dd><p>One row per comparison and arm. <code>N (ITT)</code>
@@ -789,11 +846,6 @@ protocol. <code>%</code> is 100 x N (PP) / N (ITT). The sheet shows weeks 13 and
 26 and every multiple of 52 up to the last stored week. The counts are
 unweighted and come from the s1 raw file. The sheet is absent when no
 enrollment has an adherence table.</p></dd>
-
-<dt>Table 1</dt>
-<dd><p>The unweighted baseline table of each enrollment. One
-panel reads the s1 raw file, before imputation. The other reads the
-smallest s2 analysis file of the enrollment.</p></dd>
 
 
 </dl><p>The method stops when the spec has no

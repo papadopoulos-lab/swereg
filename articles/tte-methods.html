@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.12</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.13</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -3980,10 +3980,10 @@ computes no years, and the per-protocol decision withholds
 as <code>horizon_pp</code> and <code>horizon_itt</code>, and
 <code>.tte_horizon_follow_pp()</code> gives <code>horizon_itt</code> the
 per-protocol decision. <code>$get_horizon_windows()</code> returns the
-years. The <code>Minimum events (Y or -)</code> and
-<code>Minimum events (#)</code> sheets of <code>$export_tables()</code>
-show the per-protocol decision and the largest passing cut.
-<code>$get_estimates()</code> carries
+years. The <code>Longest reportable</code> and
+<code>Minimum events</code> sheets of <code>$export_tables()</code> and
+<code>feasibility.xlsx</code> show the per-protocol decision and the
+largest passing cut. <code>$get_estimates()</code> carries
 <code>horizon_reportable_weeks</code> and <code>horizon_status</code>.
 <code>$export()</code>, <code>$export_tables()</code> and
 <code>$print_target_checklist()</code> stop when a stored result was
@@ -3992,12 +3992,13 @@ They also stop when a stored result holds no horizon record, as a result
 stored before swereg 27.2.14 does. s1 enrolls a horizon-only ETT through
 its year, and s3 computes only the rule for it.
 <code>minimum_events_rule_exempt: true</code> on an enrollment exempts
-it. s3 still computes and stores the verdict. The Minimum events sheets
-mark the comparison with <code>(exempt)</code>, and the generated
-methods text names each exempt comparison. A change of the key needs a
-rerun of s3 only. <code>$s3_feasibility()</code> applies the rule after
-s2. The Attrition sheet of <code>feasibility.xlsx</code> keeps the
-eligibility counts by arm</td>
+it. s3 still computes and stores the verdict. The Minimum events and
+Longest reportable sheets mark the comparison with
+<code>(exempt)</code>, and the generated methods text names each exempt
+comparison. A change of the key needs a rerun of s3 only.
+<code>$s3_feasibility()</code> applies the rule after s2. The Attrition
+by arm sheet of <code>feasibility.xlsx</code> keeps the eligibility
+counts by arm</td>
 </tr>
 <tr class="even">
 <td align="left">1.8.7</td>

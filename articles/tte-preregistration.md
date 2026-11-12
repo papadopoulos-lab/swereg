@@ -258,10 +258,10 @@ expected_per_year >= 5
 At s3, the pooled rate holds the observed events of both arms. So the
 years that pass depend on the outcome data. The rule is a prespecified
 reporting rule. The rule decides the per-protocol estimand, and the
-intention-to-treat estimand follows that decision. The
-`Minimum events (Y or -)` sheet of the workbook shows the verdict of the
-rule. The `Minimum events (#)` sheet shows the largest cut at which each
-estimate still passes the rule.
+intention-to-treat estimand follows that decision. The `Minimum events`
+sheet of the workbook shows the largest cut at which each estimate still
+passes the rule. The `Longest reportable` sheet shows the longest
+horizon that each threshold, the spec’s own included, would report.
 
 ## Foreknowledge
 
