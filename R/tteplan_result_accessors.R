@@ -47,17 +47,19 @@
 # `.acc_adherence()` divides two stored counts of one row to give `share`.
 # =============================================================================
 
-#' The three estimand and weighting combinations `$s3_analyze()` stores.
+#' The four estimand and weighting combinations `$s3_analyze()` stores.
 #'
 #' `estimand` and `weights` are two axes, not one. `"pp"` and `"itt"` name the
 #' estimand. `"truncated"` and `"untruncated"` name the weight of the estimate.
-#' Only these three combinations occur: per-protocol truncated, per-protocol
-#' untruncated, and intention-to-treat truncated. The intention-to-treat
-#' estimates use the truncated baseline inverse-probability weight, `ipw_trunc`.
+#' Each estimand occurs with both weights. The intention-to-treat estimates use
+#' the baseline inverse-probability weight, `ipw_trunc` truncated and `ipw`
+#' untruncated.
 #'
 #' Each combination has a risk difference. Per-protocol on the untruncated
 #' weight reads `rd_pp`, which swereg 27.3.9 and earlier did not store. Its
-#' `rd` columns are then `NA` and `rd_stored` is `FALSE`.
+#' `rd` columns are then `NA` and `rd_stored` is `FALSE`. swereg 27.3.14 and
+#' earlier stored no slot of intention-to-treat untruncated, so that
+#' combination then gets no row.
 #' @noRd
 .ACC_ESTIMATE_SLOTS <- list(
   list(
@@ -80,6 +82,13 @@
     rates = "rates_itt",
     irr = "irr_itt",
     rd = "rd_itt"
+  ),
+  list(
+    estimand = "itt",
+    weights = "untruncated",
+    rates = "rates_itt_untrunc",
+    irr = "irr_itt_untrunc",
+    rd = "rd_itt_untrunc"
   )
 )
 
@@ -129,12 +138,17 @@
 )
 
 
-#' The three risk-difference curve slots, and the combination each stands for.
+#' The four risk-difference curve slots, and the combination each stands for.
 #' @noRd
 .ACC_CURVE_SLOTS <- list(
   list(slot = "rd_curve_pp_trunc", estimand = "pp", weights = "truncated"),
   list(slot = "rd_curve_pp", estimand = "pp", weights = "untruncated"),
-  list(slot = "rd_curve_itt", estimand = "itt", weights = "truncated")
+  list(slot = "rd_curve_itt", estimand = "itt", weights = "truncated"),
+  list(
+    slot = "rd_curve_itt_untrunc",
+    estimand = "itt",
+    weights = "untruncated"
+  )
 )
 
 
@@ -549,7 +563,7 @@
 #'
 #' A combination gets a row when the plan holds at least one of its three slots.
 #' A combination the plan holds nothing for gets NO row. So a complete grid
-#' gives three rows per ETT, and that is an upper bound rather than a promise.
+#' gives four rows per ETT, and that is an upper bound rather than a promise.
 #'
 #' `irr_stored` and `irr_interval_stored` report the stored SHAPE of the rate
 #' ratio, and they are facts rather than derivations. Every numeric column
@@ -572,7 +586,7 @@
 
   rows <- lapply(.ACC_ESTIMATE_SLOTS, function(combo) {
     # The horizon record of the estimand. Both weightings of one estimand
-    # share it, because the per-protocol decision covers both.
+    # share it, because the decision of the estimand covers both.
     horizon <- .acc_slot(res, paste0("horizon_", combo$estimand))
     rates_value <- .acc_slot(res, combo$rates)
     irr_value <- .acc_slot(res, combo$irr)

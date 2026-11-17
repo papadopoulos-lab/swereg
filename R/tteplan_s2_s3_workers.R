@@ -333,16 +333,16 @@
 #' The replicate matrix is DROPPED. `.tte_rd_curve()` attaches the whole
 #' `n_boot` by `n_interval` bootstrap matrix as the `rd_boot` attribute.
 #' Measured on a 39-row curve at 500 replicates it is 156,216 bytes. Kept,
-#' it would add 253 MB to a 540-ETT plan across the three risk differences of
+#' it would add 337 MB to a 540-ETT plan across the four risk differences of
 #' each ETT. The stored
 #' percentiles already summarise it.
 #'
 #' What stays is small. The row and the curve serialise to 2,335 bytes
-#' together, which is 3.8 MB across that same plan.
+#' together, which is 5.0 MB across that same plan.
 #'
-#' @param slot Character(1), the row slot name (`"rd_pp_trunc"`, `"rd_pp"` or
-#'   `"rd_itt"`). The curve slot is the same name with `rd_curve_` in place of
-#'   `rd_`.
+#' @param slot Character(1), the row slot name (`"rd_pp_trunc"`, `"rd_pp"`,
+#'   `"rd_itt"` or `"rd_itt_untrunc"`). The curve slot is the same name with
+#'   `rd_curve_` in place of `rd_`.
 #' @param curve The `$risk_difference()` return value, or the skip envelope
 #'   `safe_call()` produces when it failed.
 #' @param ett_id Character(1), the ETT the curve belongs to.
@@ -398,8 +398,8 @@
 #'   exemption of the ETT's enrollment, from `.tte_s3_resolve_ett()`. The
 #'   `risk_difference` method reads it, with `follow_up`, and returns the
 #'   horizon record of its estimand as `horizon_pp` or `horizon_itt`. It does
-#'   so only on a weight of `.HORIZON_WEIGHTS`. On `analysis_weight_pp` it
-#'   computes no record and returns none. The
+#'   so only on a weight of `.HORIZON_WEIGHTS`. On `analysis_weight_pp` and
+#'   `ipw` it computes no record and returns none. The
 #'   `horizon` method returns that record alone, and stops without a rule.
 #'   s3 calls it for a feasibility-horizon ETT. The parent passes both on
 #'   every item. A direct `risk_difference` call without them returns no
@@ -488,10 +488,19 @@
       design$tstop_var
     ))
   }
-  horizon_slot <- paste0(
-    "horizon_",
-    if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
-  )
+  # The estimand of `weight_col` and the suffix of its slots. This table names
+  # both intention-to-treat weights, so neither falls into the per-protocol
+  # rule. That rule gives `analysis_weight_pp_trunc` the suffix `pp_trunc`
+  # and `analysis_weight_pp` the suffix `pp`.
+  itt_slot_suffix <- c(ipw_trunc = "itt", ipw = "itt_untrunc")
+  is_itt <- weight_col %in% names(itt_slot_suffix)
+  estimand <- if (is_itt) "itt" else "pp"
+  slot_suffix <- if (is_itt) {
+    itt_slot_suffix[[weight_col]]
+  } else {
+    sub("^analysis_weight_", "", weight_col)
+  }
+  horizon_slot <- paste0("horizon_", estimand)
 
   # Always return a named list so the caller can merge with:
   #   for (k in names(res)) self$results_ett[[eid]][[k]] <- res[[k]]
@@ -508,13 +517,9 @@
       )
     ))
   } else if (method == "irr") {
-    # ITT weights on ipw_trunc (its only valid weight); name that slot irr_itt.
+    # ITT weights on ipw_trunc -> irr_itt, and on ipw -> irr_itt_untrunc.
     # PP weights on analysis_weight_pp[_trunc] -> irr_pp[_trunc].
-    slot <- if (identical(weight_col, "ipw_trunc")) {
-      "irr_itt"
-    } else {
-      paste0("irr_", sub("^analysis_weight_", "", weight_col))
-    }
+    slot <- paste0("irr_", slot_suffix)
     # The estimability decision is stored beside the ratio, exactly as
     # `nnt_direction` is stored beside the risk difference. A reader of
     # `plan$results_ett` reads the decision and applies no rule of its own.
@@ -532,34 +537,28 @@
       slot
     ))
   } else if (method == "rates") {
-    # ITT rates (weight ipw_trunc) -> rates_itt, for the ITT forest plot.
-    slot <- if (identical(weight_col, "ipw_trunc")) {
-      "rates_itt"
-    } else {
-      paste0("rates_", sub("^analysis_weight_", "", weight_col))
-    }
+    # ITT rates on ipw_trunc -> rates_itt, for the ITT forest plot, and on
+    # ipw -> rates_itt_untrunc.
+    slot <- paste0("rates_", slot_suffix)
     return(setNames(
       list(safe_call(\() enrollment$rates(weight_col = weight_col), slot)),
       slot
     ))
   } else if (method == "risk_difference") {
-    # The absolute scale. ITT weights on ipw_trunc -> rd_itt; PP weights on
-    # analysis_weight_pp_trunc -> rd_pp_trunc, and on analysis_weight_pp ->
-    # rd_pp. Nothing gates this branch: the item builder emits it for every
-    # ETT, and the export path only formats what it stores.
-    slot <- if (identical(weight_col, "ipw_trunc")) {
-      "rd_itt"
-    } else {
-      paste0("rd_", sub("^analysis_weight_", "", weight_col))
-    }
+    # The absolute scale. ITT weights on ipw_trunc -> rd_itt, and on ipw ->
+    # rd_itt_untrunc. PP weights on analysis_weight_pp_trunc -> rd_pp_trunc,
+    # and on analysis_weight_pp -> rd_pp. Nothing gates this branch: the item
+    # builder emits it for every ETT, and the export path only formats what it
+    # stores.
+    slot <- paste0("rd_", slot_suffix)
     # The minimum-events rule, OUTSIDE `safe_call()`. An error here stops the
     # item, and the item error stops `$s3_analyze()`. A skip envelope in its
     # place would let the parent report estimates no rule has judged.
     #
-    # Only a weight of `.HORIZON_WEIGHTS` decides the rule. The item on
-    # analysis_weight_pp computes no record and returns none. Its `horizon_pp`
-    # would otherwise replace the record of the truncated weight whenever the
-    # parent merged it later.
+    # Only a weight of `.HORIZON_WEIGHTS` decides the rule. The items on
+    # analysis_weight_pp and ipw compute no record and return none. Their
+    # record would otherwise replace the record of the truncated weight
+    # whenever the parent merged it later.
     horizon <- NULL
     if (!is.null(horizon_rule) && weight_col %in% .HORIZON_WEIGHTS) {
       horizon <- horizon_of()
@@ -592,8 +591,8 @@
     return(out)
   } else if (method == "horizon") {
     # A feasibility-horizon ETT: the horizon record of one estimand and no
-    # estimate. Outside `safe_call()` for the reason above. ITT weights on
-    # ipw_trunc -> horizon_itt; PP weights -> horizon_pp.
+    # estimate. Outside `safe_call()` for the reason above. ITT weights ->
+    # horizon_itt; PP weights -> horizon_pp.
     if (is.null(horizon_rule)) {
       stop(
         "The horizon method of ",
@@ -605,8 +604,8 @@
     return(setNames(list(horizon_of()), horizon_slot))
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
-    suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
-    slot <- paste0("subgroup_", subgroup_var, "_", suffix)
+    # s3 calls it on the truncated weight of each estimand only.
+    slot <- paste0("subgroup_", subgroup_var, "_", estimand)
     return(setNames(
       list(safe_call(
         \() enrollment$irr_by_subgroup(weight_col, subgroup_var, conf_level),
@@ -616,8 +615,7 @@
     ))
   } else if (method == "effect_modification_test") {
     # Interaction Wald test; slot e.g. emtest_rd_sex_pp / _itt.
-    suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
-    slot <- paste0("emtest_", subgroup_var, "_", suffix)
+    slot <- paste0("emtest_", subgroup_var, "_", estimand)
     return(setNames(
       list(safe_call(
         \() {

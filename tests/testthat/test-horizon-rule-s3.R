@@ -291,7 +291,15 @@ test_that("(g) window edges, partial windows, first failure, zero person-time an
         (1 + 0.75 * (as.integer(sub("^p", "", id)) %% 3L))
     ]
   }
-  d[, ipw := 1]
+  # `w` varies by follow-up interval only, so it cancels in each weighted
+  # hazard of the survival curve. Under "person" the untruncated
+  # intention-to-treat weight varies by person, so its risk difference
+  # differs from the one on `ipw_trunc`.
+  if (untrunc == "proportional") {
+    d[, ipw := 1]
+  } else {
+    d[, ipw := 1 + 0.5 * (as.integer(sub("^p", "", id)) %% 3L)]
+  }
   d[, ipw_trunc := w]
   return(d)
 }
@@ -432,13 +440,13 @@ test_that("(c) s3 withholds the 2-window ETT and reports the 1-window ETT", {
 
   # ETT00002: window 2 fails on the intervention arm, in both estimands.
   w2 <- e[ett_id == "ETT00002"]
-  expect_identical(nrow(w2), 3L)
+  expect_identical(nrow(w2), 4L)
   status <- "below minimum-events rule: intervention arm, weeks 52-104"
   expect_identical(unique(w2$horizon_status), status)
   expect_equal(unique(w2$horizon_reportable_weeks), 52)
   expect_true(all(is.na(w2$irr)))
   rd2 <- w2[!is.na(interval_status)]
-  expect_identical(nrow(rd2), 3L)
+  expect_identical(nrow(rd2), 4L)
   expect_true(all(is.na(rd2$rd)))
   expect_true(all(is.na(rd2$nnt)))
   expect_identical(unique(rd2$interval_status), status)
@@ -646,13 +654,14 @@ test_that("(f) read-back matrix: estimates, subgroups and results.qs2", {
     for (combo in list(
       c("pp", "truncated"),
       c("pp", "untruncated"),
-      c("itt", "truncated")
+      c("itt", "truncated"),
+      c("itt", "untruncated")
     )) {
       w <- e[ett_id == "ETT00002" & estimand == combo[1] & weights == combo[2]]
       r <- e[ett_id == "ETT00001" & estimand == combo[1] & weights == combo[2]]
       lab <- paste(src, combo[1], combo[2])
-      # Every combination carries a risk difference: per-protocol on the
-      # untruncated weight too (swereg#66).
+      # Every combination carries a risk difference: each estimand on its
+      # untruncated weight too.
       has_rd <- TRUE
       for (nm in withheld_num) {
         expect_true(is.na(w[[nm]]), info = paste(lab, "withheld", nm))
@@ -1420,4 +1429,297 @@ test_that("#66 a result saved without rd_pp exports, and its untruncated RD read
   # The truncated block is the block of the export that held `rd_pp`.
   full <- .hz66_cells(fx$xlsx, "Weight truncation (PP)")
   expect_identical(body[, 1:26], full[-seq_len(h), 1:26, drop = FALSE])
+})
+
+
+# ---- the untruncated intention-to-treat estimates ---------------------------
+# s3 takes the intention-to-treat rates, IRR and risk difference on
+# `ipw_trunc` and again on the untruncated `ipw`. `.hz_panel()` sets `ipw` to
+# a weight that varies by person in the `.hz66_fixture()` runs, and
+# `ipw_trunc` to a weight that varies by follow-up interval. So the two
+# weightings give different rates, IRRs and risk differences. The blocks
+# below read those runs.
+
+# Direct `$rates()`, `$irr()` and `$risk_difference()` calls on one analysis
+# file, with the settings s3 fixes.
+.hzitt_direct <- function(dir, file, weight_col) {
+  enr <- swereg::qs2_read(file.path(dir, file))
+  curve <- .hz66_direct_rd(dir, file, weight_col)
+  return(list(
+    rates = enr$rates(weight_col = weight_col),
+    irr = enr$irr(weight_col = weight_col, conf_level = 0.95),
+    curve = curve,
+    rd = curve[which.max(curve$tstop)]
+  ))
+}
+
+.HZITT_IRR_FIELDS <- c(
+  irr = "IRR",
+  irr_lo = "IRR_lower",
+  irr_hi = "IRR_upper",
+  irr_pvalue = "IRR_pvalue"
+)
+
+test_that("the untruncated intention-to-treat estimates equal direct calls", {
+  .hz66_skip()
+  fx <- .hz66_fixture(0)
+  plan <- fx$plan
+  ro <- qs2::qs_read(file.path(fx$dir, "results.qs2"))
+  expect_identical(nrow(plan$ett), 2L)
+  for (k in seq_len(nrow(plan$ett))) {
+    eid <- plan$ett$ett_id[k]
+    file <- plan$ett$file_analysis_itt[k]
+    want <- .hzitt_direct(fx$dir, file, "ipw")
+    int <- want$rates[rd_intervention == TRUE]
+    cmp <- want$rates[rd_intervention == FALSE]
+    for (src in c("get_estimates", "results.qs2")) {
+      tab <- if (src == "get_estimates") plan$get_estimates() else ro$estimates
+      u <- tab[ett_id == eid & estimand == "itt" & weights == "untruncated"]
+      tr <- tab[ett_id == eid & estimand == "itt" & weights == "truncated"]
+      lab <- paste(eid, src)
+      expect_identical(nrow(u), 1L, label = lab)
+      expect_identical(nrow(tr), 1L, label = lab)
+
+      # The rates.
+      expect_true(u$rates_stored, info = lab)
+      expect_equal(u$events_int, int$events_weighted, info = lab)
+      expect_equal(u$py_int, int$py_weighted, info = lab)
+      expect_equal(u$rate_int, int$rate_per_100000py, info = lab)
+      expect_equal(u$events_cmp, cmp$events_weighted, info = lab)
+      expect_equal(u$py_cmp, cmp$py_weighted, info = lab)
+      expect_equal(u$rate_cmp, cmp$rate_per_100000py, info = lab)
+
+      # The IRR.
+      expect_true(u$irr_stored, info = lab)
+      for (nm in names(.HZITT_IRR_FIELDS)) {
+        expect_true(is.finite(u[[nm]]), info = paste(lab, nm))
+        expect_equal(
+          u[[nm]],
+          want$irr[[.HZITT_IRR_FIELDS[[nm]]]],
+          tolerance = 1e-10,
+          info = paste(lab, nm)
+        )
+      }
+
+      # The risk difference, at the end of follow-up.
+      expect_true(u$rd_stored, info = lab)
+      for (nm in c("rd", "rd_lo", "rd_hi")) {
+        expect_true(is.finite(u[[nm]]), info = paste(lab, nm))
+      }
+      for (nm in .HZ66_RD_FIELDS) {
+        expect_equal(
+          u[[nm]],
+          want$rd[[nm]],
+          tolerance = 1e-10,
+          info = paste(lab, nm)
+        )
+      }
+      expect_identical(u$interval_status, want$rd$interval_status, info = lab)
+      expect_identical(u$n_boot, 500, info = lab)
+      expect_identical(u$seed, 1, info = lab)
+      expect_identical(u$conf_level, 0.95, info = lab)
+
+      # Its own estimate: the truncated weight gives another one. So a row
+      # that read the truncated slots cannot pass the equalities above.
+      for (nm in c("rate_int", "rate_cmp", "irr", "rd")) {
+        expect_gt(abs(u[[nm]] - tr[[nm]]), 1e-6, label = paste(lab, nm))
+      }
+      # One decision for both weightings of the estimand.
+      expect_identical(u$horizon_status, tr$horizon_status, info = lab)
+      expect_identical(
+        u$horizon_reportable_weeks,
+        tr$horizon_reportable_weeks,
+        info = lab
+      )
+    }
+
+    # The stored curve, read through `$get_curves()` and from results.qs2.
+    for (src in c("get_curves", "results.qs2")) {
+      cv <- if (src == "get_curves") plan$get_curves() else ro$curves
+      for (a in c("comparator", "intervention")) {
+        got <- cv[
+          ett_id == eid &
+            estimand == "itt" &
+            weights == "untruncated" &
+            arm == a
+        ]
+        data.table::setorder(got, follow_up_interval)
+        lab <- paste(eid, src, a)
+        expect_identical(
+          got$follow_up_interval,
+          as.numeric(want$curve$tstop),
+          info = lab
+        )
+        expect_equal(
+          got$surv,
+          want$curve[[paste0("surv_", a)]],
+          tolerance = 1e-10,
+          info = lab
+        )
+      }
+    }
+  }
+})
+
+test_that("a withheld intention-to-treat estimate withholds the untruncated one", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  plan <- fx$plan
+  res <- plan$results_ett$ETT00002
+  rec <- res$horizon_itt
+  status <- "below minimum-events rule: intervention arm, weeks 52-104"
+  # The stored record is the one of the truncated weight. It takes the
+  # per-protocol decision, which withholds ETT00002.
+  expect_identical(rec$weight_col, "ipw_trunc")
+  expect_true(rec$withheld)
+  expect_identical(rec$status, status)
+
+  e <- plan$get_estimates()
+  for (w in c("truncated", "untruncated")) {
+    row <- e[ett_id == "ETT00002" & estimand == "itt" & weights == w]
+    expect_identical(nrow(row), 1L, info = w)
+    expect_true(row$rd_stored, info = w)
+    expect_true(row$irr_stored, info = w)
+    # The withheld assertion: every effect field is NA.
+    for (nm in c(names(.HZITT_IRR_FIELDS), .HZ66_RD_FIELDS)) {
+      expect_true(is.na(row[[nm]]), info = paste(w, "withheld", nm))
+    }
+    expect_false(row$irr_estimable, info = w)
+    expect_true(is.na(row$nnt_direction), info = w)
+    expect_identical(row$interval_status, status, info = w)
+    expect_identical(row$horizon_status, status, info = w)
+    # Events, person-years and rates stay.
+    expect_true(row$rates_stored, info = w)
+    for (nm in c("events_int", "py_int", "rate_int", "events_cmp", "py_cmp")) {
+      expect_true(is.finite(row[[nm]]), info = paste(w, "kept", nm))
+    }
+  }
+  # The untruncated curve carries no risk difference after the reportable
+  # horizon, and keeps it before.
+  cu <- res$rd_curve_itt_untrunc
+  late <- cu$tstop > rec$reportable_weeks
+  expect_true(any(late))
+  expect_true(all(is.na(cu$rd[late])))
+  expect_true(all(cu$interval_status[late] == status))
+  expect_true(all(is.finite(cu$rd[!late])))
+
+  # ETT00001 passes, so its untruncated estimates are reported.
+  r1 <- e[ett_id == "ETT00001" & estimand == "itt" & weights == "untruncated"]
+  expect_true(is.finite(r1$rd))
+  expect_true(is.finite(r1$irr))
+  expect_false(startsWith(r1$interval_status, swereg:::.HORIZON_STATUS_PREFIX))
+
+  # No horizon record is computed on `ipw`. The item on that weight returns
+  # none, so the stored `horizon_itt` is the record of `ipw_trunc`.
+  out <- swereg:::.s3_ett_worker(
+    analysis_path = file.path(fx$dir, "analysis_itt_104.qs2"),
+    method = "risk_difference",
+    weight_col = "ipw",
+    ett_id = "ETT00002",
+    n_threads = 1L,
+    subgroup_var = NULL,
+    conf_level = 0.95,
+    horizon_rule = list(min_expected_events = 5, exempt = FALSE),
+    follow_up = 104
+  )
+  expect_true(all(c("rd_itt_untrunc", "rd_curve_itt_untrunc") %in% names(out)))
+  expect_false(any(startsWith(names(out), "horizon_")))
+})
+
+test_that("the worker names the intention-to-treat slots exactly", {
+  .hz66_skip()
+  fx <- .hz66_fixture(0)
+  new_slots <- c(
+    "rates_itt_untrunc",
+    "irr_itt_untrunc",
+    "rd_itt_untrunc",
+    "rd_curve_itt_untrunc"
+  )
+  for (eid in fx$plan$ett$ett_id) {
+    nms <- names(fx$plan$results_ett[[eid]])
+    expect_true(all(new_slots %in% nms), info = eid)
+    expect_false(any(grepl("_ipw$", nms)), info = eid)
+    # The existing slots keep their names.
+    expect_true(
+      all(c("rates_itt", "irr_itt", "rd_itt", "rd_curve_itt") %in% nms),
+      info = eid
+    )
+  }
+
+  # The exact names of one worker return, method by method. The worker adds
+  # the two stamps to every return.
+  stamps <- c("swereg_version_s2", "ipcw_pp_options")
+  call_on <- function(method, weight_col, subgroup_var = NULL) {
+    out <- swereg:::.s3_ett_worker(
+      analysis_path = file.path(fx$dir, "analysis_itt_52.qs2"),
+      method = method,
+      weight_col = weight_col,
+      ett_id = "ETT00001",
+      n_threads = 1L,
+      subgroup_var = subgroup_var,
+      conf_level = 0.95,
+      horizon_rule = list(min_expected_events = 0, exempt = FALSE),
+      follow_up = 52
+    )
+    return(setdiff(names(out), stamps))
+  }
+  expect_identical(call_on("rates", "ipw"), "rates_itt_untrunc")
+  expect_identical(call_on("irr", "ipw"), "irr_itt_untrunc")
+  expect_identical(
+    call_on("risk_difference", "ipw"),
+    c("rd_itt_untrunc", "rd_curve_itt_untrunc")
+  )
+  expect_identical(call_on("rates", "ipw_trunc"), "rates_itt")
+  expect_identical(call_on("irr", "ipw_trunc"), "irr_itt")
+  expect_identical(
+    call_on("risk_difference", "ipw_trunc"),
+    c("rd_itt", "rd_curve_itt", "horizon_itt")
+  )
+  # An intention-to-treat weight never falls into a per-protocol slot.
+  # These two calls go to the worker directly to pin its naming: s3 emits
+  # no subgroup or horizon item on `ipw`.
+  expect_identical(
+    call_on("irr_by_subgroup", "ipw", "rd_sg"),
+    "subgroup_rd_sg_itt"
+  )
+  expect_identical(call_on("horizon", "ipw"), "horizon_itt")
+})
+
+test_that("a feasibility-horizon trial gets no estimate row of either weighting", {
+  .hz66_skip()
+  dir <- withr::local_tempdir()
+  plan <- .hz_build(dir, min_events = 0)
+  ett <- data.table::copy(plan$ett)
+  data.table::set(ett, j = "feasibility_horizon", value = c(TRUE, FALSE))
+  plan$ett <- ett
+  log <- list()
+  inproc <- .hz_inproc(lenient = FALSE)
+  testthat::local_mocked_bindings(
+    .batch_run = function(target, items, ...) {
+      log[[length(log) + 1L]] <<- items
+      return(inproc(target, items, ...))
+    },
+    .package = "swereg"
+  )
+  utils::capture.output(suppressWarnings(plan$s3_analyze(
+    output_dir = dir,
+    n_workers = 1L
+  )))
+  items <- unlist(log, recursive = FALSE)
+  feas <- Filter(function(it) identical(it$ett_id, "ETT00001"), items)
+  expect_identical(
+    vapply(feas, function(it) it$method, character(1)),
+    c("horizon", "horizon"),
+    ignore_attr = TRUE
+  )
+  expect_false(any(vapply(feas, function(it) it$weight_col, "") == "ipw"))
+
+  e <- plan$get_estimates()
+  expect_identical(nrow(e[ett_id == "ETT00001"]), 0L)
+  expect_identical(nrow(plan$get_curves()[ett_id == "ETT00001"]), 0L)
+  # The reported trial gets both intention-to-treat weightings.
+  expect_identical(
+    sort(e[ett_id == "ETT00002" & estimand == "itt"]$weights),
+    c("truncated", "untruncated")
+  )
 })

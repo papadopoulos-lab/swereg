@@ -1280,3 +1280,116 @@ test_that("per-protocol untruncated reads rd_pp and rd_curve_pp", {
     0.980
   )
 })
+
+
+# --- (8) the untruncated intention-to-treat estimates ------------------------
+
+test_that("estimates carry four combinations", {
+  plan <- .acc_fix_plan()
+
+  # A result saved before swereg stored the untruncated intention-to-treat
+  # slots: no slot, no row, and no stop or warning.
+  expect_no_warning(before <- plan$get_estimates())
+  expect_identical(
+    nrow(before[estimand == "itt" & weights == "untruncated"]),
+    0L
+  )
+  expect_no_warning(before_cv <- plan$get_curves())
+  expect_identical(
+    nrow(before_cv[estimand == "itt" & weights == "untruncated"]),
+    0L
+  )
+
+  # Values of their own, so a read of the truncated slots cannot pass.
+  rates <- .acc_fix_rates()
+  data.table::set(rates, j = "events_weighted", value = c(11.5, 21.5))
+  data.table::set(rates, j = "rate_per_100000py", value = c(18.3, 21.8))
+  irr <- .acc_fix_irr()
+  data.table::set(irr, j = "IRR", value = 0.84)
+  cv <- .acc_fix_curve()
+  data.table::set(cv, j = "surv_intervention", value = c(0.992, 0.984))
+  data.table::set(cv, j = "rd", value = c(-0.002, -0.004))
+  data.table::set(cv, j = "rd_lo", value = c(-0.005, -0.008))
+  data.table::set(cv, j = "rd_hi", value = c(0.001, 0.001))
+  stored <- swereg:::.s3_rd_result("rd_itt_untrunc", cv, "ETT00001", "tstop")
+  expect_named(stored, c("rd_itt_untrunc", "rd_curve_itt_untrunc"))
+  plan$results_ett$ETT00001 <- c(
+    plan$results_ett$ETT00001,
+    list(rates_itt_untrunc = rates, irr_itt_untrunc = irr),
+    stored
+  )
+
+  e <- plan$get_estimates()
+  # The combination assertion.
+  expect_identical(
+    paste(e$ett_id, e$estimand, e$weights),
+    c(
+      "ETT00001 pp truncated",
+      "ETT00001 pp untruncated",
+      "ETT00001 itt truncated",
+      "ETT00001 itt untruncated",
+      "ETT00002 pp truncated",
+      "ETT00002 itt truncated"
+    )
+  )
+  u <- e[ett_id == "ETT00001" & estimand == "itt" & weights == "untruncated"]
+  expect_true(u$rates_stored)
+  expect_identical(u$events_int, 11.5)
+  expect_identical(u$rate_cmp, 21.8)
+  expect_identical(u$irr, 0.84)
+  expect_true(u$rd_stored)
+  expect_identical(u$rd, -0.004)
+  expect_identical(u$rd_lo, -0.008)
+  expect_identical(u$rd_hi, 0.001)
+  # The truncated row keeps its own values.
+  tr <- e[ett_id == "ETT00001" & estimand == "itt" & weights == "truncated"]
+  expect_identical(tr$irr, 0.54)
+  expect_identical(tr$rd, -0.010)
+
+  curves <- plan$get_curves()[
+    ett_id == "ETT00001" & estimand == "itt" & weights == "untruncated"
+  ]
+  expect_identical(nrow(curves), 4L)
+  expect_identical(
+    curves[arm == "intervention" & follow_up_interval == 52]$surv,
+    0.984
+  )
+
+  # The slot translator of the forest data names the same combination.
+  for (s in c("rates_itt_untrunc", "irr_itt_untrunc", "rd_itt_untrunc")) {
+    expect_identical(
+      swereg:::.tte_slot_combo(s),
+      c(estimand = "itt", weights = "untruncated"),
+      info = s
+    )
+  }
+  expect_identical(
+    swereg:::.tte_slot_combo("irr_itt"),
+    c(estimand = "itt", weights = "truncated")
+  )
+})
+
+test_that("the slot translator names both intention-to-treat weightings", {
+  # `.tte_slot_combo()` maps a slot name to the accessor columns. The export
+  # figure passes it the curve slots too.
+  untrunc <- c(
+    "rates_itt_untrunc",
+    "irr_itt_untrunc",
+    "rd_itt_untrunc",
+    "rd_curve_itt_untrunc"
+  )
+  for (s in untrunc) {
+    expect_identical(
+      swereg:::.tte_slot_combo(s),
+      c(estimand = "itt", weights = "untruncated"),
+      info = s
+    )
+  }
+  for (s in c("rates_itt", "irr_itt", "rd_itt", "rd_curve_itt")) {
+    expect_identical(
+      swereg:::.tte_slot_combo(s),
+      c(estimand = "itt", weights = "truncated"),
+      info = s
+    )
+  }
+})

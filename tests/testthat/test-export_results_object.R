@@ -128,3 +128,19 @@ test_that("results.qs2 holds no person or person-trial identifier column", {
   id_like <- unique(cols[grepl("(^|_)id$", cols)])
   expect_identical(setdiff(id_like, .ro_id_allowed), character(0))
 })
+
+test_that("a result saved without the untruncated intention-to-treat slots exports no row for them", {
+  # `.xp_plan()` stores the slots a plan held before s3 took the
+  # intention-to-treat estimates on `ipw`. No slot, no row.
+  slots <- unlist(lapply(.ro_plan$results_ett, names), use.names = FALSE)
+  expect_false(any(grepl("_itt_untrunc$", slots)))
+  e <- .ro$estimates
+  expect_gt(nrow(e[estimand == "itt" & weights == "truncated"]), 0L)
+  expect_identical(nrow(e[estimand == "itt" & weights == "untruncated"]), 0L)
+  expect_identical(
+    nrow(.ro$curves[estimand == "itt" & weights == "untruncated"]),
+    0L
+  )
+  expect_no_warning(.ro_plan$get_estimates())
+  expect_no_warning(.ro_plan$get_curves())
+})

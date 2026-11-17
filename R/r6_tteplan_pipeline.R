@@ -750,23 +750,26 @@ TTEPlan$set(
 #' For each enrollment: loads one analysis file and the raw file, computes
 #' baseline characteristics (raw, unweighted, IPW, IPW truncated).
 #' For each ETT: loads the analysis file, then computes the rates and the IRR
-#' with both truncated and untruncated weights. For each subgroup the spec
-#' names, it also computes the stratified IRRs and the effect-modification
-#' test.
+#' of each estimand with both truncated and untruncated weights. For each
+#' subgroup the spec names, it also computes the stratified IRRs and the
+#' effect-modification test, on the truncated weight only.
 #'
-#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Three
+#' Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Four
 #' estimand and weight combinations carry it:
 #' \itemize{
 #'   \item per-protocol on `analysis_weight_pp_trunc`, stored under
 #'     `rd_pp_trunc`;
 #'   \item per-protocol on `analysis_weight_pp`, stored under `rd_pp`;
-#'   \item intention-to-treat on `ipw_trunc`, stored under `rd_itt`.
+#'   \item intention-to-treat on `ipw_trunc`, stored under `rd_itt`;
+#'   \item intention-to-treat on `ipw`, stored under `rd_itt_untrunc`.
 #' }
 #' Each stores one summary row at the end of follow-up, with `rd`, `rd_lo`,
 #' `rd_hi`, `nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`.
 #' Each also stores the full curve, one row per stop time, under
-#' `rd_curve_pp_trunc`, `rd_curve_pp` or `rd_curve_itt`, with
-#' `surv_comparator` and `surv_intervention` beside the risk difference.
+#' `rd_curve_pp_trunc`, `rd_curve_pp`, `rd_curve_itt` or
+#' `rd_curve_itt_untrunc`, with `surv_comparator` and `surv_intervention`
+#' beside the risk difference. The rates and the IRR on `ipw` are stored under
+#' `rates_itt_untrunc` and `irr_itt_untrunc`.
 #'
 #' The curve also carries `n_persons_at_risk_comparator` and
 #' `n_persons_at_risk_intervention`. Each is a head count of distinct people in
@@ -798,9 +801,10 @@ TTEPlan$set(
 #' `$get_horizon_windows()` returns its window table. Which windows pass depends
 #' on the observed events, through the pooled rate.
 #'
-#' The RD item on `analysis_weight_pp` computes no windows. The per-protocol
-#' decision is the decision on `analysis_weight_pp_trunc`, and it withholds
-#' both per-protocol risk differences.
+#' The RD items on the untruncated weights, `analysis_weight_pp` and `ipw`,
+#' compute no windows. The per-protocol decision is the decision on
+#' `analysis_weight_pp_trunc`, and `horizon_itt` takes that decision. The
+#' stored record of an estimand withholds the estimates of both its weights.
 #'
 #' An enrollment that sets `minimum_events_rule_exempt: true` is exempt. The
 #' method computes and stores the decision of its ETTs as for any ETT, and
@@ -821,12 +825,13 @@ TTEPlan$set(
 #' run has no horizon decision for an estimand.
 #'
 #' Cost. Each risk difference is its own work item, so it is its own worker
-#' process with its own read of the analysis file. That is three more reads
-#' per ETT, or 1,620 more reads on a 540-ETT grid. The bootstrap of the third
-#' item was measured on a synthetic panel of 50,000 person-trials, under
-#' swereg 27.3.9. It took 3.97 s, the mean of 3 runs at 500 replicates. The
-#' 7 items per ETT of swereg 27.3.9 took 27.14 s on that panel, so the third
-#' item adds 14.6% to that compute. The file reads are not in either number.
+#' process with its own read of the analysis file. That is four reads per
+#' ETT, or 2,160 reads on a 540-ETT grid. The items were measured on a
+#' synthetic panel of 50,000 person-trials. Each time is the mean CPU time of
+#' 3 runs, and each bootstrap has 500 replicates. The bootstrap on `ipw` took
+#' 3.96 s. The 11 items of an ETT without subgroups took 40.74 s, so that
+#' bootstrap is 9.7% of the compute. The three items on `ipw` add 32.7% to
+#' the compute of the other 8 items. The file reads are not in these numbers.
 #'
 #' Results are stored in `self$results_enrollment` and `self$results_ett`.
 #' Every targeted result is recomputed on each call (no skip cache). Use
@@ -1065,9 +1070,10 @@ TTEPlan$set(
         }
 
         # The absolute scale, for EVERY ETT and with nothing to switch it
-        # off. Three calls per ETT, one per `rd_calls` entry: per-protocol on
-        # the truncated and on the untruncated weight, and intention-to-treat
-        # on its baseline weight.
+        # off. Four calls per ETT, one per `rd_calls` entry: each estimand on
+        # its truncated and on its untruncated weight. With the summary and
+        # the six ratio and rate calls, an ETT takes 11 items before its
+        # subgroup items.
         #
         # It used to be computed in the export path, behind a figure option.
         # A production script that did not set the option drew every figure
@@ -1419,10 +1425,11 @@ TTEPlan$set(
 #'   the ETT, and `FALSE` otherwise. `estimands` is keyed by estimand and subset by
 #'   `.TTE_ESTIMANDS`. Each element holds `path`, the analysis file s2 wrote
 #'   for that estimand, and `weight`, the baseline weight column. It also holds
-#'   `ratio_calls` and `rd_calls`, which only s3 reads. `rd_calls` names the
-#'   weight column and the slot of each risk-difference call: two for
-#'   per-protocol (`rd_pp_trunc` and `rd_pp`) and one for intention-to-treat
-#'   (`rd_itt`).
+#'   `ratio_calls` and `rd_calls`, which only s3 reads. Each estimand takes
+#'   its calls on two weights, truncated and untruncated. `rd_calls` names the
+#'   weight column and the slot of each risk-difference call: `rd_pp_trunc`
+#'   and `rd_pp` for per-protocol, and `rd_itt` and `rd_itt_untrunc` for
+#'   intention-to-treat.
 #' @noRd
 .tte_s3_resolve_ett <- function(ett, i, output_dir, rule, spec = NULL) {
   apath <- file.path(output_dir, ett$file_analysis[i])
@@ -1447,6 +1454,11 @@ TTEPlan$set(
   # is the analysis file s2 wrote for that estimand, `weight` is the baseline
   # weight column s3 reads on that file, and `ratio_calls` are the ratio and
   # rate calls it takes. `rd_calls` are its risk-difference calls.
+  #
+  # Intention-to-treat takes every call on `ipw_trunc` and again on the
+  # untruncated `ipw`. The calls on `ipw` give the sensitivity analysis of
+  # that estimand. They compute no horizon record, because `ipw` is not in
+  # `.HORIZON_WEIGHTS`. The subgroup calls stay on `weight`.
   estimands <- list(
     pp = list(
       path = apath,
@@ -1481,10 +1493,21 @@ TTEPlan$set(
           method = "rates",
           weight_col = "ipw_trunc",
           slot = "rates_itt"
+        ),
+        list(
+          method = "irr",
+          weight_col = "ipw",
+          slot = "irr_itt_untrunc"
+        ),
+        list(
+          method = "rates",
+          weight_col = "ipw",
+          slot = "rates_itt_untrunc"
         )
       ),
       rd_calls = list(
-        list(weight_col = "ipw_trunc", slot = "rd_itt")
+        list(weight_col = "ipw_trunc", slot = "rd_itt"),
+        list(weight_col = "ipw", slot = "rd_itt_untrunc")
       )
     )
   )[names(.TTE_ESTIMANDS)]

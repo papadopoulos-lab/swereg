@@ -23,6 +23,7 @@
     pp_trunc = return(c(estimand = "pp", weights = "truncated")),
     pp = return(c(estimand = "pp", weights = "untruncated")),
     itt = return(c(estimand = "itt", weights = "truncated")),
+    itt_untrunc = return(c(estimand = "itt", weights = "untruncated")),
     stop("unknown result slot: ", slot, call. = FALSE)
   )
 }

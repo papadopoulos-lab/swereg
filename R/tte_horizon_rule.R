@@ -78,7 +78,13 @@
     rd = c("rd_pp_trunc", "rd_pp"),
     curve = c("rd_curve_pp_trunc", "rd_curve_pp")
   ),
-  itt = list(irr = "irr_itt", rd = "rd_itt", curve = "rd_curve_itt")
+  # Intention-to-treat has the same two weights, `ipw_trunc` and `ipw`. The
+  # stored `horizon_itt` withholds both.
+  itt = list(
+    irr = c("irr_itt", "irr_itt_untrunc"),
+    rd = c("rd_itt", "rd_itt_untrunc"),
+    curve = c("rd_curve_itt", "rd_curve_itt_untrunc")
+  )
 )
 
 # The weight on which s3 computes the horizon record of each estimand. The

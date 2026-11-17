@@ -352,6 +352,15 @@ test_that("(b) s3 reports the exempt ETT and withholds the other, and the record
   )
 })
 
+# The four estimand and weighting combinations of one ETT, in the order
+# `$get_estimates()` returns them.
+.HX_COMBOS <- c(
+  "pp truncated",
+  "pp untruncated",
+  "itt truncated",
+  "itt untruncated"
+)
+
 test_that("(b) without the key, s3 withholds both ETTs", {
   .hx_skip()
   fx <- .hx_fixture(NULL)
@@ -359,11 +368,18 @@ test_that("(b) without the key, s3 withholds both ETTs", {
   status <- "below minimum-events rule: intervention arm, weeks 52-104"
   for (id in c("ETT00001", "ETT00002")) {
     x <- e[ett_id == id]
-    expect_identical(nrow(x), 3L, info = id)
+    expect_identical(nrow(x), 4L, info = id)
+    expect_identical(paste(x$estimand, x$weights), .HX_COMBOS, info = id)
     expect_true(all(is.na(x$irr)), info = id)
     expect_true(all(is.na(x$rd)), info = id)
     expect_identical(unique(x$horizon_status), status, info = id)
     expect_equal(unique(x$horizon_reportable_weeks), 52, info = id)
+    # The untruncated intention-to-treat risk difference was computed and
+    # then withheld: its row is stored, and the withholding names the rule.
+    u <- x[estimand == "itt" & weights == "untruncated"]
+    expect_true(u$rd_stored, info = id)
+    expect_true(is.na(u$rd), info = id)
+    expect_identical(u$interval_status, status, info = id)
     for (est in c("pp", "itt")) {
       rec <- fx$plan$results_ett[[id]][[paste0("horizon_", est)]]
       expect_false(rec$exempt, info = paste(id, est))
@@ -524,9 +540,16 @@ test_that("(c2) get_estimates() reports the exempt ETT to its follow-up, and the
   e <- fx$plan$get_estimates()
   x <- e[ett_id == "ETT00002"]
   w <- e[ett_id == "ETT00001"]
-  expect_identical(nrow(x), 3L)
+  expect_identical(nrow(x), 4L)
+  expect_identical(paste(x$estimand, x$weights), .HX_COMBOS)
   expect_equal(unique(x$follow_up), 104)
-  expect_equal(x$horizon_reportable_weeks, rep(104, 3L))
+  expect_equal(x$horizon_reportable_weeks, rep(104, 4L))
+  # The exempt ETT reports the untruncated intention-to-treat estimates.
+  u <- x[estimand == "itt" & weights == "untruncated"]
+  expect_true(u$rates_stored)
+  expect_true(u$irr_stored)
+  expect_true(u$rd_stored)
+  expect_false(is.na(u$rd))
   expect_identical(
     unique(x$horizon_status),
     "exempt from minimum-events rule"

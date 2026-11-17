@@ -635,7 +635,16 @@ test_that("(e) through the real s1, the key changes no reported estimate, weight
 
   est_a <- a$plan$get_estimates()
   est_b <- b$plan$get_estimates()
-  expect_identical(nrow(est_a), 6L)
+  expect_identical(nrow(est_a), 8L)
+  # The four estimand and weighting combinations of each emulated trial.
+  for (id in unique(est_a$ett_id)) {
+    x <- est_a[est_a$ett_id == id]
+    expect_identical(
+      paste(x$estimand, x$weights),
+      c("pp truncated", "pp untruncated", "itt truncated", "itt untruncated"),
+      info = id
+    )
+  }
   expect_identical(est_a, est_b)
   expect_identical(a$ipw_trunc_range, b$ipw_trunc_range)
   expect_identical(a$imp$fill_summary, b$imp$fill_summary)

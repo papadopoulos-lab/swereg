@@ -367,27 +367,34 @@ test_that("the estimand set drives the s3 item list", {
   # The full set first. Both estimands MUST appear, so the reduced-set
   # assertions below cannot pass by observing an empty list.
   #
-  # 80 items for the `.xp_plan()` fixture: 8 ETTs take 1 summary call, 2
-  # per-protocol ratio calls, 2 intention-to-treat ratio calls and 3 absolute
-  # scale calls, which is 64. Per-protocol takes two of the absolute scale
-  # calls, one on each weight (swereg#66). Four subgroup variables across two
-  # ETTs take 2 calls for each of the 2 estimands, which is 16.
+  # 104 items for the `.xp_plan()` fixture: 8 ETTs take 1 summary call, 2
+  # per-protocol ratio calls, 4 intention-to-treat ratio and rate calls and 4
+  # absolute scale calls, which is 88. Each estimand takes two of the
+  # absolute scale calls, one on each weight. Four subgroup variables across
+  # two ETTs take 2 calls for each of the 2 estimands, which is 16.
   full <- .tcp_s3_items()
-  expect_identical(length(full), 80L)
-  expect_true(any(
-    vapply(full, function(x) x$weight_col, character(1)) == "ipw_trunc"
-  ))
+  expect_identical(length(full), 104L)
+  w_full <- vapply(full, function(x) x$weight_col, character(1))
+  expect_true(all(c("ipw_trunc", "ipw") %in% w_full))
+  # The id pattern below finds both weights in the full set, so its absence
+  # from the reduced set is not a pattern that matches nothing.
+  itt_id <- "__ipw(_trunc)?(__|$)"
+  expect_identical(
+    sum(grepl(itt_id, names(full))),
+    sum(w_full %in% c("ipw_trunc", "ipw"))
+  )
 
   # Now drop `itt` from `.TTE_ESTIMANDS`. Membership and order are the
-  # constant's, so every intention-to-treat item MUST go: the baseline IPW
-  # column, and the item id that names it. A hard-coded s3 builder keeps them.
+  # constant's, so every intention-to-treat item MUST go: both baseline IPW
+  # columns, and the item ids that name them. A hard-coded s3 builder keeps
+  # them.
   #
   # 48 items: 8 ETTs take 1 + 2 + 2, which is 40, and the four subgroup
   # variables take 2 calls for the one remaining estimand, which is 8.
   reduced <- .tcp_s3_items(c(pp = "per-protocol"))
   w <- vapply(reduced, function(x) x$weight_col, character(1))
-  expect_false(any(w == "ipw_trunc"))
-  expect_false(any(grepl("ipw_trunc", names(reduced), fixed = TRUE)))
+  expect_false(any(w %in% c("ipw_trunc", "ipw")))
+  expect_false(any(grepl(itt_id, names(reduced))))
   expect_identical(length(reduced), 48L)
 })
 

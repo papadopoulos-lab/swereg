@@ -29,16 +29,16 @@ TTEPlan$set("public", "results_summary", function() {
 #'
 #' `estimand` and `weights` are two columns, not one. `estimand` reads
 #' `"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"` and
-#' names the weight of the estimate. Three combinations occur:
-#' per-protocol truncated, per-protocol untruncated, and intention-to-treat
-#' truncated. The intention-to-treat estimates use the truncated baseline
-#' inverse-probability weight, `ipw_trunc`.
+#' names the weight of the estimate. Four combinations occur: each estimand
+#' with each weight. The intention-to-treat estimates use the baseline
+#' inverse-probability weight, `ipw_trunc` truncated and `ipw` untruncated.
 #'
-#' Three rows per emulated trial is an UPPER BOUND, not a promise. A
+#' Four rows per emulated trial is an UPPER BOUND, not a promise. A
 #' combination gets a row when the plan holds at least one of its rates,
 #' incidence rate ratio and risk-difference slots. A combination the plan
-#' holds nothing for gets no row. So a complete 540-trial grid returns 1,620
-#' rows, and a partial one returns fewer.
+#' holds nothing for gets no row. So a complete 540-trial grid returns 2,160
+#' rows, and a partial one returns fewer. A result that swereg 27.3.14 or
+#' earlier stored has no intention-to-treat untruncated row.
 #'
 #' The method computes nothing. It reads `plan$results_ett`, and it joins
 #' the labels from `plan$ett` and `plan$spec`. A slot the plan does not
@@ -67,7 +67,7 @@ TTEPlan$set("public", "results_summary", function() {
 #'
 #' `horizon_reportable_weeks` and `horizon_status` READ the decision of the
 #' minimum-events rule that `$s3_analyze()` stored for the estimand. Both
-#' weightings of the per-protocol estimand share one decision. A
+#' weightings of an estimand share one decision. A
 #' `horizon_status` that starts with `"below minimum-events rule"` marks a
 #' withheld estimand. Its ratio, risk difference and number needed to treat are
 #' `NA`, and `interval_status` holds the same text. A result stored before the
@@ -104,9 +104,10 @@ TTEPlan$set("public", "get_estimates", function() {
 #' `follow_up_interval` holds the stop time, in weeks from time zero, of the
 #' rows the curve was evaluated at.
 #' `$s3_analyze()` stores one wide curve per estimand and weight, with a
-#' survival column for each arm. Per-protocol has two curves, on the truncated
-#' weight (`rd_curve_pp_trunc`) and the untruncated weight (`rd_curve_pp`).
-#' Intention-to-treat has one. This method returns one row per arm instead.
+#' survival column for each arm. Each estimand has two curves. Per-protocol
+#' stores them under `rd_curve_pp_trunc` and `rd_curve_pp`, and
+#' intention-to-treat under `rd_curve_itt` and `rd_curve_itt_untrunc`. This
+#' method returns one row per arm instead.
 #'
 #' The table carries the numbers at risk beside survival. `n_persons_at_risk` is
 #' an unweighted count of distinct people, per arm per stop time.
