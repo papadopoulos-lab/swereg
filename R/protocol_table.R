@@ -516,7 +516,7 @@
         "Start: time zero, which the emulation column defines",
         paste0("Horizons in the spec: ", paste(labels, collapse = ", ")),
         paste0(
-          "This sheet documents the ",
+          "This protocol describes the ",
           if (nzchar(ctx$follow_up_label)) {
             ctx$follow_up_label
           } else {
@@ -554,12 +554,13 @@
   # Symmetric partner to the exclusion loop below. It reads the
   # `criteria` list of the `inclusion_criteria` container, and each entry
   # there generates one eligibility column on every enrollment.
+  # A washout type states its own rule, as in `additional_inclusion` below.
   for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
     out <- c(
       out,
       paste0(
-        "Require ",
-        .protocol_criterion_label(ic, var_names),
+        .protocol_washout_rule(ic, var_names, tx) %||%
+          paste0("Require ", .protocol_criterion_label(ic, var_names)),
         " (",
         .tte_inclusion_window_human(ic[["implementation"]]),
         ")"
@@ -567,17 +568,13 @@
     )
   }
   # A washout of type `no_prior_value` or `only_prior_value` states its
-  # own rule. Every other exclusion drops rows where its column is TRUE: a
-  # global exclusion and an enrollment exclusion alike, as
+  # own rule. Every other exclusion removes the people whose column is TRUE:
+  # a global exclusion and an enrollment exclusion alike, as
   # `tteplan_apply_exclusions()` treats the two.
   exclude <- function(ec) {
     return(paste0(
       .protocol_washout_rule(ec, var_names, tx) %||%
-        paste0(
-          "Drop rows where ",
-          .protocol_criterion_label(ec, var_names),
-          " is TRUE"
-        ),
+        paste0("Exclude people with ", .protocol_criterion_label(ec, var_names)),
       " (",
       .format_window_human(ec[["implementation"]]),
       ")"
@@ -719,7 +716,9 @@
           "follow-up, the administrative end of the data and the horizon. ",
           "Per-protocol follow-up also stops at protocol deviation"
         ),
-        paste0("Horizon on this sheet: ", ctx$follow_up_weeks, " weeks"),
+        # "Horizon: N weeks" is the causal contrast line below. The two cells
+        # sit in one table, so this line names follow-up to stay distinct.
+        paste0("Follow-up horizon: ", ctx$follow_up_weeks, " weeks"),
         paste0(
           if (restricted) {
             "Horizons of this comparison: "

@@ -838,7 +838,7 @@ test_that("the apply step and the CONSORT lookup name one year-range column", {
   )
 })
 
-test_that("the protocol emulation cell drops an enrollment exclusion when TRUE", {
+test_that("the protocol emulation cell excludes people by an enrollment exclusion", {
   spec <- .iyr_pe01_excl_spec()
   cell <- swereg:::.protocol_emulation(
     spec,
@@ -848,7 +848,7 @@ test_that("the protocol emulation cell drops an enrollment exclusion when TRUE",
   lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
   expect_true(
     paste0(
-      "Drop rows where History of hysterectomy is TRUE ",
+      "Exclude people with History of hysterectomy ",
       "(lifetime before baseline)"
     ) %in%
       lines

@@ -227,7 +227,7 @@ test_that("the emulation column names variables, outcomes, exposure levels and c
     c(
       "Require isoyear in 2010 to 2020",
       "Require Registered in the drug register (lifetime before baseline)",
-      "Drop rows where Prior event of interest is TRUE (2 years before baseline)",
+      "Exclude people with Prior event of interest (2 years before baseline)",
       "Require Age at baseline between 50 and 54",
       paste0(
         "Earlier use of Drug A: no prior rd_tx_code equal to Drug A ",
@@ -308,4 +308,36 @@ test_that("no emulation cell holds a column name or value that the spec names", 
       expect_false(any(hit), info = paste0(id, ": ", code))
     }
   }
+})
+
+# --- 5. no cell names a sheet or states a row filter -----------------------
+
+# A manuscript prints these cells as a protocol table, where "this sheet"
+# names nothing. The sheet is read in full, title row included.
+test_that("no protocol cell names a sheet or a row filter", {
+  plan <- .pta_plan()
+  pattern <- "sheet|Drop rows where|is TRUE"
+  for (id in plan$ett$ett_id) {
+    cells <- unlist(plan$get_protocol_table(id), use.names = FALSE)
+    expect_false(any(grepl(pattern, cells)), info = id)
+
+    wb <- openxlsx::createWorkbook()
+    swereg:::.write_protocol_table(wb, "Target trial protocol", plan, id)
+    f <- tempfile(fileext = ".xlsx")
+    openxlsx::saveWorkbook(wb, f, overwrite = TRUE)
+    sheet <- openxlsx::read.xlsx(
+      f,
+      sheet = "Target trial protocol",
+      colNames = FALSE
+    )
+    unlink(f)
+    expect_false(any(grepl(pattern, unlist(sheet))), info = id)
+  }
+  tab <- plan$get_protocol_table("ETT00001")
+  i <- which(tab[["Protocol component"]] == "Follow-up period")
+  spec_lines <- strsplit(tab[["Target trial specification"]][i], "\n")[[1]]
+  expect_true("This protocol describes the 1 year horizon" %in% spec_lines)
+  expect_true(
+    "Follow-up horizon: 52 weeks" %in% .pta_lines(tab, "Follow-up period")
+  )
 })

@@ -240,6 +240,36 @@ test_that("the protocol table emulation cell names the global criterion and its 
   expect_false(any(grepl("osd_f20_to_f29", lines, fixed = TRUE)))
 })
 
+test_that("the protocol table emulation cell states the washout rule of a global criterion", {
+  # A `no_prior_value` criterion states its own rule, as an enrollment's
+  # `additional_inclusion` entry does. "Require <name>" would invert it.
+  crit <- list(
+    name = "No earlier intervention",
+    implementation = list(
+      type = "no_prior_value",
+      source_variable = "rd_exposure",
+      value = "treated",
+      window = "lifetime_before_baseline",
+      computed = TRUE
+    )
+  )
+  spec <- gir_spec(list(crit))
+  cell <- swereg:::.protocol_emulation(
+    spec,
+    "eligibility_criteria",
+    gir_ctx(spec)
+  )
+  lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  expect_true(
+    paste0(
+      "No earlier intervention: no prior rd_exposure equal to treated ",
+      "(lifetime before baseline)"
+    ) %in%
+      lines
+  )
+  expect_false(any(grepl("Require No earlier intervention", lines, fixed = TRUE)))
+})
+
 
 # ---------------------------------------------------------------------------
 # 3. The console specification summary

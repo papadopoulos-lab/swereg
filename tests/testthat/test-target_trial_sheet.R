@@ -316,7 +316,7 @@ test_that("emulation column is rendered from implementation blocks", {
     fixed = TRUE
   ))
   expect_true(grepl(
-    "Drop rows where Prior outcome event is TRUE",
+    "Exclude people with Prior outcome event",
     .tt_emulation(d, "Eligibility criteria"),
     fixed = TRUE
   ))
