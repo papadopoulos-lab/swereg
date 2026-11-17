@@ -1,5 +1,22 @@
 # Changelog
 
+## swereg 27.3.15
+
+s2 could stop when an IPCW confounder is a character column. It stopped
+when the censoring model fell back to the `discrete = FALSE` refit and
+one 10,000-row chunk lacked a level of the column. A study whose s2
+completed has the same weights as before, because character and factor
+coding give the same fit. 012-eriksson-ve needs s2 rerun.
+
+### Bug fixes
+
+- **A censoring model reads a character confounder as a factor.**
+  `.tte_ipcw_fit_one()` converts each character column of the model
+  formula with [`factor()`](https://rdrr.io/r/base/factor.html) on a
+  copy of the fit data. Before, a row chunk that lacked a level stopped
+  the `mgcv::bam(discrete = FALSE)` refit with “number of items to
+  replace is not a multiple of replacement length”.
+
 ## swereg 27.3.14
 
 A TTE on a study where one person has more than one copy in the skeleton
