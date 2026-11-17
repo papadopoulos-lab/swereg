@@ -6,7 +6,8 @@ s2 could stop when an IPCW confounder is a character column. It stopped
 when the censoring model fell back to the `discrete = FALSE` refit and
 one 10,000-row chunk lacked a level of the column. A study whose s2
 completed has the same weights as before, because character and factor
-coding give the same fit. 012-eriksson-ve needs s2 rerun.
+coding give the same fit. A study whose s2 stopped with this error needs
+s2 rerun.
 
 ### Bug fixes
 
