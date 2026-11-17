@@ -1110,13 +1110,17 @@ itself, and MUST NOT print \code{nnt} alone where the bounds are missing.
 \code{n_trials_int} and \code{n_trials_cmp} count the person-trials of each arm in
 the analysis file of that estimand. On an intention-to-treat row they are
 the intention-to-treat analysis set, which the CONSORT flow reads.
+\code{n_trials_deviated_time_zero_int} and \code{n_trials_deviated_time_zero_cmp}
+count the person-trials of each arm that a deviation at time zero removed
+from the per-protocol analysis file. They are \code{NA} on an
+intention-to-treat row and on a result stored before 27.3.17.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_estimates()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 49 columns. The identifiers come first, then
+    A data.table with 51 columns. The identifiers come first, then
 the weighted counts and the person-trials of each arm. The incidence rate
 ratio follows, then the risk difference and the number needed to treat.
 \code{n_boot}, \code{seed} and \code{conf_level} record what produced the

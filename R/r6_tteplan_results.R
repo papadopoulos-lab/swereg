@@ -88,8 +88,12 @@ TTEPlan$set("public", "results_summary", function() {
 #' `n_trials_int` and `n_trials_cmp` count the person-trials of each arm in
 #' the analysis file of that estimand. On an intention-to-treat row they are
 #' the intention-to-treat analysis set, which the CONSORT flow reads.
+#' `n_trials_deviated_time_zero_int` and `n_trials_deviated_time_zero_cmp`
+#' count the person-trials of each arm that a deviation at time zero removed
+#' from the per-protocol analysis file. They are `NA` on an
+#' intention-to-treat row and on a result stored before 27.3.17.
 #'
-#' @return A data.table with 49 columns. The identifiers come first, then
+#' @return A data.table with 51 columns. The identifiers come first, then
 #'   the weighted counts and the person-trials of each arm. The incidence rate
 #'   ratio follows, then the risk difference and the number needed to treat.
 #'   `n_boot`, `seed` and `conf_level` record what produced the
