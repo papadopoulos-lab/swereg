@@ -324,6 +324,11 @@ the `Family` column of the Summary sheet. `$reload_spec()` applies a new
 - Some enrollments set `family`, and others do not. When one enrollment sets
   it, every enrollment MUST set it.
 
+# The treatment name
+
+An enrollment's `treatment$name`, when set, replaces the treatment column name
+in the target trial protocol table of that enrollment.
+
 # The minimum-events exemption
 
 An enrollment MAY set `minimum_events_rule_exempt`, one logical. With `true`,

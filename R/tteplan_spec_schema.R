@@ -143,8 +143,10 @@
   "$/enrollments[]/observed_var" = list(
     consumed = c("column", "sentinel")
   ),
+  # `name` is the display name of the treatment variable. The protocol table
+  # of that enrollment prints it in place of the column name.
   "$/enrollments[]/treatment" = list(
-    consumed = c("arms", "description", "implementation")
+    consumed = c("arms", "description", "implementation", "name")
   ),
   "$/enrollments[]/treatment/arms" = list(
     consumed = c("comparator", "intervention")

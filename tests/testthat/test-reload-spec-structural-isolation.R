@@ -453,6 +453,7 @@ rsi_full_spec <- function(variant = "sentinel") {
       )),
       treatment = list(
         description = "Treatment",
+        name = "Exposure",
         arms = list(intervention = "Initiators", comparator = "Comparators"),
         implementation = list(
           comparator_to_intervention_ratio = 2L,
@@ -602,6 +603,8 @@ RSI_LEAF_SIDE <- c(
   # value does. s1 and s2 output stays valid.
   "$/enrollments[]/minimum_events_rule_exempt" = "cosmetic",
   "$/enrollments[]/treatment/description" = "cosmetic",
+  # The display name of the treatment variable. The protocol table prints it.
+  "$/enrollments[]/treatment/name" = "cosmetic",
   "$/enrollments[]/treatment/arms/comparator" = "cosmetic",
   "$/enrollments[]/treatment/arms/intervention" = "cosmetic",
   "$/enrollments[]/additional_exclusion[]/implementation/computed" = "structural",
@@ -953,4 +956,33 @@ test_that("a reload clears the role and description a new spec omits", {
   expect_identical(f$plan$ett$outcome_description, NA_character_)
   expect_identical(f$plan$ett$outcome_role, NA_character_)
   expect_identical(f$plan$ett$outcome_name, "Event A")
+})
+
+# ---------------------------------------------------------------------------
+# The treatment name
+# ---------------------------------------------------------------------------
+
+test_that("reload_spec applies a new treatment name as a cosmetic change", {
+  # The two specs differ in `treatment$name` alone. The public reload MUST
+  # refuse nothing and carry the new name onto the plan.
+  spec_old <- rsi_spec("old", "osd_f20_to_f29")
+  spec_old$enrollments[[1]]$treatment$name <- "Exposure old"
+  spec_new <- spec_old
+  spec_new$enrollments[[1]]$treatment$name <- "Exposure new"
+  path_old <- rsi_write(spec_old)
+  plan <- rsi_plan(path_old)
+  expect_identical(plan$spec$enrollments[[1]]$treatment$name, "Exposure old")
+
+  expect_warning(
+    plan$reload_spec(spec_path = rsi_write(spec_new), quiet = TRUE),
+    NA
+  )
+  expect_null(plan$spec_reload_skipped_diffs)
+  expect_identical(plan$spec$enrollments[[1]]$treatment$name, "Exposure new")
+  expect_identical(
+    plan$spec$enrollments[[1]]$treatment$implementation,
+    swereg::tteplan_read_spec(path_old)$enrollments[[
+      1
+    ]]$treatment$implementation
+  )
 })

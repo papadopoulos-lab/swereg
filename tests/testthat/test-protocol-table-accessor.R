@@ -10,8 +10,9 @@
 #      differs from its name, so a line that prints a code cannot match the
 #      expected text. The expected lines are typed here, not computed.
 #
-# Two variables carry no name: the treatment variable, which the schema gives
-# no `name` field, and one confounder. Both keep their column names.
+# Two variables carry no name: the treatment variable, because the fixture
+# sets no `treatment$name`, and one confounder. Both keep their column names.
+# Section 6 sets a treatment name and pins what it replaces.
 
 skip_if_not_installed("openxlsx")
 skip_if_not_installed("data.table")
@@ -271,7 +272,10 @@ test_that("the emulation column names variables, outcomes, exposure levels and c
 
   # The second trial names its own outcome.
   tab2 <- .pta_plan()$get_protocol_table("ETT00002")
-  expect_identical(.pta_lines(tab2, "Outcome"), "Outcome variable: Second event")
+  expect_identical(
+    .pta_lines(tab2, "Outcome"),
+    "Outcome variable: Second event"
+  )
 })
 
 # --- 3. a variable without a name keeps its column name --------------------
@@ -283,7 +287,7 @@ test_that("a variable that the spec does not name keeps its column name", {
     "Treatment and censoring models adjust for rd_income_unnamed" %in%
       .pta_lines(tab, "Analysis plan")
   )
-  # The treatment variable: the schema gives it no `name` field.
+  # The treatment variable: the fixture sets no `treatment$name`.
   for (component in c(
     "Treatment strategies",
     "Assignment procedure",
@@ -340,4 +344,126 @@ test_that("no protocol cell names a sheet or a row filter", {
   expect_true(
     "Follow-up horizon: 52 weeks" %in% .pta_lines(tab, "Follow-up period")
   )
+})
+
+# --- 6. a treatment name replaces the treatment column ---------------------
+
+# The fixture's treatment column is `rd_tx_code`. Without `treatment$name`,
+# sections 2 and 3 pin that every table prints it.
+
+test_that("a treatment name replaces the treatment column in every cell", {
+  plan <- .pta_plan()
+  plan$spec$enrollments[[1]]$treatment$name <- "Drug started"
+  for (id in plan$ett$ett_id) {
+    tab <- plan$get_protocol_table(id)
+    cells <- unlist(tab, use.names = FALSE)
+    expect_false(
+      any(grepl("rd_tx_code", cells, fixed = TRUE)),
+      info = id
+    )
+    expect_true(any(grepl("Drug started", cells, fixed = TRUE)), info = id)
+    for (component in c(
+      "Treatment strategies",
+      "Assignment procedure",
+      "Causal contrast"
+    )) {
+      expect_true(
+        "Treatment variable: Drug started" %in% .pta_lines(tab, component),
+        info = paste0(id, ": ", component)
+      )
+    }
+    expect_true(
+      paste0(
+        "Earlier use of Drug A: no prior Drug started equal to Drug A ",
+        "(lifetime before baseline)"
+      ) %in%
+        .pta_lines(tab, "Eligibility criteria"),
+      info = id
+    )
+  }
+})
+
+test_that("a treatment name reaches a washout that has no name of its own", {
+  # An unnamed washout states its rule in both columns. The specification
+  # column writes it through `.tte_washout_prose()`, the emulation column
+  # through `.protocol_washout_rule()`.
+  plan <- .pta_plan()
+  plan$spec$enrollments[[1]]$treatment$name <- "Drug started"
+  plan$spec$enrollments[[1]]$additional_inclusion[[2]] <- list(
+    implementation = list(
+      type = "only_prior_value",
+      source_variable = "rd_tx_code",
+      source_variable_combined = "rd_tx_code",
+      value = "tx_b",
+      window = "lifetime_before_baseline",
+      computed = TRUE
+    )
+  )
+  tab <- plan$get_protocol_table("ETT00001")
+  i <- which(tab[["Protocol component"]] == "Eligibility criteria")
+  spec_lines <- strsplit(tab[["Target trial specification"]][i], "\n")[[1]]
+  expect_true(
+    "Include (enrollment 01): No prior Drug started other than tx_b" %in%
+      spec_lines
+  )
+  expect_true(
+    "No prior Drug started other than Drug B (lifetime before baseline)" %in%
+      .pta_lines(tab, "Eligibility criteria")
+  )
+  expect_false(any(grepl(
+    "rd_tx_code",
+    unlist(tab, use.names = FALSE),
+    fixed = TRUE
+  )))
+})
+
+test_that("two enrollments that share a treatment column each print their own name", {
+  # Both enrollments read `rd_tx_code`. A lookup built once over the whole
+  # spec, where the first name wins, prints "Drug started" in both tables.
+  spec <- .pta_spec()
+  spec$enrollments[[1]]$treatment$name <- "Drug started"
+  second <- spec$enrollments[[1]]
+  second$id <- "02"
+  second$name <- "Drug A vs Drug B, second definition"
+  second$treatment$name <- "Drug dispensed"
+  spec$enrollments[[2]] <- second
+  ett <- data.table::data.table(
+    ett_id = c("ETT00001", "ETT00002"),
+    enrollment_id = c("01", "02"),
+    follow_up = 52L,
+    outcome_var = "osd_event",
+    outcome_name = "Event of interest",
+    age_min = 50L,
+    age_max = 54L,
+    confounder_vars = "rd_age_cont, rd_edu_level, rd_income_unnamed",
+    person_id_var = "lopnr",
+    treatment_var = "rd_tx_code"
+  )
+  plan <- swereg::TTEPlan$new(
+    project_prefix = "pta",
+    skeleton_files = "skel.qs2",
+    global_max_isoyearweek = "2020-52",
+    ett = ett
+  )
+  plan$spec <- spec
+
+  own <- c(ETT00001 = "Drug started", ETT00002 = "Drug dispensed")
+  for (id in names(own)) {
+    tab <- plan$get_protocol_table(id)
+    other <- unname(own[names(own) != id])
+    for (component in c(
+      "Treatment strategies",
+      "Assignment procedure",
+      "Causal contrast"
+    )) {
+      expect_true(
+        paste0("Treatment variable: ", own[[id]]) %in%
+          .pta_lines(tab, component),
+        info = paste0(id, ": ", component)
+      )
+    }
+    cells <- unlist(tab, use.names = FALSE)
+    expect_false(any(grepl(other, cells, fixed = TRUE)), info = id)
+    expect_false(any(grepl("rd_tx_code", cells, fixed = TRUE)), info = id)
+  }
 })

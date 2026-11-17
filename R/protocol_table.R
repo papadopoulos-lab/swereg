@@ -92,17 +92,24 @@
 }
 
 
-#' The spec's display name of each confounder and outcome variable
+#' The spec's display name of each variable that one protocol table names
 #'
 #' The emulation column names a variable by the `name` of its spec entry. A
 #' reader of the table then meets no column name that the spec names.
 #' Confounders come first, and the first entry that names a variable wins.
 #'
+#' The treatment name of `enrollment` comes last, and it replaces any name
+#' that a confounder or an outcome gives the same column. The function reads
+#' it from this one enrollment, so two enrollments that share a treatment
+#' column each print their own name.
+#'
 #' @param spec Parsed spec list.
+#' @param enrollment The spec entry of the enrollment the table documents,
+#'   or `NULL`.
 #' @return A named character vector. The names are the column names that
 #'   `.protocol_impl_variable()` renders, and the values are the spec names.
 #' @noRd
-.protocol_variable_names <- function(spec) {
+.protocol_variable_names <- function(spec, enrollment = NULL) {
   out <- character()
   for (entry in c(spec[["confounders"]], spec[["outcomes"]])) {
     v <- .protocol_impl_variable(entry[["implementation"]])
@@ -111,7 +118,28 @@
       out[[v]] <- nm
     }
   }
+  # The treatment name is specific to this enrollment, so it wins over a
+  # spec-wide name of the same column.
+  tx_name <- .protocol_treatment_name(enrollment)
+  out[names(tx_name)] <- tx_name
   return(out)
+}
+
+
+#' The treatment name of one enrollment, keyed by its treatment column
+#'
+#' @param enrollment The spec entry of one enrollment, or `NULL`.
+#' @return A named character vector of length 1, or of length 0 when the
+#'   enrollment sets no `treatment$name` or no treatment variable.
+#' @noRd
+.protocol_treatment_name <- function(enrollment) {
+  tx <- enrollment[["treatment"]]
+  nm <- .protocol_entry_name(tx)
+  v <- .protocol_impl_variable(tx[["implementation"]])
+  if (is.null(nm) || is.na(v)) {
+    return(character())
+  }
+  return(setNames(nm, v))
 }
 
 
@@ -440,16 +468,22 @@
             )
           )
         } else {
-          # A washout with no name of its own still states its rule.
+          # A washout with no name of its own still states its rule. With a
+          # treatment name, the rule names the treatment variable by it.
+          # The value keeps its spec text, as `.tte_washout_prose()` writes it.
+          tx_name <- .protocol_treatment_name(enrollment)
+          rule <- if (length(tx_name) == 0L) {
+            .tte_washout_prose(ai[["implementation"]])
+          } else {
+            .protocol_washout_rule(ai, tx_name, NULL)
+          }
           out <- c(
             out,
             paste0(
               "Include (enrollment ",
               ctx$enrollment_id,
               "): ",
-              .protocol_value(
-                ai[["name"]] %||% .tte_washout_prose(ai[["implementation"]])
-              )
+              .protocol_value(ai[["name"]] %||% rule)
             )
           )
         }
@@ -574,7 +608,10 @@
   exclude <- function(ec) {
     return(paste0(
       .protocol_washout_rule(ec, var_names, tx) %||%
-        paste0("Exclude people with ", .protocol_criterion_label(ec, var_names)),
+        paste0(
+          "Exclude people with ",
+          .protocol_criterion_label(ec, var_names)
+        ),
       " (",
       .format_window_human(ec[["implementation"]]),
       ")"
@@ -645,7 +682,7 @@
 #' @noRd
 .protocol_emulation <- function(spec, key, ctx) {
   enrollment <- ctx$enrollment
-  var_names <- .protocol_variable_names(spec)
+  var_names <- .protocol_variable_names(spec, enrollment)
   tx <- enrollment[["treatment"]]
   tx_impl <- tx[["implementation"]]
   tx_label <- .protocol_variable_label(

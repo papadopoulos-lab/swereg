@@ -394,8 +394,8 @@
 #' Enrollments match by `id`. An enrollment that only one spec holds is
 #' structural, because a cached run covers the enrollments the old spec named.
 #'
-#' The name, the family, the treatment description and both arm labels are
-#' labels. A `family` that one spec sets and the other omits is a label
+#' The name, the family, the treatment description, the treatment name and
+#' both arm labels are labels. A `family` that one spec sets and the other omits is a label
 #' change too.
 #'
 #' `minimum_events_rule_exempt` is cosmetic. It decides which estimates s3
@@ -506,6 +506,13 @@
         o_new$treatment$description
       )
     }
+    if (!identical(o_old$treatment[["name"]], o_new$treatment[["name"]])) {
+      pc(
+        sprintf("enrollments[%s]$treatment$name", id),
+        o_old$treatment[["name"]],
+        o_new$treatment[["name"]]
+      )
+    }
     arm_keys <- c("intervention", "comparator")
     for (k in arm_keys) {
       a <- o_old$treatment$arms[[k]]
@@ -524,7 +531,7 @@
     .ds_residual(
       o_old$treatment,
       o_new$treatment,
-      c("arms", "description", "implementation"),
+      c("arms", "description", "implementation", "name"),
       sprintf("enrollments[%s]$treatment$", id),
       ps
     )
@@ -728,6 +735,9 @@
     if (!identical(e_old$treatment$description, e_new$treatment$description)) {
       e_old$treatment$description <- e_new$treatment$description
     }
+    if (!identical(e_old$treatment[["name"]], e_new$treatment[["name"]])) {
+      e_old$treatment[["name"]] <- e_new$treatment[["name"]]
+    }
     for (k in c("intervention", "comparator")) {
       if (!identical(e_old$treatment$arms[[k]], e_new$treatment$arms[[k]])) {
         e_old$treatment$arms[[k]] <- e_new$treatment$arms[[k]]
@@ -756,7 +766,7 @@
 #' 5. `subgroups[<var>]$name`
 #' 6. `standing_methods`, `target_trial` and `open_questions`, each whole
 #' 7. `enrollments[<id>]$name`, `$family` and `$minimum_events_rule_exempt`
-#' 8. `enrollments[<id>]$treatment$description`
+#' 8. `enrollments[<id>]$treatment$description` and `$name`
 #' 9. `enrollments[<id>]$treatment$arms$intervention` and `$comparator`
 #' 10. `min_expected_events_per_arm_per_year`. A plan saved before
 #'     swereg 27.2.14 holds no value, and this function writes one into it.
