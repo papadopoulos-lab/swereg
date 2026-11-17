@@ -347,7 +347,10 @@
 #' worker that failed stores a skip envelope. In both cases `$get_estimates()`
 #' reports `rd_stored = FALSE`, and the three risk-difference cells of the
 #' sensitivity sheet read this text. An empty cell already means "no interval"
-#' or "no number needed to treat", so a missing estimate reads differently.
+#' or "no number needed to treat", so a missing estimate reads differently. A
+#' block whose combination has no `$get_estimates()` row reads this text in
+#' every cell. The untruncated intention-to-treat block of a result saved by
+#' swereg 27.3.15 or earlier is such a block.
 #' @noRd
 .SHEET_NOT_COMPUTED <- "not computed"
 
@@ -452,6 +455,12 @@
 #' 27.3.9 holds no `rd_pp`, so its untruncated block reads that text and the
 #' export does not stop.
 #'
+#' A side whose combination has no `$get_estimates()` row for an ETT, while the
+#' other side has one, reads `.SHEET_NOT_COMPUTED` in all 12 of its cells. A
+#' result saved by swereg 27.3.15 or earlier holds no untruncated
+#' intention-to-treat slot. Its row stays on the "Weight truncation (ITT)"
+#' sheet, with the truncated block filled.
+#'
 #' @noRd
 .write_combined_sensitivity <- function(
   wb,
@@ -529,6 +538,19 @@
   }
   rd_keys <- c("rd", "rd_ci", "nnt")
 
+  # TRUE when `$get_estimates()` has no row of the combination of `slot` for
+  # ETT `eid`. s3 then computed nothing for that side, and every cell of the
+  # side reads `.SHEET_NOT_COMPUTED`. A row that exists but holds unusable
+  # rates or an unusable ratio keeps its blank cells.
+  combo_absent <- function(eid, slot) {
+    combo <- .tte_slot_combo(slot)
+    return(!any(
+      est$ett_id == eid &
+        est$estimand == combo[["estimand"]] &
+        est$weights == combo[["weights"]]
+    ))
+  }
+
   # Build one row per ETT. Truncated columns come first, then untruncated.
   est <- plan$get_estimates()
   rows <- list()
@@ -536,6 +558,8 @@
   ne_right <- logical(0)
   marker_left <- character(0)
   marker_right <- character(0)
+  absent_left <- logical(0)
+  absent_right <- logical(0)
   rd_levels <- numeric(0)
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
@@ -588,6 +612,8 @@
     ne_right <- c(ne_right, isTRUE(untrunc_m$withheld))
     marker_left <- c(marker_left, attr(trunc_rd_cells, "marker"))
     marker_right <- c(marker_right, attr(untrunc_rd_cells, "marker"))
+    absent_left <- c(absent_left, combo_absent(eid, trunc_irr_slot))
+    absent_right <- c(absent_right, combo_absent(eid, untrunc_irr_slot))
   }
 
   if (length(rows) == 0L) {
@@ -791,6 +817,23 @@
         stack = TRUE
       )
       .sheet_write_markers(wb, sheet_name, body_rows, side$col, side$markers)
+    }
+    # A side with no row of its combination: its 9 measurement cells read
+    # `.SHEET_NOT_COMPUTED`, as its three risk-difference cells already do.
+    for (side in list(
+      list(start = trunc_cols_start, absent = absent_left),
+      list(start = untrunc_cols_start, absent = absent_right)
+    )) {
+      markers <- ifelse(side$absent, .SHEET_NOT_COMPUTED, NA_character_)
+      for (j in seq_len(n_meas)) {
+        .sheet_write_markers(
+          wb,
+          sheet_name,
+          body_rows,
+          side$start + j - 1L,
+          markers
+        )
+      }
     }
   }
 

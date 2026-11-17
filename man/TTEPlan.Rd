@@ -832,23 +832,26 @@ states it.}
 For each enrollment: loads one analysis file and the raw file, computes
 baseline characteristics (raw, unweighted, IPW, IPW truncated).
 For each ETT: loads the analysis file, then computes the rates and the IRR
-with both truncated and untruncated weights. For each subgroup the spec
-names, it also computes the stratified IRRs and the effect-modification
-test.
+of each estimand with both truncated and untruncated weights. For each
+subgroup the spec names, it also computes the stratified IRRs and the
+effect-modification test, on the truncated weight only.
 
-Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Three
+Every ETT also gets the ABSOLUTE scale, and nothing switches it off. Four
 estimand and weight combinations carry it:
 \itemize{
 \item per-protocol on \code{analysis_weight_pp_trunc}, stored under
 \code{rd_pp_trunc};
 \item per-protocol on \code{analysis_weight_pp}, stored under \code{rd_pp};
-\item intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}.
+\item intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt};
+\item intention-to-treat on \code{ipw}, stored under \code{rd_itt_untrunc}.
 }
 Each stores one summary row at the end of follow-up, with \code{rd}, \code{rd_lo},
 \code{rd_hi}, \code{nnt}, \code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}.
 Each also stores the full curve, one row per stop time, under
-\code{rd_curve_pp_trunc}, \code{rd_curve_pp} or \code{rd_curve_itt}, with
-\code{surv_comparator} and \code{surv_intervention} beside the risk difference.
+\code{rd_curve_pp_trunc}, \code{rd_curve_pp}, \code{rd_curve_itt} or
+\code{rd_curve_itt_untrunc}, with \code{surv_comparator} and \code{surv_intervention}
+beside the risk difference. The rates and the IRR on \code{ipw} are stored under
+\code{rates_itt_untrunc} and \code{irr_itt_untrunc}.
 
 The curve also carries \code{n_persons_at_risk_comparator} and
 \code{n_persons_at_risk_intervention}. Each is a head count of distinct people in
@@ -880,9 +883,10 @@ stay. The record is stored as \code{horizon_pp} and \code{horizon_itt}, and
 \verb{$get_horizon_windows()} returns its window table. Which windows pass depends
 on the observed events, through the pooled rate.
 
-The RD item on \code{analysis_weight_pp} computes no windows. The per-protocol
-decision is the decision on \code{analysis_weight_pp_trunc}, and it withholds
-both per-protocol risk differences.
+The RD items on the untruncated weights, \code{analysis_weight_pp} and \code{ipw},
+compute no windows. The per-protocol decision is the decision on
+\code{analysis_weight_pp_trunc}, and \code{horizon_itt} takes that decision. The
+stored record of an estimand withholds the estimates of both its weights.
 
 An enrollment that sets \code{minimum_events_rule_exempt: true} is exempt. The
 method computes and stores the decision of its ETTs as for any ETT, and
@@ -903,12 +907,13 @@ The method stops when the spec has no
 run has no horizon decision for an estimand.
 
 Cost. Each risk difference is its own work item, so it is its own worker
-process with its own read of the analysis file. That is three more reads
-per ETT, or 1,620 more reads on a 540-ETT grid. The bootstrap of the third
-item was measured on a synthetic panel of 50,000 person-trials, under
-swereg 27.3.9. It took 3.97 s, the mean of 3 runs at 500 replicates. The
-7 items per ETT of swereg 27.3.9 took 27.14 s on that panel, so the third
-item adds 14.6\% to that compute. The file reads are not in either number.
+process with its own read of the analysis file. That is four reads per
+ETT, or 2,160 reads on a 540-ETT grid. The items were measured on a
+synthetic panel of 50,000 person-trials. Each time is the mean CPU time of
+3 runs, and each bootstrap has 500 replicates. The bootstrap on \code{ipw} took
+3.96 s. The 11 items of an ETT without subgroups took 40.74 s, so that
+bootstrap is 9.7\% of the compute. The three items on \code{ipw} add 32.7\% to
+the compute of the other 8 items. The file reads are not in these numbers.
 
 Results are stored in \code{self$results_enrollment} and \code{self$results_ett}.
 Every targeted result is recomputed on each call (no skip cache). Use
@@ -1046,16 +1051,16 @@ One row per emulated trial, estimand and weighting.
 
 \code{estimand} and \code{weights} are two columns, not one. \code{estimand} reads
 \code{"pp"} or \code{"itt"}. \code{weights} reads \code{"truncated"} or \code{"untruncated"} and
-names the weight of the estimate. Three combinations occur:
-per-protocol truncated, per-protocol untruncated, and intention-to-treat
-truncated. The intention-to-treat estimates use the truncated baseline
-inverse-probability weight, \code{ipw_trunc}.
+names the weight of the estimate. Four combinations occur: each estimand
+with each weight. The intention-to-treat estimates use the baseline
+inverse-probability weight, \code{ipw_trunc} truncated and \code{ipw} untruncated.
 
-Three rows per emulated trial is an UPPER BOUND, not a promise. A
+Four rows per emulated trial is an UPPER BOUND, not a promise. A
 combination gets a row when the plan holds at least one of its rates,
 incidence rate ratio and risk-difference slots. A combination the plan
-holds nothing for gets no row. So a complete 540-trial grid returns 1,620
-rows, and a partial one returns fewer.
+holds nothing for gets no row. So a complete 540-trial grid returns 2,160
+rows, and a partial one returns fewer. A result that swereg 27.3.14 or
+earlier stored has no intention-to-treat untruncated row.
 
 The method computes nothing. It reads \code{plan$results_ett}, and it joins
 the labels from \code{plan$ett} and \code{plan$spec}. A slot the plan does not
@@ -1084,7 +1089,7 @@ of \verb{$export_tables()} are the only output that shows its decision.
 
 \code{horizon_reportable_weeks} and \code{horizon_status} READ the decision of the
 minimum-events rule that \verb{$s3_analyze()} stored for the estimand. Both
-weightings of the per-protocol estimand share one decision. A
+weightings of an estimand share one decision. A
 \code{horizon_status} that starts with \code{"below minimum-events rule"} marks a
 withheld estimand. Its ratio, risk difference and number needed to treat are
 \code{NA}, and \code{interval_status} holds the same text. A result stored before the
@@ -1129,9 +1134,10 @@ One row per emulated trial, estimand, weighting, arm and stop time.
 \code{follow_up_interval} holds the stop time, in weeks from time zero, of the
 rows the curve was evaluated at.
 \verb{$s3_analyze()} stores one wide curve per estimand and weight, with a
-survival column for each arm. Per-protocol has two curves, on the truncated
-weight (\code{rd_curve_pp_trunc}) and the untruncated weight (\code{rd_curve_pp}).
-Intention-to-treat has one. This method returns one row per arm instead.
+survival column for each arm. Each estimand has two curves. Per-protocol
+stores them under \code{rd_curve_pp_trunc} and \code{rd_curve_pp}, and
+intention-to-treat under \code{rd_curve_itt} and \code{rd_curve_itt_untrunc}. This
+method returns one row per arm instead.
 
 The table carries the numbers at risk beside survival. \code{n_persons_at_risk} is
 an unweighted count of distinct people, per arm per stop time.

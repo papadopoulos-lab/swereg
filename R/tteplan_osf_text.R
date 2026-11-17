@@ -946,7 +946,7 @@ tteplan_osf_text <- function(
     character(1)
   )
   return(.osf_paragraphs(
-    "The per-protocol analysis is repeated with untruncated weights, and the result is reported beside the truncated one.",
+    "The per-protocol and the intention-to-treat analyses are each repeated with untruncated weights, and each result is reported beside the truncated one.",
     if (length(subs) > 0L) {
       paste0(
         "Subgroup analyses estimate the rate ratio within each level of ",

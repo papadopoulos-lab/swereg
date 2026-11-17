@@ -1431,6 +1431,91 @@ test_that("#66 a result saved without rd_pp exports, and its untruncated RD read
   expect_identical(body[, 1:26], full[-seq_len(h), 1:26, drop = FALSE])
 })
 
+test_that("the Weight truncation (ITT) sheet shows the RD, its interval and the NNT for each weight", {
+  .hz66_skip()
+  fx <- .hz66_fixture(5)
+  sheets <- openxlsx::getSheetNames(fx$xlsx)
+  expect_identical(
+    sheets[match("Weight truncation (PP)", sheets) + 1L],
+    "Weight truncation (ITT)"
+  )
+  if (!("Weight truncation (ITT)" %in% sheets)) {
+    # The assertion above has failed. There is no sheet to read.
+    return(invisible(NULL))
+  }
+  m <- .hz66_cells(fx$xlsx, "Weight truncation (ITT)")
+  h <- which(m[, 1L] == "Enrollment")[1L]
+  pp <- .hz66_cells(fx$xlsx, "Weight truncation (PP)")
+  # The same 29 headers as the PP sheet, and the same two group labels.
+  expect_identical(ncol(m), 29L)
+  expect_identical(unname(m[h, ]), unname(pp[h, ]))
+  expect_identical(
+    unname(m[h - 1L, c(6L, 18L)]),
+    c("Truncated weights", "Untruncated weights")
+  )
+
+  e <- fx$plan$get_estimates()
+  body <- m[-seq_len(h), , drop = FALSE]
+  expect_identical(nrow(body), 2L)
+  for (side in list(
+    list(w = "truncated", col = 6L),
+    list(w = "untruncated", col = 18L)
+  )) {
+    for (eid in c("ETT00001", "ETT00002")) {
+      fu <- fx$plan$ett[ett_id == eid]$follow_up
+      cells <- unname(body[body[, 5L] == as.character(fu), , drop = TRUE])
+      x <- e[ett_id == eid & estimand == "itt" & weights == side$w]
+      lab <- paste(side$w, eid)
+      expect_identical(nrow(x), 1L, info = lab)
+      got <- cells[side$col + 0:11]
+      # Events, person-years and rates of each arm, which the rule keeps.
+      expect_equal(
+        as.numeric(got[1:6]),
+        c(x$events_int, x$py_int, x$rate_int, x$events_cmp, x$py_cmp, x$rate_cmp),
+        tolerance = 1e-10,
+        info = lab
+      )
+      if (eid == "ETT00002") {
+        # Withheld: the ratio, its interval, its p-value and the three
+        # risk-difference cells read NE.
+        expect_identical(got[7:12], rep("NE", 6L), info = lab)
+        next
+      }
+      expect_identical(got[7L], swereg:::.ff_irr_num(x$irr), info = lab)
+      expect_identical(
+        got[8L],
+        paste(swereg:::.ff_irr_num(x$irr_lo), "to", swereg:::.ff_irr_num(x$irr_hi)),
+        info = lab
+      )
+      expect_equal(as.numeric(got[9L]), x$irr_pvalue, tolerance = 1e-10, info = lab)
+      expect_equal(
+        as.numeric(got[10L]),
+        x$rd * 10000,
+        tolerance = 1e-10,
+        info = lab
+      )
+      expect_identical(
+        got[11L],
+        sprintf("%+.2f to %+.2f", x$rd_lo * 10000, x$rd_hi * 10000),
+        info = lab
+      )
+      # An empty number-needed-to-treat cell reads back as NA.
+      nnt <- swereg:::.tte_nntb_cell(
+        x$nnt,
+        x$nnt_lo,
+        x$nnt_hi,
+        nnt_direction = x$nnt_direction
+      )
+      expect_identical(got[12L], if (nzchar(nnt)) nnt else NA_character_, info = lab)
+    }
+  }
+  # The two weights give two different cells.
+  r1 <- unname(body[body[, 5L] == "52", , drop = TRUE])
+  for (j in c(1L, 7L, 10L)) {
+    expect_false(identical(r1[[5L + j]], r1[[17L + j]]), info = paste("cell", j))
+  }
+})
+
 
 # ---- the untruncated intention-to-treat estimates ---------------------------
 # s3 takes the intention-to-treat rates, IRR and risk difference on

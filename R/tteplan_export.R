@@ -319,6 +319,30 @@
     "Supplementary - PP IRRs, RDs and NNTs, truncated vs untruncated weights"
   )
 
+  # Intention-to-treat truncated vs untruncated treatment weight, side by
+  # side. A result saved before swereg 27.3.16 holds no untruncated
+  # intention-to-treat slot, so its untruncated block reads "not computed".
+  .write_combined_sensitivity(
+    wb,
+    "Weight truncation (ITT)",
+    plan,
+    trunc_rates_slot = "rates_itt",
+    trunc_irr_slot = "irr_itt",
+    untrunc_rates_slot = "rates_itt_untrunc",
+    untrunc_irr_slot = "irr_itt_untrunc",
+    trunc_rd_slot = "rd_itt",
+    untrunc_rd_slot = "rd_itt_untrunc",
+    title = paste0(
+      "Weight-truncation robustness (intention-to-treat): truncated (left) ",
+      "vs untruncated (right) weights - all ETTs"
+    )
+  )
+  toc_names <- c(toc_names, "Weight truncation (ITT)")
+  toc_desc <- c(
+    toc_desc,
+    "Supplementary - ITT IRRs, RDs and NNTs, truncated vs untruncated weights"
+  )
+
   # --- Effect modification sheet (only if any subgroups are configured) ---
   has_subgroups <- "subgroup_vars" %in%
     names(ett) &&

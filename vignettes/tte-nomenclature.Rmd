@@ -128,7 +128,7 @@ The target trial emulation literature describes three analysis strategies:
 | **Per-protocol** | Censor at protocol deviation (treatment switching), adjust for informative censoring with IPCW. | **Yes**. `$s4_prepare_for_analysis(estimand = "pp")` (default) applies per-protocol censoring, then estimates IPCW-PP weights. The final combined weight `analysis_weight_pp = ipw × ipcw_pp` is used in `$irr()`. |
 | **As-treated** | Model time-varying treatment status with time-varying IPW. | **Not implemented.** Requires time-varying treatment weights P(A_t | A_{t-1}, L_t), which is a different modeling approach (Danaei 2013, Section 4.3). |
 
-The production pipeline produces **both** estimands per ETT: per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side by side (and as separate forest plots) in the exported tables.
+The production pipeline produces **both** estimands per ETT: per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side by side (and as separate forest plots) in the exported tables. It also repeats each estimand on its untruncated weight, `analysis_weight_pp` and `ipw`, as the sensitivity analysis of `vignette("tte-methods")` section 1.9.
 
 # Minimum-events rule
 

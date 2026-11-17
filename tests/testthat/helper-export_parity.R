@@ -174,6 +174,15 @@
 # `rd_pp`, with a risk difference 0.001 further from zero. s3 stores both
 # since swereg#66. The `legacy` fixture stores no risk difference at all.
 #
+# `itt_untrunc = TRUE` adds the untruncated intention-to-treat slots of
+# swereg 27.3.16 to the `new` fixture, beside each `irr_itt`. Their values
+# differ from the truncated ones. ETT00001 and ETT00003 also store
+# `rd_itt_untrunc`. It defaults to FALSE, so the other test files that build
+# this plan keep the result shape they were written against.
+# `.xp_capture_one()` turns it on for every `new` case of the snapshot. The
+# `legacy` fixture never stores these slots, so its "Weight truncation (ITT)"
+# sheet reads "not computed" in every untruncated cell.
+#
 # Enrollment 01 stores every baseline panel. Enrollment 02 stores NO raw panel
 # and NO matching block, and one of its attrition criteria has no global row.
 # That last one costs enrollment 02 its attrition sheet and its CONSORT
@@ -187,10 +196,12 @@
 .xp_plan <- function(
   fixture = c("new", "legacy"),
   subgroups = TRUE,
-  fill_summary = FALSE
+  fill_summary = FALSE,
+  itt_untrunc = FALSE
 ) {
   fixture <- match.arg(fixture)
   stored <- identical(fixture, "new")
+  itt_u <- stored && isTRUE(itt_untrunc)
 
   sg <- if (subgroups) {
     list(
@@ -329,6 +340,19 @@
     swereg:::.s3_rd_result(slot, .xp_curve(rd), ett_id, "tstop")
   }
 
+  # The untruncated intention-to-treat slots, under `itt_untrunc = TRUE` only.
+  # `rd` adds `rd_itt_untrunc` and `rd_curve_itt_untrunc`.
+  mk_itt_u <- function(rates, irr, rd = NULL, ett_id = NULL) {
+    if (!itt_u) {
+      return(list())
+    }
+    out <- list(rates_itt_untrunc = rates, irr_itt_untrunc = irr)
+    if (!is.null(rd)) {
+      out <- c(out, mk_rd("rd_itt_untrunc", rd, ett_id))
+    }
+    return(out)
+  }
+
   r1 <- c(
     list(
       enrollment_id = "01",
@@ -373,7 +397,13 @@
     ),
     mk_rd("rd_pp_trunc", -0.010, "ETT00001"),
     mk_rd("rd_pp", -0.011, "ETT00001"),
-    mk_rd("rd_itt", -0.006, "ETT00001")
+    mk_rd("rd_itt", -0.006, "ETT00001"),
+    mk_itt_u(
+      .xp_rates(4.6, 30500, 15.1, 8.8, 51500, 17.1),
+      .xp_irr(0.70, 0.52, 0.94, 0.018, stored),
+      rd = -0.008,
+      ett_id = "ETT00001"
+    )
   )
 
   r2 <- c(
@@ -391,7 +421,11 @@
       emtest_rd_parity_pp = .xp_emtest(0.07, 1.35, 0.97, 1.88, "rd_parity")
     ),
     mk_rd("rd_pp_trunc", 0.004, "ETT00002"),
-    mk_rd("rd_pp", 0.005, "ETT00002")
+    mk_rd("rd_pp", 0.005, "ETT00002"),
+    mk_itt_u(
+      .xp_rates(4.0, 31500, 12.7, 9.3, 50500, 18.4),
+      .xp_irr(1.18, 0.86, 1.62, 0.305, stored)
+    )
   )
 
   r3 <- c(
@@ -408,18 +442,29 @@
     ),
     mk_rd("rd_pp_trunc", -0.002, "ETT00003"),
     mk_rd("rd_pp", -0.003, "ETT00003"),
-    mk_rd("rd_itt", -0.001, "ETT00003")
+    mk_rd("rd_itt", -0.001, "ETT00003"),
+    mk_itt_u(
+      .xp_rates(10.9, 62000, 17.6, 20.1, 99500, 20.2),
+      .xp_irr(0.93, 0.72, 1.20, 0.571, stored),
+      rd = -0.003,
+      ett_id = "ETT00003"
+    )
   )
 
-  r4 <- list(
-    enrollment_id = "02",
-    description = "ETT00004",
-    summary = list(n_events = 5L),
-    rates_pp_trunc = rates2,
-    rates_pp = rates2,
-    irr_pp_trunc = list(skipped = TRUE, reason = "no events"),
-    irr_pp = list(skipped = TRUE, reason = "no events"),
-    irr_itt = list(skipped = TRUE, reason = "no events")
+  r4 <- c(
+    list(
+      enrollment_id = "02",
+      description = "ETT00004",
+      summary = list(n_events = 5L),
+      rates_pp_trunc = rates2,
+      rates_pp = rates2,
+      irr_pp_trunc = list(skipped = TRUE, reason = "no events"),
+      irr_pp = list(skipped = TRUE, reason = "no events"),
+      irr_itt = list(skipped = TRUE, reason = "no events")
+    ),
+    if (itt_u) {
+      list(irr_itt_untrunc = list(skipped = TRUE, reason = "no events"))
+    }
   )
 
   r5 <- c(
@@ -435,33 +480,49 @@
       irr_itt = .xp_irr(0.79, 0.61, 1.02, 0.071, stored)
     ),
     mk_rd("rd_pp_trunc", -0.015, "ETT00005"),
-    mk_rd("rd_pp", -0.016, "ETT00005")
+    mk_rd("rd_pp", -0.016, "ETT00005"),
+    mk_itt_u(
+      .xp_rates(10.1, 63500, 15.9, 21.0, 98000, 21.4),
+      .xp_irr(0.76, 0.58, 0.99, 0.044, stored)
+    )
   )
 
   # Ratio of exactly zero: finite, and not estimable.
-  r7 <- list(
-    enrollment_id = "01",
-    description = "ETT00007",
-    summary = list(n_events = 2L),
-    rates_pp_trunc = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
-    rates_pp = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
-    rates_itt = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
-    irr_pp_trunc = .xp_irr(0, 0, 0, NA_real_, stored),
-    irr_pp = .xp_irr(0, 0, 0, NA_real_, stored),
-    irr_itt = .xp_irr(0, 0, 0, NA_real_, stored)
+  r7 <- c(
+    list(
+      enrollment_id = "01",
+      description = "ETT00007",
+      summary = list(n_events = 2L),
+      rates_pp_trunc = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
+      rates_pp = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
+      rates_itt = .xp_rates(0, 21000, 0, 6.0, 42000, 14.3),
+      irr_pp_trunc = .xp_irr(0, 0, 0, NA_real_, stored),
+      irr_pp = .xp_irr(0, 0, 0, NA_real_, stored),
+      irr_itt = .xp_irr(0, 0, 0, NA_real_, stored)
+    ),
+    mk_itt_u(
+      .xp_rates(0, 21500, 0, 6.2, 41500, 14.9),
+      .xp_irr(0, 0, 0, NA_real_, stored)
+    )
   )
 
   # Ratio above the display cap.
-  r8 <- list(
-    enrollment_id = "01",
-    description = "ETT00008",
-    summary = list(n_events = 9L),
-    rates_pp_trunc = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
-    rates_pp = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
-    rates_itt = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
-    irr_pp_trunc = .xp_irr(150, 21.0, 1071.0, 1e-9, stored),
-    irr_pp = .xp_irr(150, 21.0, 1071.0, 1e-9, stored),
-    irr_itt = .xp_irr(140, 20.0, 980.0, 1e-9, stored)
+  r8 <- c(
+    list(
+      enrollment_id = "01",
+      description = "ETT00008",
+      summary = list(n_events = 9L),
+      rates_pp_trunc = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
+      rates_pp = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
+      rates_itt = .xp_rates(9.0, 1000, 900, 0.5, 40000, 1.25),
+      irr_pp_trunc = .xp_irr(150, 21.0, 1071.0, 1e-9, stored),
+      irr_pp = .xp_irr(150, 21.0, 1071.0, 1e-9, stored),
+      irr_itt = .xp_irr(140, 20.0, 980.0, 1e-9, stored)
+    ),
+    mk_itt_u(
+      .xp_rates(9.4, 980, 959, 0.5, 40500, 1.23),
+      .xp_irr(160, 22.0, 1150.0, 1e-9, stored)
+    )
   )
 
   plan$results_ett <- list(
@@ -848,7 +909,8 @@
   plan <- .xp_plan(
     fixture,
     subgroups = shape$subgroups,
-    fill_summary = fill_summary
+    fill_summary = fill_summary,
+    itt_untrunc = TRUE
   )
   path <- file.path(dir, "tables.xlsx")
   renderer <- .xp_with_render_capture(

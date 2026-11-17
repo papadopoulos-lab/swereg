@@ -231,6 +231,15 @@ test_that("(c) a spec without the key gives the grid, print and OSF text of 27.3
     osf_want,
     fixed = TRUE
   )
+  # 27.3.1 repeated only the per-protocol analysis with untruncated weights.
+  # Since 27.3.16 s3 repeats the intention-to-treat analysis too, and the
+  # "Other planned analysis" field says so.
+  osf_want <- sub(
+    "The per-protocol analysis is repeated with untruncated weights, and the result is reported beside the truncated one.",
+    "The per-protocol and the intention-to-treat analyses are each repeated with untruncated weights, and each result is reported beside the truncated one.",
+    osf_want,
+    fixed = TRUE
+  )
   expect_identical(.oe_osf(built$path), osf_want)
 
   # A key that lists every enrollment keeps the whole ETT table and print().
