@@ -68,7 +68,8 @@
 #' results sheet, so all its cells here are `NA`. The event counts and the
 #' risk difference show only when the results sheet carries its
 #' risk-difference columns. A ratio or a risk difference that the minimum-events
-#' rule withheld reads `NE`, and its event counts stay.
+#' rule withheld reads `NE`, and its event counts stay. A risk difference
+#' with a point and no interval also reads `NE`.
 #'
 #' @param est A `$get_estimates()` table.
 #' @param ett_ids Character vector, the ETTs in sheet order.
@@ -137,14 +138,15 @@
         .summary_count(cells[[2]])
       )
     }
+    # A risk difference with a point and no interval, as where an arm has no
+    # event, reads `NE`, as a withheld one does and as on the forest figure.
     if (isTRUE(attr(cells, "withheld"))) {
       out$rd[i] <- "NE"
     } else if (is.finite(cells[[3]])) {
-      point <- .summary_signed(cells[[3]])
       out$rd[i] <- if (is.na(cells[[4]])) {
-        point
+        "NE"
       } else {
-        paste0(point, " (", cells[[4]], ")")
+        paste0(.summary_signed(cells[[3]]), " (", cells[[4]], ")")
       }
     }
   }

@@ -583,16 +583,25 @@
       )
     }
     # A withheld risk difference reads `NE`. Its interval cell already does.
+    # A risk difference with a point and no interval, as where an arm has no
+    # event, reads `NE` in both cells, as on the forest figure.
     ne_rd <- vapply(
       rd_cells,
       function(cells) isTRUE(attr(cells, "withheld")),
       logical(1)
     )
+    no_ci <- vapply(
+      rd_cells,
+      function(cells) is.finite(cells[[3]]) && is.na(cells[[4]]),
+      logical(1)
+    )
+    ne_rows <- (data_start_row:data_end_row)[ne_rd | no_ci]
+    .sheet_write_ne(wb, sheet_name, ne_rows, rd_start + 2L)
     .sheet_write_ne(
       wb,
       sheet_name,
-      (data_start_row:data_end_row)[ne_rd],
-      rd_start + 2L
+      (data_start_row:data_end_row)[no_ci],
+      rd_start + 3L
     )
   }
 

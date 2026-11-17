@@ -375,9 +375,10 @@
 #'   or `NULL` when the row holds no stored risk difference.
 #' @return A list of three cells: the risk difference per 10,000 (numeric),
 #'   its interval and the number needed to treat (both character). The list
-#'   carries the attribute `marker`. It is `"NE"` for a withheld estimate,
-#'   `.SHEET_NOT_COMPUTED` for `rd_row = NULL`, and `NA` otherwise. The sheet
-#'   writer puts the marker into the numeric cell after the table.
+#'   carries the attribute `marker`. It is `"NE"` for a withheld estimate and
+#'   for a risk difference without an interval. It is `.SHEET_NOT_COMPUTED`
+#'   for `rd_row = NULL`, and `NA` otherwise. The sheet writer puts the
+#'   marker into the numeric cell after the table.
 #' @noRd
 .sensitivity_rd_cells <- function(rd_row) {
   if (is.null(rd_row)) {
@@ -397,6 +398,15 @@
     rd_row$nnt_hi,
     nnt_direction = rd_row$nnt_direction
   )
+  # A risk difference with a point and no interval, as where an arm has no
+  # event, reads `NE` in its point and interval cells, as on the forest
+  # figure. `.tte_nntb_cell()` already leaves the number needed to treat empty
+  # when a bound is missing.
+  if (is.finite(rd[[3]]) && is.na(rd[[4]])) {
+    cells <- list(NA_real_, "NE", if (nzchar(nnt)) nnt else NA_character_)
+    attr(cells, "marker") <- "NE"
+    return(cells)
+  }
   cells <- list(rd[[3]], rd[[4]], if (nzchar(nnt)) nnt else NA_character_)
   attr(cells, "marker") <- NA_character_
   return(cells)

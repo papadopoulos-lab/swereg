@@ -1165,6 +1165,26 @@ test_that("ITT results carries the same four columns from its own slot", {
   expect_identical(got$row[20], "-5.1234")
 })
 
+test_that("a risk difference without an interval reads NE on both results sheets", {
+  skip_if_not_installed("openxlsx")
+  # An arm with no event: `.tte_rd_curve()` keeps the point and sets both
+  # bounds to NA. The sheet shows NE in the point and the interval cell, as
+  # the forest figure does. The two person counts stay.
+  row <- rd_results_row()
+  row[, `:=`(rd_lo = NA_real_, rd_hi = NA_real_)]
+  row[, interval_status := "zero-event arm"]
+  plan <- rd_results_plan(row)
+  for (s in list(
+    c("PP results", "rates_pp_trunc", "irr_pp_trunc", "rd_pp_trunc"),
+    c("ITT results", "rates_itt", "irr_itt", "rd_itt")
+  )) {
+    got <- rd_sheet_cells(plan, s[1], s[2], s[3], s[4])
+    expect_identical(got$header[20], "Risk difference per 10,000", info = s[1])
+    expect_identical(got$row[18:19], c("20", "200"), info = s[1])
+    expect_identical(got$row[20:21], c("NE", "NE"), info = s[1])
+  }
+})
+
 test_that("with no risk difference cached the sheet keeps its 17 columns", {
   skip_if_not_installed("openxlsx")
   # Computing the risk difference costs minutes per ETT, so most exports have

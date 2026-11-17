@@ -172,3 +172,49 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
     rep("not computed", 6L)
   )
 })
+
+test_that("a risk difference without an interval reads NE on the sensitivity sheet", {
+  # An arm with no event: `.tte_rd_curve()` keeps the point and sets both
+  # bounds to NA. ETT00001 of `.xp_plan("new")` stores a truncated
+  # per-protocol risk difference of -0.010 and an untruncated one of -0.011.
+  # Only the truncated one loses its bounds here.
+  plan <- .xp_plan("new")
+  rd <- data.table::copy(plan$results_ett$ETT00001$rd_pp_trunc)
+  rd[, `:=`(rd_lo = NA_real_, rd_hi = NA_real_)]
+  rd[, interval_status := "zero-event arm"]
+  plan$results_ett$ETT00001$rd_pp_trunc <- rd
+
+  wb <- openxlsx::createWorkbook()
+  swereg:::.write_combined_sensitivity(
+    wb,
+    "Sensitivity",
+    plan,
+    trunc_rates_slot = "rates_pp_trunc",
+    trunc_irr_slot = "irr_pp_trunc",
+    untrunc_rates_slot = "rates_pp",
+    untrunc_irr_slot = "irr_pp",
+    trunc_rd_slot = "rd_pp_trunc",
+    untrunc_rd_slot = "rd_pp",
+    title = "Test sensitivity"
+  )
+  out_path <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(out_path), add = TRUE)
+  openxlsx::saveWorkbook(wb, out_path, overwrite = TRUE)
+  m <- as.matrix(openxlsx::read.xlsx(
+    out_path,
+    sheet = "Sensitivity",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  ))
+  h <- which(m[, 1L] == "Enrollment")[1L]
+  expect_identical(
+    unname(m[h, 15:16]),
+    c("Risk difference per 10,000", "Risk difference 95% CI")
+  )
+  # The first data row is ETT00001. Its untruncated side keeps its interval,
+  # so the row is the one this test changed.
+  expect_identical(as.numeric(m[h + 1L, 27L]), -110)
+  expect_identical(unname(m[h + 1L, 15:16]), c("NE", "NE"))
+  # `.tte_nntb_cell()` leaves the number needed to treat empty without bounds.
+  expect_true(is.na(m[h + 1L, 17L]))
+})

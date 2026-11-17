@@ -272,3 +272,19 @@ test_that("the Family column shows only when the spec sets a family", {
     fixed = TRUE
   )
 })
+
+
+test_that("a risk difference without an interval reads NE on the Summary sheet", {
+  # An arm with no event: `.tte_rd_curve()` keeps the point and sets both
+  # bounds to NA. ETT00001 stores a truncated per-protocol risk difference of
+  # -0.010, so its Summary cell would otherwise read "-100.00".
+  plan <- .xp_plan("new")
+  rd <- data.table::copy(plan$results_ett$ETT00001$rd_pp_trunc)
+  rd[, `:=`(rd_lo = NA_real_, rd_hi = NA_real_)]
+  rd[, interval_status := "zero-event arm"]
+  plan$results_ett$ETT00001$rd_pp_trunc <- rd
+  s <- ss_read_summary(ss_export(plan))
+  expect_identical(s[["PP RD per 10,000 (CI)"]][s$ETT == "ETT00001"], "NE")
+  # The person counts stay.
+  expect_identical(s[["Events int/cmp (PP)"]][s$ETT == "ETT00001"], "11 / 20")
+})
