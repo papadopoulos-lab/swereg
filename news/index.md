@@ -1,5 +1,46 @@
 # Changelog
 
+## swereg 27.3.17
+
+The protocol table of `$get_protocol_table()` feeds a manuscript, so it
+no longer names a sheet. Workbook sheets now print NE for a risk
+difference without an interval.
+
+### New features
+
+- **An enrollment MAY set `treatment: name:`.** The protocol table of
+  that enrollment then prints the name instead of the treatment column
+  code. `$reload_spec()` treats a change of the name as cosmetic and
+  copies it.
+- **`$get_estimates()` gains `n_trials_deviated_time_zero_int` and
+  `n_trials_deviated_time_zero_cmp`.** They count the person-trials of
+  each arm that deviation at time zero removes from the per-protocol
+  analysis. They are `NA` on intention-to-treat rows and on results that
+  s3 stored before 27.3.17. The table now has 51 columns.
+
+### Bug fixes
+
+- **The results, Summary and sensitivity sheets print NE for a risk
+  difference whose interval is missing.** An arm with no event gives
+  such a risk difference. The forest plot already printed NE. s3 still
+  stores the point estimate.
+- **The CONSORT flow and the attrition sheet stop when the
+  intention-to-treat rows of one enrollment disagree on an arm count.**
+  `.itt_analysis_counts()` stops there and names the enrollment. Before,
+  it used the first such row.
+- **The spec-summary sheet lists a confounder without a name by its
+  variable.** Before, it stopped with an error.
+
+### Documentation
+
+- **The protocol table names no sheet.** It reads “Follow-up horizon:”
+  for “Horizon on this sheet:”, and “Exclude people with” for “Drop rows
+  where X is TRUE”. It no longer opens with “This sheet documents”.
+- **A global inclusion criterion of washout type prints its rule in the
+  protocol table**, as an enrollment inclusion criterion already did.
+- **Output, documentation and tests spell “standardized” the US way.**
+  The Love plot axis title and the note of the feasibility sheet change.
+
 ## swereg 27.3.16
 
 s3 also estimates the intention-to-treat effect with the untruncated

@@ -195,13 +195,13 @@ d <- tempfile()
 dir.create(d)
 cp <- CandidatePath$new(c("/definitely/not/there", d), "my_dir")
 cp$resolve()
-#> [1] "/tmp/RtmpxYENbT/file1cb62d2de873"
+#> [1] "/tmp/RtmpPyDzQm/file1db43fd17a87"
 cp$is_resolved()
 #> [1] TRUE
 print(cp)
 #> <CandidatePath: my_dir>
 #>     /definitely/not/there
-#>   > /tmp/RtmpxYENbT/file1cb62d2de873
+#>   > /tmp/RtmpPyDzQm/file1db43fd17a87
 cp$invalidate()
 cp$is_resolved()
 #> [1] FALSE

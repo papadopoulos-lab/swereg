@@ -72,7 +72,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       130 |
+| consumed |       131 |
 | metadata |        10 |
 
 | class | what swereg does with the key | a specification that carries it |
@@ -119,7 +119,7 @@ unknown key and accept these.
 
 ## Every declared key path
 
-The schema declares 140 key paths across 39 mapping contexts.
+The schema declares 141 key paths across 39 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -194,6 +194,7 @@ knitr::kable(
 | `$/enrollments[]/treatment` | `arms` | consumed |
 | `$/enrollments[]/treatment` | `description` | consumed |
 | `$/enrollments[]/treatment` | `implementation` | consumed |
+| `$/enrollments[]/treatment` | `name` | consumed |
 | `$/enrollments[]/treatment/arms` | `comparator` | consumed |
 | `$/enrollments[]/treatment/arms` | `intervention` | consumed |
 | `$/enrollments[]/treatment/implementation` | `comparator_to_intervention_ratio` | consumed |
@@ -788,6 +789,11 @@ reports a row of kind `enrollment_family`, in two cases:
   YAML reads as a number, such as `family: "2008"`.
 - Some enrollments set `family`, and others do not. When one enrollment
   sets it, every enrollment MUST set it.
+
+## The treatment name
+
+An enrollment’s `treatment$name`, when set, replaces the treatment
+column name in the target trial protocol table of that enrollment.
 
 ## The minimum-events exemption
 

@@ -320,7 +320,7 @@ Both estimands condition on reaching time zero under observation and
 free of every enrollment outcome. The target of inference is therefore a
 landmark-survivor estimand. It says nothing about people who die, or
 have an outcome, before time zero (Dafni 2011). Both estimands are
-marginal: the weights standardise them over the baseline confounder
+marginal: the weights standardize them over the baseline confounder
 distribution of the enrolled person-trials.
 
 - The intention-to-treat analogue is the effect of the intervention
@@ -1094,7 +1094,7 @@ The unweighted panel uses equal weights, which gives the sample median
 and the sample quantiles of definition 2 in Hyndman and Fan (1996). The
 range reads the rows with a positive weight, so it is the same in both
 panels when every weight is positive. Each variable carries a
-standardised mean difference between the arms.
+standardized mean difference between the arms.
 
 ### 1.9 Sensitivity analyses
 

@@ -387,7 +387,7 @@ rows. It is `splines::ns(x, df = 3)` from 4 values, `factor(x)` for 2 or
 **Estimand (marginal)**: confounding is removed by the supplied
 `weights`, not by adjusting for confounders in this model, so the
 coefficient is a *marginal* (population-average) incidence rate ratio,
-standardised over the covariate distribution. This contrasts with
+standardized over the covariate distribution. This contrasts with
 covariate-adjusted outcome regressions (e.g. `TrialEmulation`'s pooled
 logistic), which target a *conditional* effect. The two coincide for the
 (collapsible) rate ratio but differ for the (non-collapsible) odds
@@ -553,7 +553,7 @@ Deaths are censored, not modelled as a competing risk, so `surv` is
 cause-specific event-free survival under independent censoring;
 `1 - surv` is therefore cause-specific failure, NOT a real-world
 cumulative incidence (which would require a competing-risk estimator).
-This is a descriptive weighted curve, not the MSM-standardised survival
+This is a descriptive weighted curve, not the MSM-standardized survival
 estimator. Returned rows are post-interval survival at each observed
 `tstop`, one row per arm and time. Where an arm holds nobody at risk,
 the hazard is `NA` and the survival carries its latest exact value
