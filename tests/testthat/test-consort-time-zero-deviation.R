@@ -290,8 +290,14 @@ test_that("a time-zero deviator leaves the per-protocol set and stays in the ITT
   # The time-zero record holds the deviator with `deviation_time_zero = 1`, and
   # the two other named person-trials with 0. ITT keeps no record.
   tz <- .tzd_pp$trial$time_zero_deviation
-  expect_identical(tz[enrollment_person_trial_id == zero]$deviation_time_zero, 1L)
-  expect_identical(tz[enrollment_person_trial_id == lost]$deviation_time_zero, 0L)
+  expect_identical(
+    tz[enrollment_person_trial_id == zero]$deviation_time_zero,
+    1L
+  )
+  expect_identical(
+    tz[enrollment_person_trial_id == lost]$deviation_time_zero,
+    0L
+  )
   expect_identical(
     tz[enrollment_person_trial_id == adherent]$deviation_time_zero,
     0L
@@ -341,7 +347,12 @@ test_that("the CONSORT flow labels the step as deviation at time zero and counts
 
 test_that("the attrition sheet and the enrollment summary carry the label and the per-arm count", {
   wb <- openxlsx::createWorkbook()
-  expect_true(swereg:::.write_attrition_sheet(wb, "Attrition_E1", .tzd_plan, "E1"))
+  expect_true(swereg:::.write_attrition_sheet(
+    wb,
+    "Attrition_E1",
+    .tzd_plan,
+    "E1"
+  ))
   sheet <- openxlsx::readWorkbook(wb, "Attrition_E1", startRow = 3L)
   expect_identical(
     names(sheet),
@@ -420,7 +431,11 @@ test_that("the drawn CONSORT diagram shows the deviation as its own censoring bo
     DiagrammeRsvg::export_svg(DiagrammeR::grViz(dot)),
     fixed = TRUE
   )
-  expect_match(svg, "Deviated from assigned strategy at time zero:", fixed = TRUE)
+  expect_match(
+    svg,
+    "Deviated from assigned strategy at time zero:",
+    fixed = TRUE
+  )
   expect_match(
     svg,
     "no per-protocol follow-up; included in intention-to-treat",
@@ -484,7 +499,12 @@ test_that("a trial that enters at or after the administrative end is its own ste
 
   # The attrition sheet carries the step and its label.
   wb <- openxlsx::createWorkbook()
-  expect_true(swereg:::.write_attrition_sheet(wb, "Attrition_E1", sc$plan, "E1"))
+  expect_true(swereg:::.write_attrition_sheet(
+    wb,
+    "Attrition_E1",
+    sc$plan,
+    "E1"
+  ))
   sheet <- openxlsx::readWorkbook(wb, "Attrition_E1", startRow = 3L)
   row <- sheet[sheet$step == "analysis_dataset_itt", ]
   expect_identical(row$change_kind, adm$change_kind)
@@ -541,4 +561,96 @@ test_that("a missing intention-to-treat count leaves both groups in one step", {
   )
   # The count is enrolled minus per-protocol, which is all it can be.
   expect_identical(a$change_person_trials, 1)
+})
+
+
+test_that("intention-to-treat rows of one enrollment that disagree stop", {
+  # Two weighting schemes of one enrollment store different arm counts. The
+  # count MUST NOT take the first row.
+  for (bad in list(
+    list(int = c(10, 11), cmp = c(20, 20)),
+    list(int = c(10, 10), cmp = c(20, 21))
+  )) {
+    plan <- .tzd_plan
+    plan$get_estimates <- function() {
+      return(data.table::data.table(
+        ett_id = c("ETT1", "ETT2", "ETT3"),
+        enrollment_id = c("E1", "E1", "E2"),
+        estimand = "itt",
+        weights = c("ipw", "unweighted", "ipw"),
+        n_trials_int = c(bad$int, 99),
+        n_trials_cmp = c(bad$cmp, 98)
+      ))
+    }
+    expect_error(
+      swereg:::.itt_analysis_counts(plan, "E1"),
+      "enrollment E1",
+      fixed = TRUE
+    )
+    # The other enrollment has one row and keeps its count.
+    expect_identical(
+      swereg:::.itt_analysis_counts(plan, "E2"),
+      list(n_intervention = 99, n_comparator = 98)
+    )
+  }
+})
+
+test_that("an intention-to-treat row with one NA count still takes part in the check", {
+  # Each count is compared across its own non-NA values. A row that lacks
+  # one count MUST NOT hide a disagreement in the other.
+  for (bad in list(
+    list(int = c(10, 11), cmp = c(20, NA)),
+    list(int = c(10, NA), cmp = c(20, 21))
+  )) {
+    plan <- .tzd_plan
+    plan$get_estimates <- function() {
+      return(data.table::data.table(
+        ett_id = c("ETT1", "ETT2"),
+        enrollment_id = "E1",
+        estimand = "itt",
+        weights = c("ipw", "unweighted"),
+        n_trials_int = bad$int,
+        n_trials_cmp = bad$cmp
+      ))
+    }
+    expect_error(
+      swereg:::.itt_analysis_counts(plan, "E1"),
+      "enrollment E1",
+      fixed = TRUE
+    )
+  }
+  # A row with one NA count and an agreeing other count does not stop.
+  plan <- .tzd_plan
+  plan$get_estimates <- function() {
+    return(data.table::data.table(
+      ett_id = c("ETT1", "ETT2"),
+      enrollment_id = "E1",
+      estimand = "itt",
+      weights = c("ipw", "unweighted"),
+      n_trials_int = c(10, 10),
+      n_trials_cmp = c(20, NA)
+    ))
+  }
+  expect_identical(
+    swereg:::.itt_analysis_counts(plan, "E1"),
+    list(n_intervention = 10, n_comparator = 20)
+  )
+})
+
+test_that("intention-to-treat rows of one enrollment that agree give one count", {
+  plan <- .tzd_plan
+  plan$get_estimates <- function() {
+    return(data.table::data.table(
+      ett_id = c("ETT1", "ETT2"),
+      enrollment_id = "E1",
+      estimand = "itt",
+      weights = c("ipw", "unweighted"),
+      n_trials_int = c(10, 10),
+      n_trials_cmp = c(20, 20)
+    ))
+  }
+  expect_identical(
+    swereg:::.itt_analysis_counts(plan, "E1"),
+    list(n_intervention = 10, n_comparator = 20)
+  )
 })

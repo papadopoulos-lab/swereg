@@ -56,7 +56,11 @@ test_that("the Rare conditions sheet shows each candidate, and a small count as 
   )
   expect_identical(
     x[[1]][5:7],
-    c("Prior rare condition B", "Prior common condition", "Prior rare condition A")
+    c(
+      "Prior rare condition B",
+      "Prior common condition",
+      "Prior rare condition A"
+    )
   )
   expect_identical(as.character(x[[3]][5:7]), rep("10", 3L))
   expect_identical(x[[4]][5:7], c("<10", "50", "<10"))
@@ -148,6 +152,27 @@ test_that("Study Specification marks no confounder without an exclusion", {
       )
     )
   }
+})
+
+test_that("Study Specification lists an unnamed confounder by its variable", {
+  # The spec reader accepts a confounder without a `name`. One unnamed
+  # confounder is excluded by the rule and one is not.
+  plan <- spr_report_fast_plan()
+  plan$spec$confounders[[2L]]$name <- NULL
+  plan$spec$confounders[[3L]]$name <- NULL
+  ss <- spr_report_read_sheet(
+    function(wb) swereg:::.write_spec_summary(wb, plan),
+    "Study Specification"
+  )
+  rows <- spr_report_confounder_rows(ss)
+  expect_true(
+    "rd_no_osd_rare_a_everbefore (excluded by the rare-condition rule)" %in%
+      rows
+  )
+  expect_true("rd_no_osd_common_everbefore" %in% rows)
+  expect_true(
+    "Prior rare condition B (excluded by the rare-condition rule)" %in% rows
+  )
 })
 
 test_that("the rule sentence is singular for one driver and plural for two", {
@@ -437,7 +462,9 @@ spr_report_all_drive <- function(plan) {
   plan$spec$rare_condition_rule$decided_by <- c("01", "02")
   plan$sparse_decision[, decided_by := "01, 02"]
   # A changed rule and decision need the hash and the stamps of a new s1 run.
-  plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(plan$spec$rare_condition_rule)
+  plan$sparse_rule_hash <- swereg:::.tte_sparse_rule_hash(
+    plan$spec$rare_condition_rule
+  )
   return(tte_stamp_stages(plan))
 }
 SPR_INHERIT_SPEC <- "The other comparisons inherit the decision."
@@ -532,10 +559,13 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
   elig_spec <- strsplit(pt$`Target trial specification`[1], "\n")[[1]]
   elig_emul <- strsplit(pt$`Target trial emulation`[1], "\n")[[1]]
   plan_emul <- strsplit(pt$`Target trial emulation`[7], "\n")[[1]]
-  expect_identical(pt$`Protocol component`[c(1, 7)], c(
-    "Eligibility criteria",
-    "Analysis plan"
-  ))
+  expect_identical(
+    pt$`Protocol component`[c(1, 7)],
+    c(
+      "Eligibility criteria",
+      "Analysis plan"
+    )
+  )
   expect_true(any(grepl(
     paste0(
       "The rule was decided from baseline counts in the eligible population, ",
@@ -552,7 +582,11 @@ test_that("the protocol table states the rule, the frozen decision and the adjus
       elig_emul
   )
   expect_identical(
-    sub(" at baseline\\.$", "", sub("^Exclude persons with ", "", elig_spec[4])),
+    sub(
+      " at baseline\\.$",
+      "",
+      sub("^Exclude persons with ", "", elig_spec[4])
+    ),
     paste(FAST_EXCLUDED, collapse = ", ")
   )
   expect_identical(

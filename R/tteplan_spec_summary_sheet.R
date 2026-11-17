@@ -636,8 +636,10 @@
   sparse_excluded <- .tte_sparse_report(plan)$excluded_vars
   for (conf in spec$confounders) {
     cimpl <- conf$implementation
+    # The spec reader accepts a confounder without a `name`. Such a row shows
+    # its variable, so the sheet never gets an empty item.
     add_item(paste0(
-      conf$name,
+      conf$name %||% cimpl$variable,
       if (isTRUE(cimpl$variable %in% sparse_excluded)) {
         " (excluded by the rare-condition rule)"
       }

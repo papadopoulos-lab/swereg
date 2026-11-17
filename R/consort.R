@@ -65,9 +65,10 @@
 #'
 #' @param plan A TTEPlan, or a list that answers `$get_estimates()`.
 #' @param eid Character(1), the enrollment identifier.
-#' @return A list with `n_intervention` and `n_comparator`, from the first
-#'   `estimand == "itt"` row of `eid` that holds both. `NULL` when no row of
-#'   `eid` holds them.
+#' @return A list with `n_intervention` and `n_comparator`, from the
+#'   `estimand == "itt"` rows of `eid` that hold both. `NULL` when no row of
+#'   `eid` holds them. The function stops when the non-NA values of either
+#'   count differ across the `estimand == "itt"` rows of `eid`.
 #' @noRd
 .itt_analysis_counts <- function(plan, eid) {
   # A plan stand-in without the accessor has no count, the same as a missing
@@ -76,14 +77,25 @@
     return(NULL)
   }
   est <- plan$get_estimates()
-  itt <- est[
-    which(
-      est$enrollment_id == eid &
-        est$estimand == "itt" &
-        !is.na(est$n_trials_int) &
-        !is.na(est$n_trials_cmp)
+  itt <- est[which(est$enrollment_id == eid & est$estimand == "itt")]
+  # Every row of one enrollment, whatever its `weights`, MUST hold the same
+  # counts. Each count is compared across its own non-NA values, so a row
+  # that lacks the other count still takes part in the check.
+  n_int <- unique(itt$n_trials_int[!is.na(itt$n_trials_int)])
+  n_cmp <- unique(itt$n_trials_cmp[!is.na(itt$n_trials_cmp)])
+  if (length(n_int) > 1L || length(n_cmp) > 1L) {
+    stop(
+      "The intention-to-treat rows of enrollment ",
+      eid,
+      " disagree on the arm counts. n_trials_int: ",
+      paste(n_int, collapse = ", "),
+      ". n_trials_cmp: ",
+      paste(n_cmp, collapse = ", "),
+      ".",
+      call. = FALSE
     )
-  ]
+  }
+  itt <- itt[which(!is.na(itt$n_trials_int) & !is.na(itt$n_trials_cmp))]
   if (nrow(itt) == 0L) {
     return(NULL)
   }
@@ -323,11 +335,11 @@
   flow[, change_persons := c(NA_real_, n_p[-length(n_p)] - n_p[-1L])]
   flow[,
     change_kind := data.table::fcase(
-      kind == "exclusion" , "excluded"                    ,
-      kind == "selection" , "not drawn (comparator draw)" ,
-      kind == "itt_analysis" , .CONSORT_ADMIN_END_ENTRY ,
-      kind == "analysis" & itt_known , .CONSORT_TIME_ZERO_DEVIATION ,
-      kind == "analysis" , .CONSORT_PP_GAP_UNSPLIT ,
+      kind == "exclusion"            , "excluded"                    ,
+      kind == "selection"            , "not drawn (comparator draw)" ,
+      kind == "itt_analysis"         , .CONSORT_ADMIN_END_ENTRY      ,
+      kind == "analysis" & itt_known , .CONSORT_TIME_ZERO_DEVIATION  ,
+      kind == "analysis"             , .CONSORT_PP_GAP_UNSPLIT       ,
       default = NA_character_
     )
   ]
@@ -501,8 +513,8 @@
   rows <- rows[!as.character(rows$step) %in% "landmark_candidates"]
   step <- as.character(rows$step)
   group <- data.table::fcase(
-    step == "eligible_valid_treatment" | grepl("^landmark_", step), "other",
-    step %in% inclusion_steps, "inclusion",
+    step == "eligible_valid_treatment" | grepl("^landmark_", step) , "other"     ,
+    step %in% inclusion_steps                                      , "inclusion" ,
     default = "exclusion"
   )
   headings <- c(
