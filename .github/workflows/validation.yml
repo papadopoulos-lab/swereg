@@ -35,11 +35,23 @@ jobs:
 
       # The snapshot r-package.yml pins: RcppParallel 6.1.1 dropped a TBB
       # symbol that stringfish 0.19.0 references, so qs2 fails at dyn.load.
+      # The step takes the distro of the P3M URL from the codename of the
+      # runner, so a runner upgrade cannot leave this job on older binaries.
+      - id: mirror
+        shell: bash
+        env:
+          CRAN_SNAPSHOT: "2026-07-23"
+        run: |
+          set -euo pipefail
+          # set -u stops the script here if os-release has no VERSION_CODENAME.
+          codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+          echo "url=https://packagemanager.posit.co/cran/__linux__/$codename/$CRAN_SNAPSHOT" >> "$GITHUB_OUTPUT"
+
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: release
           use-public-rspm: false
-          cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23
+          cran: ${{ steps.mirror.outputs.url }}
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
