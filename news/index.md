@@ -1,5 +1,54 @@
 # Changelog
 
+## swereg 27.3.16
+
+s3 also estimates the intention-to-treat effect with the untruncated
+treatment weight. A plan gets the new rows on its next rerun of
+`$s3_analyze()`.
+
+### New features
+
+- **`$get_estimates()` and `$get_curves()` carry the combination
+  intention-to-treat, untruncated.** s3 computes the intention-to-treat
+  rates, IRR and risk difference on `ipw` as well as on `ipw_trunc`. It
+  stores them as `rates_itt_untrunc`, `irr_itt_untrunc`,
+  `rd_itt_untrunc` and `rd_curve_itt_untrunc`. The minimum-events rule
+  withholds them exactly when it withholds the truncated
+  intention-to-treat estimate.
+- **`$export_tables()` writes a “Weight truncation (ITT)” sheet,
+  directly after “Weight truncation (PP)”.** It shows the
+  intention-to-treat IRR, risk difference and number needed to treat on
+  each weight. A result saved before 27.3.16 keeps its row, and every
+  cell of its untruncated block reads “not computed”. The sheets after
+  it move one place.
+
+### Performance
+
+- **An emulated trial has 11 s3 work items, up from 8, and 4 of them are
+  risk differences.** Subgroup items are not in these counts. The base
+  is the 50,000 person-trial benchmark of `$s3_analyze()`: 272,147
+  person-trial intervals, one thread, file reads not included. There the
+  8 items took 30.70 s of CPU time and the 11 items take 40.74 s, so the
+  three new items add 32.7%. One untruncated intention-to-treat
+  bootstrap takes 3.96 s of CPU time.
+
+### Documentation
+
+- **Filter the intention-to-treat rows on `estimand` and `weights`.**
+  The 27.2.4 entry says to filter on `estimand == "itt"` alone. That
+  filter now returns both weightings, so use
+  `estimand == "itt" & weights == "truncated"` for the primary estimate.
+- **The vignettes and
+  [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md)
+  describe both estimands on both weights.**
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md),
+  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md),
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  and
+  [`vignette("tte-preregistration")`](https://papadopoulos-lab.github.io/swereg/articles/tte-preregistration.md)
+  no longer state that only the per-protocol analysis is repeated with
+  untruncated weights.
+
 ## swereg 27.3.15
 
 s2 could stop when an IPCW confounder is a character column. It stopped

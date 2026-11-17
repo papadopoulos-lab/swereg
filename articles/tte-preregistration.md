@@ -128,7 +128,7 @@ come from `$print_target_checklist()` on the same plan.
 | Inference criteria | `study$implementation$conf_level`, default 0.95, and `min_expected_events_per_arm_per_year` | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.6. [`tteplan_osf_text()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_osf_text.md) writes the minimum-events rule as the `Inference criteria` field. |
 | Data inclusion and exclusion | The criteria of “Data collection procedures”, and `rare_condition_rule` | Confounders, rows of “Rare-condition rule (rare_condition_rule)”. TARGET items 6a and 7. See “The rare-condition rule”. |
 | Missing data | Fixed rules, and the `impute_fn` argument of s1 | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), section 1.8.7. TARGET item 11. |
-| Other planned analyses | `subgroups[]`, the untruncated weights, and the intention-to-treat estimand beside the per-protocol one | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), sections 1.8.8 and 1.9 |
+| Other planned analyses | `subgroups[]`, the untruncated weights of both estimands, and the intention-to-treat estimand beside the per-protocol one | [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md), sections 1.8.8 and 1.9 |
 | Context and additional information | `study$implementation$version` | Study, row “Version:”. See “Deviations after registration”. |
 
 ### Statistical models

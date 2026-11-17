@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.15</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.16</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -524,7 +524,9 @@ ETT: per-protocol via
 <code>$irr(weight_col = "analysis_weight_pp_trunc")</code> and
 intention-to-treat via <code>$irr(weight_col = "ipw_trunc")</code>,
 reported side by side (and as separate forest plots) in the exported
-tables.</p>
+tables. It also repeats each estimand on its untruncated weight,
+<code>analysis_weight_pp</code> and <code>ipw</code>, as the sensitivity
+analysis of <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section 1.9.</p>
 </div>
 <div class="section level2">
 <h2 id="minimum-events-rule">Minimum-events rule<a class="anchor" aria-label="anchor" href="#minimum-events-rule"></a>

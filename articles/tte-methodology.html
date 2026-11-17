@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.15</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.16</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -254,9 +254,9 @@ time zero (see note below).</td>
 <td align="left">Cole &amp; Hernán 2008 (p. 661)</td>
 <td align="left">
 <code>$s3_truncate_weights()</code>: Winsorization at
-1st/99th percentiles by default. The untruncated per-protocol result is
-exported as a sensitivity analysis. Danaei 2013 truncated the stabilised
-weights at a maximum of 10.</td>
+1st/99th percentiles by default. The untruncated result of each estimand
+is exported as a sensitivity analysis. Danaei 2013 truncated the
+stabilised weights at a maximum of 10.</td>
 </tr>
 </tbody>
 </table>
@@ -270,7 +270,8 @@ resulting informative censoring with IPCW (analysis weight
 follow-up through switching, with no switch censoring and no IPCW, and
 weights on the baseline IPW alone (<code>ipw_trunc</code>). The
 production pipeline builds both analysis files per ETT and reports both
-IRRs and both risk differences side by side. As-treated analysis
+IRRs and both risk differences side by side. It reports each estimate on
+the truncated and on the untruncated weight. As-treated analysis
 (time-varying IPW) is not implemented.</p>
 <p>Follow-up can end for the seven reasons in the table below. The two
 estimands handle four of them differently:</p>

@@ -125,7 +125,11 @@ strategies:
 The production pipeline produces **both** estimands per ETT:
 per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
 intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side
-by side (and as separate forest plots) in the exported tables.
+by side (and as separate forest plots) in the exported tables. It also
+repeats each estimand on its untruncated weight, `analysis_weight_pp`
+and `ipw`, as the sensitivity analysis of
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+section 1.9.
 
 ## Minimum-events rule
 
