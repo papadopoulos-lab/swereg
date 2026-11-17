@@ -437,7 +437,40 @@
   # ITT file and a file from before 27.2.0 hold none. Assigning NULL adds no
   # key, so neither can overwrite the value a per-protocol item stored.
   res$ipcw_pp_options <- enrollment$ipcw_pp_options
+  # The person-trials that a deviation at time zero removed, per arm. The
+  # helper returns NULL for an ITT file, so the key stays as a per-protocol
+  # item stored it.
+  res$n_trials_deviated_time_zero <- .s3_time_zero_deviation_counts(
+    enrollment
+  )
   return(res)
+}
+
+#' Count the person-trials that a deviation at time zero removed, per arm.
+#'
+#' `s5_prepare_outcome()` writes `$time_zero_deviation` for the per-protocol
+#' estimand only. A person-trial with `deviation_time_zero == 1` keeps no row
+#' in the per-protocol analysis file.
+#'
+#' The intervention arm is `TRUE` and the comparator arm is `FALSE`. That is
+#' the convention `$rates()` writes.
+#'
+#' @param enrollment The loaded analysis enrollment.
+#' @return `NULL` when the enrollment holds no record. That is an ITT file, or
+#'   a file from before the record existed. Otherwise a list of two numbers,
+#'   `intervention` and `comparator`.
+#' @noRd
+.s3_time_zero_deviation_counts <- function(enrollment) {
+  tz <- enrollment$time_zero_deviation
+  if (!data.table::is.data.table(tz)) {
+    return(NULL)
+  }
+  arm <- tz[[enrollment$design$treatment_var]]
+  deviated <- tz[["deviation_time_zero"]]
+  return(list(
+    intervention = sum(deviated[arm %in% TRUE]),
+    comparator = sum(deviated[arm %in% FALSE])
+  ))
 }
 
 #' Run one s3 analysis call on a loaded analysis enrollment.

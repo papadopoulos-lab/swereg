@@ -186,6 +186,8 @@
     py_unweighted_cmp = "numeric",
     n_trials_int = "numeric",
     n_trials_cmp = "numeric",
+    n_trials_deviated_time_zero_int = "numeric",
+    n_trials_deviated_time_zero_cmp = "numeric",
     persons_event_int = "numeric",
     persons_event_cmp = "numeric",
     irr = "numeric",
@@ -583,8 +585,12 @@
   res <- plan$results_ett[[ett_id]]
   labels <- .acc_ett_labels(plan, ett_id)
   n_events <- .acc_num1(res$summary, "n_events")
+  # The per-protocol file alone holds the time-zero record, so an ITT row
+  # reads no counts. A result stored before s3 wrote the slot gives NA.
+  tz_deviated <- .acc_slot(res, "n_trials_deviated_time_zero")
 
   rows <- lapply(.ACC_ESTIMATE_SLOTS, function(combo) {
+    tz_row <- if (identical(combo$estimand, "pp")) tz_deviated else NULL
     # The horizon record of the estimand. Both weightings of one estimand
     # share it, because the decision of the estimand covers both.
     horizon <- .acc_slot(res, paste0("horizon_", combo$estimand))
@@ -625,6 +631,8 @@
       py_unweighted_cmp = rates$py_unweighted_cmp,
       n_trials_int = rates$n_trials_int,
       n_trials_cmp = rates$n_trials_cmp,
+      n_trials_deviated_time_zero_int = .acc_num1(tz_row, "intervention"),
+      n_trials_deviated_time_zero_cmp = .acc_num1(tz_row, "comparator"),
       persons_event_int = .acc_num1(
         rd_row,
         "n_persons_with_event_intervention"

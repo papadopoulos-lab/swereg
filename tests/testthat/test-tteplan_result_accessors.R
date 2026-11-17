@@ -208,10 +208,12 @@ skip_if_not_installed("data.table")
     enrollments = list(list(
       id = "01",
       name = "Enrollment one",
-      treatment = list(arms = list(
-        intervention = "Treated",
-        comparator = "Untreated"
-      ))
+      treatment = list(
+        arms = list(
+          intervention = "Treated",
+          comparator = "Untreated"
+        )
+      )
     ))
   )
 
@@ -365,13 +367,25 @@ skip_if_not_installed("data.table")
       attrition = data.table::data.table(
         enrollment_period_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
         criterion = c(
-          "before_exclusions", "before_exclusions", "before_exclusions",
-          "age", "age", "age",
-          "prior_disease", "prior_disease"
+          "before_exclusions",
+          "before_exclusions",
+          "before_exclusions",
+          "age",
+          "age",
+          "age",
+          "prior_disease",
+          "prior_disease"
         ),
         n_persons = c(3000, 3200, 5000, 2500, 2600, 4000, 1800, 1900),
         n_person_trials = c(
-          25000, 25000, 50000, 20000, 20000, 40000, 15000, 15000
+          25000,
+          25000,
+          50000,
+          20000,
+          20000,
+          40000,
+          15000,
+          15000
         ),
         n_intervention = c(500, 500, 1000, 450, 450, 900, 400, 400),
         n_comparator = c(2000, 2000, 4000, 1550, 1550, 3100, 1100, 1100)
@@ -407,43 +421,118 @@ skip_if_not_installed("data.table")
 # package. A test that read `.ACC_SCHEMA` would agree with any change to it.
 .ACC_EXPECT <- list(
   estimates = c(
-    "ett_id", "enrollment_id", "enrollment_name", "outcome_var",
-    "outcome_name", "outcome_role", "follow_up", "age_group",
-    "intervention_name", "comparator_name", "estimand", "weights",
-    "n_events", "rates_stored",
-    "events_int", "py_int", "rate_int", "events_cmp", "py_cmp",
-    "rate_cmp", "events_unweighted_int", "py_unweighted_int",
-    "events_unweighted_cmp", "py_unweighted_cmp",
-    "n_trials_int", "n_trials_cmp",
-    "persons_event_int", "persons_event_cmp", "irr", "irr_lo",
-    "irr_hi", "irr_pvalue", "irr_estimable", "irr_stored",
-    "irr_interval_stored", "rd_stored", "rd", "rd_lo", "rd_hi",
-    "interval_status", "nnt", "nnt_lo", "nnt_hi", "nnt_direction", "n_boot",
-    "seed", "conf_level", "horizon_reportable_weeks", "horizon_status"
+    "ett_id",
+    "enrollment_id",
+    "enrollment_name",
+    "outcome_var",
+    "outcome_name",
+    "outcome_role",
+    "follow_up",
+    "age_group",
+    "intervention_name",
+    "comparator_name",
+    "estimand",
+    "weights",
+    "n_events",
+    "rates_stored",
+    "events_int",
+    "py_int",
+    "rate_int",
+    "events_cmp",
+    "py_cmp",
+    "rate_cmp",
+    "events_unweighted_int",
+    "py_unweighted_int",
+    "events_unweighted_cmp",
+    "py_unweighted_cmp",
+    "n_trials_int",
+    "n_trials_cmp",
+    "n_trials_deviated_time_zero_int",
+    "n_trials_deviated_time_zero_cmp",
+    "persons_event_int",
+    "persons_event_cmp",
+    "irr",
+    "irr_lo",
+    "irr_hi",
+    "irr_pvalue",
+    "irr_estimable",
+    "irr_stored",
+    "irr_interval_stored",
+    "rd_stored",
+    "rd",
+    "rd_lo",
+    "rd_hi",
+    "interval_status",
+    "nnt",
+    "nnt_lo",
+    "nnt_hi",
+    "nnt_direction",
+    "n_boot",
+    "seed",
+    "conf_level",
+    "horizon_reportable_weeks",
+    "horizon_status"
   ),
   curves = c(
-    "ett_id", "estimand", "weights", "arm", "follow_up_interval", "surv",
+    "ett_id",
+    "estimand",
+    "weights",
+    "arm",
+    "follow_up_interval",
+    "surv",
     "n_persons_at_risk"
   ),
   baselines = c(
-    "enrollment_id", "imputation", "weighting", "variant", "variable",
-    "level", "overall", "comparator", "intervention", "comparator_label",
-    "intervention_label", "smd_stored", "smd_numeric",
-    "n_baseline", "n_baseline_intervention", "n_baseline_comparator"
+    "enrollment_id",
+    "imputation",
+    "weighting",
+    "variant",
+    "variable",
+    "level",
+    "overall",
+    "comparator",
+    "intervention",
+    "comparator_label",
+    "intervention_label",
+    "smd_stored",
+    "smd_numeric",
+    "n_baseline",
+    "n_baseline_intervention",
+    "n_baseline_comparator"
   ),
   attrition = c(
-    "enrollment_id", "enrollment_period_id", "step_order", "step_name", "n_persons",
-    "n_person_trials", "n_arm_intervention", "n_arm_comparator"
+    "enrollment_id",
+    "enrollment_period_id",
+    "step_order",
+    "step_name",
+    "n_persons",
+    "n_person_trials",
+    "n_arm_intervention",
+    "n_arm_comparator"
   ),
   matching = c(
-    "enrollment_id", "enrollment_period_id", "n_intervention_total", "n_comparator_total",
-    "n_intervention_enrolled", "n_comparator_enrolled"
+    "enrollment_id",
+    "enrollment_period_id",
+    "n_intervention_total",
+    "n_comparator_total",
+    "n_intervention_enrolled",
+    "n_comparator_enrolled"
   ),
   subgroups = c(
-    "ett_id", "estimand", "weights", "subgroup_var", "subgroup_level",
-    "strata_stored", "irr",
-    "irr_lo", "irr_hi", "irr_pvalue", "em_pvalue", "ratio_of_irrs",
-    "ratio_lo", "ratio_hi"
+    "ett_id",
+    "estimand",
+    "weights",
+    "subgroup_var",
+    "subgroup_level",
+    "strata_stored",
+    "irr",
+    "irr_lo",
+    "irr_hi",
+    "irr_pvalue",
+    "em_pvalue",
+    "ratio_of_irrs",
+    "ratio_lo",
+    "ratio_hi"
   )
 )
 
@@ -452,7 +541,12 @@ skip_if_not_installed("data.table")
   estimates = c("ett_id", "estimand", "weights"),
   curves = c("ett_id", "estimand", "weights", "arm", "follow_up_interval"),
   baselines = c(
-    "enrollment_id", "imputation", "weighting", "variant", "variable", "level"
+    "enrollment_id",
+    "imputation",
+    "weighting",
+    "variant",
+    "variable",
+    "level"
   ),
   # `enrollment_period_id` is in the key. `$get_attrition()` returns the per-trial rows and
   # the global row of each criterion, so a key without it duplicates.
@@ -462,7 +556,11 @@ skip_if_not_installed("data.table")
   # per ETT, and every variable has its own `"all"` row, so a key without it
   # duplicates on correct data.
   subgroups = c(
-    "ett_id", "estimand", "weights", "subgroup_var", "subgroup_level"
+    "ett_id",
+    "estimand",
+    "weights",
+    "subgroup_var",
+    "subgroup_level"
   )
 )
 
@@ -580,19 +678,27 @@ test_that("get_curves returns one row per ETT, estimand, weighting, arm, follow-
   # analysis weight, intention-to-treat the truncated baseline weight.
   expect_setequal(
     unique(paste(cv$ett_id, cv$estimand, cv$weights)),
-    c("ETT00001 pp truncated", "ETT00001 itt truncated", "ETT00002 itt truncated")
+    c(
+      "ETT00001 pp truncated",
+      "ETT00001 itt truncated",
+      "ETT00002 itt truncated"
+    )
   )
   expect_identical(
     cv[
-      ett_id == "ETT00001" & estimand == "pp" &
-        arm == "intervention" & follow_up_interval == 52
+      ett_id == "ETT00001" &
+        estimand == "pp" &
+        arm == "intervention" &
+        follow_up_interval == 52
     ]$surv,
     0.990
   )
   expect_identical(
     cv[
-      ett_id == "ETT00001" & estimand == "pp" &
-        arm == "comparator" & follow_up_interval == 52
+      ett_id == "ETT00001" &
+        estimand == "pp" &
+        arm == "comparator" &
+        follow_up_interval == 52
     ]$surv,
     0.980
   )
@@ -629,9 +735,14 @@ test_that("get_attrition returns one row per enrollment and stored row", {
   expect_identical(
     at$step_name,
     c(
-      "before_exclusions", "before_exclusions", "before_exclusions",
-      "age", "age", "age",
-      "prior_disease", "prior_disease"
+      "before_exclusions",
+      "before_exclusions",
+      "before_exclusions",
+      "age",
+      "age",
+      "age",
+      "prior_disease",
+      "prior_disease"
     )
   )
   expect_identical(
@@ -723,15 +834,39 @@ test_that("effect and decision fields carry no formatting", {
 
   numeric_cols <- list(
     e = c(
-      "n_events", "events_int", "py_int", "rate_int", "events_cmp", "py_cmp",
-      "rate_cmp", "persons_event_int", "persons_event_cmp", "irr", "irr_lo",
-      "irr_hi", "irr_pvalue", "rd", "rd_lo", "rd_hi", "nnt", "nnt_lo",
-      "nnt_hi", "n_boot", "seed", "conf_level"
+      "n_events",
+      "events_int",
+      "py_int",
+      "rate_int",
+      "events_cmp",
+      "py_cmp",
+      "rate_cmp",
+      "persons_event_int",
+      "persons_event_cmp",
+      "irr",
+      "irr_lo",
+      "irr_hi",
+      "irr_pvalue",
+      "rd",
+      "rd_lo",
+      "rd_hi",
+      "nnt",
+      "nnt_lo",
+      "nnt_hi",
+      "n_boot",
+      "seed",
+      "conf_level"
     ),
     cv = c("follow_up_interval", "surv", "n_persons_at_risk"),
     sg = c(
-      "irr", "irr_lo", "irr_hi", "irr_pvalue", "em_pvalue", "ratio_of_irrs",
-      "ratio_lo", "ratio_hi"
+      "irr",
+      "irr_lo",
+      "irr_hi",
+      "irr_pvalue",
+      "em_pvalue",
+      "ratio_of_irrs",
+      "ratio_lo",
+      "ratio_hi"
     )
   )
   tabs <- list(e = e, cv = cv, sg = sg)
@@ -748,7 +883,8 @@ test_that("effect and decision fields carry no formatting", {
   # The two decision columns are stored vocabulary, not rendered text. The
   # minimum-events rule writes a status that starts with its prefix.
   expect_true(all(
-    e$interval_status %in% c("ok", "spans null", "zero-event arm", NA) |
+    e$interval_status %in%
+      c("ok", "spans null", "zero-event arm", NA) |
       startsWith(e$interval_status, swereg:::.HORIZON_STATUS_PREFIX)
   ))
   expect_true(all(e$nnt_direction %in% c("benefit", "harm", NA)))
@@ -812,7 +948,10 @@ test_that("a missing slot yields absent rows", {
   expect_identical(nrow(sg[ett_id == "ETT00002"]), 0L)
   # `rd_parity` stores neither family on intention-to-treat, so it contributes
   # no intention-to-treat row.
-  expect_identical(nrow(sg[subgroup_var == "rd_parity" & estimand == "itt"]), 0L)
+  expect_identical(
+    nrow(sg[subgroup_var == "rd_parity" & estimand == "itt"]),
+    0L
+  )
   # `rd_absent` is named in the specification and stored nowhere. It gets no
   # row at all. `.write_effect_modification()` emits one all-NA row for it,
   # and that row is a rendering choice the accessor MUST NOT copy.
@@ -952,7 +1091,9 @@ test_that("the accessors compute nothing", {
   expect_true(is.na(pp2$irr_estimable))
   # ETT00001 stored the decision, so the same column reports it.
   expect_true(
-    e[ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"]$irr_estimable
+    e[
+      ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"
+    ]$irr_estimable
   )
   # A skip envelope is a record of a failure, not a result. `irr_itt` on
   # ETT00002 holds one, so the ITT row reports NA in every ratio column.
@@ -965,13 +1106,19 @@ test_that("the accessors compute nothing", {
   # and a baseline size, and neither becomes an attrition row. Building those
   # two rows is the CONSORT renderer's job.
   at <- plan$get_attrition()
-  expect_false(any(at$step_name %in% c(
-    "enrolled_after_comparator_draw",
-    "analysis_dataset"
-  )))
+  expect_false(any(
+    at$step_name %in%
+      c(
+        "enrolled_after_comparator_draw",
+        "analysis_dataset"
+      )
+  ))
   # The counts are the stored ones, unchanged. The global rows still carry the
   # stored global numbers.
-  expect_identical(at[is.na(at$enrollment_period_id)]$n_person_trials, c(50000, 40000))
+  expect_identical(
+    at[is.na(at$enrollment_period_id)]$n_person_trials,
+    c(50000, 40000)
+  )
   # `$get_matching()` reports the matching counts and creates no step either.
   expect_false("step_name" %in% names(plan$get_matching()))
 })
@@ -1012,9 +1159,12 @@ test_that("matching returns the stored rows and sums nothing", {
   mt <- plan$get_matching()
 
   expect_identical(nrow(mt), nrow(stored))
-  expect_identical(mt$n_intervention_enrolled, as.numeric(
-    stored$n_intervention_enrolled
-  ))
+  expect_identical(
+    mt$n_intervention_enrolled,
+    as.numeric(
+      stored$n_intervention_enrolled
+    )
+  )
 
   # An enrollment that stored no matching table gets no row, and the accessor
   # does not create one from the attrition rows.
@@ -1091,15 +1241,20 @@ test_that("the stored shape of a rate ratio is reported, not guessed", {
   # A stored ratio with no interval columns is stored, and has no interval.
   plan$results_ett[["ETT00001"]]$irr_pp_trunc <- list(IRR = 1)
   e2 <- plan$get_estimates()
-  partial <- e2[ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"]
+  partial <- e2[
+    ett_id == "ETT00001" & estimand == "pp" & weights == "truncated"
+  ]
   expect_true(partial$irr_stored)
   expect_false(partial$irr_interval_stored)
 
   # A stored ratio whose VALUES are all NA is still stored, and still has its
   # interval columns. Absence and a missing value are different facts.
   na_irr <- data.table::data.table(
-    IRR = NA_real_, IRR_lower = NA_real_, IRR_upper = NA_real_,
-    IRR_pvalue = NA_real_, warn = FALSE
+    IRR = NA_real_,
+    IRR_lower = NA_real_,
+    IRR_upper = NA_real_,
+    IRR_pvalue = NA_real_,
+    warn = FALSE
   )
   plan$results_ett[["ETT00001"]]$irr_pp_trunc <- na_irr
   e3 <- plan$get_estimates()
@@ -1112,8 +1267,11 @@ test_that("the stored shape of a rate ratio is reported, not guessed", {
 test_that("an enrollment with counts and no panel still reports its counts", {
   plan <- .acc_fix_plan()
   for (nm in c(
-    "table1_raw", "table1_unweighted", "table1_ipw",
-    "table1_ipw_trunc", "table1_ipw_trunc_main"
+    "table1_raw",
+    "table1_unweighted",
+    "table1_ipw",
+    "table1_ipw_trunc",
+    "table1_ipw_trunc_main"
   )) {
     plan$results_enrollment[["01"]][[nm]] <- NULL
   }
@@ -1194,8 +1352,10 @@ test_that("a stored table with NA values is still a stored table", {
   plan3 <- .acc_fix_plan()
   plan3$results_ett[["ETT00001"]]$subgroup_rd_age_band_pp <- .acc_fix_subgroup(
     c("all", "younger", "older"),
-    rep(NA_real_, 3L), rep(NA_real_, 3L),
-    rep(NA_real_, 3L), rep(NA_real_, 3L)
+    rep(NA_real_, 3L),
+    rep(NA_real_, 3L),
+    rep(NA_real_, 3L),
+    rep(NA_real_, 3L)
   )
   sg <- plan3$get_subgroups()
   st <- sg[
@@ -1229,7 +1389,9 @@ test_that("a stored table with NA values is still a stored table", {
 test_that("per-protocol untruncated reads rd_pp and rd_curve_pp", {
   plan <- .acc_fix_plan()
   key <- function(tab) {
-    return(tab[ett_id == "ETT00001" & estimand == "pp" & weights == "untruncated"])
+    return(tab[
+      ett_id == "ETT00001" & estimand == "pp" & weights == "untruncated"
+    ])
   }
 
   # The shape swereg 27.3.9 stored: no `rd_pp`, so no risk difference.
