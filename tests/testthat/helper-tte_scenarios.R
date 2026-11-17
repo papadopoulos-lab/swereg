@@ -90,7 +90,7 @@ scen_simulate <- function(scenario, N = 20000L, seed = 2026) {
 
 # Marginal first-event incidence-rate-ratio truth (NO loss -- loss is a nuisance
 # we want estimators to be robust to, not part of the estimand). PP = sustained
-# (force A every period); ITT = do(A_0) then natural switching. Standardised
+# (force A every period); ITT = do(A_0) then natural switching. Standardized
 # over L0. Returns log-IRR with reference-arm per-period hazard as attr "p0".
 scen_truth <- function(scenario, estimand, N_truth = 200000L, seed = 999) {
   p <- scen_cfg(scenario)

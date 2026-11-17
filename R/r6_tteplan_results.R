@@ -137,7 +137,7 @@ TTEPlan$set("public", "get_curves", function() {
 #'
 #' `overall`, `comparator` and `intervention` are display strings, such as
 #' `"12.3 (4.5)"` or `"120 (8.1%)"`. The producer stores them that way.
-#' `smd_numeric` is the unrounded standardised mean difference.
+#' `smd_numeric` is the unrounded standardized mean difference.
 #'
 #' `variable` repeats on every row of its block. The stored panel prints
 #' the name once and indents its levels under it, so `variable` is blank

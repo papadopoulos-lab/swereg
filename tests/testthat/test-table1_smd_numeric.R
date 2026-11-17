@@ -1,5 +1,5 @@
 # =============================================================================
-# smd_numeric: the unrounded standardised difference as a real column
+# smd_numeric: the unrounded standardized difference as a real column
 # =============================================================================
 # The fixture below is hand-computable, which is the point. Both SMDs are
 # closed-form, and both differ from their three-decimal display string by more
@@ -157,6 +157,12 @@ test_that(".render_love_plot draws the 0.1 line and both weighting series", {
   df <- swereg:::.build_love_df(unw, wtd)
   p <- swereg:::.render_love_plot(df, title = "balance")
   expect_s3_class(p, "ggplot")
+
+  # The axis title uses the US spelling, as the manuscripts do (smrd#39).
+  expect_identical(
+    ggplot2::get_labs(p)$x,
+    "Absolute standardized mean difference"
+  )
 
   # The 0.1 reference line.
   vlines <- Filter(function(l) inherits(l$geom, "GeomVline"), p$layers)

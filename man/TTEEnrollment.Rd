@@ -324,7 +324,7 @@ values, and no term for 1 value.
 
 \strong{Estimand (marginal)}: confounding is removed by the supplied \code{weights},
 not by adjusting for confounders in this model, so the coefficient is a
-\emph{marginal} (population-average) incidence rate ratio, standardised over
+\emph{marginal} (population-average) incidence rate ratio, standardized over
 the covariate distribution. This contrasts with covariate-adjusted
 outcome regressions (e.g. \code{TrialEmulation}'s pooled logistic), which
 target a \emph{conditional} effect. The two coincide for the (collapsible)
@@ -480,7 +480,7 @@ their weighting convention. Deaths are censored, not modelled as a
 competing risk, so \code{surv} is cause-specific event-free survival under
 independent censoring; \code{1 - surv} is therefore cause-specific failure, NOT
 a real-world cumulative incidence (which would require a competing-risk
-estimator). This is a descriptive weighted curve, not the MSM-standardised
+estimator). This is a descriptive weighted curve, not the MSM-standardized
 survival estimator. Returned rows are post-interval survival at each
 observed \code{tstop}, one row per arm and time. Where an arm holds nobody at
 risk, the hazard is \code{NA} and the survival carries its latest exact value

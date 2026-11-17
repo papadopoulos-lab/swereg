@@ -1175,7 +1175,7 @@ present another panel under that name.
 
 \code{overall}, \code{comparator} and \code{intervention} are display strings, such as
 \code{"12.3 (4.5)"} or \code{"120 (8.1\%)"}. The producer stores them that way.
-\code{smd_numeric} is the unrounded standardised mean difference.
+\code{smd_numeric} is the unrounded standardized mean difference.
 
 \code{variable} repeats on every row of its block. The stored panel prints
 the name once and indents its levels under it, so \code{variable} is blank

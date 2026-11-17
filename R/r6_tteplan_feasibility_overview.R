@@ -662,7 +662,7 @@
     wb,
     sht,
     "Table 1, unweighted, every comparison in one table",
-    "Filter on Enrollment and File. SMD: standardised mean difference between the arms.",
+    "Filter on Enrollment and File. SMD: standardized mean difference between the arms.",
     c(orange = "SMD 0.1 to 0.2", red = "SMD 0.2 or more")
   )
   panels <- c(table1_raw = "s1 (unimputed)", table1_unweighted = "s2 (imputed)")

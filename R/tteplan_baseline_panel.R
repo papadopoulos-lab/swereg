@@ -191,7 +191,7 @@
 #' }
 #'
 #' The `SMD` column is composed only when the panel carries at least one
-#' standardised mean difference. A panel built with `include_smd = FALSE`
+#' standardized mean difference. A panel built with `include_smd = FALSE`
 #' carries none, and it had no such column.
 #'
 #' @param baselines A `$get_baselines()` table.
@@ -245,7 +245,7 @@
     value = as.character(rows$intervention)
   )
   # The stored SHAPE. A panel built with `include_smd = TRUE` carries the
-  # column whatever its values, and a panel whose every standardised mean
+  # column whatever its values, and a panel whose every standardized mean
   # difference is `NA` still heads a blank `SMD` column.
   if (isTRUE(rows$smd_stored[1L])) {
     data.table::set(

@@ -7,7 +7,7 @@
 # positivity violations, heavy informative attrition, arm imbalance -- plus a
 # separate time-varying-confounding generator with treatment-confounder
 # feedback. The estimand and the truth target are identical to the validation
-# matrix (first-event IRR, standardised over the baseline confounder), so the
+# matrix (first-event IRR, standardized over the baseline confounder), so the
 # fit wrappers reuse scen_fit_swereg()/scen_fit_te()/tte_build_long() verbatim.
 #
 # Reference numbers observed for each cell live next to the assertions in
@@ -75,7 +75,7 @@ stress_sim <- function(
   d[]
 }
 
-# Matching truth: first-event log-IRR, standardised over L0, with NO loss (loss
+# Matching truth: first-event log-IRR, standardized over L0, with NO loss (loss
 # is a nuisance the estimator must be robust to, not part of the estimand). PP =
 # sustained treatment; ITT = do(A_0) then natural switching. Returns log-IRR
 # with reference-arm per-period hazard as attr "p0" (for the OR->IRR conversion).

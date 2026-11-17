@@ -55,7 +55,7 @@ tte_simulate <- function(
 }
 
 # PP truth: sustained-treatment contrast (force A_t = a every period),
-# standardised over L0. Computed as a FIRST-EVENT incidence rate to match
+# standardized over L0. Computed as a FIRST-EVENT incidence rate to match
 # swereg's estimand exactly: each person is censored at their first event, the
 # numerator is first events and the denominator is person-periods AT RISK (not
 # the fixed N x T). Summing recurrent events over N x T would target a
@@ -85,7 +85,7 @@ tte_true_pp_log_irr <- function(params, N_truth = 200000, seed = 999) {
 }
 
 # ITT truth: force baseline A_0 = a0, then let A_t switch NATURALLY (real
-# per-period model), contrast by baseline arm, standardised over L0 -- the
+# per-period model), contrast by baseline arm, standardized over L0 -- the
 # do(A_0=1) vs do(A_0=0) estimand that IPW-only ITT estimates. Same FIRST-EVENT
 # incidence-rate construction as the PP truth (censor at first event,
 # person-time-at-risk denominator).

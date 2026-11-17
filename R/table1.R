@@ -132,7 +132,7 @@
 }
 
 
-# --- standardised mean differences -------------------------------------------
+# --- standardized mean differences -------------------------------------------
 
 #' Continuous SMD: |m1 - m0| / sqrt((s1^2 + s0^2) / 2).
 #' @noRd
@@ -601,7 +601,7 @@
     c_int     <- counts_by_level(mask_int)
 
     # SMD is always computed against non-missing props so it matches the
-    # standardised definition.
+    # standardized definition.
     nm_props <- function(cts, nonmiss_w) {
       if (is.na(nonmiss_w) || nonmiss_w == 0) return(rep(NA_real_, length(cts)))
       return(cts / nonmiss_w)

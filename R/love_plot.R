@@ -1,7 +1,7 @@
 # =============================================================================
 # Love plot: covariate balance before and after weighting
 # =============================================================================
-# A Love plot reads one covariate per row and shows the absolute standardised
+# A Love plot reads one covariate per row and shows the absolute standardized
 # mean difference (SMD) between the two arms twice: once unweighted, once
 # under the analysis weights. Balance improves when the weighted point sits
 # left of the unweighted one, and the conventional acceptance threshold is
@@ -31,7 +31,7 @@
 #' row and contributes one point.
 #'
 #' Two input shapes are accepted, and both name the variable and the
-#' standardised mean difference:
+#' standardized mean difference:
 #' \itemize{
 #'   \item the `$get_baselines()` rows of one panel, with `variable` and
 #'     `smd_numeric`. `$export_tables()` passes these.
@@ -181,7 +181,7 @@
     ggplot2::scale_shape_manual(values = c(16, 17), drop = FALSE) +
     ggplot2::expand_limits(x = 0) +
     ggplot2::labs(
-      x = "Absolute standardised mean difference",
+      x = "Absolute standardized mean difference",
       y = NULL,
       colour = NULL,
       shape = NULL,
