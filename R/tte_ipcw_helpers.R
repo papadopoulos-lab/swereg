@@ -197,6 +197,11 @@
 #' The model is complementary log-log with a person-time offset. It predicts on
 #' the rows it was fitted to.
 #'
+#' The fit reads every character column of the formula as a `factor()` with
+#' default levels, on a copy of `fit_data`. A character column that lacks a
+#' level in one row chunk of `mgcv::bam(discrete = FALSE)` gives that chunk
+#' fewer model columns, and the fit stops.
+#'
 #' @param fit_data The rows of the risk set.
 #' @param cause_col The censoring indicator of the cause.
 #' @param terms Character vector of right-hand-side terms. Empty strings are
@@ -227,6 +232,20 @@
     paste0(cause_col, " ~ ", rhs, " + offset(log(person_weeks))"),
     env = topenv()
   )
+  # Every variable the formula reads, inside a transformed term too. Logical,
+  # integer and factor columns stay as they are.
+  char_cols <- intersect(all.vars(model_formula), names(fit_data))
+  char_cols <- char_cols[vapply(
+    char_cols,
+    function(v) is.character(fit_data[[v]]),
+    logical(1)
+  )]
+  if (length(char_cols) > 0L) {
+    fit_data <- data.table::copy(fit_data)
+    for (v in char_cols) {
+      data.table::set(fit_data, j = v, value = factor(fit_data[[v]]))
+    }
+  }
   what <- paste0("the ", cause, " ", role, " model for ", label)
   counts <- paste0(
     "  rows: ",

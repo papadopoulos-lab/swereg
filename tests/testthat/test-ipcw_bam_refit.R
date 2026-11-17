@@ -94,3 +94,60 @@ test_that("a discrete fit that predicts keeps the discrete fit", {
   )
   expect_identical(res_glm$fit, "glm")
 })
+
+test_that("a character confounder with a level missing from a chunk refits", {
+  # `bam(discrete = FALSE)` builds the model matrix in 10,000-row chunks. The
+  # level "rare" sits in the first chunk only, so a character `grp` gives the
+  # other chunks fewer design columns.
+  withr::local_seed(1)
+  n <- 30000L
+  d <- data.table::data.table(
+    tstart = rep(0:29, length.out = n),
+    period_id = sample(1:60, n, replace = TRUE),
+    person_weeks = 1,
+    grp = c(
+      rep(c("a", "b", "rare"), length.out = 300),
+      sample(c("a", "b"), n - 300, replace = TRUE)
+    )
+  )
+  d[, censor_deviation := stats::rbinom(.N, 1L, 0.02)]
+  terms <- c("splines::ns(tstart, df = 3)", "s(period_id)", "grp")
+  res <- NULL
+  expect_no_error(
+    res <- .tte_ipcw_fit_one(
+      d,
+      "censor_deviation",
+      terms,
+      "denominator",
+      "deviation",
+      "the pooled cohort",
+      use_gam = TRUE
+    )
+  )
+  expect_identical(
+    res$fit,
+    "bam, discrete = FALSE, after the discrete prediction failed with an object-not-found error"
+  )
+  d_factor <- data.table::copy(d)
+  d_factor[, grp := factor(grp)]
+  ref_fit <- mgcv::bam(
+    censor_deviation ~ splines::ns(tstart, df = 3) +
+      s(period_id) +
+      grp +
+      offset(log(person_weeks)),
+    data = d_factor,
+    family = stats::binomial(link = "cloglog"),
+    discrete = FALSE
+  )
+  expect_equal(
+    res$q,
+    1 -
+      as.numeric(stats::predict(
+        ref_fit,
+        newdata = d_factor,
+        type = "response"
+      )),
+    tolerance = 1e-6
+  )
+  expect_true(is.character(d$grp))
+})
