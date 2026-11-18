@@ -48,6 +48,8 @@
   functions](https://papadopoulos-lab.github.io/swereg/articles/builtin-add-functions.md):
 - [Writing your own add\_\*
   function](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md):
+- [PRE2DUP drug use periods:
+  add_rxpre2dup()](https://papadopoulos-lab.github.io/swereg/articles/rxpre2dup.md):
 
 ### Cookbooks
 

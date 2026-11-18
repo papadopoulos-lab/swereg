@@ -8,6 +8,7 @@ articles:
   custom-add-functions: custom-add-functions.html
   r6-class-overview: r6-class-overview.html
   rowdep-rowind-concept: rowdep-rowind-concept.html
+  rxpre2dup: rxpre2dup.html
   skeleton-analyze: skeleton-analyze.html
   skeleton-concept: skeleton-concept.html
   skeleton-create: skeleton-create.html
@@ -20,7 +21,7 @@ articles:
   tte-spec-schema: tte-spec-schema.html
   tte-timing: tte-timing.html
   tte-workflow: tte-workflow.html
-last_built: 2026-11-17T21:58Z
+last_built: 2026-11-18T22:32Z
 urls:
   reference: https://papadopoulos-lab.github.io/swereg/reference
   article: https://papadopoulos-lab.github.io/swereg/articles

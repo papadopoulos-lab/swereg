@@ -23,6 +23,10 @@ Functions for adding medical registry data
   : Add cancer diagnoses by topography (site only, ignoring morphology)
 - [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
   : Add prescription drug data to skeleton
+- [`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
+  : Add PRE2DUP drug use periods to skeleton
+- [`rxpre2dup_read_design()`](https://papadopoulos-lab.github.io/swereg/reference/rxpre2dup_read_design.md)
+  : Read a PRE2DUP package design file
 - [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
   : Add cause of death data to skeleton
 - [`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md)
@@ -211,7 +215,8 @@ Helper functions for data processing
 
 ## Datasets
 
-Synthetic registry data for development and examples
+Synthetic registry data for development and examples, and the ATC-level
+parameters of PRE2DUP
 
 - [`fake_person_ids`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_demographics`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
@@ -220,3 +225,5 @@ Synthetic registry data for development and examples
   [`fake_prescriptions`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_cod`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   : Fake Swedish Registry Datasets
+- [`pre2dup_atc_parameters`](https://papadopoulos-lab.github.io/swereg/reference/pre2dup_atc_parameters.md)
+  : ATC-level parameters of PRE2DUP

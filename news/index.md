@@ -1,5 +1,40 @@
 # Changelog
 
+## swereg 27.3.18
+
+[`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
+marks the skeleton weeks that PRE2DUP drug use periods cover. swereg
+carries its own port of the PRE2DUP periods algorithm of PRE2DUP-R 0.2.2
+(commit 43b6d89), and PRE2DUP-R is not a runtime dependency.
+[`vignette("rxpre2dup")`](https://papadopoulos-lab.github.io/swereg/articles/rxpre2dup.md)
+shows that both give identical periods on synthetic purchases.
+
+### New features
+
+- **[`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
+  adds one logical `rxpre2dup_` column per code list.** A column is TRUE
+  on every week or annual row that overlaps a drug use period. Durations
+  come from a dated package design file, or from the ATC-level rules in
+  `pre2dup_atc_parameters`.
+- **[`rxpre2dup_read_design()`](https://papadopoulos-lab.github.io/swereg/reference/rxpre2dup_read_design.md)
+  reads and checks a package design file.** It refuses a file with a
+  missing column, a value out of range, a `status` other than `auto` or
+  `approved`, or two rows that one dispensing can match.
+- **The port fixes a stockpiling bug of PRE2DUP-R 43b6d89.** PRE2DUP-R
+  selects rows under a text sort of the person ids (`pre2dup.R:475`,
+  `:480`, `:535`) and uses the selection after a numeric sort (`:584`,
+  `:627`). When ids have different numbers of digits, it applies
+  stockpiling to the wrong rows. The port applies the documented rule,
+  so its periods do not depend on how ids are labelled.
+
+### Performance
+
+- **The port is 11.2 times faster than PRE2DUP-R on the benchmark of
+  `dev/pre2dup_benchmark.R`.** The base is one synthetic population of
+  900 persons, 110,000 purchases and 357 hospital stays. The median of
+  three runs is 0.93 s for the port and 10.41 s for PRE2DUP-R, measured
+  with R 4.5.2. Both return 1,208 periods.
+
 ## swereg 27.3.17
 
 The protocol table of `$get_protocol_table()` feeds a manuscript, so it
