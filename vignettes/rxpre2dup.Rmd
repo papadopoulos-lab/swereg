@@ -1,0 +1,794 @@
+---
+title: "PRE2DUP drug use periods: add_rxpre2dup()"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{PRE2DUP drug use periods: add_rxpre2dup()}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 4
+)
+has_pre2dupr <- requireNamespace("PRE2DUPR", quietly = TRUE)
+```
+
+```{r setup, message = FALSE}
+library(data.table)
+library(ggplot2)
+library(swereg)
+```
+
+`add_rxpre2dup()` turns LMED dispensings into PRE2DUP drug use periods, and marks the skeleton weeks that the periods cover.
+swereg carries its own port of the PRE2DUP periods algorithm.
+This vignette shows that the port gives the same periods as PRE2DUP-R.
+
+## What PRE2DUP does and why
+
+`add_rx()` gives each dispensing an interval of `round(fddd)` days from `edatum`.
+A week is TRUE when it overlaps the union of these intervals.
+The interval length assumes one DDD per day.
+A patient who takes a lower dose, or who refills late, gets a FALSE week in the middle of continuous use.
+A patient who refills early gets no extra time.
+
+PRE2DUP (Tanskanen et al. 2015; Vattulainen et al. 2026) models drug use instead of dispensing.
+It estimates the duration of each purchase from the package, the patient's own purchase history, and hospital stays.
+It then joins purchases into drug use periods.
+The parameters that bound each purchase duration come from a package design file, or from the ATC-level rules in `pre2dup_atc_parameters`.
+
+## What rxpre2dup_ means
+
+An `rxpre2dup_` column is TRUE in every week, or annual row, that a PRE2DUP drug use period covers.
+It is FALSE in every other row.
+
+The output unit is the drug use period, not the block.
+A block is internal to PRE2DUP.
+It is a run of purchases of one ATC code by one person, with no gap over `global_gap_max` (300 days by default) between two purchases.
+Blocks set the scope of three rules: the sliding-average dose, the stockpiling rule and the gap extension.
+One block holds one or more drug use periods.
+`add_rxpre2dup()` marks a period on every skeleton row that overlaps the closed interval from its start to its end.
+
+A gap between two periods is FALSE.
+This holds for a gap inside one block and for a gap between two blocks.
+
+PRE2DUP joins a purchase to the period of the previous purchase when the duration of the previous purchase reaches it.
+Three rules extend that reach:
+
+- **Extended duration.** PRE2DUP adds `days_covered` days (5 by default) to the duration of the previous purchase.
+- **Stockpiling.** Suppose a purchase has a lower sliding-average dose than the purchase before it, and its extended duration does not reach the next purchase. The rule also needs a lower dose than the purchase after it, except at the second-to-last purchase of a block. When the DDDs of the two purchases last from the earlier one to the next purchase, the next purchase joins the period. The rule applies only in blocks with more than two purchases.
+- **A hospital stay.** The hospital supplies the drug during a stay. The days in hospital during the duration of the previous purchase, up to `global_hosp_max` (30 by default), extend that duration.
+
+PRE2DUP then joins two periods when the gap between them is at most `post_process_perc` percent (1% by default) of the first period's length.
+
+The port follows PRE2DUP's documented stockpiling rule.
+It therefore differs from PRE2DUP-R at commit 43b6d89 when person ids have different numbers of digits.
+PRE2DUP-R sorts its rows by a text id (`pre2dup.R:475` and `:480`).
+It then selects the rows in blocks of more than two purchases (`:535`).
+Next it sorts the rows again by numeric id (`:584`).
+The stockpiling step from `:627` onward then uses the selection from the text order on rows in the numeric order.
+When the two orders differ, PRE2DUP-R applies stockpiling to the wrong rows.
+The equivalence below therefore uses person ids that all have the same number of digits.
+A separate check below shows that the port's periods do not change when the ids change.
+
+A study reads current use from the baseline week.
+The person is a current user when the `rxpre2dup_` column is TRUE in that week.
+The person is a previous user when the column is FALSE in the baseline week and TRUE in an earlier week.
+A period of that person then ended before baseline.
+
+### An example person
+
+The example person buys one statin package of 30 DDDs, with a usual duration of 30 days and a maximum of 60 days.
+There are 11 purchases and one hospital stay of 59 days.
+The design file has one row for the package.
+The example passes `days_covered = 20`, not the default of 5, to the port and to `add_rxpre2dup()`.
+The wider gap of the extended join is then visible in the figure.
+
+```{r example-design}
+design_path <- file.path(tempdir(), "rxpre2dup-example-design.xlsx")
+wb <- openxlsx::createWorkbook()
+openxlsx::addWorksheet(wb, "packages")
+openxlsx::writeData(wb, "packages", data.frame(
+  atc = "C10AA01",
+  produkt = "Simvastatin Example",
+  lnmn = "Simvastatin Example 20 mg",
+  pack_ddd = 30,
+  form = "tablet",
+  dur_min = 20,
+  dur_usual = 30,
+  dur_max = 60,
+  status = "approved",
+  source = "synthetic",
+  note = NA_character_
+))
+openxlsx::saveWorkbook(wb, design_path, overwrite = TRUE)
+design <- rxpre2dup_read_design(design_path)
+design[, .(package_id, atc, pack_ddd, dur_usual, dur_max, ddd_usual, ddd_low)]
+```
+
+`.pre2dup_periods(trace = TRUE)` returns the periods with the attribute `purchases`, which has one row per purchase.
+Its column `duration` is the duration that PRE2DUP estimates for the purchase, in days.
+Its column `joined_by` names the step of the port that joined the purchase to the previous purchase:
+
+- `"first"`: the purchase starts a period.
+- `"duration"`: the duration of the previous purchase reaches it.
+- `"extended"`: only the `days_covered` extension reaches it.
+- `"hospital"`: only the hospital days reach it.
+- `"stockpiling"`: the stockpiling rule joins it.
+- `"merge"`: post-processing joins its period to the previous period.
+
+```{r example-data}
+# 20 days, not the default 5, so that the gap of the extended join is wide
+# enough to draw.
+days_covered <- 20
+d0 <- as.Date("2020-01-01")
+lmed <- data.table(
+  lopnr = 1L,
+  edatum = d0 + c(0, 77, 102, 206, 241, 338, 459, 558, 587, 894, 917),
+  atc = "C10AA01",
+  produkt = "Simvastatin Example",
+  lnmn = "Simvastatin Example 20 mg",
+  fddd = 30
+)
+hosp <- data.table(lopnr = 1L, indatum = d0 + 495, utdatum = d0 + 554)
+
+# The same input as add_rxpre2dup() gives the port.
+purchases <- data.table(
+  id = 1L,
+  atc = lmed$atc,
+  package_id = 1L,
+  date = lmed$edatum,
+  ratio = 1,
+  ddd = lmed$fddd
+)
+packages <- design[, .(package_id, atc, dur_min, dur_usual, dur_max, ddd_low, ddd_usual)]
+stays <- data.table(id = 1L, admission = hosp$indatum, discharge = hosp$utdatum)
+periods <- swereg:::.pre2dup_periods(
+  purchases, packages, pre2dup_atc_parameters,
+  hosp = stays, trace = TRUE, days_covered = days_covered
+)
+trace <- attr(periods, "purchases")
+periods[, .(block, period, start, end, n_purchases, hospital_days)]
+trace[, .(date, block, period, duration = round(duration, 1), joined_by)]
+
+stopifnot(
+  # 4 periods in 2 blocks, with 5, 1, 3 and 2 purchases.
+  nrow(periods) == 4L,
+  uniqueN(periods$block) == 2L,
+  identical(periods$block, c(1L, 1L, 1L, 2L)),
+  identical(periods$n_purchases, c(5L, 1L, 3L, 2L)),
+  # Period 1 holds an extended join and a stockpiling join. Period 3 holds
+  # a hospital join.
+  all(c("extended", "stockpiling") %in% trace[period == 1L, joined_by]),
+  "hospital" %in% trace[period == 3L, joined_by]
+)
+
+# The figure caption, from the trace and the periods.
+letter_of <- c(extended = "a", stockpiling = "b", hospital = "c")
+meaning_of <- c(extended = "extended duration", stockpiling = "stockpiling", hospital = "hospital stay")
+joins <- intersect(names(letter_of), trace$joined_by)
+kind <- fifelse(periods$n_purchases >= 3L, "continuous", "isolated")
+caption <- paste0(
+  "A dark blue bar is a purchase of the example person. It starts on the purchase date and lasts for the ",
+  "duration that PRE2DUP estimates. Bars that overlap sit on separate rows. The orange bar is the hospital stay. ",
+  "A green connector marks a join that needs one of three rules. It runs from the end of the previous purchase ",
+  "to the start of the joined purchase. ",
+  "Purchase connectors: ", paste0(letter_of[joins], ") ", meaning_of[joins], collapse = ", "), ". ",
+  "Drug use periods: ",
+  paste0(
+    periods$period, ") ", kind, " with ", periods$n_purchases,
+    fifelse(periods$n_purchases == 1L, " purchase", " purchases"),
+    fifelse(periods$hospital_days > 0, " and a hospital stay", ""),
+    collapse = ", "
+  ), ". ",
+  "This example uses days_covered = ", days_covered,
+  " so the extended-duration gap is visible; the default is 5. ",
+  "An isolated period has fewer than three purchases, so PRE2DUP gives its purchases the package-based duration. ",
+  "The dashed braces are the blocks. The slashes mark a gap of more than global_gap_max days between two blocks, ",
+  "which the time axis shortens. The bottom row shows the weeks where rxpre2dup_statin is TRUE."
+)
+```
+
+`add_rxpre2dup()` maps the periods to a skeleton.
+
+```{r example-skeleton, message = FALSE}
+skeleton <- create_skeleton(1L, 2020, "2022-52")
+add_rxpre2dup(
+  skeleton,
+  lmed,
+  hosp = hosp,
+  codes = list(rxpre2dup_statin = "C10AA"),
+  design = design,
+  days_covered = days_covered
+)
+weeks <- skeleton[is_isoyear == FALSE]
+weeks[, monday := isoyearweeksun - 6L]
+
+# Each TRUE week overlaps a period, and each FALSE week overlaps none.
+covers <- vapply(
+  seq_len(nrow(weeks)),
+  function(i) any(periods$start <= weeks$isoyearweeksun[i] & periods$end >= weeks$monday[i]),
+  logical(1)
+)
+stopifnot(identical(weeks$rxpre2dup_statin, covers))
+```
+
+The figure follows the layout of the PRE2DUP diagram of Vattulainen et al. (2026).
+swereg's own ggplot2 code draws it from `trace`, `periods` and `weeks`.
+The code is in the source of this vignette.
+
+```{r example-figure, echo = FALSE, fig.width = 10, fig.height = 5.5, fig.cap = caption, fig.alt = "One person on one time axis: 11 purchases as bars, a hospital stay, connectors a, b and c, four drug use periods, two blocks, and the weeks where rxpre2dup_statin is TRUE."}
+# One row per purchase from the trace, with its bar from `date` for
+# `duration` days.
+tr <- copy(trace)[order(date)]
+tr[, from := as.numeric(date)]
+tr[, to := from + duration]
+per <- as.data.table(periods)[, .(period, block, start = as.numeric(start), end = as.numeric(end) + 1)]
+
+# The x axis keeps every day inside a block. It shortens each gap between
+# blocks to 80 days, and a break mark shows where days are left out.
+blk <- merge(
+  tr[, .(start = min(from), last_bar = max(to)), by = block],
+  per[, .(last_period = max(end)), by = block],
+  by = "block"
+)
+blk[, end := pmax(last_bar, last_period)]
+gap_shown <- 80
+cuts <- data.table(from = blk$end[-nrow(blk)] + 25, to = blk$start[-1L] - 25)
+cuts <- cuts[to - from > gap_shown]
+x_of <- function(x) {
+  out <- x
+  for (i in seq_len(nrow(cuts))) {
+    width <- cuts$to[i] - cuts$from[i]
+    out <- out - (width - gap_shown) * pmin(pmax((x - cuts$from[i]) / width, 0), 1)
+  }
+  return(out)
+}
+break_x <- x_of(cuts$from) + gap_shown / 2
+
+# A purchase stays on the row of the previous purchase when their bars do
+# not overlap. Otherwise it takes the first free row of 0, 1 and -1.
+tr[, row := NA_real_]
+for (i in seq_len(nrow(tr))) {
+  for (r in c(if (i > 1L) tr$row[i - 1L], 0, 1, -1, 2)) {
+    if (!any(tr$row[seq_len(i - 1L)] == r & tr$to[seq_len(i - 1L)] + 3 > tr$from[i], na.rm = TRUE)) {
+      tr$row[i] <- r
+      break
+    }
+  }
+}
+bar_h <- 0.42
+row_h <- 0.7
+y_main <- 0
+tr[, y := y_main + row * row_h]
+
+# One connector per join that the trace names "extended", "stockpiling" or
+# "hospital", from the end of the previous bar to the start of the next.
+tr[, prev_to := shift(to)]
+con <- tr[joined_by %in% names(letter_of)]
+con[, letter := letter_of[joined_by]]
+con[, `:=`(x1 = x_of(prev_to), x2 = x_of(from))]
+# The connectors drawn are the joins of purchases 2, 4 and 8, which the
+# trace names "extended", "stockpiling" and "hospital". Each spans a gap.
+stopifnot(
+  identical(match(con$date, trace$date), c(2L, 4L, 8L)),
+  identical(con$joined_by, c("extended", "stockpiling", "hospital")),
+  identical(con$letter, c("a", "b", "c")),
+  all(con$x2 > con$x1)
+)
+# Dotted shafts, and solid arrow heads drawn as segments of one day.
+heads <- con[, .(x = c(x1 + 1, x2 - 1), xend = c(x1, x2), y = y), by = letter]
+
+# A brace from x1 to x2, with its ends at y and its tip h below.
+brace <- function(x1, x2, y, h, r = 12) {
+  xm <- (x1 + x2) / 2
+  r <- min(r, (x2 - x1) / 4)
+  q <- seq(0, pi / 2, length.out = 20)
+  return(data.table(
+    x = c(x1 + r - r * cos(q), xm - r + r * sin(q), xm + r - r * cos(q), x2 - r + r * sin(q)),
+    y = c(y - h / 2 * sin(q), y - h + h / 2 * cos(q), y - h + h / 2 * sin(q), y - h / 2 * cos(q))
+  ))
+}
+y_hosp <- min(tr$y) - 0.75
+y_per <- y_hosp - 0.45
+h_per <- 0.6
+per_br <- per[, brace(x_of(start), x_of(end), y_per, h_per), by = period]
+y_blk <- y_per - h_per - 0.75
+h_blk <- 0.6
+blk[, `:=`(x1 = x_of(start), x2 = x_of(end))]
+blk_br <- blk[, brace(x1, x2, y_blk, h_blk), by = block]
+y_weeks <- y_blk - h_blk - 1.05
+tw <- weeks[rxpre2dup_statin == TRUE, .(from = as.numeric(monday), to = as.numeric(isoyearweeksun) + 1)]
+
+# Axis labels on the first day of every third month, outside the breaks.
+rng <- range(c(tr$from, per$end, tw$from, tw$to))
+x_lim <- c(x_of(rng[1]) - 12, x_of(rng[2]) + 12)
+mon <- seq(as.Date(paste0(format(as.Date(rng[1]), "%Y"), "-01-01")), as.Date(rng[2]) + 92, by = "3 months")
+mon <- mon[x_of(as.numeric(mon)) >= x_lim[1] & x_of(as.numeric(mon)) <= x_lim[2]]
+in_cut <- vapply(as.numeric(mon), function(m) any(m > cuts$from - 10 & m < cuts$to + 10), logical(1))
+mon <- mon[!in_cut]
+
+# The x axis line in pieces, so that it stops at each break, and a pair of
+# slashes at each break, on the axis and between the block braces.
+y_lo <- y_weeks - 0.6
+y_hi <- max(tr$y) + bar_h / 2 + 0.7
+slashes <- function(x, y) {
+  return(data.table(x = x + c(-12, 0), xend = x + c(0, 12), y = y - 0.22, yend = y + 0.22))
+}
+axis_x <- data.table(x = c(x_lim[1], break_x + 10), xend = c(break_x - 10, x_lim[2]))
+mark_blk <- rbindlist(lapply(break_x, slashes, y = y_blk - h_blk / 2))
+mark_axis <- rbindlist(lapply(break_x, slashes, y = y_lo))
+
+navy <- "#2F5597"
+navy_edge <- "#1A1F4D"
+orange <- "#F08A5D"
+orange_edge <- "#B4532A"
+green <- "#2E8B3A"
+teal <- "#2F6F8F"
+txt <- 4.2
+
+fig <- ggplot() +
+  geom_rect(
+    data = tw, aes(xmin = x_of(from), xmax = x_of(to), ymin = y_weeks - 0.25, ymax = y_weeks + 0.25),
+    fill = "grey35", colour = NA
+  ) +
+  geom_rect(
+    data = hosp, aes(
+      xmin = x_of(as.numeric(indatum)), xmax = x_of(as.numeric(utdatum)),
+      ymin = y_hosp - bar_h / 2, ymax = y_hosp + bar_h / 2
+    ),
+    fill = orange, colour = orange_edge, linewidth = 0.6
+  ) +
+  geom_rect(
+    data = tr, aes(xmin = x_of(from), xmax = x_of(to), ymin = y - bar_h / 2, ymax = y + bar_h / 2),
+    fill = navy, colour = navy_edge, linewidth = 0.6
+  ) +
+  geom_segment(data = con, aes(x = x1, xend = x2, y = y, yend = y), colour = green, linetype = "11", linewidth = 1) +
+  geom_segment(
+    data = heads, aes(x = x, xend = xend, y = y, yend = y), colour = green, linewidth = 0.6,
+    arrow = arrow(length = unit(1.4, "mm"), type = "closed")
+  ) +
+  geom_text(data = con, aes(x = (x1 + x2) / 2, y = y + 0.36, label = letter), size = txt) +
+  geom_path(data = per_br, aes(x = x, y = y, group = period), linewidth = 0.6) +
+  geom_text(data = per, aes(x = (x_of(start) + x_of(end)) / 2, y = y_per - h_per - 0.28, label = period), size = txt) +
+  geom_path(data = blk_br, aes(x = x, y = y, group = block), linewidth = 0.6, linetype = "dashed") +
+  geom_text(data = blk, aes(x = (x1 + x2) / 2, y = y_blk - h_blk - 0.28, label = paste("Block", block)), size = txt) +
+  geom_segment(data = mark_blk, aes(x = x, xend = xend, y = y, yend = yend), colour = teal, linewidth = 1) +
+  geom_segment(data = axis_x, aes(x = x, xend = xend, y = y_lo, yend = y_lo), linewidth = 0.5) +
+  geom_segment(data = mark_axis, aes(x = x, xend = xend, y = y, yend = yend), linewidth = 0.5) +
+  scale_x_continuous(breaks = x_of(as.numeric(mon)), labels = format(mon, "%Y-%m")) +
+  scale_y_continuous(
+    breaks = c(mean(range(tr$y)), y_hosp, y_per - h_per / 2, y_blk - h_blk / 2, y_weeks),
+    labels = c("Purchases", "Hospital stay", "Periods", "Blocks", "rxpre2dup_statin\nTRUE weeks")
+  ) +
+  coord_cartesian(xlim = x_lim, ylim = c(y_lo, y_hi), expand = FALSE, clip = "off") +
+  labs(x = NULL, y = NULL) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.line.x = element_blank(),
+    axis.line.y = element_line(colour = "black"),
+    axis.ticks = element_line(colour = "black"),
+    axis.ticks.y = element_blank(),
+    axis.text = element_text(colour = "black")
+  )
+fig
+```
+
+The gaps between periods 1, 2 and 3 lie inside block 1, and their weeks are FALSE.
+The gap between period 3 and period 4 lies between two blocks, and its weeks are FALSE too.
+
+A study derives both exposures from the column.
+The chunk below reads them for three baseline weeks.
+Week 2021-02 lies in a gap inside block 1, and week 2022-02 lies in the gap between the blocks.
+
+```{r example-use}
+weeks[, ever_before := cumsum(shift(rxpre2dup_statin, fill = FALSE)) > 0]
+weeks[, current_use := rxpre2dup_statin]
+weeks[, previous_use := !rxpre2dup_statin & ever_before]
+weeks[isoyearweek %in% c("2020-10", "2021-02", "2022-02"), .(isoyearweek, current_use, previous_use)]
+```
+
+## The design file
+
+A design file says how long one dispensing of each package lasts.
+`rxpre2dup_read_design()` reads it and checks every row.
+The format is an `.xlsx` workbook with one sheet, `packages`, and one row per package.
+The columns are, in order:
+
+- `atc` (character, the full ATC code)
+- `produkt` (character, as LMED writes it)
+- `lnmn` (character; matched after `tolower(trimws())`)
+- `pack_ddd` (numeric > 0: the DDDs one dispensing of this package holds, as LMED's `fddd`)
+- `form` (character, free text, e.g. "tablet")
+- `dur_min`, `dur_usual`, `dur_max` (numeric > 0, days; `dur_min <= dur_usual <= dur_max`)
+- `status` (`"auto"` or `"approved"`; any other value refuses the file)
+- `source` (character, may be empty)
+- `note` (character, may be empty)
+
+swereg computes `ddd_usual = pack_ddd / dur_usual` and `ddd_low = pack_ddd / dur_max`.
+The file never stores them.
+
+LMED's `fddd` is the total DDDs of one dispensing.
+A design row therefore describes one dispensing amount, and every dispensing enters PRE2DUP with `ratio = 1`.
+Suppose a pharmacy hands out 200 tablets as 2 × 100.
+That dispensing is its own row, with its own `pack_ddd`.
+
+A dispensing matches a row when `atc`, `produkt` and `tolower(trimws(lnmn))` are equal and `abs(fddd - pack_ddd) < 0.005`.
+Two rows can have the same `atc`, `produkt` and normalised `lnmn`.
+Their values of `pack_ddd` MUST then differ by 0.01 or more, else the file is refused.
+A dispensing therefore matches at most one row.
+A dispensing with no row uses the ATC-level rule.
+`add_rxpre2dup()` reports the share of such purchases per ATC code in one message line.
+
+## Calling add_rxpre2dup() from a phase-3 step
+
+A phase-3 step gets `fn(skeleton, batch_data, config)`.
+`batch_data` is a named list with one table per group.
+The group names below are examples, so use the names of your own study.
+
+```{r phase3, eval = FALSE}
+rv_statins <- function(skeleton, batch_data, config) {
+  design <- rxpre2dup_read_design("design/statins_2026-11-18.xlsx")
+  add_rxpre2dup(
+    skeleton,
+    lmed = batch_data[["lmed"]],
+    hosp = batch_data[["npr_inpatient"]],
+    id_name = "lopnr",
+    codes = list(rxpre2dup_statin = "C10AA"),
+    design = design
+  )
+  return(invisible(skeleton))
+}
+study$register_randvars("statins", rv_statins)
+```
+
+Put the dated file name in the body of the step.
+The step's hash covers its body, so a new design file replays the step.
+
+## Equivalence with PRE2DUP-R
+
+The chunks in this section run the port and PRE2DUPR 0.2.2 (commit 43b6d89) on the same synthetic purchases.
+They run only when PRE2DUPR is installed.
+`r if (has_pre2dupr) "PRE2DUPR was installed when this vignette was built, so the output below is live." else "PRE2DUPR was not installed when this vignette was built, so the chunks below show code without output."`
+
+The fixture generators are copies of those in `tests/testthat/test-pre2dup_equivalence.R`, with the same seeds.
+The CI test runs scenarios 1 to 13.
+This vignette shows scenarios 2 (stockpiling), 8 (hospital stays) and 11 (a mixed population of 1,160 persons).
+Every fixture for PRE2DUP-R uses person ids from 100001 to 999999, which all have six digits.
+
+```{r generators, echo = FALSE}
+.p2d_packages <- function() {
+  k <- data.table::data.table(
+    package_id = 1:6,
+    atc = c("C10AA01", "C10AA01", "N06AB06", "N06AB06", "A10BA02", "C10AA05"),
+    pack_ddd = c(30, 100, 28, 98, 50, 30),
+    dur_min = c(20, 60, 14, 49, 25, 20),
+    dur_usual = c(30, 100, 28, 98, 50, 30),
+    dur_max = c(60, 200, 56, 196, 100, 36)
+  )
+  k[, ddd_usual := pack_ddd / dur_usual]
+  k[, ddd_low := pack_ddd / dur_max]
+  return(k[])
+}
+.p2d_unmatched <- c(C10AA01 = 901L, N06AB06 = 903L)
+.p2d_id0 <- 100000L
+.p2d_rows <- function(id, package_id, day, ratio = 1) {
+  k <- .p2d_packages()
+  atc <- k$atc[match(package_id, k$package_id)]
+  ddd <- k$pack_ddd[match(package_id, k$package_id)] * ratio
+  um <- match(package_id, .p2d_unmatched)
+  atc[!is.na(um)] <- names(.p2d_unmatched)[um[!is.na(um)]]
+  ddd[!is.na(um)] <- 30 * ratio[1L]
+  return(data.table::data.table(
+    id = as.integer(id),
+    atc = atc,
+    package_id = as.integer(package_id),
+    date = as.Date("2015-01-01") + as.integer(day),
+    ratio = as.numeric(ratio),
+    ddd = as.numeric(ddd)
+  ))
+}
+.p2d_stays <- function(id = integer(), admission = integer(), discharge = integer()) {
+  return(data.table::data.table(
+    id = as.integer(id),
+    admission = as.Date("2015-01-01") + as.integer(admission),
+    discharge = as.Date("2015-01-01") + as.integer(discharge)
+  ))
+}
+.p2d_fixture <- function(purchases, hosp = NULL) {
+  return(list(purchases = purchases, packages = .p2d_packages(), hosp = hosp))
+}
+.p2d_gen_regular <- function(n, id0, seed, k_range = 8:15) {
+  set.seed(seed)
+  k <- .p2d_packages()
+  out <- lapply(seq_len(n), function(j) {
+    pk <- sample(c(1L, 3L, 5L), 1L)
+    m <- sample(k_range, 1L)
+    start <- sample(0:1000, 1L)
+    return(.p2d_rows(id0 + j, pk, start + (seq_len(m) - 1L) * k$dur_usual[pk]))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_stockpiling <- function(n, id0, seed) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    early <- 60L + sample(3:8, 1L)
+    after <- early + sample(80:95, 1L)
+    day <- c(0L, 30L, 60L, early, after, after + 30L, after + 60L, after + 90L)
+    return(.p2d_rows(id0 + j, 1L, sample(0:900, 1L) + day))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_early <- function(n, id0, seed, k_range = 6:12) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    pair <- if (stats::runif(1L) < 0.5) c(1L, 2L) else c(3L, 4L)
+    m <- sample(k_range, 1L)
+    pk <- sample(pair, m, replace = TRUE, prob = c(0.7, 0.3))
+    dur <- .p2d_packages()$dur_usual[pk]
+    gap <- round(dur * stats::runif(m, 0.55, 0.9))
+    gap[sample.int(m - 5L, 1L) + 2L] <- sample(90:250, 1L)
+    day <- sample(0:800, 1L) + cumsum(c(0, gap[-m]))
+    return(.p2d_rows(id0 + j, pk, day))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_single <- function(n, id0, seed) {
+  set.seed(seed)
+  pk <- sample(1:5, n, replace = TRUE)
+  ratio <- sample(c(1, 1, 1, 2), n, replace = TRUE)
+  out <- lapply(seq_len(n), function(j) {
+    return(.p2d_rows(id0 + j, pk[j], sample(0:1500, 1L), ratio = ratio[j]))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_irregular <- function(n, id0, seed) {
+  set.seed(seed)
+  k <- .p2d_packages()
+  out <- lapply(seq_len(n), function(j) {
+    pk <- sample(c(1L, 3L, 5L), 1L)
+    day <- integer()
+    at <- sample(0:300, 1L)
+    for (cl in seq_len(sample(2:3, 1L))) {
+      m <- sample(2:5, 1L)
+      gap <- round(k$dur_usual[pk] * stats::runif(m, 0.8, 1.5))
+      day <- c(day, at + cumsum(c(0, gap[-m])))
+      at <- max(day) + sample(320:600, 1L)
+    }
+    return(.p2d_rows(id0 + j, pk, day))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_same_day <- function(n, id0, seed) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    pair <- if (j %% 2L == 0L) c(1L, 2L) else c(3L, 4L)
+    m <- sample(6:10, 1L)
+    day <- sample(0:600, 1L) + cumsum(c(0, sample(25:60, m - 1L, TRUE)))
+    rows <- list(.p2d_rows(id0 + j, pair[1L], day))
+    pick <- sample(seq_len(m), 3L)
+    rows[[2L]] <- .p2d_rows(id0 + j, pair[2L], day[pick[1L]])
+    rows[[3L]] <- .p2d_rows(id0 + j, pair[1L], day[pick[2L]])
+    rows[[4L]] <- .p2d_rows(id0 + j, pair[1L], day[pick[3L]], ratio = 2)
+    rows[[5L]] <- .p2d_rows(id0 + j, pair[2L], day[pick[3L]])
+    return(data.table::rbindlist(rows))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_zero_ddd <- function(n, id0, seed) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    pk <- sample(c(1L, 3L), 1L)
+    gap <- .p2d_packages()$dur_usual[pk]
+    day <- sample(0:700, 1L) + cumsum(c(0, round(gap * stats::runif(11L, 0.7, 1.2))))
+    x <- .p2d_rows(id0 + j, pk, day)
+    x[sample(2:11, 1L), ddd := 0]
+    return(x)
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_hosp <- function(n, id0, seed) {
+  set.seed(seed)
+  k <- .p2d_packages()
+  pur <- list()
+  hosp <- list()
+  for (j in seq_len(n)) {
+    pk <- sample(c(1L, 3L), 1L)
+    usual <- k$dur_usual[pk]
+    start <- sample(0:500, 1L)
+    stay_len <- sample(c(10L, 20L, 45L, 60L), 1L)
+    gap <- c(rep(usual, 4L), usual + stay_len, rep(usual, 3L))
+    day <- start + cumsum(c(0, gap))
+    pur[[j]] <- .p2d_rows(id0 + j, pk, day)
+    in_gap <- day[5L] + sample(2:8, 1L)
+    a <- c(day[2L] + 3L, in_gap, in_gap + stay_len - 3L, day[8L] + 5L)
+    d <- c(day[2L] + 10L, in_gap + stay_len - 2L, in_gap + stay_len + 4L, day[8L] + 50L)
+    if (j %% 3L == 0L) {
+      a <- c(a, d[1L])
+      d <- c(d, d[1L] + 4L)
+    }
+    if (j %% 4L == 0L) {
+      a <- c(a, max(day) + 200L)
+      d <- c(d, max(day) + 260L)
+    }
+    hosp[[j]] <- .p2d_stays(id0 + j, a, d)
+  }
+  return(.p2d_fixture(data.table::rbindlist(pur), data.table::rbindlist(hosp)))
+}
+.p2d_gen_two_atc <- function(n, id0, seed) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    a <- sample(0:300, 1L) + cumsum(c(0, sample(25:40, sample(5:9, 1L), TRUE)))
+    b <- sample(0:300, 1L) + cumsum(c(0, sample(20:35, sample(5:9, 1L), TRUE)))
+    return(data.table::rbindlist(list(
+      .p2d_rows(id0 + j, 1L, a),
+      .p2d_rows(id0 + j, 3L, b)
+    )))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_unmatched <- function(n, id0, seed) {
+  set.seed(seed)
+  out <- lapply(seq_len(n), function(j) {
+    pk <- sample(c(1L, 3L), 1L)
+    m <- 15L
+    pkv <- rep(pk, m)
+    pkv[sample(seq_len(m), 1L)] <- .p2d_unmatched[[if (pk == 1L) "C10AA01" else "N06AB06"]]
+    gap <- .p2d_packages()$dur_usual[pk]
+    day <- sample(0:600, 1L) + cumsum(c(0, round(gap * stats::runif(m - 1L, 0.8, 1.1))))
+    return(.p2d_rows(id0 + j, pkv, day))
+  })
+  return(.p2d_fixture(data.table::rbindlist(out)))
+}
+.p2d_gen_mixed <- function(seed) {
+  set.seed(seed)
+  parts <- list(
+    .p2d_gen_regular(250L, .p2d_id0 + 0L, seed + 1L, k_range = 30:50),
+    .p2d_gen_stockpiling(100L, .p2d_id0 + 1000L, seed + 2L),
+    .p2d_gen_early(150L, .p2d_id0 + 2000L, seed + 3L, k_range = 25:40),
+    .p2d_gen_single(100L, .p2d_id0 + 3000L, seed + 4L),
+    .p2d_gen_irregular(100L, .p2d_id0 + 4000L, seed + 5L),
+    .p2d_gen_same_day(80L, .p2d_id0 + 5000L, seed + 6L),
+    .p2d_gen_zero_ddd(80L, .p2d_id0 + 6000L, seed + 7L),
+    .p2d_gen_hosp(100L, .p2d_id0 + 7000L, seed + 8L),
+    .p2d_gen_two_atc(100L, .p2d_id0 + 8000L, seed + 9L),
+    .p2d_gen_unmatched(100L, .p2d_id0 + 9000L, seed + 10L)
+  )
+  pur <- data.table::rbindlist(lapply(parts, function(x) return(x$purchases)))
+  hosp <- data.table::rbindlist(lapply(parts, function(x) return(x$hosp)))
+  return(.p2d_fixture(pur, hosp))
+}
+```
+
+The port reads a missing `ddd` as 0, and PRE2DUP-R refuses a `ddd` of 0.
+So PRE2DUP-R gets `ddd = NA` where the port gets `ddd = 0`.
+PRE2DUP-R returns a fractional `dup_end`, and the comparison takes the day that holds it.
+
+```{r compare, eval = has_pre2dupr}
+reference_periods <- function(fx) {
+  pre <- copy(fx$purchases)[ddd == 0, ddd := NA_real_]
+  hosp <- fx$hosp
+  ref <- suppressMessages(PRE2DUPR::pre2dup(
+    pre_data = pre, pre_person_id = "id", pre_atc = "atc",
+    pre_package_id = "package_id", pre_date = "date", pre_ratio = "ratio",
+    pre_ddd = "ddd",
+    package_parameters = fx$packages, pack_atc = "atc", pack_id = "package_id",
+    pack_ddd_low = "ddd_low", pack_ddd_usual = "ddd_usual",
+    pack_dur_min = "dur_min", pack_dur_usual = "dur_usual",
+    pack_dur_max = "dur_max",
+    atc_parameters = PRE2DUPR::ATC_parameters, atc_class = "partial_atc",
+    atc_ddd_low = "lower_ddd_atc", atc_ddd_usual = "usual_ddd_atc",
+    atc_dur_min = "minimum_dur_atc", atc_dur_max = "maximum_dur_atc",
+    hosp_data = hosp,
+    hosp_person_id = if (is.null(hosp)) NULL else "id",
+    hosp_admission = if (is.null(hosp)) NULL else "admission",
+    hosp_discharge = if (is.null(hosp)) NULL else "discharge",
+    data_to_return = "periods"
+  ))
+  return(data.table(
+    id = as.integer(as.character(ref$id)),
+    atc = as.character(ref$atc),
+    start = as.Date(floor(as.numeric(ref$dup_start))),
+    end = as.Date(floor(as.numeric(ref$dup_end))),
+    n_purchases = ref$dup_n_purchases,
+    hospital_days = ref$dup_hospital_days,
+    total_ddd = ref$dup_total_DDD
+  ))
+}
+
+port_periods <- function(fx) {
+  out <- swereg:::.pre2dup_periods(fx$purchases, fx$packages, pre2dup_atc_parameters, hosp = fx$hosp)
+  return(data.table(
+    id = out$id,
+    atc = out$atc,
+    start = as.Date(out$start),
+    end = as.Date(out$end),
+    n_purchases = out$n_purchases,
+    hospital_days = out$hospital_days,
+    total_ddd = out$total_ddd
+  ))
+}
+
+# The number of port periods that equal a PRE2DUP-R period on id, atc,
+# start, end, n_purchases and hospital_days, with total_ddd within 1e-8.
+compare_periods <- function(scenario, fx) {
+  ref <- reference_periods(fx)
+  port <- port_periods(fx)
+  keys <- c("id", "atc", "start", "end", "n_purchases", "hospital_days")
+  m <- merge(port, ref, by = keys, suffixes = c("_port", "_ref"))
+  n_identical <- sum(abs(m$total_ddd_port - m$total_ddd_ref) < 1e-8)
+  return(data.table(
+    scenario = scenario,
+    persons = uniqueN(fx$purchases$id),
+    purchases = nrow(fx$purchases),
+    periods_pre2dup_r = nrow(ref),
+    periods_port = nrow(port),
+    identical_periods = n_identical
+  ))
+}
+```
+
+```{r equivalence, eval = has_pre2dupr}
+fixtures <- list(
+  "2: stockpiling" = .p2d_gen_stockpiling(30L, .p2d_id0, 102L),
+  "8: hospital stays" = .p2d_gen_hosp(30L, .p2d_id0, 108L),
+  "11: mixed population" = .p2d_gen_mixed(111L)
+)
+result <- rbindlist(Map(compare_periods, names(fixtures), fixtures))
+result
+stopifnot(
+  result$identical_periods == result$periods_pre2dup_r,
+  result$identical_periods == result$periods_port
+)
+```
+
+In each scenario the count of identical periods equals the number of periods from each side.
+
+### Relabelled person ids
+
+The next chunk gives the port the scenario 11 fixture under its own ids and under the ids 1 to N.
+The ids 1 to N have one to four digits.
+The port returns identical periods under both labellings, after the ids are mapped back.
+This chunk does not need PRE2DUPR.
+
+```{r relabel}
+fx11 <- .p2d_gen_mixed(111L)
+ids <- sort(unique(fx11$purchases$id))
+relabel <- function(fx, new_ids) {
+  out <- fx
+  out$purchases <- copy(fx$purchases)[, id := new_ids[match(id, ids)]]
+  out$hosp <- copy(fx$hosp)[, id := new_ids[match(id, ids)]]
+  return(out)
+}
+fx11_rank <- relabel(fx11, seq_along(ids))
+run_port <- function(fx) {
+  return(swereg:::.pre2dup_periods(fx$purchases, fx$packages, pre2dup_atc_parameters, hosp = fx$hosp))
+}
+port_own <- run_port(fx11)
+port_rank <- run_port(fx11_rank)
+port_rank[, id := ids[id]]
+stopifnot(identical(as.data.frame(port_rank), as.data.frame(port_own)))
+c(periods_own_ids = nrow(port_own), periods_ids_1_to_n = nrow(port_rank))
+```
+
+PRE2DUP-R gives a different count of periods under the ids 1 to N.
+That is the stale selection described in "What rxpre2dup_ means".
+
+```{r relabel-reference, eval = has_pre2dupr}
+c(
+  pre2dup_r_own_ids = nrow(reference_periods(fx11)),
+  pre2dup_r_ids_1_to_n = nrow(reference_periods(fx11_rank))
+)
+```
+
+## Credit
+
+The port follows PRE2DUP-R (<https://github.com/piavat/PRE2DUP-R>), commit 43b6d89, by Pia Vattulainen, under the MIT licence.
+`inst/COPYRIGHTS` names the ported files.
+`pre2dup_atc_parameters` holds PRE2DUP-R's `ATC_parameters` with unchanged values.
+
+- Tanskanen A, Taipale H, Koponen M, et al. From prescription drug purchases to drug use periods: a second generation method (PRE2DUP). *BMC Medical Informatics and Decision Making* 2015;15:21. doi:[10.1186/s12911-015-0140-z](https://doi.org/10.1186/s12911-015-0140-z).
+- Vattulainen P, Tanskanen A, Taipale H. PRE2DUP-R, advanced, open science method to estimate drug use periods for pharmacoepidemiology. *International Journal of Medical Informatics* 2026;212:106344. doi:[10.1016/j.ijmedinf.2026.106344](https://doi.org/10.1016/j.ijmedinf.2026.106344).

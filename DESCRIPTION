@@ -1,10 +1,13 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 27.3.17
+Version: 27.3.18
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
-Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
-    comment = c(ORCID = "0000-0002-6747-1726"))
+Authors@R: c(
+    person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre", "cph"),
+      comment = c(ORCID = "0000-0002-6747-1726")),
+    person("Pia", "Vattulainen", role = c("ctb", "cph"),
+      comment = "PRE2DUP-R, ported in R/pre2dup_periods.R and R/pre2dup_hospital.R"))
 Description: Provides a comprehensive framework for manipulating and analyzing Swedish 
     healthcare registry data in epidemiological research. Creates longitudinal data 
     skeletons with ISO year-week structure and integrates multiple Swedish health 
@@ -43,13 +46,15 @@ Imports:
     utils,
     yaml
 Remotes:
-    papadopoulos-lab/batchit
+    papadopoulos-lab/batchit,
+    piavat/PRE2DUP-R@43b6d89
 Suggests:
     csutil,
     DiagrammeR,
     DiagrammeRsvg,
     knitr,
     mirai (>= 2.3.0),
+    PRE2DUPR,
     processx,
     rmarkdown,
     rstudioapi,
@@ -71,6 +76,7 @@ Collate:
     'add_onetime.R'
     'add_quality_registry.R'
     'add_rx.R'
+    'add_rxpre2dup.R'
     'any_events_prior_to.R'
     'batch_adapter.R'
     'code_entry_apply.R'
@@ -97,6 +103,8 @@ Collate:
     'path_resolution.R'
     'pipeline_batch_workers.R'
     'population_specs.R'
+    'pre2dup_hospital.R'
+    'pre2dup_periods.R'
     'progress_handlers.R'
     'protocol_table.R'
     'qs2.R'

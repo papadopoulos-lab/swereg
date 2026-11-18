@@ -43,6 +43,8 @@ reference:
   - add_operations
   - add_cancer_without_morphology
   - add_rx
+  - add_rxpre2dup
+  - rxpre2dup_read_design
   - add_cods
   - add_quality_registry
 
@@ -107,9 +109,10 @@ reference:
   - as_logical_max_with_infinite_as_na
 
 - title: Datasets
-  desc: Synthetic registry data for development and examples
+  desc: Synthetic registry data for development and examples, and the ATC-level parameters of PRE2DUP
 - contents:
   - fake_data
+  - pre2dup_atc_parameters
 
 articles:
 - title: Concept
@@ -148,6 +151,7 @@ articles:
   contents:
   - builtin-add-functions
   - custom-add-functions
+  - rxpre2dup
 
 - title: Cookbooks
   navbar: Cookbooks
