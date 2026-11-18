@@ -47,7 +47,7 @@ Imports:
     yaml
 Remotes:
     papadopoulos-lab/batchit,
-    piavat/PRE2DUP-R@43b6d89
+    PRE2DUPR=piavat/PRE2DUP-R@43b6d89
 Suggests:
     csutil,
     DiagrammeR,
