@@ -221,7 +221,7 @@ rxpre2dup_read_design <- function(path, as_of = NULL) {
     }
   }
   refuse <- function(i, rule) {
-    .rxpre2dup_design_stop(path, data_rows[i], rule)
+    return(.rxpre2dup_design_stop(path, data_rows[i], rule))
   }
   d <- as.data.table(sheet[data_rows, .RXPRE2DUP_DESIGN_COLUMNS, drop = FALSE])
 
