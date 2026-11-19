@@ -200,7 +200,8 @@ rxpre2dup_read_design <- function(path) {
   }
 
   # Duplicate keys. Inside one key, sorted by pack_ddd, two rows closer than
-  # 0.01 are neighbours whenever any two rows are.
+  # 0.01 are neighbours whenever any two rows are. The 1e-9 margin accepts
+  # rows exactly 0.01 apart: 40.00 - 39.99 is 0.00999... in floating point.
   k <- data.table(
     row = seq_len(nrow(d)),
     dup_key = paste(d$atc, d$produkt, .rxpre2dup_lnmn_key(d$lnmn), sep = "\r"),
@@ -208,7 +209,7 @@ rxpre2dup_read_design <- function(path) {
   )
   setorderv(k, c("dup_key", "pack_ddd"))
   close <- which(
-    k$dup_key[-1L] == k$dup_key[-nrow(k)] & diff(k$pack_ddd) < 0.01
+    k$dup_key[-1L] == k$dup_key[-nrow(k)] & diff(k$pack_ddd) < 0.01 - 1e-9
   )
   if (length(close) > 0L) {
     bad <- sort(unique(c(k$row[close], k$row[close + 1L])))

@@ -87,25 +87,25 @@
   # The two fcase() calls are those of calc_hosp_days(), renamed.
   ov[,
     s_all := fcase(
-      a >= c_start & (!is.na(n_start) & a < n_start),
-      pmax(c_start, a),
-      a >= c_start & (is.na(n_start)) & a < e_end,
-      pmax(c_start, a),
-      a < c_start & d1 > c_start,
-      c_start,
-      a < c_start & d1 <= c_start,
+      a >= c_start & (!is.na(n_start) & a < n_start) ,
+      pmax(c_start, a)                               ,
+      a >= c_start & (is.na(n_start)) & a < e_end    ,
+      pmax(c_start, a)                               ,
+      a < c_start & d1 > c_start                     ,
+      c_start                                        ,
+      a < c_start & d1 <= c_start                    ,
       NA_integer_
     )
   ]
   ov[,
     e_all := fcase(
-      is.na(n_start) & d1 > c_start & a < e_end,
-      d1,
-      d1 >= n_start,
-      n_start,
-      d1 < c_start,
-      NA_integer_,
-      d1 < n_start,
+      is.na(n_start) & d1 > c_start & a < e_end ,
+      d1                                        ,
+      d1 >= n_start                             ,
+      n_start                                   ,
+      d1 < c_start                              ,
+      NA_integer_                               ,
+      d1 < n_start                              ,
       d1
     )
   ]

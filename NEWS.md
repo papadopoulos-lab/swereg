@@ -1,3 +1,9 @@
+# swereg 27.3.19
+
+## Bug fixes
+
+* **`rxpre2dup_read_design()` accepts two rows whose `pack_ddd` are exactly 0.01 apart.** In floating point, 40.00 - 39.99 is 0.00999..., and the reader refused such rows. Rows closer than 0.01 are still refused.
+
 # swereg 27.3.18
 
 `add_rxpre2dup()` marks the skeleton weeks that PRE2DUP drug use periods cover. swereg carries its own port of the PRE2DUP periods algorithm of PRE2DUP-R 0.2.2 (commit 43b6d89), and PRE2DUP-R is not a runtime dependency. `vignette("rxpre2dup")` shows that both give identical periods on synthetic purchases.

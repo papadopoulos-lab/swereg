@@ -47,7 +47,11 @@
   ))
 }
 
-.p2d_stays <- function(id = integer(), admission = integer(), discharge = integer()) {
+.p2d_stays <- function(
+  id = integer(),
+  admission = integer(),
+  discharge = integer()
+) {
   return(data.table::data.table(
     id = as.integer(id),
     admission = as.Date("2015-01-01") + as.integer(admission),
@@ -167,7 +171,8 @@
   out <- lapply(seq_len(n), function(j) {
     pk <- sample(c(1L, 3L), 1L)
     gap <- .p2d_packages()$dur_usual[pk]
-    day <- sample(0:700, 1L) + cumsum(c(0, round(gap * stats::runif(11L, 0.7, 1.2))))
+    day <- sample(0:700, 1L) +
+      cumsum(c(0, round(gap * stats::runif(11L, 0.7, 1.2))))
     x <- .p2d_rows(id0 + j, pk, day)
     x[sample(2:11, 1L), ddd := 0]
     return(x)
@@ -192,7 +197,12 @@
     pur[[j]] <- .p2d_rows(id0 + j, pk, day)
     in_gap <- day[5L] + sample(2:8, 1L)
     a <- c(day[2L] + 3L, in_gap, in_gap + stay_len - 3L, day[8L] + 5L)
-    d <- c(day[2L] + 10L, in_gap + stay_len - 2L, in_gap + stay_len + 4L, day[8L] + 50L)
+    d <- c(
+      day[2L] + 10L,
+      in_gap + stay_len - 2L,
+      in_gap + stay_len + 4L,
+      day[8L] + 50L
+    )
     if (j %% 3L == 0L) {
       a <- c(a, d[1L])
       d <- c(d, d[1L] + 4L)
@@ -228,9 +238,12 @@
     pk <- sample(c(1L, 3L), 1L)
     m <- 15L
     pkv <- rep(pk, m)
-    pkv[sample(seq_len(m), 1L)] <- .p2d_unmatched[[if (pk == 1L) "C10AA01" else "N06AB06"]]
+    pkv[sample(seq_len(m), 1L)] <- .p2d_unmatched[[
+      if (pk == 1L) "C10AA01" else "N06AB06"
+    ]]
     gap <- .p2d_packages()$dur_usual[pk]
-    day <- sample(0:600, 1L) + cumsum(c(0, round(gap * stats::runif(m - 1L, 0.8, 1.1))))
+    day <- sample(0:600, 1L) +
+      cumsum(c(0, round(gap * stats::runif(m - 1L, 0.8, 1.1))))
     return(.p2d_rows(id0 + j, pkv, day))
   })
   return(.p2d_fixture(data.table::rbindlist(out)))
@@ -291,7 +304,9 @@
   expect_true(all(prefix_ok))
   # PRE2DUP-R measures the package coverage after its same-day aggregation.
   agg <- unique(p, by = c("id", "atc", "date", "package_id"))
-  expect_true(all(.p2d_share(agg$atc, agg$package_id %in% fx$packages$package_id) >= 0.9))
+  expect_true(all(
+    .p2d_share(agg$atc, agg$package_id %in% fx$packages$package_id) >= 0.9
+  ))
   # PRE2DUP-R refuses ddd = 0, and reads a missing ddd as 0. The reference
   # gets NA where the port gets 0 (.p2d_reference_purchases()), and at most
   # 10% per ATC may be missing.
@@ -353,7 +368,15 @@
   return(as.Date(floor(as.numeric(x))))
 }
 
-.p2d_normalise <- function(id, atc, start, end, n_purchases, hospital_days, total_ddd) {
+.p2d_normalise <- function(
+  id,
+  atc,
+  start,
+  end,
+  n_purchases,
+  hospital_days,
+  total_ddd
+) {
   x <- data.frame(
     id = as.integer(as.character(id)),
     atc = as.character(atc),
@@ -455,7 +478,10 @@ test_that("scenario 7: purchases with ddd = 0, as corresponding inputs", {
   # (pre2dup.R:300).
   ref_in <- .p2d_reference_purchases(fx)
   expect_identical(is.na(ref_in$ddd), fx$purchases$ddd == 0)
-  expect_identical(ref_in$ddd[!is.na(ref_in$ddd)], fx$purchases$ddd[fx$purchases$ddd != 0])
+  expect_identical(
+    ref_in$ddd[!is.na(ref_in$ddd)],
+    fx$purchases$ddd[fx$purchases$ddd != 0]
+  )
   .p2d_expect_equivalent(fx)
 })
 

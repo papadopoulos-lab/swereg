@@ -64,7 +64,12 @@ rxp_skeleton <- function() {
 # period, found day by day: each day of a period marks its ISO week, or the
 # annual row of its ISO year before the weekly rows start in 2020.
 rxp_expected_rows <- function(skeleton, per) {
-  days <- as.Date(unlist(Map(seq, as.Date(per$start), as.Date(per$end), by = 1L)))
+  days <- as.Date(unlist(Map(
+    seq,
+    as.Date(per$start),
+    as.Date(per$end),
+    by = 1L
+  )))
   week <- cstime::date_to_isoyearweek_c(days)
   year <- as.integer(substr(week, 1L, 4L))
   key <- ifelse(year < 2020L, paste0(year, "-**"), week)
@@ -317,7 +322,13 @@ test_that("7. hospital stays reach PRE2DUP, and a stay with a missing date or ut
   )
   sk_na <- rxp_skeleton()
   expect_no_error(suppressMessages(
-    add_rxpre2dup(sk_na, rxp_lmed(), hosp_na, codes = rxp_codes, design = design)
+    add_rxpre2dup(
+      sk_na,
+      rxp_lmed(),
+      hosp_na,
+      codes = rxp_codes,
+      design = design
+    )
   ))
   expect_identical(sk_na$rxpre2dup_statin, sk_hosp$rxpre2dup_statin)
 
@@ -427,7 +438,10 @@ test_that("10. a numeric design column with text cells names each text cell's sh
   openxlsx::writeData(wb, "packages", "12a", startCol = 4L, startRow = 3L)
   openxlsx::writeData(wb, "packages", "12", startCol = 4L, startRow = 4L)
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
-  expect_type(openxlsx::read.xlsx(path, sheet = "packages")$pack_ddd, "character")
+  expect_type(
+    openxlsx::read.xlsx(path, sheet = "packages")$pack_ddd,
+    "character"
+  )
 
   # The message is captured, so a wrong row list is an expectation failure.
   # expect_error() re-throws an error whose message does not match.
@@ -441,6 +455,25 @@ test_that("10. a numeric design column with text cells names each text cell's sh
   expect_match(
     msg,
     "breaks a rule on sheet row 3, 4: column pack_ddd MUST hold numbers.",
+    fixed = TRUE
+  )
+})
+
+test_that("11. rows exactly 0.01 apart in pack_ddd are accepted, and rows 0.005 apart are refused", {
+  # In floating point 40.00 - 39.99 is 0.00999..., below 0.01.
+  rows <- rbind(
+    rxp_design_rows(pack_ddd = 39.99),
+    rxp_design_rows(pack_ddd = 40.00)
+  )
+  expect_identical(nrow(rxpre2dup_read_design(rxp_write_design(rows))), 2L)
+
+  rows <- rbind(
+    rxp_design_rows(pack_ddd = 40.000),
+    rxp_design_rows(pack_ddd = 40.005)
+  )
+  expect_error(
+    rxpre2dup_read_design(rxp_write_design(rows)),
+    "sheet row 2, 3: two rows with the same atc, produkt and lnmn",
     fixed = TRUE
   )
 })

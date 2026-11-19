@@ -58,7 +58,10 @@ pur <- pur[!row %in% reg$row[seq_len(excess)]][, row := NULL]
 setorder(pur, id, atc, date)
 fx <- .p2d_fixture(pur, hosp)
 
-stopifnot(uniqueN(fx$purchases$id) == n_persons, nrow(fx$purchases) == n_purchases)
+stopifnot(
+  uniqueN(fx$purchases$id) == n_persons,
+  nrow(fx$purchases) == n_purchases
+)
 cat(sprintf(
   "Population: %d persons, %d purchases, %d hospital stays.\n",
   uniqueN(fx$purchases$id),
