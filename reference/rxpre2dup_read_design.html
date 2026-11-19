@@ -11,7 +11,7 @@ to the rows it returns."><meta property="og:image" content="https://papadopoulos
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,7 @@ to the rows it returns.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rxpre2dup_read_design</span><span class="op">(</span><span class="va">path</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rxpre2dup_read_design</span><span class="op">(</span><span class="va">path</span>, as_of <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -86,13 +86,21 @@ to the rows it returns.</p>
 <dl><dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>The path to the <code>.xlsx</code> design file.</p></dd>
 
+
+<dt id="arg-as-of">as_of<a class="anchor" aria-label="anchor" href="#arg-as-of"></a></dt>
+<dd><p>NULL, or one date that <code><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">base::as.Date()</a></code> reads. When it is
+not NULL, the reader drops every row with <code>design_date</code> after <code>as_of</code>.
+It MUST be NULL for a file without the column <code>design_date</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data.table with one row per package and 14 columns. The first
-column is an integer <code>package_id</code>, 1 to N in sheet order. The 11 columns
-of the sheet follow it. The last two columns are
-<code>ddd_usual = pack_ddd / dur_usual</code> and <code>ddd_low = pack_ddd / dur_max</code>.</p>
+    <p>A data.table with one row per package that the reader keeps. The
+first column is an integer <code>package_id</code>, 1 to N in sheet order. The 11
+columns of the format follow it. The next two columns are
+<code>ddd_usual = pack_ddd / dur_usual</code> and <code>ddd_low = pack_ddd / dur_max</code>.
+A file with <code>design_date</code> gives a 15th column, <code>design_date</code>, of class
+<code>Date</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="design-file-format">Design file format<a class="anchor" aria-label="anchor" href="#design-file-format"></a></h2>
@@ -117,7 +125,24 @@ values of <code>pack_ddd</code> that differ by 0.01 or more. One dispensing ther
 matches at most one row.</p>
 <p>The reader stops on the first rule that a row breaks, and names every sheet
 row that breaks it. Row 1 of the sheet is the header. The reader ignores
-columns outside the list above, and it does not check their order.</p>
+every column that is not in the list above or in the section "Design
+dates". It does not check the column order.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="design-dates">Design dates<a class="anchor" aria-label="anchor" href="#design-dates"></a></h2>
+
+
+<p>The sheet MAY have one more column, <code>design_date</code>. The workbook can then
+grow by appended rows. Each row MUST hold the date of its design, as text
+in the form <code>YYYY-MM-DD</code>. An Excel date cell reads as a number, and the
+reader refuses it.</p>
+<p>The reader first drops the rows with <code>design_date</code> after <code>as_of</code>. Then, for
+each <code>atc</code>, it keeps only the rows with the latest remaining date of that
+<code>atc</code>. An <code>atc</code> that a later date leaves out keeps the rows of its own
+latest date. The reader stops when it keeps no row.</p>
+<p>The rules of the list above apply only to the rows that the reader keeps.
+A dropped row therefore takes no part in the duplicate-key rule. A
+refusal names the sheet rows of the file.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

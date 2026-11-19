@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -422,6 +422,18 @@ any other value refuses the file)</li>
 <p>swereg computes <code>ddd_usual = pack_ddd / dur_usual</code> and
 <code>ddd_low = pack_ddd / dur_max</code>. The file never stores
 them.</p>
+<p>The sheet MAY have one more column, <code>design_date</code>. Every
+row MUST then hold its date as text <code>YYYY-MM-DD</code>. Format that
+column as text in Excel. An Excel date cell reads as a number, and the
+reader refuses it.</p>
+<p>One workbook then holds every version of the design, and a new
+version is a block of appended rows.
+<code>rxpre2dup_read_design(path, as_of)</code> drops the rows dated
+after <code>as_of</code>. For each <code>atc</code>, it then keeps the
+rows of the latest remaining date. An <code>atc</code> that the new
+block leaves out keeps the rows of its own latest date. The value rules
+and the duplicate-key rule apply only to the kept rows, so two dates of
+one package never form a duplicate key.</p>
 <p>LMED’s <code>fddd</code> is the total DDDs of one dispensing. A
 design row therefore describes one dispensing amount, and every
 dispensing enters PRE2DUP with <code>ratio = 1</code>. Suppose a
@@ -445,7 +457,7 @@ per ATC code in one message line.</p>
 group names below are examples, so use the names of your own study.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">rv_statins</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">batch_data</span>, <span class="va">config</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">design</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rxpre2dup_read_design.html">rxpre2dup_read_design</a></span><span class="op">(</span><span class="st">"design/statins_2026-11-18.xlsx"</span><span class="op">)</span></span>
+<span>  <span class="va">design</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rxpre2dup_read_design.html">rxpre2dup_read_design</a></span><span class="op">(</span><span class="st">"design/statins.xlsx"</span>, as_of <span class="op">=</span> <span class="st">"2026-11-18"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/add_rxpre2dup.html">add_rxpre2dup</a></span><span class="op">(</span></span>
 <span>    <span class="va">skeleton</span>,</span>
 <span>    lmed <span class="op">=</span> <span class="va">batch_data</span><span class="op">[[</span><span class="st">"lmed"</span><span class="op">]</span><span class="op">]</span>,</span>
@@ -457,8 +469,11 @@ group names below are examples, so use the names of your own study.</p>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"statins"</span>, <span class="va">rv_statins</span><span class="op">)</span></span></code></pre></div>
-<p>Put the dated file name in the body of the step. The step’s hash
-covers its body, so a new design file replays the step.</p>
+<p>Put the <code>as_of</code> date in the body of the step. The step’s
+hash covers its body, so a new <code>as_of</code> replays the step. A
+row dated after <code>as_of</code> does not change the result. Do not
+leave <code>as_of</code> NULL in a step. Appended rows then change the
+design, and the step’s hash stays the same.</p>
 </div>
 <div class="section level2">
 <h2 id="equivalence-with-pre2dup-r">Equivalence with PRE2DUP-R<a class="anchor" aria-label="anchor" href="#equivalence-with-pre2dup-r"></a>
