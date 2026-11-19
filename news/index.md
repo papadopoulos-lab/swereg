@@ -1,5 +1,14 @@
 # Changelog
 
+## swereg 27.3.19
+
+### Bug fixes
+
+- **[`rxpre2dup_read_design()`](https://papadopoulos-lab.github.io/swereg/reference/rxpre2dup_read_design.md)
+  accepts two rows whose `pack_ddd` are exactly 0.01 apart.** In
+  floating point, 40.00 - 39.99 is 0.00999…, and the reader refused such
+  rows. Rows closer than 0.01 are still refused.
+
 ## swereg 27.3.18
 
 [`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
