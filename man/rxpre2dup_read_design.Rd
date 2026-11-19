@@ -4,16 +4,22 @@
 \alias{rxpre2dup_read_design}
 \title{Read a PRE2DUP package design file}
 \usage{
-rxpre2dup_read_design(path)
+rxpre2dup_read_design(path, as_of = NULL)
 }
 \arguments{
 \item{path}{The path to the \code{.xlsx} design file.}
+
+\item{as_of}{NULL, or one date that \code{\link[base:as.Date]{base::as.Date()}} reads. When it is
+not NULL, the reader drops every row with \code{design_date} after \code{as_of}.
+It MUST be NULL for a file without the column \code{design_date}.}
 }
 \value{
-A data.table with one row per package and 14 columns. The first
-column is an integer \code{package_id}, 1 to N in sheet order. The 11 columns
-of the sheet follow it. The last two columns are
+A data.table with one row per package that the reader keeps. The
+first column is an integer \code{package_id}, 1 to N in sheet order. The 11
+columns of the format follow it. The next two columns are
 \code{ddd_usual = pack_ddd / dur_usual} and \code{ddd_low = pack_ddd / dur_max}.
+A file with \code{design_date} gives a 15th column, \code{design_date}, of class
+\code{Date}.
 }
 \description{
 Reads the \code{packages} sheet of a package design file and checks every row
@@ -45,7 +51,25 @@ matches at most one row.
 
 The reader stops on the first rule that a row breaks, and names every sheet
 row that breaks it. Row 1 of the sheet is the header. The reader ignores
-columns outside the list above, and it does not check their order.
+every column that is not in the list above or in the section "Design
+dates". It does not check the column order.
+}
+
+\section{Design dates}{
+
+The sheet MAY have one more column, \code{design_date}. The workbook can then
+grow by appended rows. Each row MUST hold the date of its design, as text
+in the form \code{YYYY-MM-DD}. An Excel date cell reads as a number, and the
+reader refuses it.
+
+The reader first drops the rows with \code{design_date} after \code{as_of}. Then, for
+each \code{atc}, it keeps only the rows with the latest remaining date of that
+\code{atc}. An \code{atc} that a later date leaves out keeps the rows of its own
+latest date. The reader stops when it keeps no row.
+
+The rules of the list above apply only to the rows that the reader keeps.
+A dropped row therefore takes no part in the duplicate-key rule. A
+refusal names the sheet rows of the file.
 }
 
 \seealso{

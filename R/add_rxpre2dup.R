@@ -91,18 +91,48 @@
 #'
 #' The reader stops on the first rule that a row breaks, and names every sheet
 #' row that breaks it. Row 1 of the sheet is the header. The reader ignores
-#' columns outside the list above, and it does not check their order.
+#' every column that is not in the list above or in the section "Design
+#' dates". It does not check the column order.
+#'
+#' @section Design dates:
+#' The sheet MAY have one more column, `design_date`. The workbook can then
+#' grow by appended rows. Each row MUST hold the date of its design, as text
+#' in the form `YYYY-MM-DD`. An Excel date cell reads as a number, and the
+#' reader refuses it.
+#'
+#' The reader first drops the rows with `design_date` after `as_of`. Then, for
+#' each `atc`, it keeps only the rows with the latest remaining date of that
+#' `atc`. An `atc` that a later date leaves out keeps the rows of its own
+#' latest date. The reader stops when it keeps no row.
+#'
+#' The rules of the list above apply only to the rows that the reader keeps.
+#' A dropped row therefore takes no part in the duplicate-key rule. A
+#' refusal names the sheet rows of the file.
 #'
 #' @param path The path to the `.xlsx` design file.
-#' @return A data.table with one row per package and 14 columns. The first
-#'   column is an integer `package_id`, 1 to N in sheet order. The 11 columns
-#'   of the sheet follow it. The last two columns are
+#' @param as_of NULL, or one date that [base::as.Date()] reads. When it is
+#'   not NULL, the reader drops every row with `design_date` after `as_of`.
+#'   It MUST be NULL for a file without the column `design_date`.
+#' @return A data.table with one row per package that the reader keeps. The
+#'   first column is an integer `package_id`, 1 to N in sheet order. The 11
+#'   columns of the format follow it. The next two columns are
 #'   `ddd_usual = pack_ddd / dur_usual` and `ddd_low = pack_ddd / dur_max`.
+#'   A file with `design_date` gives a 15th column, `design_date`, of class
+#'   `Date`.
 #' @seealso [add_rxpre2dup()]
 #' @export
-rxpre2dup_read_design <- function(path) {
+rxpre2dup_read_design <- function(path, as_of = NULL) {
   package_id <- ddd_usual <- ddd_low <- pack_ddd <- dur_usual <- NULL
   dur_max <- NULL
+  if (!is.null(as_of)) {
+    as_of_date <- tryCatch(as.Date(as_of), error = function(e) as.Date(NA))
+    if (length(as_of) != 1L || length(as_of_date) != 1L || is.na(as_of_date)) {
+      stop(
+        "as_of MUST be NULL or one date that as.Date() reads.",
+        call. = FALSE
+      )
+    }
+  }
   sheet <- tryCatch(
     openxlsx::read.xlsx(
       path,
@@ -133,7 +163,67 @@ rxpre2dup_read_design <- function(path) {
       call. = FALSE
     )
   }
-  d <- as.data.table(sheet[.RXPRE2DUP_DESIGN_COLUMNS])
+  # The data rows that the date choice keeps. Every refusal below maps its
+  # positions in d back to these rows, so it names the sheet rows.
+  data_rows <- seq_len(nrow(sheet))
+  has_date <- "design_date" %in% names(sheet)
+  if (!has_date && !is.null(as_of)) {
+    stop(
+      "as_of MUST be NULL, because the design file ",
+      path,
+      " has no column design_date.",
+      call. = FALSE
+    )
+  }
+  if (has_date) {
+    x <- sheet[["design_date"]]
+    if (all(is.na(x))) {
+      x <- rep(NA_character_, length(x))
+    } else if (!is.character(x)) {
+      .rxpre2dup_design_stop(
+        path,
+        which(!is.na(x)),
+        "column design_date MUST hold text"
+      )
+    }
+    dates <- as.Date(x, "%Y-%m-%d")
+    bad <- which(is.na(dates) | format(dates) != x)
+    if (length(bad) > 0L) {
+      .rxpre2dup_design_stop(
+        path,
+        bad,
+        "design_date MUST hold a date as text YYYY-MM-DD"
+      )
+    }
+    # The choice runs before every row check below, so a row of an older
+    # date never meets those checks.
+    keep <- rep(TRUE, length(dates))
+    if (!is.null(as_of)) {
+      keep <- dates <= as_of_date
+    }
+    # The latest remaining date of each atc, as a day number.
+    day <- as.numeric(dates)
+    latest <- rep(NA_real_, length(day))
+    latest[keep] <- ave(day[keep], sheet[["atc"]][keep], FUN = max)
+    keep <- keep & day == latest
+    data_rows <- data_rows[keep]
+    if (length(data_rows) == 0L) {
+      stop(
+        "The design file ",
+        path,
+        if (is.null(as_of)) {
+          " has no data row."
+        } else {
+          paste0(" has no row with design_date on or before ", as_of_date, ".")
+        },
+        call. = FALSE
+      )
+    }
+  }
+  refuse <- function(i, rule) {
+    .rxpre2dup_design_stop(path, data_rows[i], rule)
+  }
+  d <- as.data.table(sheet[data_rows, .RXPRE2DUP_DESIGN_COLUMNS, drop = FALSE])
 
   # An empty cell reads as NA. A column with no value at all reads as
   # logical or numeric, and it is an empty column of its own type here.
@@ -143,11 +233,7 @@ rxpre2dup_read_design <- function(path) {
     if (all(is.na(x))) {
       set(d, j = col, value = rep(NA_character_, nrow(d)))
     } else if (!is.character(x)) {
-      .rxpre2dup_design_stop(
-        path,
-        which(!is.na(x)),
-        paste0("column ", col, " MUST hold text")
-      )
+      refuse(which(!is.na(x)), paste0("column ", col, " MUST hold text"))
     }
   }
   num_cols <- c("pack_ddd", "dur_min", "dur_usual", "dur_max")
@@ -156,16 +242,21 @@ rxpre2dup_read_design <- function(path) {
     if (all(is.na(x))) {
       set(d, j = col, value = rep(NA_real_, nrow(d)))
     } else if (!is.numeric(x)) {
+      # A text cell in a row that the date choice drops also makes the
+      # column text. The column is refused only for a text cell in a kept
+      # row. .rxpre2dup_text_cells() takes and returns data rows.
       bad <- .rxpre2dup_text_cells(
         path,
         match(col, names(sheet)),
-        which(!is.na(x))
+        data_rows[which(!is.na(x))]
       )
-      .rxpre2dup_design_stop(
-        path,
-        bad,
-        paste0("column ", col, " MUST hold numbers")
-      )
+      if (length(bad) > 0L) {
+        .rxpre2dup_design_stop(
+          path,
+          bad,
+          paste0("column ", col, " MUST hold numbers")
+        )
+      }
     }
     set(d, j = col, value = as.numeric(d[[col]]))
   }
@@ -173,30 +264,22 @@ rxpre2dup_read_design <- function(path) {
   for (col in c("atc", "produkt", "lnmn", "form", "status")) {
     bad <- which(is.na(d[[col]]) | !nzchar(trimws(d[[col]])))
     if (length(bad) > 0L) {
-      .rxpre2dup_design_stop(path, bad, paste0("column ", col, " is empty"))
+      refuse(bad, paste0("column ", col, " is empty"))
     }
   }
   for (col in num_cols) {
     bad <- which(!is.finite(d[[col]]) | d[[col]] <= 0)
     if (length(bad) > 0L) {
-      .rxpre2dup_design_stop(
-        path,
-        bad,
-        paste0(col, " MUST be a number greater than 0")
-      )
+      refuse(bad, paste0(col, " MUST be a number greater than 0"))
     }
   }
   bad <- which(d$dur_min > d$dur_usual | d$dur_usual > d$dur_max)
   if (length(bad) > 0L) {
-    .rxpre2dup_design_stop(
-      path,
-      bad,
-      "dur_min <= dur_usual <= dur_max MUST hold"
-    )
+    refuse(bad, "dur_min <= dur_usual <= dur_max MUST hold")
   }
   bad <- which(!d$status %chin% c("auto", "approved"))
   if (length(bad) > 0L) {
-    .rxpre2dup_design_stop(path, bad, "status MUST be 'auto' or 'approved'")
+    refuse(bad, "status MUST be 'auto' or 'approved'")
   }
 
   # Duplicate keys. Inside one key, sorted by pack_ddd, two rows closer than
@@ -213,8 +296,7 @@ rxpre2dup_read_design <- function(path) {
   )
   if (length(close) > 0L) {
     bad <- sort(unique(c(k$row[close], k$row[close + 1L])))
-    .rxpre2dup_design_stop(
-      path,
+    refuse(
       bad,
       paste0(
         "two rows with the same atc, produkt and lnmn MUST have values of ",
@@ -227,6 +309,9 @@ rxpre2dup_read_design <- function(path) {
   setcolorder(d, "package_id")
   d[, ddd_usual := pack_ddd / dur_usual]
   d[, ddd_low := pack_ddd / dur_max]
+  if (has_date) {
+    set(d, j = "design_date", value = dates[data_rows])
+  }
   return(d[])
 }
 

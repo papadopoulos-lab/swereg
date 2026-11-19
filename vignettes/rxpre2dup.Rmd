@@ -411,6 +411,17 @@ The columns are, in order:
 swereg computes `ddd_usual = pack_ddd / dur_usual` and `ddd_low = pack_ddd / dur_max`.
 The file never stores them.
 
+The sheet MAY have one more column, `design_date`.
+Every row MUST then hold its date as text `YYYY-MM-DD`.
+Format that column as text in Excel.
+An Excel date cell reads as a number, and the reader refuses it.
+
+One workbook then holds every version of the design, and a new version is a block of appended rows.
+`rxpre2dup_read_design(path, as_of)` drops the rows dated after `as_of`.
+For each `atc`, it then keeps the rows of the latest remaining date.
+An `atc` that the new block leaves out keeps the rows of its own latest date.
+The value rules and the duplicate-key rule apply only to the kept rows, so two dates of one package never form a duplicate key.
+
 LMED's `fddd` is the total DDDs of one dispensing.
 A design row therefore describes one dispensing amount, and every dispensing enters PRE2DUP with `ratio = 1`.
 Suppose a pharmacy hands out 200 tablets as 2 × 100.
@@ -431,7 +442,7 @@ The group names below are examples, so use the names of your own study.
 
 ```{r phase3, eval = FALSE}
 rv_statins <- function(skeleton, batch_data, config) {
-  design <- rxpre2dup_read_design("design/statins_2026-11-18.xlsx")
+  design <- rxpre2dup_read_design("design/statins.xlsx", as_of = "2026-11-18")
   add_rxpre2dup(
     skeleton,
     lmed = batch_data[["lmed"]],
@@ -445,8 +456,11 @@ rv_statins <- function(skeleton, batch_data, config) {
 study$register_randvars("statins", rv_statins)
 ```
 
-Put the dated file name in the body of the step.
-The step's hash covers its body, so a new design file replays the step.
+Put the `as_of` date in the body of the step.
+The step's hash covers its body, so a new `as_of` replays the step.
+A row dated after `as_of` does not change the result.
+Do not leave `as_of` NULL in a step.
+Appended rows then change the design, and the step's hash stays the same.
 
 ## Equivalence with PRE2DUP-R
 

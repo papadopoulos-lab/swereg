@@ -477,3 +477,282 @@ test_that("11. rows exactly 0.01 apart in pack_ddd are accepted, and rows 0.005 
     fixed = TRUE
   )
 })
+
+# The rows, with the column design_date set to `date`.
+rxp_dated <- function(rows, date) {
+  rows$design_date <- date
+  return(rows)
+}
+
+# The message of the error that `expr` throws. A wrong message is then an
+# expectation failure: expect_error() re-throws an error that does not match.
+rxp_error_message <- function(expr) {
+  return(tryCatch(
+    {
+      expr
+      "no error"
+    },
+    error = conditionMessage
+  ))
+}
+
+rxp_two_strengths <- c("Simvastatin X 20 mg", "Simvastatin X 40 mg")
+
+test_that("12. two design dates for one atc give the rows of the latest date up to as_of", {
+  # The same two package keys on both dates, so the file holds duplicate
+  # keys across dates and none inside one date.
+  old <- rxp_dated(
+    rxp_design_rows(lnmn = rxp_two_strengths, pack_ddd = c(30, 60)),
+    "2026-01-01"
+  )
+  new <- rxp_dated(
+    rxp_design_rows(
+      lnmn = rxp_two_strengths,
+      pack_ddd = c(30, 60),
+      dur_usual = 28
+    ),
+    "2026-06-01"
+  )
+  path <- rxp_write_design(rbind(old, new))
+
+  # No date takes part in the duplicate-key check of another date.
+  for (as_of in list("2026-01-01", as.Date("2026-03-15"))) {
+    expect_no_error(design <- rxpre2dup_read_design(path, as_of = as_of))
+    expect_identical(
+      names(design),
+      c(
+        "package_id",
+        .RXPRE2DUP_DESIGN_COLUMNS,
+        "ddd_usual",
+        "ddd_low",
+        "design_date"
+      )
+    )
+    expect_identical(design$package_id, 1:2)
+    expect_identical(design$lnmn, rxp_two_strengths)
+    expect_identical(design$dur_usual, c(30, 30))
+    expect_identical(design$design_date, as.Date(c("2026-01-01", "2026-01-01")))
+  }
+
+  expect_no_error(
+    latest <- list(
+      rxpre2dup_read_design(path),
+      rxpre2dup_read_design(path, as_of = "2026-06-01"),
+      rxpre2dup_read_design(path, as_of = "2027-01-01")
+    )
+  )
+  for (design in latest) {
+    expect_identical(design$package_id, 1:2)
+    expect_identical(design$lnmn, rxp_two_strengths)
+    expect_identical(design$dur_usual, c(28, 28))
+    expect_identical(design$ddd_usual, c(30, 60) / 28)
+    expect_identical(design$design_date, as.Date(c("2026-06-01", "2026-06-01")))
+  }
+})
+
+test_that("13. each atc keeps the rows of its own latest design date", {
+  # C10AA05 is absent from the design of 2026-06-01.
+  rows <- rbind(
+    rxp_dated(rxp_design_rows(), "2026-01-01"),
+    rxp_dated(
+      rxp_design_rows(
+        atc = "C10AA05",
+        produkt = "Atorvastatin Y",
+        lnmn = "Atorvastatin Y 40 mg"
+      ),
+      "2026-01-01"
+    ),
+    rxp_dated(rxp_design_rows(dur_usual = 28), "2026-06-01")
+  )
+  path <- rxp_write_design(rows)
+
+  design <- rxpre2dup_read_design(path)
+  expect_identical(design$package_id, 1:2)
+  expect_identical(design$atc, c("C10AA05", "C10AA01"))
+  expect_identical(design$dur_usual, c(30, 28))
+  expect_identical(design$design_date, as.Date(c("2026-01-01", "2026-06-01")))
+
+  design <- rxpre2dup_read_design(path, as_of = "2026-01-01")
+  expect_identical(design$atc, c("C10AA01", "C10AA05"))
+  expect_identical(design$dur_usual, c(30, 30))
+})
+
+test_that("14. an as_of before every design date stops, and so does an as_of that is not one date", {
+  rows <- rbind(
+    rxp_dated(rxp_design_rows(), "2026-01-01"),
+    rxp_dated(rxp_design_rows(dur_usual = 28), "2026-06-01")
+  )
+  path <- rxp_write_design(rows)
+  expect_error(
+    rxpre2dup_read_design(path, as_of = "2025-12-31"),
+    "has no row with design_date on or before 2025-12-31.",
+    fixed = TRUE
+  )
+  for (as_of in list("not a date", c("2026-01-01", "2026-06-01"), NA)) {
+    expect_error(
+      rxpre2dup_read_design(path, as_of = as_of),
+      "as_of MUST be NULL or one date that as.Date() reads.",
+      fixed = TRUE
+    )
+  }
+})
+
+test_that("15. a design_date that is not text YYYY-MM-DD stops and names the sheet row", {
+  # Excel date cells read as numbers.
+  rows <- rxp_dated(
+    rxp_design_rows(lnmn = rxp_two_strengths),
+    as.Date(c("2026-01-01", "2026-06-01"))
+  )
+  path <- rxp_write_design(rows)
+  expect_type(
+    openxlsx::read.xlsx(path, sheet = "packages")$design_date,
+    "double"
+  )
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(path)),
+    "breaks a rule on sheet row 2, 3: column design_date MUST hold text.",
+    fixed = TRUE
+  )
+
+  # Malformed text, and an empty cell, on sheet rows 3 to 6.
+  rows <- rxp_dated(
+    rxp_design_rows(lnmn = paste("Simvastatin X", 1:5, "mg")),
+    c("2026-01-01", "2026-1-05", "2026-02-30", "20260101", NA)
+  )
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(rxp_write_design(rows))),
+    paste0(
+      "breaks a rule on sheet row 3, 4, 5, 6: ",
+      "design_date MUST hold a date as text YYYY-MM-DD."
+    ),
+    fixed = TRUE
+  )
+
+  # One Excel date cell among text cells, on sheet row 3. The column reads
+  # as text, and that cell reads as its day number.
+  rows <- rxp_dated(rxp_design_rows(lnmn = rxp_two_strengths), "2026-01-01")
+  path <- tempfile(fileext = ".xlsx", tmpdir = tempdir())
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "packages")
+  openxlsx::writeData(wb, "packages", rows)
+  openxlsx::writeData(
+    wb,
+    "packages",
+    as.Date("2026-01-01"),
+    startCol = 12L,
+    startRow = 3L
+  )
+  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+  expect_identical(
+    openxlsx::read.xlsx(path, sheet = "packages")$design_date,
+    c("2026-01-01", "46023")
+  )
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(path)),
+    "breaks a rule on sheet row 3: design_date MUST hold a date as text YYYY-MM-DD.",
+    fixed = TRUE
+  )
+})
+
+test_that("16. as_of on a file without design_date stops", {
+  path <- rxp_write_design(rxp_design_rows())
+  expect_error(
+    rxpre2dup_read_design(path, as_of = "2026-01-01"),
+    "as_of MUST be NULL, because the design file",
+    fixed = TRUE
+  )
+})
+
+test_that("17. a file without design_date gives the 14 columns, with every row", {
+  rows <- rbind(
+    rxp_design_rows(),
+    rxp_design_rows(dur_usual = 28, pack_ddd = 60)
+  )
+  design <- rxpre2dup_read_design(rxp_write_design(rows), as_of = NULL)
+  expect_identical(
+    names(design),
+    c("package_id", .RXPRE2DUP_DESIGN_COLUMNS, "ddd_usual", "ddd_low")
+  )
+  expect_identical(design$package_id, 1:2)
+  for (col in names(rows)) {
+    expect_identical(design[[col]], rows[[col]], label = col)
+  }
+})
+
+test_that("18. a refusal after the date choice names the original sheet rows", {
+  # Sheet row 2 is of an older date. Sheet row 3 breaks a rule.
+  rows <- rbind(
+    rxp_dated(rxp_design_rows(), "2026-01-01"),
+    rxp_dated(
+      rxp_design_rows(dur_min = 70, dur_usual = 30, dur_max = 60),
+      "2026-06-01"
+    )
+  )
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(rxp_write_design(rows))),
+    "breaks a rule on sheet row 3: dur_min <= dur_usual <= dur_max MUST hold.",
+    fixed = TRUE
+  )
+
+  # Sheet rows 3 and 4 share a key. Sheet row 2 has that key too, on an
+  # older date, and takes no part in the check.
+  rows <- rbind(
+    rxp_dated(rxp_design_rows(), "2026-01-01"),
+    rxp_dated(rxp_design_rows(), "2026-06-01"),
+    rxp_dated(
+      rxp_design_rows(lnmn = " SIMVASTATIN X 20 MG ", pack_ddd = 30.005),
+      "2026-06-01"
+    )
+  )
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(rxp_write_design(rows))),
+    "breaks a rule on sheet row 3, 4: two rows with the same atc, produkt and lnmn",
+    fixed = TRUE
+  )
+})
+
+test_that("19. a text cell in pack_ddd refuses the file only on a kept row", {
+  rows <- rbind(
+    rxp_dated(rxp_design_rows(), "2026-01-01"),
+    rxp_dated(rxp_design_rows(lnmn = rxp_two_strengths), "2026-06-01")
+  )
+  # pack_ddd is column 4. One text cell makes openxlsx read the column as
+  # text.
+  write_text_cell <- function(text, sheet_row) {
+    path <- tempfile(fileext = ".xlsx", tmpdir = tempdir())
+    wb <- openxlsx::createWorkbook()
+    openxlsx::addWorksheet(wb, "packages")
+    openxlsx::writeData(wb, "packages", rows)
+    openxlsx::writeData(
+      wb,
+      "packages",
+      text,
+      startCol = 4L,
+      startRow = sheet_row
+    )
+    openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+    return(path)
+  }
+
+  # The text cell is on sheet row 2, of the older date.
+  path <- write_text_cell("30x", 2L)
+  expect_type(
+    openxlsx::read.xlsx(path, sheet = "packages")$pack_ddd,
+    "character"
+  )
+  design <- rxpre2dup_read_design(path)
+  expect_identical(design$pack_ddd, c(30, 30))
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(path, as_of = "2026-01-01")),
+    "breaks a rule on sheet row 2: column pack_ddd MUST hold numbers.",
+    fixed = TRUE
+  )
+
+  # The text cell is on sheet row 4, of the latest date.
+  path <- write_text_cell("12", 4L)
+  expect_match(
+    rxp_error_message(rxpre2dup_read_design(path)),
+    "breaks a rule on sheet row 4: column pack_ddd MUST hold numbers.",
+    fixed = TRUE
+  )
+})

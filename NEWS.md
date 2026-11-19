@@ -1,3 +1,9 @@
+# swereg 27.3.20
+
+## New features
+
+* **`rxpre2dup_read_design()` reads one design workbook that grows by appended rows.** The sheet MAY have a column `design_date`, with the date of each row as text `YYYY-MM-DD`. For each `atc`, the reader keeps and checks only the rows of its latest date up to the new argument `as_of`. A file without the column reads as in 27.3.19.
+
 # swereg 27.3.19
 
 ## Bug fixes
