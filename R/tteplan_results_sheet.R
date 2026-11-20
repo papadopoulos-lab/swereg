@@ -235,7 +235,13 @@
     "difference and number needed to treat of that estimand were not ",
     "reported. ",
     if (length(spec$subgroups %||% list()) > 0L) {
-      "Its subgroup rate ratios and interaction tests were withheld too. "
+      paste0(
+        "Its subgroup rate ratios and interaction tests were withheld too. ",
+        "A subgroup rate ratio was also withheld when its own subgroup level ",
+        "failed the rule. ",
+        "The interaction test of a subgroup was withheld when any of its ",
+        "levels failed. "
+      )
     },
     if (!is.null(exempt)) paste0(exempt, " "),
     "Events, person-time and rates were still reported. ",

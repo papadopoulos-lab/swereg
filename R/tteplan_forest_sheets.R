@@ -19,8 +19,13 @@
 #'
 #' An estimand that the minimum-events rule withheld reads `NE` in its stratum
 #' ratio and interval cells, and in its interaction-test cells on the `"all"`
-#' row. The writer reads the decision from `horizon_status` in
+#' row. The writer reads that decision from `horizon_status` in
 #' `$get_estimates()`.
+#'
+#' Each row also reads its own `horizon_status` in `$get_subgroups()`, per
+#' estimand. A withheld level row reads `NE` in its ratio and interval cells.
+#' A withheld `"all"` row reads `NE` in its interaction-test cells. That
+#' status names the failing levels.
 #' @noRd
 .write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
@@ -102,6 +107,16 @@
       }
     ))
   }
+  # The decision of the rule for one row and one estimand, from that row's
+  # own `horizon_status`. A level row carries its level's record. The "all"
+  # row carries the status of the interaction test.
+  row_withheld <- function(rows, lvl) {
+    hit <- which(as.character(rows$subgroup_level) == lvl)
+    if (nrow(rows) == 0L || length(hit) == 0L) {
+      return(FALSE)
+    }
+    return(.tte_horizon_withheld(rows$horizon_status[hit[1L]]))
+  }
   em_val <- function(rows, field) {
     if (nrow(rows) == 0L) {
       return(NA_real_)
@@ -140,10 +155,22 @@
         pc <- irr_cell(pp, lvl)
         ic <- irr_cell(itt, lvl)
         is_all <- identical(lvl, "all")
+        # The ETT-level decision withholds the whole row. The row's own
+        # status withholds the ratio cells of a level row, and the
+        # interaction-test cells of the "all" row. The ratio cells of the
+        # "all" row follow the ETT-level decision only.
+        row_pp <- row_withheld(pp, lvl)
+        row_itt <- row_withheld(itt, lvl)
+        ratio_pp <- ne_pp || (!is_all && row_pp)
+        ratio_itt <- ne_itt || (!is_all && row_itt)
+        em_pp <- is_all && (ne_pp || row_pp)
+        em_itt <- is_all && (ne_itt || row_itt)
         # `[<-` with `list()`, so a row with nothing withheld keeps its slot.
         ne_rows[length(ne_rows) + 1L] <- list(c(
-          if (ne_pp) c(5L, 6L, if (is_all) c(9L, 10L)),
-          if (ne_itt) c(7L, 8L, if (is_all) c(11L, 12L))
+          if (ratio_pp) c(5L, 6L),
+          if (em_pp) c(9L, 10L),
+          if (ratio_itt) c(7L, 8L),
+          if (em_itt) c(11L, 12L)
         ))
         rows[[length(rows) + 1L]] <- data.frame(
           Enrollment = eid,

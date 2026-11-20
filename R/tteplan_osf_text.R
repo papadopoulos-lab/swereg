@@ -847,7 +847,11 @@ tteplan_osf_text <- function(
       if (!is.null(exempt)) " except in an exempt comparison,",
       " the estimates of that estimand are withheld. Its incidence rate ratio, risk difference and number needed to treat are reported as NE, not estimable.",
       if (length(ctx$spec$subgroups %||% list()) > 0L) {
-        " Its subgroup rate ratios and interaction tests are withheld too."
+        paste0(
+          " Its subgroup rate ratios and interaction tests are withheld too.",
+          " A subgroup rate ratio is also withheld when its own subgroup level fails the rule.",
+          " The interaction test of a subgroup is withheld when any of its levels fails."
+        )
       },
       if (!is.null(exempt)) paste0(" ", exempt),
       " Events, person-time, rates and the survival curve are still reported."

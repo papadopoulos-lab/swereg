@@ -152,9 +152,14 @@ test_that("the OSF Inference criteria field states the minimum-events value from
     fixed = TRUE
   )
   expect_false(grepl("subgroup", x, fixed = TRUE))
+  # The ETT-level sentence, then the per-level rule of the subgroups.
   expect_match(
     hrp_osf(5, subgroups = TRUE)[["Inference criteria"]],
-    "Its subgroup rate ratios and interaction tests are withheld too.",
+    paste(
+      "Its subgroup rate ratios and interaction tests are withheld too.",
+      "A subgroup rate ratio is also withheld when its own subgroup level fails the rule.",
+      "The interaction test of a subgroup is withheld when any of its levels fails."
+    ),
     fixed = TRUE
   )
 })

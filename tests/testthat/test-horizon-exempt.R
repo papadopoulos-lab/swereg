@@ -768,9 +768,27 @@ HX_OSF_27_3_0_NO_SG <- "A prespecified reporting rule, the minimum-events rule, 
     fixed = TRUE
   ))
 }
-HX_TARGET <- .hx_2732(HX_TARGET_27_3_0)
+# The per-level sentences of the subgroup rule. Each text with a subgroup
+# block adds them after its sentence on the subgroup withholding.
+HX_SG_LEVEL_TARGET <- "A subgroup rate ratio was also withheld when its own subgroup level failed the rule. The interaction test of a subgroup was withheld when any of its levels failed."
+HX_SG_LEVEL_OSF <- "A subgroup rate ratio is also withheld when its own subgroup level fails the rule. The interaction test of a subgroup is withheld when any of its levels fails."
+.hx_sg_level <- function(x) {
+  x <- sub(
+    "interaction tests were withheld too.",
+    paste("interaction tests were withheld too.", HX_SG_LEVEL_TARGET),
+    x,
+    fixed = TRUE
+  )
+  return(sub(
+    "interaction tests are withheld too.",
+    paste("interaction tests are withheld too.", HX_SG_LEVEL_OSF),
+    x,
+    fixed = TRUE
+  ))
+}
+HX_TARGET <- .hx_sg_level(.hx_2732(HX_TARGET_27_3_0))
 HX_TARGET_NO_SG <- .hx_2732(HX_TARGET_27_3_0_NO_SG)
-HX_OSF <- .hx_2732(HX_OSF_27_3_0)
+HX_OSF <- .hx_sg_level(.hx_2732(HX_OSF_27_3_0))
 HX_OSF_NO_SG <- .hx_2732(HX_OSF_27_3_0_NO_SG)
 
 HX_SUBGROUPS <- list(list(
@@ -844,6 +862,8 @@ test_that("(e) TARGET 6h names the exempt enrollment and qualifies its withholdi
   want <- paste0(
     "A prespecified reporting rule, the minimum-events rule, required at least 5 expected events per arm in each year of follow-up. Follow-up was cut into years of 52 weeks from time zero. If a horizon was not a whole number of years, its estimate was reported when the estimate at the next whole year passed the rule. The expected events of an arm in a year were computed under the null: its weighted person-time multiplied by the pooled weighted event rate of both arms. ",
     "When any year failed the rule, except in an exempt comparison, the incidence rate ratio, risk difference and number needed to treat of that estimand were not reported. Its subgroup rate ratios and interaction tests were withheld too. ",
+    HX_SG_LEVEL_TARGET,
+    " ",
     HX_ONE,
     " Events, person-time and rates were still reported. Which years passed depended on the observed events, through the pooled rate. The rule was a reporting rule and did not guarantee precision or coverage."
   )
@@ -871,8 +891,8 @@ test_that("(e) the OSF text names the exempt enrollment and qualifies its withho
     fixed = TRUE
   )
   want <- sub(
-    "withheld too. Events, person-time, rates",
-    paste0("withheld too. ", HX_ONE, " Events, person-time, rates"),
+    "levels fails. Events, person-time, rates",
+    paste0("levels fails. ", HX_ONE, " Events, person-time, rates"),
     want,
     fixed = TRUE
   )
@@ -897,12 +917,14 @@ test_that("(e) the protocol table names the exempt enrollment and qualifies its 
   )
 })
 
-test_that("(e) with no exempt enrollment each text equals its 27.3.0 string, but for the part-year sentence", {
+test_that("(e) with no exempt enrollment each text equals its 27.3.0 string, but for the part-year and per-level subgroup sentences", {
   # Each replacement took place.
   expect_false(identical(HX_TARGET, HX_TARGET_27_3_0))
   expect_false(identical(HX_TARGET_NO_SG, HX_TARGET_27_3_0_NO_SG))
   expect_false(identical(HX_OSF, HX_OSF_27_3_0))
   expect_false(identical(HX_OSF_NO_SG, HX_OSF_27_3_0_NO_SG))
+  expect_match(HX_TARGET, HX_SG_LEVEL_TARGET, fixed = TRUE)
+  expect_match(HX_OSF, HX_SG_LEVEL_OSF, fixed = TRUE)
   for (exempt in list(list(NULL, NULL), list(FALSE, FALSE))) {
     lab <- if (is.null(exempt[[1L]])) "absent" else "false"
     plan <- .hx_prose_plan(exempt)
