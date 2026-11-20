@@ -721,6 +721,9 @@
 #' exempt. An exempt record keeps `withheld = TRUE` when the rule fails, and
 #' the function withholds none of its estimates.
 #'
+#' After that, `.s3_apply_subgroup_rule()` applies the rule to each subgroup
+#' level of the ETT.
+#'
 #' @param results_ett `plan$results_ett`.
 #' @param ett_ids Character vector, the ETTs this run computed.
 #' @param ett The ETT grid, `plan$ett`. `$s3_analyze()` passes it. The
@@ -750,6 +753,7 @@
       }
     }
     src <- sources[[eid]]
+    src_res <- if (is.null(src)) NULL else results_ett[[src$ett_id]]
     if (!is.null(src)) {
       res$horizon_pp <- .tte_horizon_from_source(
         res$horizon_pp,
@@ -766,9 +770,430 @@
         res <- .tte_horizon_withhold(res, est, rec)
       }
     }
+    # The per-level rule, after the rule of the whole ETT.
+    res <- .s3_apply_subgroup_rule(res, eid, src, src_res, "s3_analyze()")
     results_ett[[eid]] <- res
   }
   return(results_ett)
+}
+
+
+# ---- The rule per subgroup level --------------------------------------------
+# s3 judges each level of each subgroup variable by the rule on its own. The
+# record of a level is `.tte_horizon_record()` on the rows of that level, so
+# each level gets its own pooled rate. A level that fails loses its rate
+# ratio, and the interaction test of its variable is withheld too. The
+# `"all"` row of the stratified table follows the decision of the whole ETT
+# only.
+
+#' The result slot of the per-level records of one subgroup variable
+#'
+#' The name MUST NOT match `^(subgroup|emtest)_(.+)_(pp|itt)$`, the pattern
+#' of `.acc_subgroup_key()`.
+#'
+#' @param subgroup_var Character(1), the subgroup column.
+#' @param estimand Character(1), `"pp"` or `"itt"`.
+#' @return Character(1), `hsub_<subgroup_var>_<estimand>`.
+#' @noRd
+.tte_horizon_subgroup_slot <- function(subgroup_var, estimand) {
+  return(paste0("hsub_", subgroup_var, "_", estimand))
+}
+
+
+#' The horizon record of each level of one subgroup variable
+#'
+#' The function drops the rows with an `NA` subgroup value, as
+#' `.tte_est_irr_by_subgroup()` does. It calls `.tte_horizon_record()` on the
+#' rows of each level, with the arguments of the record of the whole ETT.
+#'
+#' @param data The analysis panel, a data.table.
+#' @param subgroup_var Character(1), the subgroup column.
+#' @param weight_col,follow_up,rule,treatment_var,tstart_var,tstop_var As
+#'   for `.tte_horizon_record()`.
+#' @return A list of horizon records, one per level, named by the level as
+#'   text. The order is that of `sort(unique())`, the order of the stratified
+#'   table. A variable with one level gives one record. A variable with no
+#'   non-NA value gives an empty list.
+#' @noRd
+.tte_horizon_subgroup_records <- function(
+  data,
+  subgroup_var,
+  weight_col,
+  follow_up,
+  rule,
+  treatment_var,
+  tstart_var = "tstart",
+  tstop_var = "tstop"
+) {
+  ok <- is.character(subgroup_var) && length(subgroup_var) == 1L
+  if (!ok || !subgroup_var %in% names(data)) {
+    stop(
+      "minimum-events rule: the subgroup column '",
+      paste(subgroup_var, collapse = ", "),
+      "' is not in the panel.",
+      call. = FALSE
+    )
+  }
+  x <- data[[subgroup_var]]
+  keep <- !is.na(x)
+  lv <- sort(unique(x[keep]))
+  recs <- lapply(seq_along(lv), function(k) {
+    idx <- which(keep & x == lv[k])
+    rows <- if (data.table::is.data.table(data)) {
+      data[idx]
+    } else {
+      data[idx, , drop = FALSE]
+    }
+    return(.tte_horizon_record(
+      rows,
+      weight_col,
+      follow_up,
+      rule,
+      treatment_var,
+      tstart_var,
+      tstop_var
+    ))
+  })
+  names(recs) <- as.character(lv)
+  return(recs)
+}
+
+
+#' Does the rule withhold the estimates of one level?
+#'
+#' @param rec One per-level horizon record, or `NULL`.
+#' @return `TRUE` when the record has `withheld = TRUE` and is not exempt.
+#' @noRd
+.tte_horizon_level_withheld <- function(rec) {
+  return(
+    is.list(rec) && isTRUE(rec[["withheld"]]) && !isTRUE(rec[["exempt"]])
+  )
+}
+
+
+#' The record of one level in a list of per-level records
+#'
+#' @param recs A list of per-level records, or `NULL`.
+#' @param level Character(1), the level.
+#' @return The record, or `NULL` when `recs` holds no record of `level`.
+#' @noRd
+.tte_horizon_level_of <- function(recs, level) {
+  k <- match(level, names(recs))
+  if (is.na(k)) {
+    return(NULL)
+  }
+  return(recs[[k]])
+}
+
+
+#' Withhold one level that has no decision to take
+#'
+#' An intention-to-treat level takes the decision of the same per-protocol
+#' level. A level of a part-year ETT takes the decision of the same level of
+#' its source ETT. When that level has no record, there is no decision, so
+#' the level is withheld. The record keeps its own window table. An exempt
+#' record keeps its status, and the level stays reported.
+#'
+#' @param rec One per-level horizon record.
+#' @param why Character(1), the reason, for the status.
+#' @return `rec`, with `withheld = TRUE`, `reportable_weeks = 0`, the `fail_*`
+#'   fields and `max_passing_cut` `NA`, and no reportable year.
+#' @noRd
+.tte_horizon_level_undecided <- function(rec, why) {
+  rec$withheld <- TRUE
+  rec$reportable_weeks <- 0
+  rec$fail_lo <- NA_real_
+  rec$fail_hi <- NA_real_
+  rec$fail_arm <- NA_character_
+  rec$max_passing_cut <- NA_real_
+  if (data.table::is.data.table(rec$by_year)) {
+    by_year <- data.table::copy(rec$by_year)
+    data.table::set(by_year, j = "reportable", value = FALSE)
+    data.table::set(by_year, j = "max_passing_cut", value = NA_real_)
+    rec$by_year <- by_year
+  }
+  if (!isTRUE(rec$exempt)) {
+    rec$status <- paste0(.HORIZON_STATUS_PREFIX, ": ", why)
+  }
+  return(rec)
+}
+
+
+#' Give each intention-to-treat level the decision of its per-protocol level
+#'
+#' @param pp,itt The per-level records of one subgroup variable, from the
+#'   `hsub_<var>_pp` and `hsub_<var>_itt` slots.
+#' @return `itt`. Each level carries the decision fields of the same
+#'   per-protocol level, through `.tte_horizon_follow_pp()`. A level without
+#'   a per-protocol record is withheld, through
+#'   `.tte_horizon_level_undecided()`.
+#' @noRd
+.tte_horizon_subgroup_follow_pp <- function(pp, itt) {
+  for (k in seq_along(itt)) {
+    src <- .tte_horizon_level_of(pp, names(itt)[k])
+    if (is.list(src)) {
+      itt[[k]] <- .tte_horizon_follow_pp(src, itt[[k]])
+    } else {
+      rec <- .tte_horizon_level_undecided(
+        itt[[k]],
+        "the per-protocol estimand holds no row of this subgroup level"
+      )
+      rec$decided_by <- "pp"
+      itt[[k]] <- rec
+    }
+  }
+  return(itt)
+}
+
+
+#' Give each level of a part-year ETT the decision of its source ETT
+#'
+#' @param recs The per-protocol per-level records of the part-year ETT.
+#' @param src_recs The per-protocol per-level records of the same subgroup
+#'   variable in the source ETT, or `NULL`.
+#' @param eid Character(1), the id of the part-year ETT.
+#' @param source One element of `.tte_horizon_sources()`.
+#' @param subgroup_var Character(1), the subgroup column.
+#' @param where Character(1), the method name for the message.
+#' @return `recs`. Each level takes the decision of the same level of the
+#'   source, through `.tte_horizon_from_source()`. A level that the source
+#'   does not hold is withheld, through `.tte_horizon_level_undecided()`. The
+#'   function stops when the source holds no per-level records of
+#'   `subgroup_var`.
+#' @noRd
+.tte_horizon_subgroup_from_source <- function(
+  recs,
+  src_recs,
+  eid,
+  source,
+  subgroup_var,
+  where
+) {
+  if (!is.list(src_recs)) {
+    stop(
+      where,
+      ": ETT ",
+      eid,
+      " has a follow-up of ",
+      source$follow_up,
+      " weeks, which is not a whole number of years. Its levels of the ",
+      "subgroup variable ",
+      subgroup_var,
+      " take the decisions of the minimum-events rule in ETT ",
+      source$ett_id,
+      ". The plan holds no such decision for ETT ",
+      source$ett_id,
+      ". Run $s3_analyze() on ETT ",
+      source$ett_id,
+      " first.",
+      call. = FALSE
+    )
+  }
+  for (k in seq_along(recs)) {
+    src <- .tte_horizon_level_of(src_recs, names(recs)[k])
+    w <- if (is.list(src)) src[["withheld"]] else NULL
+    if (is.logical(w) && length(w) == 1L && !is.na(w)) {
+      recs[[k]] <- .tte_horizon_from_source(recs[[k]], src, eid, source, where)
+    } else {
+      rec <- .tte_horizon_level_undecided(
+        recs[[k]],
+        paste0("ETT ", source$ett_id, " holds no row of this subgroup level")
+      )
+      rec$decided_by_ett <- source$ett_id
+      rec$decided_by_weeks <- source$weeks
+      recs[[k]] <- rec
+    }
+  }
+  return(recs)
+}
+
+
+#' Withhold the levels of one subgroup variable that fail the rule
+#'
+#' For each failing level, the function sets the rate ratio, its interval and
+#' its p-value of that level's row to `NA`, and `irr_estimable` to `FALSE`.
+#' The `"all"` row stays: it follows the rule of the whole ETT. When any level
+#' fails, the function also sets the interaction test of the variable to `NA`:
+#' \itemize{
+#'   \item `p_value`, `ratio_of_irrs`, `ratio_lower` and `ratio_upper` of the
+#'     `emtest_*` slot;
+#'   \item `estimate`, `se` and `p` of its `interaction_coefs`;
+#'   \item the `em_pvalue` and `ratio_of_irrs` attributes of the stratified
+#'     table.
+#' }
+#'
+#' @param res One element of `plan$results_ett`.
+#' @param subgroup_var Character(1), the subgroup column.
+#' @param estimand Character(1), `"pp"` or `"itt"`.
+#' @param recs The per-level records of that variable and estimand.
+#' @return `res`, with the failing levels withheld.
+#' @noRd
+.tte_horizon_subgroup_withhold <- function(res, subgroup_var, estimand, recs) {
+  fail <- names(recs)[vapply(recs, .tte_horizon_level_withheld, logical(1))]
+  if (length(fail) == 0L) {
+    return(res)
+  }
+  s <- paste0("subgroup_", subgroup_var, "_", estimand)
+  v <- res[[s]]
+  if (data.table::is.data.table(v) && nrow(v) > 0L) {
+    v <- data.table::copy(v)
+    lev <- as.character(v[["level"]])
+    rows <- which(lev %in% fail)
+    # `.tte_est_irr_by_subgroup()` puts the whole-cohort row first and names
+    # it "all". A level that is also named "all" keeps its own row.
+    rows <- rows[!(rows == 1L & identical(lev[1L], "all"))]
+    ratio_cols <- c("IRR", "IRR_lower", "IRR_upper", "IRR_pvalue")
+    for (nm in intersect(ratio_cols, names(v))) {
+      data.table::set(v, i = rows, j = nm, value = NA_real_)
+    }
+    if ("irr_estimable" %in% names(v)) {
+      data.table::set(v, i = rows, j = "irr_estimable", value = FALSE)
+    }
+    for (a in c("em_pvalue", "ratio_of_irrs")) {
+      if (!is.null(attr(v, a))) data.table::setattr(v, a, NA_real_)
+    }
+    res[[s]] <- v
+  }
+  e <- paste0("emtest_", subgroup_var, "_", estimand)
+  em <- res[[e]]
+  if (is.list(em) && !isTRUE(em$skipped)) {
+    for (nm in c("p_value", "ratio_of_irrs", "ratio_lower", "ratio_upper")) {
+      if (!is.null(em[[nm]])) em[[nm]] <- NA_real_
+    }
+    ic <- em$interaction_coefs
+    if (data.table::is.data.table(ic) && nrow(ic) > 0L) {
+      ic <- data.table::copy(ic)
+      for (nm in intersect(c("estimate", "se", "p"), names(ic))) {
+        data.table::set(ic, j = nm, value = NA_real_)
+      }
+      em$interaction_coefs <- ic
+    }
+    res[[e]] <- em
+  }
+  return(res)
+}
+
+
+#' The subgroup variables that hold per-level records in one ETT result
+#'
+#' @param res One element of `plan$results_ett`.
+#' @return A character vector, one element per variable, in slot order.
+#' @noRd
+.tte_horizon_subgroup_vars <- function(res) {
+  m <- regmatches(names(res), regexec("^hsub_(.+)_(pp|itt)$", names(res)))
+  m <- Filter(function(x) length(x) == 3L, m)
+  return(unique(vapply(m, function(x) x[2L], character(1))))
+}
+
+
+#' Apply the rule to each subgroup level of one ETT result
+#'
+#' `.s3_apply_horizon_rule()` calls it after the rule of the whole ETT. For
+#' each subgroup variable with per-level records, in this order:
+#' \enumerate{
+#'   \item A part-year ETT takes the per-protocol per-level decisions of its
+#'     source ETT, through `.tte_horizon_subgroup_from_source()`.
+#'   \item Each intention-to-treat level takes the decision of its
+#'     per-protocol level, through `.tte_horizon_subgroup_follow_pp()`.
+#'   \item `.tte_horizon_subgroup_withhold()` withholds the failing levels of
+#'     each estimand. An exempt record fails no level.
+#' }
+#'
+#' @param res One element of `plan$results_ett`.
+#' @param eid Character(1), the id of the ETT.
+#' @param source The element of `.tte_horizon_sources()` of a part-year ETT,
+#'   or `NULL`.
+#' @param src_res The stored result of the source ETT, or `NULL`.
+#' @param where Character(1), the method name for the message.
+#' @return `res`, with the per-level decisions applied.
+#' @noRd
+.s3_apply_subgroup_rule <- function(res, eid, source, src_res, where) {
+  for (sv in .tte_horizon_subgroup_vars(res)) {
+    pp <- .tte_horizon_subgroup_slot(sv, "pp")
+    itt <- .tte_horizon_subgroup_slot(sv, "itt")
+    if (!is.null(source)) {
+      res[[pp]] <- .tte_horizon_subgroup_from_source(
+        res[[pp]] %||% list(),
+        src_res[[pp]],
+        eid,
+        source,
+        sv,
+        where
+      )
+    }
+    if (is.list(res[[itt]])) {
+      res[[itt]] <- .tte_horizon_subgroup_follow_pp(res[[pp]], res[[itt]])
+    }
+    for (est in names(.TTE_ESTIMANDS)) {
+      recs <- res[[.tte_horizon_subgroup_slot(sv, est)]]
+      if (is.list(recs)) {
+        res <- .tte_horizon_subgroup_withhold(res, sv, est, recs)
+      }
+    }
+  }
+  return(res)
+}
+
+
+#' The per-level reasons why a part-year result is stale
+#'
+#' @param res The stored result of the part-year ETT.
+#' @param src_res The stored result of its source ETT.
+#' @param src_id Character(1), the id of the source ETT.
+#' @param same A function of two values, `TRUE` when they are equal.
+#' @param fields The decision fields to compare.
+#' @return A character vector of reasons, empty when every level holds the
+#'   current decision of the same level of the source.
+#' @noRd
+.tte_horizon_subgroup_source_problems <- function(
+  res,
+  src_res,
+  src_id,
+  same,
+  fields
+) {
+  out <- character(0)
+  for (sv in .tte_horizon_subgroup_vars(res)) {
+    slot <- .tte_horizon_subgroup_slot(sv, "pp")
+    want <- src_res[[slot]]
+    if (!is.list(want)) {
+      out <- c(out, paste0("ETT ", src_id, " holds no levels of ", sv))
+      next
+    }
+    for (lv in names(res[[slot]])) {
+      w <- .tte_horizon_level_of(want, lv)
+      itt <- res[[.tte_horizon_subgroup_slot(sv, "itt")]]
+      got <- Filter(
+        is.list,
+        list(
+          .tte_horizon_level_of(res[[slot]], lv),
+          .tte_horizon_level_of(itt, lv)
+        )
+      )
+      bad <- if (is.list(w)) {
+        any(vapply(
+          fields,
+          function(f) {
+            return(any(vapply(
+              got,
+              function(g) !same(g[[f]], w[[f]]),
+              logical(1)
+            )))
+          },
+          logical(1)
+        ))
+      } else {
+        !all(vapply(got, function(g) isTRUE(g[["withheld"]]), logical(1)))
+      }
+      if (bad) {
+        out <- c(
+          out,
+          paste0("its level ", lv, " of ", sv, " differs from ETT ", src_id)
+        )
+      }
+    }
+  }
+  return(out)
 }
 
 
@@ -802,7 +1227,9 @@
 #' the per-protocol record. It MUST hold `decided_by_ett`, and that MUST be
 #' the source ETT of `.tte_horizon_sources(ett)`. Every field of
 #' `.HORIZON_DECISION_FIELDS` except `reportable_weeks` MUST equal the field
-#' of the stored per-protocol record of the source, in both estimands.
+#' of the stored per-protocol record of the source, in both estimands. The
+#' same holds for each subgroup level, through
+#' `.tte_horizon_subgroup_source_problems()`.
 #'
 #' @param results `plan$results_ett`.
 #' @param ett `plan$ett`.
@@ -843,6 +1270,13 @@
         },
         logical(1)
       )
+      levels_bad <- .tte_horizon_subgroup_source_problems(
+        results[[eid]],
+        results[[src$ett_id]],
+        src$ett_id,
+        same,
+        fields
+      )
       if (any(stale)) {
         paste0(
           "its ",
@@ -850,6 +1284,8 @@
           " differ from ETT ",
           src$ett_id
         )
+      } else if (length(levels_bad) > 0L) {
+        paste(levels_bad, collapse = "; ")
       }
     }
     if (!is.null(why)) {
@@ -881,6 +1317,10 @@
 #' They also stop when the stored result of a part-year ETT does not hold the
 #' current decision of its source ETT, through
 #' `.tte_horizon_source_problems()`.
+#'
+#' Before the check of the part-year results, they stop when a stored result
+#' of an ETT with subgroup variables holds no per-level decision, through
+#' `.tte_assert_subgroup_records_present()`.
 #'
 #' @param plan A `TTEPlan`.
 #' @param where Character(1), the method name for the message.
@@ -967,6 +1407,7 @@
       call. = FALSE
     )
   }
+  .tte_assert_subgroup_records_present(plan, where)
   if (length(source_bad) > 0L) {
     stop(
       where,

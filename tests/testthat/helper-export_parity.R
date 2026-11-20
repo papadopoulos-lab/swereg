@@ -534,6 +534,33 @@
     ETT00007 = r7,
     ETT00008 = r8
   )
+  # s3 stores the per-level records of the minimum-events rule for every
+  # subgroup variable of an ETT, in both estimands. Every level passes.
+  for (i in seq_len(nrow(plan$ett))) {
+    eid <- plan$ett$ett_id[i]
+    if (is.null(plan$results_ett[[eid]])) {
+      next
+    }
+    for (sv in plan$ett$subgroup_vars[[i]]) {
+      for (est in c("pp", "itt")) {
+        tab <- plan$results_ett[[eid]][[paste0("subgroup_", sv, "_", est)]]
+        lv <- if (data.table::is.data.table(tab)) {
+          setdiff(tab$level, "all")
+        } else {
+          character(0)
+        }
+        recs <- lapply(lv, function(l) {
+          return(list(
+            withheld = FALSE,
+            exempt = FALSE,
+            status = swereg:::.HORIZON_STATUS_PASS
+          ))
+        })
+        names(recs) <- lv
+        plan$results_ett[[eid]][[paste0("hsub_", sv, "_", est)]] <- recs
+      }
+    }
+  }
 
   t1a <- .xp_table1(1L)
   t1b <- .xp_table1(2L)

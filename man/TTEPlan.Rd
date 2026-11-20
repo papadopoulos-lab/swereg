@@ -1376,6 +1376,26 @@ variable.
 }
 A skipped stratified result reads as absent.
 
+\verb{$s3_analyze()} judges each subgroup level by the minimum-events rule on
+its own, with its own pooled rate. A level that fails has \code{NA} in \code{irr},
+\code{irr_lo}, \code{irr_hi} and \code{irr_pvalue}. When any level fails, the four
+interaction columns are \code{NA} on every row of that result. The \code{"all"} row
+follows the rule of the whole emulated trial only.
+
+\code{horizon_status} is the status of the rule. A level row carries the
+status of its own level. The \code{"all"} row carries the status of the
+interaction test, which is one of these:
+\itemize{
+\item the status of the whole trial, when the trial is withheld;
+\item a status that starts with "below minimum-events rule" and names
+the failing levels, when a level fails;
+\item "all windows pass", when no level fails;
+\item "exempt from minimum-events rule", when the enrollment is exempt.
+}
+
+The method stops when a stored result holds no per-level decision, as a
+result from before the per-level rule does. Rerun \verb{$s3_analyze()}.
+
 Coverage. Study 002 runs no stratified analysis, so this method is
 tested against a fixture. Other studies in the fleet do configure
 subgroups, so treat the schema as production.
@@ -1385,9 +1405,10 @@ subgroups, so treat the schema as production.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 13 columns: \code{ett_id}, \code{estimand}, \code{weights},
-\code{subgroup_var}, \code{subgroup_level}, \code{irr}, \code{irr_lo}, \code{irr_hi},
-\code{irr_pvalue}, \code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo} and \code{ratio_hi}.
+    A data.table with 15 columns: \code{ett_id}, \code{estimand}, \code{weights},
+\code{subgroup_var}, \code{subgroup_level}, \code{strata_stored}, \code{irr}, \code{irr_lo},
+\code{irr_hi}, \code{irr_pvalue}, \code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo},
+\code{ratio_hi} and \code{horizon_status}.
   }
 }
 

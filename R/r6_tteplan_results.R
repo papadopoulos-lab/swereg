@@ -306,13 +306,34 @@ TTEPlan$set("public", "get_matching", function() {
 #' }
 #' A skipped stratified result reads as absent.
 #'
+#' `$s3_analyze()` judges each subgroup level by the minimum-events rule on
+#' its own, with its own pooled rate. A level that fails has `NA` in `irr`,
+#' `irr_lo`, `irr_hi` and `irr_pvalue`. When any level fails, the four
+#' interaction columns are `NA` on every row of that result. The `"all"` row
+#' follows the rule of the whole emulated trial only.
+#'
+#' `horizon_status` is the status of the rule. A level row carries the
+#' status of its own level. The `"all"` row carries the status of the
+#' interaction test, which is one of these:
+#' \itemize{
+#'   \item the status of the whole trial, when the trial is withheld;
+#'   \item a status that starts with "below minimum-events rule" and names
+#'     the failing levels, when a level fails;
+#'   \item "all windows pass", when no level fails;
+#'   \item "exempt from minimum-events rule", when the enrollment is exempt.
+#' }
+#'
+#' The method stops when a stored result holds no per-level decision, as a
+#' result from before the per-level rule does. Rerun `$s3_analyze()`.
+#'
 #' Coverage. Study 002 runs no stratified analysis, so this method is
 #' tested against a fixture. Other studies in the fleet do configure
 #' subgroups, so treat the schema as production.
 #'
-#' @return A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
-#'   `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
-#'   `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
+#' @return A data.table with 15 columns: `ett_id`, `estimand`, `weights`,
+#'   `subgroup_var`, `subgroup_level`, `strata_stored`, `irr`, `irr_lo`,
+#'   `irr_hi`, `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo`,
+#'   `ratio_hi` and `horizon_status`.
 TTEPlan$set("public", "get_subgroups", function() {
   return(.acc_subgroups(self))
 })

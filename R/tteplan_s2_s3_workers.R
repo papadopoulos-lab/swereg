@@ -387,7 +387,9 @@
 #' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
 #' @param subgroup_var Optional column name for the stratified methods
-#'   (`irr_by_subgroup`, `effect_modification_test`); `NULL` otherwise.
+#'   (`irr_by_subgroup`, `effect_modification_test`); `NULL` otherwise. The
+#'   `horizon` method reads it as a character vector: every subgroup variable
+#'   of the ETT, or `NULL`.
 #' @param conf_level Numeric, the interval level the study specification
 #'   names. `.s3_conf_level()` resolves it in the parent, and every item
 #'   carries it because batchit demands every formal on every item. The
@@ -403,7 +405,10 @@
 #'   `horizon` method returns that record alone, and stops without a rule.
 #'   s3 calls it for a feasibility-horizon ETT. The parent passes both on
 #'   every item. A direct `risk_difference` call without them returns no
-#'   record.
+#'   record. On a weight of `.HORIZON_WEIGHTS`, the `irr_by_subgroup` method
+#'   also returns the per-level records of `.tte_horizon_subgroup_records()`
+#'   as `hsub_<subgroup_var>_<estimand>`. The `horizon` method returns them
+#'   for each variable of `subgroup_var`.
 #' @param follow_up Numeric(1), the follow-up of the ETT in weeks, or `NULL`.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
@@ -521,6 +526,23 @@
       design$tstop_var
     ))
   }
+  # The per-level records of one subgroup variable, as one named slot.
+  subgroup_horizon_of <- function(sv) {
+    design <- enrollment$design
+    return(setNames(
+      list(.tte_horizon_subgroup_records(
+        enrollment$data,
+        sv,
+        weight_col,
+        follow_up,
+        horizon_rule,
+        design$treatment_var,
+        design$tstart_var,
+        design$tstop_var
+      )),
+      .tte_horizon_subgroup_slot(sv, estimand)
+    ))
+  }
   # The estimand of `weight_col` and the suffix of its slots. This table names
   # both intention-to-treat weights, so neither falls into the per-protocol
   # rule. That rule gives `analysis_weight_pp_trunc` the suffix `pp_trunc`
@@ -634,18 +656,31 @@
         call. = FALSE
       )
     }
-    return(setNames(list(horizon_of()), horizon_slot))
+    # The per-level records of every subgroup variable in `subgroup_var`. A
+    # part-year ETT takes the per-level decisions of this ETT.
+    out <- setNames(list(horizon_of()), horizon_slot)
+    for (sv in subgroup_var) {
+      out <- c(out, subgroup_horizon_of(sv))
+    }
+    return(out)
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
     # s3 calls it on the truncated weight of each estimand only.
     slot <- paste0("subgroup_", subgroup_var, "_", estimand)
-    return(setNames(
+    out <- setNames(
       list(safe_call(
         \() enrollment$irr_by_subgroup(weight_col, subgroup_var, conf_level),
         slot
       )),
       slot
-    ))
+    )
+    # The per-level records of the rule, OUTSIDE `safe_call()`, for the
+    # reason the risk-difference item gives. The parent withholds each level
+    # that fails, in `.s3_apply_horizon_rule()`.
+    if (!is.null(horizon_rule) && weight_col %in% .HORIZON_WEIGHTS) {
+      out <- c(out, subgroup_horizon_of(subgroup_var))
+    }
+    return(out)
   } else if (method == "effect_modification_test") {
     # Interaction Wald test; slot e.g. emtest_rd_sex_pp / _itt.
     slot <- paste0("emtest_", subgroup_var, "_", estimand)

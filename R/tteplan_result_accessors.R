@@ -271,7 +271,8 @@
     em_pvalue = "numeric",
     ratio_of_irrs = "numeric",
     ratio_lo = "numeric",
-    ratio_hi = "numeric"
+    ratio_hi = "numeric",
+    horizon_status = "character"
   ),
   horizon_windows = c(
     ett_id = "character",
@@ -1256,6 +1257,97 @@
 }
 
 
+#' The `horizon_status` of the `"all"` row of one stratified result
+#'
+#' The `"all"` row carries the status of the interaction test. That is the
+#' status of the whole ETT when the ETT is exempt or withheld. Otherwise it
+#' names the failing levels, or it is `.HORIZON_STATUS_PASS` when no level
+#' fails.
+#'
+#' @param ett_rec The horizon record of the whole ETT for the estimand.
+#' @param recs The per-level records of the variable for the estimand.
+#' @return Character(1). `NA` when `ett_rec` or `recs` is not a list.
+#' @noRd
+.tte_horizon_subgroup_status <- function(ett_rec, recs) {
+  if (!is.list(ett_rec)) {
+    return(NA_character_)
+  }
+  if (isTRUE(ett_rec[["exempt"]])) {
+    return(.HORIZON_STATUS_EXEMPT)
+  }
+  if (isTRUE(ett_rec[["withheld"]])) {
+    return(as.character(ett_rec[["status"]])[1L])
+  }
+  if (!is.list(recs)) {
+    return(NA_character_)
+  }
+  fail <- names(recs)[vapply(recs, .tte_horizon_level_withheld, logical(1))]
+  if (length(fail) == 0L) {
+    return(.HORIZON_STATUS_PASS)
+  }
+  return(paste0(
+    .HORIZON_STATUS_PREFIX,
+    ": subgroup level",
+    if (length(fail) > 1L) "s" else "",
+    " ",
+    paste(fail, collapse = ", ")
+  ))
+}
+
+
+#' Stop when a stored ETT result holds no per-level decision of the rule
+#'
+#' The writers and the subgroup accessor call it. It checks each ETT of
+#' `plan$ett` with a stored result and a non-empty `subgroup_vars`. That result
+#' MUST hold the slot `hsub_<variable>_<estimand>` of each subgroup variable
+#' and each estimand. A result that s3 stored before it judged each level
+#' holds none.
+#' A feasibility-horizon ETT is not checked, because it reports no subgroup
+#' estimate.
+#'
+#' @param plan A `TTEPlan`.
+#' @param where Character(1), the method name for the message.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_subgroup_records_present <- function(plan, where) {
+  ett <- plan$ett
+  if (is.null(ett) || !"subgroup_vars" %in% names(ett)) {
+    return(invisible(TRUE))
+  }
+  feasibility_ids <- .plan_ett_feasibility_ids(plan)
+  results <- plan$results_ett
+  absent <- character(0)
+  for (i in seq_len(nrow(ett))) {
+    eid <- as.character(ett$ett_id[i])
+    res <- results[[eid]]
+    if (is.null(res) || eid %in% feasibility_ids) {
+      next
+    }
+    for (sv in as.character(unlist(ett$subgroup_vars[[i]]))) {
+      for (est in names(.TTE_ESTIMANDS)) {
+        if (!is.list(res[[.tte_horizon_subgroup_slot(sv, est)]])) {
+          absent <- c(absent, paste0(eid, " (", sv, ", ", est, ")"))
+        }
+      }
+    }
+  }
+  if (length(absent) > 0L) {
+    stop(
+      where,
+      ": ",
+      length(absent),
+      " stored subgroup result(s) hold no decision of the minimum-events ",
+      "rule per subgroup level: ",
+      paste(utils::head(absent, 5L), collapse = ", "),
+      ". s3 now judges each subgroup level on its own, and a result stored ",
+      "before that holds no such decision. Rerun $s3_analyze() to apply it.",
+      call. = FALSE
+    )
+  }
+  return(invisible(TRUE))
+}
+
+
 #' Every stored stratified estimate, one row per ETT, estimand, weighting,
 #' subgroup variable and subgroup level.
 #'
@@ -1311,10 +1403,18 @@
 #'
 #' A feasibility-horizon ETT gets no row.
 #'
+#' `horizon_status` is the status of the minimum-events rule. A level row
+#' carries the `status` of its own record in `hsub_<variable>_<estimand>`.
+#' The `"all"` row carries the status of the interaction test, from
+#' `.tte_horizon_subgroup_status()`. The accessor stops first, through
+#' `.tte_assert_subgroup_records_present()`, when a stored result holds no
+#' per-level records.
+#'
 #' @param plan A TTEPlan.
 #' @return A data.table with the `subgroups` schema.
 #' @noRd
 .acc_subgroups <- function(plan) {
+  .tte_assert_subgroup_records_present(plan, "get_subgroups()")
   ett_ids <- names(plan$results_ett)
   ett_ids <- setdiff(ett_ids, .plan_ett_feasibility_ids(plan))
   if (is.null(ett_ids) || length(ett_ids) == 0L) {
@@ -1338,6 +1438,25 @@
       pick <- function(nm) {
         if (has_strata) return(as.numeric(value[[nm]])) else return(NA_real_)
       }
+      # A level row carries the status of its own record. The "all" row
+      # carries the status of the interaction test.
+      recs <- res[[.tte_horizon_subgroup_slot(key$subgroup_var, key$estimand)]]
+      status <- vapply(
+        level,
+        function(lv) {
+          return(.acc_chr1(.tte_horizon_level_of(recs, lv), "status"))
+        },
+        character(1),
+        USE.NAMES = FALSE
+      )
+      all_row <- level == "all"
+      if (has_strata) {
+        all_row <- seq_along(level) == 1L & all_row
+      }
+      status[all_row] <- .tte_horizon_subgroup_status(
+        .acc_slot(res, paste0("horizon_", key$estimand)),
+        recs
+      )
       rows[[length(rows) + 1L]] <- data.table::data.table(
         ett_id = as.character(id),
         estimand = key$estimand,
@@ -1352,7 +1471,8 @@
         em_pvalue = .acc_num1(em, "p_value"),
         ratio_of_irrs = .acc_num1(em, "ratio_of_irrs"),
         ratio_lo = .acc_num1(em, "ratio_lower"),
-        ratio_hi = .acc_num1(em, "ratio_upper")
+        ratio_hi = .acc_num1(em, "ratio_upper"),
+        horizon_status = status
       )
     }
   }

@@ -55,6 +55,8 @@ skip_if_not_installed("openxlsx")
     warn = FALSE
   )
   emt <- list(p_value = 0.01, ratio_of_irrs = 2.0, n_levels = 2L)
+  pass <- list(withheld = FALSE, exempt = FALSE, status = "all windows pass")
+  hsub <- list(`0` = pass, `1` = pass)
   plan$results_ett <- list(
     ETT00001 = list(
       enrollment_id = "01",
@@ -68,7 +70,11 @@ skip_if_not_installed("openxlsx")
       subgroup_Z_pp = sub_tab,
       subgroup_Z_itt = sub_tab,
       emtest_Z_pp = emt,
-      emtest_Z_itt = emt
+      emtest_Z_itt = emt,
+      # The per-level records of the minimum-events rule that s3 stores.
+      # Every level passes.
+      hsub_Z_pp = hsub,
+      hsub_Z_itt = hsub
     )
   )
   plan

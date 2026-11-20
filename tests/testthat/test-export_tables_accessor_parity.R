@@ -213,6 +213,10 @@ test_that("images match on inventory, dimensions and renderer input", {
   # A GUARD ON THE CACHE. The writers call it to check that each stored horizon
   # decision was made with the rule the spec holds now.
   ".tte_assert_horizon_rule_current" = "cache inspector",
+  # A GUARD ON THE CACHE. The writers and `$get_subgroups()` call it to check
+  # that each stored result of an ETT with subgroup variables holds the
+  # per-level decisions of the rule.
+  ".tte_assert_subgroup_records_present" = "cache inspector",
   # A reporter ON THE CACHE. `.plan_export_tables()` calls it to find the
   # stored results without the name `adherence`, for its lazy refresh. It
   # reports no number.
@@ -300,9 +304,13 @@ test_that("images match on inventory, dimensions and renderer input", {
   `.s3_apply_horizon_rule` = c(
     "function (results_ett, ett_ids, ett = NULL)",
     "res <- results_ett[[eid]]",
+    "else results_ett[[src$ett_id]]",
     "results_ett[[src$ett_id]]$horizon_pp, eid, src,",
     "results_ett[[eid]] <- res",
     "return(results_ett)"
+  ),
+  `.tte_assert_subgroup_records_present` = c(
+    "results <- plan$results_ett"
   ),
   `.s3_horizon_report` = c(
     "function (results_ett, ett_ids)",

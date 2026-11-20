@@ -1023,16 +1023,28 @@ TTEPlan$set(
           self$spec
         )
         est_s3 <- r$estimands
+        sg_vars <- if (
+          "subgroup_vars" %in%
+            names(ett_todo) &&
+            !is.null(ett_todo$subgroup_vars[[i]])
+        ) {
+          ett_todo$subgroup_vars[[i]]
+        } else {
+          character(0)
+        }
 
         # A feasibility-horizon ETT: the horizon record of each estimand, and
-        # no other item.
+        # no other item. The item also computes the per-level records of
+        # every subgroup variable, because a part-year ETT MAY take its
+        # per-level decisions from this ETT.
         if (.tte_ett_horizon_only(ett_todo, i)) {
           for (est in names(est_s3)) {
             all_items[[length(all_items) + 1L]] <- s3_item(
               est_s3[[est]]$path,
               r,
               "horizon",
-              est_s3[[est]]$weight
+              est_s3[[est]]$weight,
+              if (length(sg_vars) > 0L) as.character(unlist(sg_vars))
             )
             item_map[[length(item_map) + 1L]] <- list(
               ett_i = i,
@@ -1100,15 +1112,6 @@ TTEPlan$set(
         # for every member of `.TTE_ESTIMANDS`, each on its own analysis file
         # and baseline weight. Old grids without subgroup_vars contribute
         # nothing.
-        sg_vars <- if (
-          "subgroup_vars" %in%
-            names(ett_todo) &&
-            !is.null(ett_todo$subgroup_vars[[i]])
-        ) {
-          ett_todo$subgroup_vars[[i]]
-        } else {
-          character(0)
-        }
         for (sv in sg_vars) {
           for (est in est_s3) {
             all_items[[length(all_items) + 1L]] <- s3_item(

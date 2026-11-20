@@ -107,6 +107,20 @@ skip_if_not_installed("data.table")
   dt
 }
 
+# The per-level records of the minimum-events rule that `$s3_analyze()`
+# stores as `hsub_<variable>_<estimand>`, one per level. Every level passes.
+.acc_fix_hsub <- function(levels) {
+  recs <- lapply(levels, function(l) {
+    return(list(
+      withheld = FALSE,
+      exempt = FALSE,
+      status = swereg:::.HORIZON_STATUS_PASS
+    ))
+  })
+  names(recs) <- levels
+  return(recs)
+}
+
 # The shape `$effect_modification_test()` returns, which is what
 # `$s3_analyze()` stores in an `emtest_*` slot.
 .acc_fix_emtest <- function(p_value, ratio, ratio_lo, ratio_hi, subgroup_var) {
@@ -344,6 +358,21 @@ skip_if_not_installed("data.table")
     )
   )
 
+  # s3 stores the per-level records of every subgroup variable of the ETT in
+  # both estimands, whatever the stratified worker returned.
+  for (sv in plan$ett$subgroup_vars[[1L]]) {
+    for (est in c("pp", "itt")) {
+      tab <- plan$results_ett$ETT00001[[paste0("subgroup_", sv, "_", est)]]
+      lv <- if (data.table::is.data.table(tab)) {
+        setdiff(tab$level, "all")
+      } else {
+        character(0)
+      }
+      plan$results_ett$ETT00001[[paste0("hsub_", sv, "_", est)]] <-
+        .acc_fix_hsub(lv)
+    }
+  }
+
   t1 <- .acc_fix_table1()
   plan$results_enrollment <- list(
     `01` = list(
@@ -532,7 +561,8 @@ skip_if_not_installed("data.table")
     "em_pvalue",
     "ratio_of_irrs",
     "ratio_lo",
-    "ratio_hi"
+    "ratio_hi",
+    "horizon_status"
   )
 )
 
