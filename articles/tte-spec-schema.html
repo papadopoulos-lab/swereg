@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -2286,12 +2286,14 @@ effect.</p>
 <span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sex"</span></span>
 <span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
 <span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_sex</span></span></code></pre></div>
-<p><code>implementation$variable</code> is the skeleton column.
-<code>name</code> is the label of the variable in the workbooks.</p>
+<p><code>implementation$variable</code> is a skeleton column, or the
+column of a computed confounder. <code>name</code> is the label of the
+variable in the workbooks.</p>
 <p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> refuses a subgroup variable that
-is not a skeleton column, or that is not also a confounder of the spec.
-The marginal weights are valid within a stratum only when the propensity
-score and IPCW models hold the subgroup variable.</p>
+is not also a confounder of the spec. The marginal weights are valid
+within a stratum only when the propensity score and IPCW models hold the
+subgroup variable. It also refuses a subgroup variable that is neither a
+skeleton column nor the column of a computed confounder.</p>
 <p>s3 analyses each subgroup variable for each ETT and both estimands.
 It computes the stratified rate ratios of
 <code>$irr_by_subgroup()</code> and the interaction test of
@@ -2328,6 +2330,33 @@ follows the other levels. The rule does not judge that level, so its
 cells in the two horizon sheets read <code>n/a</code>.</p>
 </div>
 <div class="section level3">
+<h3 id="a-computed-lookback-as-a-subgroup">A computed lookback as a subgroup<a class="anchor" aria-label="anchor" href="#a-computed-lookback-as-a-subgroup"></a>
+</h3>
+<p>A computed confounder has no skeleton column.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> names its column
+<code>rd_no_&lt;source&gt;_&lt;window&gt;</code>, and s1 derives that
+column. A subgroup MAY use that name. A lifetime lookback on
+<code>osd_i48</code> gives the column
+<code>rd_no_osd_i48_everbefore</code>:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="fu">confounders</span><span class="kw">:</span></span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"No prior atrial fibrillation"</span></span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_i48</span></span>
+<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span>
+<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a><span class="fu">subgroups</span><span class="kw">:</span></span>
+<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"No prior atrial fibrillation"</span></span>
+<span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_no_osd_i48_everbefore</span></span></code></pre></div>
+<p>The column is TRUE when no week of its window holds the source
+variable. The window never holds the baseline week, and here it holds
+every earlier week. So the level <code>TRUE</code> holds the
+person-trials with no prior event. Name the subgroup for the TRUE level,
+as in “No prior atrial fibrillation”. The row label
+<code>No prior atrial fibrillation: FALSE</code> then reads as the
+person-trials with a prior event.</p>
+</div>
+<div class="section level3">
 <h3 id="results-stored-before-27-3-21">Results stored before 27.3.21<a class="anchor" aria-label="anchor" href="#results-stored-before-27-3-21"></a>
 </h3>
 <p>Such results hold no per-level decision, and no baseline counts per
@@ -2346,7 +2375,7 @@ That message asks for a rerun of s3 or of
 <p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> reports every refused key in one
 message, and reads no data first. Each finding lists the keys its
 context accepts.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">spec_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"spec_v001.yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -2370,7 +2399,7 @@ context accepts.</p>
 because the schema declares no context below it. Move the entries into
 <code>criteria</code>, and swereg reads each one.</p>
 <p>A misspelt key gets the same message.</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inclusion_criteria:"</span>, <span class="st">"  isoyear: 2010"</span><span class="op">)</span>,</span>
 <span>  <span class="va">spec_path</span></span>

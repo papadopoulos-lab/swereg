@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,6 +63,18 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.22" id="swereg-27322">swereg 27.3.22<a class="anchor" aria-label="anchor" href="#swereg-27322"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-27-3-22">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-27-3-22"></a></h3>
+<ul><li>
+<strong>The minimum-events line of the protocol table now states the subgroup withholding.</strong> For a spec with <code>subgroups:</code> and a threshold above 0, it says that subgroup rate ratios and interaction tests read NE. A spec without <code>subgroups:</code> gets the 27.3.21 line unchanged.</li>
+<li>
+<strong>The NAMESPACE test of <code>test-tteenrollment-fill.R</code> now passes under <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code>.</strong> It reads <code>system.file("NAMESPACE", package = "swereg")</code>, which finds the file under <code>pkgload</code> and in an installed build.</li>
+<li>
+<strong>A subgroup MAY use the column of a computed confounder, such as <code>rd_no_osd_i48_everbefore</code>.</strong> <code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> refused it before, because the skeleton has no such column.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.21" id="swereg-27321">swereg 27.3.21<a class="anchor" aria-label="anchor" href="#swereg-27321"></a></h2>
 <p>s3 now applies the minimum-events rule to each subgroup level of a spec with <code>subgroups:</code>. A spec with <code>subgroups:</code> MUST rerun <code>$s3_analyze()</code>, and <code>$s3_feasibility()</code> where the project uses it, before <code>$export()</code> or <code>$export_tables()</code>. No live spec of the MHT and GD projects sets <code>subgroups:</code> today, so no live project reruns.</p>

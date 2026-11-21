@@ -910,14 +910,16 @@ subgroups:
       variable: rd_sex
 ```
 
-`implementation$variable` is the skeleton column. `name` is the label of
-the variable in the workbooks.
+`implementation$variable` is a skeleton column, or the column of a
+computed confounder. `name` is the label of the variable in the
+workbooks.
 
 [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
-refuses a subgroup variable that is not a skeleton column, or that is
-not also a confounder of the spec. The marginal weights are valid within
-a stratum only when the propensity score and IPCW models hold the
-subgroup variable.
+refuses a subgroup variable that is not also a confounder of the spec.
+The marginal weights are valid within a stratum only when the propensity
+score and IPCW models hold the subgroup variable. It also refuses a
+subgroup variable that is neither a skeleton column nor the column of a
+computed confounder.
 
 s3 analyses each subgroup variable for each ETT and both estimands. It
 computes the stratified rate ratios of `$irr_by_subgroup()` and the
@@ -951,6 +953,34 @@ baseline. Its eligible and ratio columns read `n/a`. A missing subgroup
 value forms the level `missing`, which follows the other levels. The
 rule does not judge that level, so its cells in the two horizon sheets
 read `n/a`.
+
+### A computed lookback as a subgroup
+
+A computed confounder has no skeleton column.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+names its column `rd_no_<source>_<window>`, and s1 derives that column.
+A subgroup MAY use that name. A lifetime lookback on `osd_i48` gives the
+column `rd_no_osd_i48_everbefore`:
+
+``` yaml
+confounders:
+  - name: "No prior atrial fibrillation"
+    implementation:
+      computed: true
+      source_variable: osd_i48
+      window: lifetime_before_baseline
+subgroups:
+  - name: "No prior atrial fibrillation"
+    implementation:
+      variable: rd_no_osd_i48_everbefore
+```
+
+The column is TRUE when no week of its window holds the source variable.
+The window never holds the baseline week, and here it holds every
+earlier week. So the level `TRUE` holds the person-trials with no prior
+event. Name the subgroup for the TRUE level, as in “No prior atrial
+fibrillation”. The row label `No prior atrial fibrillation: FALSE` then
+reads as the person-trials with a prior event.
 
 ### Results stored before 27.3.21
 

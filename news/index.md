@@ -1,5 +1,22 @@
 # Changelog
 
+## swereg 27.3.22
+
+### Bug fixes
+
+- **The minimum-events line of the protocol table now states the
+  subgroup withholding.** For a spec with `subgroups:` and a threshold
+  above 0, it says that subgroup rate ratios and interaction tests read
+  NE. A spec without `subgroups:` gets the 27.3.21 line unchanged.
+- **The NAMESPACE test of `test-tteenrollment-fill.R` now passes under
+  [`devtools::test()`](https://devtools.r-lib.org/reference/test.html).**
+  It reads `system.file("NAMESPACE", package = "swereg")`, which finds
+  the file under `pkgload` and in an installed build.
+- **A subgroup MAY use the column of a computed confounder, such as
+  `rd_no_osd_i48_everbefore`.**
+  [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+  refused it before, because the skeleton has no such column.
+
 ## swereg 27.3.21
 
 s3 now applies the minimum-events rule to each subgroup level of a spec
