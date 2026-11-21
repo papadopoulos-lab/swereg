@@ -432,7 +432,7 @@ the real reader and compiler.
 - `tteplan_read_spec(path)` in `R/tteplan_read_spec.R`: parses and validates the YAML, converts windows to weeks
 - `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` in `R/tteplan_apply_exclusions.R`: applies the isoyear filter from `spec$inclusion_criteria$isoyears`, then the global `inclusion_criteria$criteria`, the enrollment's `additional_inclusion`, the global `exclusion_criteria`, and the enrollment's `additional_exclusion`
 - `tteplan_apply_derived_confounders(skeleton, spec)` in `R/tteplan_apply_derived_confounders.R`: computes rolling-window indicators for `computed: true` confounders
-- `tteplan_validate_spec(spec, skeleton)` in `R/tteplan_validate_spec.R`: checks that every spec variable exists in the skeleton columns
+- `tteplan_validate_spec(spec, skeleton)` in `R/tteplan_validate_spec.R`: checks the spec's columns, treatment values and subgroups against one skeleton batch. It warns on soft issues, stops on hard issues, then runs the prevalent-user check
 - `tteplan_from_spec_and_registrystudy(study, candidate_dir_spec, candidate_dir_tteplan, candidate_dir_results, spec_version, ...)` in `R/tteplan_from_spec.R`: this is s0. It reads `spec_<spec_version>.yaml` from the first existing `candidate_dir_spec`, and creates a TTEPlan with the full ETT grid. `study` is a `RegistryStudy`
 
 ### R6 classes

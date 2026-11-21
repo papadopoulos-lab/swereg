@@ -1,3 +1,9 @@
+# swereg 27.3.23
+
+## Documentation
+
+* **The help page of `tteplan_validate_spec()` now lists each check and how it fails.** It said before that every `variable` MUST be a skeleton column and that a failed check only warns. A computed confounder's `variable` is exempt, and a hard issue stops the call.
+
 # swereg 27.3.22
 
 ## Bug fixes

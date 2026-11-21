@@ -16,22 +16,71 @@ against.}
 warning reports it, so a reader knows which batch the check measured.}
 }
 \value{
-\code{invisible(TRUE)} on success; emits a warning with a numbered
-issue list if any checks fail.
+\code{invisible(TRUE)} when no check stops. A warning does not change
+the return value.
 }
 \description{
-Checks that all \code{implementation$variable} references in the spec actually
-exist as columns in the skeleton data.table. For categorical confounders,
-also checks that the declared categories match the data. Collects all
-issues before reporting.
+Checks each column, treatment value and subgroup that a parsed spec names
+against one skeleton batch. It collects every issue before it reports, then
+warns on the soft issues and stops on the hard issues.
 }
-\details{
-It also checks the observation column of every enrollment that names one:
-the column MUST exist in the skeleton, and it MUST be logical.
-\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} cannot run that check, because it reads no data. An
-enrollment that declares the \code{row_presence} sentinel names no column, so
-there is nothing to check.
+\section{The checks}{
+
+
+A hard issue is an error, and a soft issue is a warning. Each issue below
+is an error, except a declared category absent from the batch.
+\itemize{
+\item Global rules: every \code{source_variable} column of each
+\code{inclusion_criteria$criteria} and \code{exclusion_criteria} rule MUST be in the
+skeleton.
+\item \code{additional_exclusion} rules: every \code{source_variable} column MUST be in
+the skeleton.
+\item \code{additional_inclusion} rules: a rule of type \code{has_event},
+\code{no_prior_value} or \code{only_prior_value} MUST have every \code{source_variable}
+column in the skeleton. A rule of type \code{isoyear_range} names no column,
+so the skeleton MUST have the column \code{isoyear}. Another rule that names
+\code{implementation$variable}, such as \code{age_range}, MUST have that column in
+the skeleton.
+\item Outcomes: every \code{variable} column MUST be in the skeleton.
+\item Confounders that are not computed: the \code{variable} MUST be a skeleton
+column. When the confounder declares \code{categories}, a non-missing data
+value outside \code{categories} is an error. A declared category absent from
+this batch is a warning, because a small batch can lack it.
+\item Computed confounders (\code{computed: true}): every \code{source_variable} column
+MUST be in the skeleton. The function does not check the \code{variable},
+because \code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}} creates that column in s1.
+\item Enrollments: the treatment \code{variable} MUST be a skeleton column. That
+column MUST hold the \code{intervention_value} and the \code{comparator_value}.
+\item Observation columns: when an enrollment's \code{observed_var} names a column,
+that column MUST be in the skeleton, and it MUST be logical.
+\code{\link[=tteplan_read_spec]{tteplan_read_spec()}} cannot run this check, because it reads no data.
+The \code{row_presence} sentinel names no column, so there is nothing to
+check.
+\item Subgroups: the \code{variable} MUST be a skeleton column or the \code{variable} of
+a computed confounder. It MUST also be the \code{variable} of a confounder.
+The marginal weights are valid within a stratum only when the PS and
+IPCW models include the subgroup.
 }
+}
+
+\section{How it fails}{
+
+
+The function stops at once when \code{skeleton} is not a data.table. Otherwise
+it runs every check above, then it reports in this order:
+\enumerate{
+\item When there are soft issues, it warns with a numbered list, under
+\verb{Spec validation: N warning(s)}.
+\item When there are hard issues, it stops with a numbered list, under
+\verb{Spec validation failed: N error(s)}. So one call can warn and then
+stop.
+\item It runs the prevalent-user check below. That check can warn, and it can
+stop.
+\item It shows the message
+\verb{Spec validation passed: N entries checked against M columns}.
+}
+}
+
 \section{The prevalent-user check}{
 
 
@@ -39,15 +88,19 @@ An enrollment gets its incident-user design from a washout rule, of type
 \code{no_prior_value} or \code{only_prior_value}. The check warns when no washout
 covers the enrollment's intervention level. All four rule blocks are
 searched: \code{inclusion_criteria$criteria}, \code{exclusion_criteria}, and the
-enrollment's \code{additional_inclusion} and \code{additional_exclusion}.
+enrollment's \code{additional_inclusion} and \code{additional_exclusion}. A washout
+counts only when it names a \code{source_variable}, a \code{value} and one
+\code{window_weeks}.
 
-Coverage is measured on the weekly rows of \code{skeleton}. A prevalent week is a
-week at the intervention level that follows an earlier week of the same
-person at that level. A washout covers the enrollment when it makes every
-prevalent week ineligible. The check evaluates the eligibility expression
-the compiler builds, so it measures the column the skeleton will hold. A
-first initiation stays eligible and is not an uncovered week. The enrollment
-passes when at least one washout covers it.
+Coverage is measured on the weekly rows of \code{skeleton}. A weekly row has
+\code{is_isoyear} equal to \code{FALSE}, and a skeleton without \code{is_isoyear} has only
+weekly rows. A prevalent week is a week at the intervention level that
+follows an earlier week of the same person at that level. A washout covers
+the enrollment when it makes every prevalent week ineligible. The check
+evaluates the eligibility expression the compiler builds, so it measures
+the column the skeleton will hold. A first initiation stays eligible and is
+not an uncovered week. The enrollment passes when at least one washout
+covers it.
 
 The washout column and the treatment column often differ. A specification
 can wash out a whole drug class, then compare one sub-type of that class
@@ -55,9 +108,21 @@ against no treatment. A test on the two column names cannot answer that,
 and it cannot see a washout that names the right column at the wrong
 level.
 
-Set \code{options(swereg.warn_prevalent_user = FALSE)} to silence the warning.
-Use it for a discontinuation or switching study, which enrols prevalent
-users by design.
+The check stops in three cases:
+\itemize{
+\item The skeleton has no \code{id} column.
+\item The skeleton has no \code{isoyearweek} column. The stop names the column when
+a weekly row is at the intervention level. Otherwise a washout that
+applies stops in data.table, with the message
+\verb{column not found: [isoyearweek]}.
+\item The weekly rows of one person at an intervention level run backwards in
+\code{isoyearweek}. Sort the skeleton by \code{id} and \code{isoyearweek} before you
+validate it.
+}
+
+Set \code{options(swereg.warn_prevalent_user = FALSE)} to skip the check, with
+its warning and its stops. Use it for a discontinuation or switching study,
+which enrols prevalent users by design.
 }
 
 \seealso{
