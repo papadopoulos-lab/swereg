@@ -357,18 +357,32 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
     }
   }
 
-  # --- Subgroups: each must exist in the skeleton AND be a confounder. The
-  # within-stratum validity of the marginal weights requires the subgroup to
-  # be in the PS / IPCW models (i.e. among the confounders).
+  # --- Subgroups: each must be a confounder, and its column must exist in the
+  # skeleton or be derived by s1. The within-stratum validity of the marginal
+  # weights requires the subgroup to be in the PS / IPCW models (i.e. among
+  # the confounders). A computed confounder has no skeleton column: s1
+  # derives its `rd_no_<source>_<window>` column, so the subgroup check
+  # accepts that derived name.
   if (!is.null(spec$subgroups)) {
     confounder_vars <- vapply(
       spec$confounders %||% list(),
       function(cf) cf$implementation$variable %||% NA_character_,
       character(1)
     )
+    computed_vars <- vapply(
+      spec$confounders %||% list(),
+      function(cf) {
+        if (!isTRUE(cf$implementation$computed)) {
+          return(NA_character_)
+        }
+        return(cf$implementation$variable %||% NA_character_)
+      },
+      character(1)
+    )
+    computed_vars <- computed_vars[!is.na(computed_vars)]
     for (i in seq_along(spec$subgroups)) {
       sv <- spec$subgroups[[i]]$implementation$variable
-      if (!sv %in% skel_cols) {
+      if (!sv %in% skel_cols && !sv %in% computed_vars) {
         errors <- c(
           errors,
           paste0(
@@ -376,7 +390,8 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
             i,
             "] variable '",
             sv,
-            "' not found in skeleton columns"
+            "' not found in skeleton columns, and no computed confounder ",
+            "derives it"
           )
         )
       }
@@ -506,7 +521,11 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
 .tte_washout_ineligible <- function(skeleton, weekly, washout) {
   impl <- washout$impl
   sv <- impl$source_variable_combined
-  dtx <- skeleton[weekly, unique(c("id", "isoyearweek", washout$vars)), with = FALSE]
+  dtx <- skeleton[
+    weekly,
+    unique(c("id", "isoyearweek", washout$vars)),
+    with = FALSE
+  ]
   dtx <- .grow_dt_alloc(dtx, 2L)
   if (length(washout$vars) > 1L) {
     dtx[, (sv) := Reduce(`|`, .SD), .SDcols = washout$vars]
@@ -695,4 +714,3 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
   }
   return(invisible(NULL))
 }
-
