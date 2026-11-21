@@ -39,16 +39,23 @@
 #' those sheets and no other.
 #'
 #' The `Minimum events` and `Longest reportable` sheets hold one row per
-#' comparison, for the per-protocol estimand. The first has one column per
-#' outcome and whole follow-up year. Each cell is the largest cut, of 1, 2,
-#' 3, 4, 5, 10 and 20, at which the estimate still passes the
-#' minimum-events rule. The second has one column per outcome and threshold,
-#' and each cell is the longest horizon that the threshold reports. Its
+#' comparison, for the per-protocol estimand. One row per subgroup level
+#' follows the row of its comparison, and its cells come from the record of
+#' that level. A person-trial with no subgroup value belongs to no level.
+#' `Minimum events` has one column per outcome and whole follow-up year.
+#' Each cell is the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the
+#' estimate still passes the minimum-events rule. `Longest reportable` has
+#' one column per outcome and threshold, and each cell is the longest
+#' horizon that the threshold reports. Its
 #' column for the threshold of the spec reads the stored verdict of the
 #' rule. A failed estimate is withheld unless its comparison is exempt, and
 #' an exempt comparison ends with ` (exempt)`. The intention-to-treat
 #' estimand follows the per-protocol decision.
 #' `$get_horizon_windows()` returns the year-by-year detail.
+#'
+#' The `Arm sizes` sheet adds one row per subgroup level below each
+#' enrollment, with the enrolled person-trials of that level per arm at
+#' baseline. The level `missing` counts the person-trials with no value.
 #'
 #' The year columns run from 1 to the longest follow-up of all ETTs, in
 #' whole years of 52 weeks. A follow-up that is not a whole number of years

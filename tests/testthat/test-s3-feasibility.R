@@ -31,7 +31,7 @@
   skip_if_not_installed("survey")
 }
 
-.FZ_STRIPPED <- c("events_weighted", "rate_pooled", "events_expected")
+# `.FZ_STRIPPED` lives in helper-feasibility_follow_up.R.
 
 # Every numeric leaf of a nested list, data.tables included.
 .fz_numbers <- function(x) {
@@ -414,7 +414,10 @@ test_that("no sheet of feasibility.xlsx names a stripped column", {
     g <- .ff_grid(fx$xlsx, sh)
     labels <- g$label[-(1:2)]
     expect_gt(length(labels), 0L)
-    expect_false(any(grepl("event|rate", labels, ignore.case = TRUE)), info = sh)
+    expect_false(
+      any(grepl("event|rate", labels, ignore.case = TRUE)),
+      info = sh
+    )
   }
   cells <- .fz_cells(fx$xlsx)
   for (s in names(cells)) {
@@ -716,7 +719,10 @@ test_that("(k) both workbooks of $export_tables() show years 1 to 5, years 3 to 
   by5 <- plan$results_ett$ETT00005$horizon_pp$by_year
   expect_true(any(by5$reportable) && !all(by5$reportable))
   lr <- .ff_grid(fx$xlsx, "Longest reportable")
-  expect_identical(.ff_grid_cell(lr, "01", "Outcome A", "threshold 1"), "3 years")
+  expect_identical(
+    .ff_grid_cell(lr, "01", "Outcome A", "threshold 1"),
+    "3 years"
+  )
   # Before swereg 27.3.13 row 3 of the Minimum events (Y or -) sheet said
   # that years beyond the analysis follow-up come from the 260-week
   # feasibility horizon. Neither Minimum events nor Longest reportable

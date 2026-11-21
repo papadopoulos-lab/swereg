@@ -113,17 +113,31 @@
 }
 
 
-#' The minimum-events cuts, one row per comparison
+#' The minimum-events cuts, one row per comparison and subgroup level
+#'
+#' A record that holds `subgroups` adds one row per subgroup variable and
+#' level below the row of its comparison. The cells of that row come from
+#' `.minimum_events_wide()` on the records of that level. The cells of a
+#' comparison come from the records of its ETTs in the same way. A level
+#' that an ETT does not hold gives an empty cell. When the baseline counts of
+#' the enrollment hold the level `missing` of a variable, a row of that level
+#' follows the other levels. The rule drops the rows with no subgroup value,
+#' so that level has no record, and each of its cells reads `n/a`.
 #'
 #' @param plan A TTEPlan.
 #' @param records A list keyed by ETT id: the per-protocol horizon records.
-#' @return A list: `ids` and `names` of the comparisons, `outcomes`,
+#' @param subgroup_counts A named list by enrollment id of the tables of
+#'   `.tte_subgroup_baseline_counts()`.
+#' @return A list: `ids` and `names` of the rows, `outcomes`,
 #'   `years` (the column labels), and `cut`, a list by outcome of a character
-#'   matrix comparisons x years with the largest passing cut, `"-"` for none
+#'   matrix rows x years with the largest passing cut, `"-"` for none
 #'   and `NA` for no ETT. `yn` has the same shape and holds the verdict of
-#'   the specification's own threshold, `"Y"` or `"-"`.
+#'   the specification's own threshold, `"Y"` or `"-"`. The `ids` of a
+#'   subgroup row is `""`, and its name is
+#'   `<comparison> | <subgroup name>: <level>`. `missing` is `TRUE` on each
+#'   row of the level `missing`.
 #' @noRd
-.overview_cuts <- function(plan, records) {
+.overview_cuts <- function(plan, records, subgroup_counts = list()) {
   wide <- .minimum_events_wide(plan, records)
   tab <- wide$cut
   tab_yn <- wide$yn
@@ -153,33 +167,125 @@
   }
   cut <- pivot(tab)
   yn <- pivot(tab_yn)
-  return(list(
-    ids = enr_ids,
-    # An exempt comparison shows the verdict of the rule, and its name says
-    # that s3 reports it anyway.
-    names = vapply(
-      enr_ids,
-      function(e) {
-        label <- .enrollment_label(plan, e)
-        if (.tte_enrollment_rule_exempt(plan$spec, e)) {
-          label <- paste0(label, " (exempt)")
+  # An exempt comparison shows the verdict of the rule, and its name says
+  # that s3 reports it anyway.
+  cmp_names <- vapply(
+    enr_ids,
+    function(e) {
+      label <- .enrollment_label(plan, e)
+      if (.tte_enrollment_rule_exempt(plan$spec, e)) {
+        label <- paste0(label, " (exempt)")
+      }
+      return(label)
+    },
+    character(1)
+  )
+  # The row of each comparison, then one row per subgroup level. `level_of`
+  # holds the pivoted cuts of one subgroup level, built once per level.
+  ids <- character(0)
+  nms <- character(0)
+  take <- list()
+  level_of <- list()
+  # The cells of a `missing` row: no record, so no cut.
+  na_rows <- lapply(stats::setNames(nm = outcomes), function(o) {
+    return(matrix("n/a", 1L, length(years)))
+  })
+  sg <- function(x) {
+    return(if (is.list(x)) x[["subgroups"]] else NULL)
+  }
+  for (r in seq_along(enr_ids)) {
+    ids <- c(ids, enr_ids[r])
+    nms <- c(nms, cmp_names[[r]])
+    take[[length(take) + 1L]] <- list(cut = cut, yn = yn, row = r)
+    recs <- records[intersect(
+      ett$ett_id[ett$enrollment_id == enr_ids[r]],
+      names(records)
+    )]
+    for (sv in unique(unlist(lapply(recs, function(x) names(sg(x)))))) {
+      lvs <- unique(unlist(lapply(recs, function(x) names(sg(x)[[sv]]))))
+      for (lv in lvs) {
+        key <- paste(sv, lv, sep = "\r")
+        if (is.null(level_of[[key]])) {
+          lw <- .minimum_events_wide(
+            plan,
+            lapply(records, function(x) {
+              return(.tte_horizon_level_of(sg(x)[[sv]], lv))
+            })
+          )
+          level_of[[key]] <- list(cut = pivot(lw$cut), yn = pivot(lw$yn))
         }
-        return(label)
-      },
-      character(1)
-    ),
+        ids <- c(ids, "")
+        nms <- c(
+          nms,
+          .tte_subgroup_row_label(cmp_names[[r]], plan$spec, sv, lv)
+        )
+        take[[length(take) + 1L]] <- c(level_of[[key]], list(row = r))
+      }
+      sc <- subgroup_counts[[enr_ids[r]]]
+      if (
+        data.table::is.data.table(sc) &&
+          any(sc$variable == sv & sc$level == .SUBGROUP_MISSING_LEVEL)
+      ) {
+        ids <- c(ids, "")
+        nms <- c(
+          nms,
+          .tte_subgroup_row_label(
+            cmp_names[[r]],
+            plan$spec,
+            sv,
+            .SUBGROUP_MISSING_LEVEL
+          )
+        )
+        take[[length(take) + 1L]] <- list(
+          cut = na_rows,
+          yn = na_rows,
+          row = 1L,
+          missing = TRUE
+        )
+      }
+    }
+  }
+  stack <- function(what) {
+    res <- lapply(outcomes, function(o) {
+      rows <- lapply(take, function(t) t[[what]][[o]][t$row, , drop = FALSE])
+      return(do.call(
+        rbind,
+        c(list(matrix(NA_character_, 0L, length(years))), rows)
+      ))
+    })
+    names(res) <- outcomes
+    return(res)
+  }
+  return(list(
+    ids = ids,
+    names = stats::setNames(nms, ids),
     outcomes = outcomes,
     years = years,
-    cut = cut,
-    yn = yn
+    cut = stack("cut"),
+    yn = stack("yn"),
+    missing = vapply(take, function(t) isTRUE(t$missing), logical(1))
   ))
 }
 
 
 #' Write the Minimum events and Longest reportable sheets
 #' @noRd
-.write_overview_min_events <- function(wb, plan, records) {
-  x <- .overview_cuts(plan, records)
+.write_overview_min_events <- function(
+  wb,
+  plan,
+  records,
+  subgroup_counts = list()
+) {
+  x <- .overview_cuts(plan, records, subgroup_counts)
+  # The note of both sheets on the level `missing`, when a row shows it.
+  missing_note <- if (any(x$missing)) {
+    paste0(
+      " The subgroup level ",
+      .SUBGROUP_MISSING_LEVEL,
+      " holds the person-trials with no value. The rule does not judge it, ",
+      "because no estimate is made for it, so its cells read n/a."
+    )
+  }
   nid <- .tte_not_in_data(plan)
   k <- plan$spec[["min_expected_events_per_arm_per_year"]]
 
@@ -197,7 +303,8 @@
       ". An empty cell has no ETT. A 6-month horizon takes the 1-year verdict. ",
       "(exempt): the specification exempts the comparison, so s3 reports its ",
       "estimates whatever the cell shows. ",
-      .OVERVIEW_NOT_IN_DATA_NOTE
+      .OVERVIEW_NOT_IN_DATA_NOTE,
+      missing_note
     ),
     c(
       green = "20 or more",
@@ -215,7 +322,11 @@
   # Two header rows: the outcome over its years, then the years.
   hdr1 <- c("ID", "Comparison")
   hdr2 <- c("ID", "Comparison")
-  body <- data.frame(ID = x$ids, Comparison = unname(x$names), stringsAsFactors = FALSE)
+  body <- data.frame(
+    ID = x$ids,
+    Comparison = unname(x$names),
+    stringsAsFactors = FALSE
+  )
   fills <- list()
   col <- 2L
   for (o in x$outcomes) {
@@ -223,12 +334,17 @@
     shown <- m
     shown[!is.na(m) & m == "20"] <- "\u226520"
     absent <- o %in% nid$outcomes
+    # A `missing` row reads n/a in every cell, an absent outcome included.
+    miss <- seq_len(n_cmp) %in% which(x$missing %in% TRUE)
     for (j in seq_along(x$years)) {
       col <- col + 1L
       hdr1 <- c(hdr1, if (j == 1L) o else "")
       hdr2 <- c(hdr2, x$years[j])
-      body[[paste0("c", col)]] <- if (absent) rep("", n_cmp) else shown[, j]
+      cells <- if (absent) rep("", n_cmp) else shown[, j]
+      cells[miss] <- "n/a"
+      body[[paste0("c", col)]] <- cells
       f <- if (absent) rep("black", n_cmp) else .overview_cut_fill(m[, j])
+      f[miss] <- NA
       for (r in which(!is.na(f))) {
         fills[[f[r]]] <- rbind(fills[[f[r]]], c(start + 1L + r, col))
       }
@@ -240,7 +356,11 @@
   openxlsx::addStyle(
     wb,
     sht,
-    openxlsx::createStyle(textDecoration = "bold", fgFill = .OVERVIEW_FILL[["grey"]], halign = "center"),
+    openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = .OVERVIEW_FILL[["grey"]],
+      halign = "center"
+    ),
     rows = start + 0:1,
     cols = seq_len(col),
     gridExpand = TRUE
@@ -248,18 +368,36 @@
   for (j in seq_along(x$outcomes)) {
     from <- 2L + (j - 1L) * length(x$years) + 1L
     if (length(x$years) > 1L) {
-      openxlsx::mergeCells(wb, sht, cols = from:(from + length(x$years) - 1L), rows = start)
+      openxlsx::mergeCells(
+        wb,
+        sht,
+        cols = from:(from + length(x$years) - 1L),
+        rows = start
+      )
     }
   }
   grey_rows <- which(x$ids %in% nid$enrollments)
   if (length(grey_rows) > 0L) {
-    fills[["darkgrey"]] <- rbind(fills[["darkgrey"]], cbind(start + 1L + grey_rows, 2L))
+    fills[["darkgrey"]] <- rbind(
+      fills[["darkgrey"]],
+      cbind(start + 1L + grey_rows, 2L)
+    )
   }
   for (f in names(fills)) {
     .overview_fill(wb, sht, fills[[f]], f)
   }
-  openxlsx::setColWidths(wb, sht, cols = seq_len(col), widths = c(8, 50, rep(8, col - 2L)))
-  openxlsx::freezePane(wb, sht, firstActiveRow = start + 2L, firstActiveCol = 3L)
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(col),
+    widths = c(8, 50, rep(8, col - 2L))
+  )
+  openxlsx::freezePane(
+    wb,
+    sht,
+    firstActiveRow = start + 2L,
+    firstActiveCol = 3L
+  )
 
   # Longest reportable: the horizon each threshold would report.
   sht <- .SHEETS_OVERVIEW[["longest"]]
@@ -275,13 +413,22 @@
       if (is.null(k)) "no threshold" else format(k),
       ". (exempt): the specification exempts the comparison, so s3 reports ",
       "its estimates to the full follow-up whatever the cell shows. ",
-      .OVERVIEW_NOT_IN_DATA_NOTE
+      .OVERVIEW_NOT_IN_DATA_NOTE,
+      missing_note
     ),
-    c(green = "Reported to the longest horizon", yellow = "Reported to a shorter horizon", red = "none")
+    c(
+      green = "Reported to the longest horizon",
+      yellow = "Reported to a shorter horizon",
+      red = "none"
+    )
   )
   hdr1 <- c("ID", "Comparison")
   hdr2 <- c("ID", "Comparison")
-  body <- data.frame(ID = x$ids, Comparison = unname(x$names), stringsAsFactors = FALSE)
+  body <- data.frame(
+    ID = x$ids,
+    Comparison = unname(x$names),
+    stringsAsFactors = FALSE
+  )
   fills <- list()
   col <- 2L
   for (o in x$outcomes) {
@@ -311,11 +458,30 @@
           }
           last <- j
         }
-        val[r] <- if (length(avail) == 0L) "" else if (last == 0L) "none" else x$years[last]
-        f <- if (length(avail) == 0L) NA else if (last == 0L) "red" else if (last == max(avail)) "green" else "yellow"
+        val[r] <- if (length(avail) == 0L) {
+          ""
+        } else if (last == 0L) {
+          "none"
+        } else {
+          x$years[last]
+        }
+        f <- if (length(avail) == 0L) {
+          NA
+        } else if (last == 0L) {
+          "red"
+        } else if (last == max(avail)) {
+          "green"
+        } else {
+          "yellow"
+        }
         if (o %in% nid$outcomes) {
           val[r] <- ""
           f <- "black"
+        }
+        # A `missing` row reads n/a in every cell, an absent outcome included.
+        if (isTRUE(x$missing[r])) {
+          val[r] <- "n/a"
+          f <- NA
         }
         if (!is.na(f)) {
           fills[[f]] <- rbind(fills[[f]], c(start + 1L + r, col))
@@ -330,7 +496,11 @@
   openxlsx::addStyle(
     wb,
     sht,
-    openxlsx::createStyle(textDecoration = "bold", fgFill = .OVERVIEW_FILL[["grey"]], halign = "center"),
+    openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = .OVERVIEW_FILL[["grey"]],
+      halign = "center"
+    ),
     rows = start + 0:1,
     cols = seq_len(col),
     gridExpand = TRUE
@@ -338,18 +508,36 @@
   for (j in seq_along(x$outcomes)) {
     from <- 2L + (j - 1L) * length(thr) + 1L
     if (length(thr) > 1L) {
-      openxlsx::mergeCells(wb, sht, cols = from:(from + length(thr) - 1L), rows = start)
+      openxlsx::mergeCells(
+        wb,
+        sht,
+        cols = from:(from + length(thr) - 1L),
+        rows = start
+      )
     }
   }
   grey_rows <- which(x$ids %in% nid$enrollments)
   if (length(grey_rows) > 0L) {
-    fills[["darkgrey"]] <- rbind(fills[["darkgrey"]], cbind(start + 1L + grey_rows, 2L))
+    fills[["darkgrey"]] <- rbind(
+      fills[["darkgrey"]],
+      cbind(start + 1L + grey_rows, 2L)
+    )
   }
   for (f in names(fills)) {
     .overview_fill(wb, sht, fills[[f]], f)
   }
-  openxlsx::setColWidths(wb, sht, cols = seq_len(col), widths = c(8, 50, rep(12, col - 2L)))
-  openxlsx::freezePane(wb, sht, firstActiveRow = start + 2L, firstActiveCol = 3L)
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(col),
+    widths = c(8, 50, rep(12, col - 2L))
+  )
+  openxlsx::freezePane(
+    wb,
+    sht,
+    firstActiveRow = start + 2L,
+    firstActiveCol = 3L
+  )
   return(invisible(NULL))
 }
 
@@ -377,10 +565,15 @@
     for (cr in crits) {
       impl <- cr$implementation
       sv <- as.character(unlist(
-        impl[["source_variable_combined"]] %||% impl[["source_variable"]] %||% impl[["variable"]]
+        impl[["source_variable_combined"]] %||%
+          impl[["source_variable"]] %||%
+          impl[["variable"]]
       ))
       for (v in sv) {
-        cands[[length(cands) + 1L]] <<- list(v = v, label = paste0(prefix, cr$name))
+        cands[[length(cands) + 1L]] <<- list(
+          v = v,
+          label = paste0(prefix, cr$name)
+        )
       }
     }
     return(invisible(NULL))
@@ -391,7 +584,10 @@
   add("Excl. ", enr$additional_exclusion)
   best <- NULL
   for (cd in cands) {
-    if (grepl(cd$v, step, fixed = TRUE) && (is.null(best) || nchar(cd$v) > nchar(best$v))) {
+    if (
+      grepl(cd$v, step, fixed = TRUE) &&
+        (is.null(best) || nchar(cd$v) > nchar(best$v))
+    ) {
       best <- cd
     }
   }
@@ -454,11 +650,24 @@
     removed[r, 2L * i - 1L] <- c(NA, -diff(g$n_arm_intervention))
     removed[r, 2L * i] <- c(NA, -diff(g$n_arm_comparator))
   }
-  cols <- as.vector(rbind(paste(eids, "intervention"), paste(eids, "comparator")))
+  cols <- as.vector(rbind(
+    paste(eids, "intervention"),
+    paste(eids, "comparator")
+  ))
   write_block <- function(title, m, row) {
     openxlsx::writeData(wb, sht, title, startRow = row)
-    openxlsx::addStyle(wb, sht, openxlsx::createStyle(textDecoration = "bold"), rows = row, cols = 1L)
-    d <- data.frame(Step = seq_along(steps), Criterion = steps, stringsAsFactors = FALSE)
+    openxlsx::addStyle(
+      wb,
+      sht,
+      openxlsx::createStyle(textDecoration = "bold"),
+      rows = row,
+      cols = 1L
+    )
+    d <- data.frame(
+      Step = seq_along(steps),
+      Criterion = steps,
+      stringsAsFactors = FALSE
+    )
     for (j in seq_along(cols)) {
       d[[cols[j]]] <- m[, j]
     }
@@ -467,7 +676,11 @@
       sht,
       d,
       startRow = row + 1L,
-      headerStyle = openxlsx::createStyle(textDecoration = "bold", fgFill = .OVERVIEW_FILL[["grey"]], wrapText = TRUE)
+      headerStyle = openxlsx::createStyle(
+        textDecoration = "bold",
+        fgFill = .OVERVIEW_FILL[["grey"]],
+        wrapText = TRUE
+      )
     )
     openxlsx::addStyle(
       wb,
@@ -478,7 +691,10 @@
       gridExpand = TRUE,
       stack = TRUE
     )
-    nobody <- which(apply(removed, 1L, function(x) all(is.na(x) | x == 0)) & seq_along(steps) > 1L)
+    nobody <- which(
+      apply(removed, 1L, function(x) all(is.na(x) | x == 0)) &
+        seq_along(steps) > 1L
+    )
     if (length(nobody) > 0L) {
       openxlsx::addStyle(
         wb,
@@ -494,7 +710,12 @@
   }
   row <- write_block("Person-trials left after the step", left, start)
   write_block("Person-trials removed by the step", removed, row)
-  openxlsx::setColWidths(wb, sht, cols = seq_len(2L + length(cols)), widths = c(6, 55, rep(13, length(cols))))
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(2L + length(cols)),
+    widths = c(6, 55, rep(13, length(cols)))
+  )
   openxlsx::freezePane(wb, sht, firstActiveCol = 3L)
   return(invisible(NULL))
 }
@@ -546,7 +767,9 @@
     cands,
     function(v) {
       for (cf in plan$spec$confounders) {
-        if (identical(cf$implementation[["variable"]], v)) return(as.character(cf$name))
+        if (identical(cf$implementation[["variable"]], v)) {
+          return(as.character(cf$name))
+        }
       }
       return(v)
     },
@@ -576,8 +799,16 @@
   n_small <- matrix(NA_real_, length(cands), length(eids))
   for (i in seq_along(cands)) {
     for (j in seq_along(eids)) {
-      ni <- counts$n_persons[counts$enrollment_id == eids[j] & counts$variable == cands[i] & counts$arm == "intervention"]
-      nc <- counts$n_persons[counts$enrollment_id == eids[j] & counts$variable == cands[i] & counts$arm == "comparator"]
+      ni <- counts$n_persons[
+        counts$enrollment_id == eids[j] &
+          counts$variable == cands[i] &
+          counts$arm == "intervention"
+      ]
+      nc <- counts$n_persons[
+        counts$enrollment_id == eids[j] &
+          counts$variable == cands[i] &
+          counts$arm == "comparator"
+      ]
       if (length(ni) != 1L || length(nc) != 1L) {
         next
       }
@@ -592,7 +823,11 @@
     Decision = decision,
     stringsAsFactors = FALSE
   )
-  hdr <- ifelse(eids %in% unlist(rule$decided_by), paste0(eids, " (decides)"), eids)
+  hdr <- ifelse(
+    eids %in% unlist(rule$decided_by),
+    paste0(eids, " (decides)"),
+    eids
+  )
   for (j in seq_along(eids)) {
     d[[hdr[j]]] <- shown[, j]
   }
@@ -612,10 +847,15 @@
     sht,
     d,
     startRow = start,
-    headerStyle = openxlsx::createStyle(textDecoration = "bold", fgFill = .OVERVIEW_FILL[["grey"]], halign = "center")
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = .OVERVIEW_FILL[["grey"]],
+      halign = "center"
+    )
   )
   for (f in c("lightgreen", "orange", "red")) {
-    hit <- switch(f,
+    hit <- switch(
+      f,
       lightgreen = !is.na(n_small) & n_small >= 2 * min_n,
       orange = !is.na(n_small) & n_small >= min_n & n_small < 2 * min_n,
       red = below
@@ -634,7 +874,12 @@
     gridExpand = TRUE,
     stack = TRUE
   )
-  openxlsx::setColWidths(wb, sht, cols = seq_len(ncol(d)), widths = c(45, 11, rep(11, ncol(d) - 2L)))
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(ncol(d)),
+    widths = c(45, 11, rep(11, ncol(d) - 2L))
+  )
   return(invisible(TRUE))
 }
 
@@ -644,8 +889,16 @@
 .overview_split_cell <- function(x) {
   x <- as.character(x)
   m <- regmatches(x, regexec("^\\s*([0-9][0-9,]*)\\s*\\(([0-9.]+)%\\)\\s*$", x))
-  n <- vapply(m, function(z) if (length(z) == 3L) z[2L] else NA_character_, character(1))
-  p <- vapply(m, function(z) if (length(z) == 3L) z[3L] else NA_character_, character(1))
+  n <- vapply(
+    m,
+    function(z) if (length(z) == 3L) z[2L] else NA_character_,
+    character(1)
+  )
+  p <- vapply(
+    m,
+    function(z) if (length(z) == 3L) z[3L] else NA_character_,
+    character(1)
+  )
   value <- ifelse(is.na(n), x, n)
   return(list(value = value, pct = p))
 }
@@ -727,13 +980,20 @@
     withFilter = TRUE
   )
   for (f in c("orange", "red")) {
-    hit <- which(!is.na(smd_raw) & if (f == "red") smd_raw >= 0.2 else smd_raw >= 0.1 & smd_raw < 0.2)
+    hit <- which(
+      !is.na(smd_raw) &
+        if (f == "red") smd_raw >= 0.2 else smd_raw >= 0.1 & smd_raw < 0.2
+    )
     if (length(hit) > 0L) {
       .overview_fill(wb, sht, cbind(start + hit, ncol(d)), f)
     }
   }
-  openxlsx::setColWidths(wb, sht, cols = seq_len(ncol(d)), widths = c(11, 40, 16, 30, 26, 14, 10, 14, 10, 8))
+  openxlsx::setColWidths(
+    wb,
+    sht,
+    cols = seq_len(ncol(d)),
+    widths = c(11, 40, 16, 30, 26, 14, 10, 14, 10, 8)
+  )
   openxlsx::freezePane(wb, sht, firstActiveRow = start + 1L)
   return(invisible(NULL))
 }
-

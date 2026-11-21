@@ -105,14 +105,22 @@
 #'   table `.s1e_worker()` stored on the enrollment object, or NULL.
 #'   `adherence` is the table of `.tte_adherence_counts()` on the raw file. It
 #'   is NULL when `raw_path` does not exist or when that function returns
-#'   NULL. The list always holds the name `adherence`.
+#'   NULL. The list always holds the name `adherence`. `subgroup_counts` is
+#'   the table of `.tte_subgroup_baseline_counts()` on the baseline rows of
+#'   the raw file. The list holds that name only when the worker counted,
+#'   that is, when `raw_path` exists and `subgroup_vars` is not empty. So
+#'   `$recompute_baselines()`, which passes no `subgroup_vars`, keeps the
+#'   stored counts.
+#' @param subgroup_vars Character, the subgroup columns of the reported ETTs
+#'   of the enrollment.
 #' @noRd
 .s3_enrollment_worker <- function(
   analysis_path,
   raw_path,
   enrollment_id,
   n_threads,
-  arm_labels = NULL
+  arm_labels = NULL,
+  subgroup_vars = character(0)
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -198,9 +206,22 @@
   # name is still returned. See `.tte_adherence_counts()`.
   adherence <- NULL
   coverage <- NULL
+  subgroup_counts <- NULL
   if (file.exists(raw_path)) {
     enrollment_raw <- swereg::qs2_read(raw_path, nthreads = 1L)
     adherence <- .tte_adherence_counts(enrollment_raw)
+    # The enrolled person-trials of each subgroup level per arm. An error
+    # stops the worker: the counts MUST NOT go missing without a message.
+    if (length(subgroup_vars) > 0L) {
+      raw_design <- enrollment_raw$design
+      raw_data <- enrollment_raw$data
+      subgroup_counts <- .tte_subgroup_baseline_counts(
+        raw_data[raw_data[[raw_design$tstart_var]] == 0],
+        subgroup_vars,
+        raw_design$treatment_var
+      )
+      rm(raw_data)
+    }
     coverage <- tryCatch(
       .tte_confounder_coverage(enrollment_raw),
       error = function(e) NULL
@@ -225,7 +246,7 @@
     gc()
   }
 
-  return(list(
+  out <- list(
     table1_raw = table1_raw,
     table1_unweighted = table1_unweighted,
     table1_ipw_trunc = table1_ipw_trunc,
@@ -240,7 +261,11 @@
     coverage = coverage,
     swereg_version_s2 = enrollment_s2_version,
     computed_at = Sys.time()
-  ))
+  )
+  if (!is.null(subgroup_counts)) {
+    out$subgroup_counts <- subgroup_counts
+  }
+  return(out)
 }
 
 

@@ -90,7 +90,11 @@
     return(data.table::data.table(
       enrollment_id = eid,
       comparison = .enrollment_label(plan, eid),
-      intervention = if (is.null(arms)) NA_character_ else arms[["intervention"]],
+      intervention = if (is.null(arms)) {
+        NA_character_
+      } else {
+        arms[["intervention"]]
+      },
       comparator = if (is.null(arms)) NA_character_ else arms[["comparator"]],
       n_intervention_eligible = n_int,
       n_comparator_eligible = n_cmp,
@@ -107,18 +111,155 @@
 }
 
 
+#' The level text of a subgroup row for a missing value.
+#' @noRd
+.SUBGROUP_MISSING_LEVEL <- "missing"
+
+
+#' Baseline person-trials per arm of each subgroup level
+#'
+#' `.s3_enrollment_worker()` calls it on the baseline rows of the s1 raw file.
+#' A value of `NA` counts as the level `missing`, which follows the other
+#' levels. The function stops when a subgroup column is not in `base`.
+#'
+#' @param base The baseline rows (`tstart == 0`) of one enrollment.
+#' @param subgroup_vars Character, the subgroup columns.
+#' @param treatment_var Character(1), the treatment column. `TRUE` is the
+#'   intervention arm and `FALSE` the comparator arm.
+#' @return A data.table with `variable`, `level`, `n_intervention` and
+#'   `n_comparator`, in the order of `subgroup_vars`, then of
+#'   `sort(unique())`. `NULL` when `subgroup_vars` is empty.
+#' @noRd
+.tte_subgroup_baseline_counts <- function(base, subgroup_vars, treatment_var) {
+  subgroup_vars <- as.character(subgroup_vars)
+  if (length(subgroup_vars) == 0L) {
+    return(NULL)
+  }
+  absent <- setdiff(c(subgroup_vars, treatment_var), names(base))
+  if (length(absent) > 0L) {
+    stop(
+      "subgroup counts: the baseline rows hold no column ",
+      paste(absent, collapse = ", "),
+      ". A subgroup variable MUST be a confounder of the design.",
+      call. = FALSE
+    )
+  }
+  tx <- base[[treatment_var]]
+  rows <- lapply(subgroup_vars, function(v) {
+    x <- as.character(base[[v]])
+    lv <- sort(unique(x[!is.na(x)]))
+    hit <- lapply(lv, function(l) x %in% l)
+    if (anyNA(x)) {
+      lv <- c(lv, .SUBGROUP_MISSING_LEVEL)
+      hit <- c(hit, list(is.na(x)))
+    }
+    return(data.table::data.table(
+      variable = rep(v, length(lv)),
+      level = lv,
+      n_intervention = vapply(hit, function(h) sum(h & tx %in% TRUE), 1L),
+      n_comparator = vapply(hit, function(h) sum(h & tx %in% FALSE), 1L)
+    ))
+  })
+  return(data.table::rbindlist(rows))
+}
+
+
+#' Stop when an enrollment with subgroups has no baseline subgroup counts
+#'
+#' The Arm sizes sheet and the `missing` rows of the Minimum events sheets
+#' read the counts of `.tte_subgroup_baseline_counts()`. An enrollment of a
+#' reported ETT with subgroup variables MUST have them. A result stored
+#' before s3 counted them holds none.
+#'
+#' @param plan A TTEPlan.
+#' @param subgroup_counts A named list by enrollment id.
+#' @param rerun Character(1), the method that stores the counts.
+#' @return `invisible(TRUE)`.
+#' @noRd
+.tte_assert_subgroup_counts <- function(plan, subgroup_counts, rerun) {
+  ett <- .plan_ett_reported(plan)
+  if (is.null(ett) || !"subgroup_vars" %in% names(ett)) {
+    return(invisible(TRUE))
+  }
+  has_sg <- lengths(lapply(ett$subgroup_vars, unlist)) > 0L
+  eids <- unique(as.character(ett$enrollment_id[has_sg]))
+  absent <- eids[
+    !vapply(
+      eids,
+      function(e) data.table::is.data.table(subgroup_counts[[e]]),
+      logical(1)
+    )
+  ]
+  if (length(absent) > 0L) {
+    stop(
+      "feasibility sheets: enrollment ",
+      paste(absent, collapse = ", "),
+      " has subgroup variables, but its results hold no baseline counts ",
+      "per subgroup level (subgroup_counts). The results were stored before ",
+      "s3 counted them. Rerun ",
+      rerun,
+      ".",
+      call. = FALSE
+    )
+  }
+  return(invisible(TRUE))
+}
+
+
+#' The name of a subgroup variable, from the spec
+#'
+#' @param spec The study specification.
+#' @param subgroup_var Character(1), the subgroup column.
+#' @return Character(1): `name` of the entry of `spec$subgroups` whose
+#'   `implementation$variable` is `subgroup_var`, and otherwise
+#'   `subgroup_var`.
+#' @noRd
+.tte_subgroup_name <- function(spec, subgroup_var) {
+  for (s in spec$subgroups) {
+    if (identical(s$implementation$variable, subgroup_var)) {
+      return(as.character(s$name %||% subgroup_var))
+    }
+  }
+  return(subgroup_var)
+}
+
+
+#' The row label of one subgroup level in the feasibility sheets
+#'
+#' @param comparison Character(1), the label of the comparison row.
+#' @param spec The study specification.
+#' @param subgroup_var,level Character(1), the subgroup column and level.
+#' @return Character(1), `<comparison> | <subgroup name>: <level>`.
+#' @noRd
+.tte_subgroup_row_label <- function(comparison, spec, subgroup_var, level) {
+  return(paste0(
+    comparison,
+    " | ",
+    .tte_subgroup_name(spec, subgroup_var),
+    ": ",
+    level
+  ))
+}
+
+
 #' Write the Arm sizes sheet of the feasibility workbook
 #'
 #' A flagged row is filled red when the comparator is rarer than the
 #' intervention, and yellow when the comparator pool is short of the target
-#' ratio.
+#' ratio. One row per subgroup level follows the row of its enrollment. It
+#' shows the enrolled person-trials of that level per arm at baseline. Its
+#' eligible and ratio cells read `n/a`, because the sheet computes no
+#' per-level eligible counts.
 #'
 #' @param wb An openxlsx workbook.
 #' @param plan A TTEPlan.
 #' @param header The header style of the workbook.
+#' @param subgroup_counts A named list by enrollment id of the tables of
+#'   `.tte_subgroup_baseline_counts()`. An enrollment without a table gets
+#'   no subgroup row.
 #' @return `invisible(NULL)`.
 #' @noRd
-.write_arm_sizes_sheet <- function(wb, plan, header) {
+.write_arm_sizes_sheet <- function(wb, plan, header, subgroup_counts = list()) {
   sht <- .SHEET_ARM_SIZES
   openxlsx::addWorksheet(wb, sht)
   openxlsx::writeData(
@@ -162,13 +303,79 @@
     `Enrolled comparator person-trials` = tab$n_comparator_enrolled,
     Flag = tab$flag
   )
+  # One row per subgroup level below the row of its enrollment. `parent` is
+  # the row of `tab` that each sheet row shows, and `NA` on a level row.
+  pieces <- list()
+  parent <- integer(0)
+  for (i in seq_len(nrow(tab))) {
+    pieces[[length(pieces) + 1L]] <- out[i]
+    parent <- c(parent, i)
+    sc <- subgroup_counts[[tab$enrollment_id[i]]]
+    if (!data.table::is.data.table(sc) || nrow(sc) == 0L) {
+      next
+    }
+    lv <- out[rep(i, nrow(sc))]
+    data.table::set(lv, j = "Enrollment", value = "")
+    data.table::set(
+      lv,
+      j = "Comparison",
+      value = vapply(
+        seq_len(nrow(sc)),
+        function(k) {
+          return(.tte_subgroup_row_label(
+            tab$comparison[i],
+            plan$spec,
+            sc$variable[k],
+            sc$level[k]
+          ))
+        },
+        character(1)
+      )
+    )
+    for (j in 5:8) {
+      data.table::set(lv, j = j, value = NA_real_)
+    }
+    data.table::set(lv, j = 9L, value = as.numeric(sc$n_intervention))
+    data.table::set(lv, j = 10L, value = as.numeric(sc$n_comparator))
+    data.table::set(lv, j = "Flag", value = "")
+    pieces[[length(pieces) + 1L]] <- lv
+    parent <- c(parent, rep(NA_integer_, nrow(sc)))
+  }
+  out <- data.table::rbindlist(pieces)
   openxlsx::writeData(wb, sht, out, startRow = 4L, headerStyle = header)
+  na_rows <- which(is.na(parent))
+  if (length(na_rows) > 0L) {
+    # The note on the level rows is the row below the table, so the rows
+    # above the table stay as they are without subgroups.
+    openxlsx::writeData(
+      wb,
+      sht,
+      paste0(
+        "A row with \" | \" counts the enrolled person-trials of one subgroup ",
+        "level per arm at baseline, from the s1 raw file. Per-level eligible ",
+        "person-trials are not computed, so those cells read n/a. The level ",
+        .SUBGROUP_MISSING_LEVEL,
+        " counts the person-trials with no value."
+      ),
+      startRow = 5L + nrow(out)
+    )
+    for (r in na_rows) {
+      openxlsx::writeData(
+        wb,
+        sht,
+        t(rep("n/a", 4L)),
+        startRow = 4L + r,
+        startCol = 5L,
+        colNames = FALSE
+      )
+    }
+  }
   fills <- list(
     rarer = openxlsx::createStyle(fgFill = "#F4B6B6"),
     short = openxlsx::createStyle(fgFill = "#FFE699")
   )
   for (k in names(fills)) {
-    hit <- which(tab[[paste0("comparator_", k)]])
+    hit <- which(parent %in% which(tab[[paste0("comparator_", k)]]))
     if (length(hit) > 0L) {
       openxlsx::addStyle(
         wb,
@@ -272,8 +479,12 @@
       return(invisible(NULL))
     }
     variable <- variable %||%
-      as.character(impl[["variable_combined"]] %||% impl[["variable"]] %||%
-        impl[["source_variable_combined"]] %||% cols[1L])[1L]
+      as.character(
+        impl[["variable_combined"]] %||%
+          impl[["variable"]] %||%
+          impl[["source_variable_combined"]] %||%
+          cols[1L]
+      )[1L]
     if (!is.null(impl[["value"]]) && is.null(levels)) {
       levels <- as.character(impl[["value"]])
     }
@@ -327,7 +538,11 @@
       add(
         enr$id,
         "Treatment",
-        paste(enr$treatment$arms$intervention, "vs", enr$treatment$arms$comparator),
+        paste(
+          enr$treatment$arms$intervention,
+          "vs",
+          enr$treatment$arms$comparator
+        ),
         list(variable = tx[["variable"]]),
         vals
       )
@@ -360,7 +575,11 @@
   study <- plan$registrystudy
   s <- tryCatch(
     suppressMessages(
-      if (is.environment(study)) study$summary else study[["summary", exact = TRUE]]
+      if (is.environment(study)) {
+        study$summary
+      } else {
+        study[["summary", exact = TRUE]]
+      }
     ),
     error = function(e) NULL
   )
@@ -445,9 +664,21 @@
   ]
   absent <- by_col[by_col$n == 0]
   out$outcomes <- unique(absent$name[absent$role == "Outcome"])
-  crit <- absent[absent$role %in% c("Inclusion", "Exclusion") | startsWith(absent$role, "Confounder")]
-  ids <- vapply(plan$spec$enrollments, function(e) as.character(e$id), character(1))
-  out$enrollments <- if (any(crit$scope == "All")) ids else intersect(ids, unique(crit$scope))
+  crit <- absent[
+    absent$role %in%
+      c("Inclusion", "Exclusion") |
+      startsWith(absent$role, "Confounder")
+  ]
+  ids <- vapply(
+    plan$spec$enrollments,
+    function(e) as.character(e$id),
+    character(1)
+  )
+  out$enrollments <- if (any(crit$scope == "All")) {
+    ids
+  } else {
+    intersect(ids, unique(crit$scope))
+  }
   return(out)
 }
 
@@ -505,7 +736,11 @@
     as.numeric(summary_columns$n_persons_with),
     as.character(summary_columns$column_name)
   )
-  key <- ifelse(is.na(tab$level), tab$column, paste0(tab$column, "=", tab$level))
+  key <- ifelse(
+    is.na(tab$level),
+    tab$column,
+    paste0(tab$column, "=", tab$level)
+  )
   n <- unname(counts[key])
   # A level the summary does not hold, of a column it counts by level, is a
   # level with no person.
@@ -536,12 +771,20 @@
       txt <- if (all(!is.na(tab$n_persons[i])) && tot == 0) {
         "Becomes an exclusion that removes nobody"
       } else if (all(!is.na(tab$n_persons[i])) && tot < min_n) {
-        paste0("Certain exclusion: fewer than ", min_n, " persons in the whole dataset")
+        paste0(
+          "Certain exclusion: fewer than ",
+          min_n,
+          " persons in the whole dataset"
+        )
       } else {
         "Decided at s1b from the eligible population"
       }
       if (data.table::is.data.table(dec) && v %in% dec$variable) {
-        txt <- paste0(txt, "; s1b decision: ", dec$decision[match(v, dec$variable)])
+        txt <- paste0(
+          txt,
+          "; s1b decision: ",
+          dec$decision[match(v, dec$variable)]
+        )
       }
       tab[i, rare_rule := txt]
     }
@@ -644,10 +887,18 @@
           name = g$step_name[k],
           variable = "",
           level = "",
-          intervention = .coverage_count(g$n_arm_intervention[k - 1L] - g$n_arm_intervention[k]),
-          comparator = .coverage_count(g$n_arm_comparator[k - 1L] - g$n_arm_comparator[k]),
+          intervention = .coverage_count(
+            g$n_arm_intervention[k - 1L] - g$n_arm_intervention[k]
+          ),
+          comparator = .coverage_count(
+            g$n_arm_comparator[k - 1L] - g$n_arm_comparator[k]
+          ),
           persons = .coverage_count(removed),
-          flag = if (isTRUE(removed == 0)) .COVERAGE_FLAGS[["removes_nobody"]] else "",
+          flag = if (isTRUE(removed == 0)) {
+            .COVERAGE_FLAGS[["removes_nobody"]]
+          } else {
+            ""
+          },
           note = "Removed by this criterion, after the criteria above it"
         )
       }
@@ -729,8 +980,12 @@
   if (data.table::is.data.table(sc) && nrow(sc) > 0L) {
     for (eid in unique(sc$enrollment_id)) {
       for (v in unique(sc$variable[sc$enrollment_id == eid])) {
-        ni <- sc$n_persons[sc$enrollment_id == eid & sc$variable == v & sc$arm == "intervention"]
-        nc <- sc$n_persons[sc$enrollment_id == eid & sc$variable == v & sc$arm == "comparator"]
+        ni <- sc$n_persons[
+          sc$enrollment_id == eid & sc$variable == v & sc$arm == "intervention"
+        ]
+        nc <- sc$n_persons[
+          sc$enrollment_id == eid & sc$variable == v & sc$arm == "comparator"
+        ]
         if (length(ni) != 1L || length(nc) != 1L) {
           next
         }
@@ -781,7 +1036,11 @@
       intervention = "",
       comparator = "",
       persons = "",
-      flag = if (length(cut) == 1L && is.na(cut)) .COVERAGE_FLAGS[["no_cut"]] else "",
+      flag = if (length(cut) == 1L && is.na(cut)) {
+        .COVERAGE_FLAGS[["no_cut"]]
+      } else {
+        ""
+      },
       note = paste0(
         "Largest passing cut: ",
         if (length(cut) == 1L && !is.na(cut)) format(cut) else "none",
@@ -816,7 +1075,10 @@
   )
   fills <- list(
     red = list(hit = which(flags %in% red), fill = "#F4B6B6"),
-    yellow = list(hit = which(nzchar(flags) & !flags %in% red), fill = "#FFE699")
+    yellow = list(
+      hit = which(nzchar(flags) & !flags %in% red),
+      fill = "#FFE699"
+    )
   )
   for (f in fills) {
     if (length(f$hit) > 0L) {
@@ -861,7 +1123,11 @@
     sht,
     paste0(
       if (nzchar(raw$source)) raw$source else "From the skeleton summary",
-      if (!is.na(raw$built_at)) paste0(", built ", format(raw$built_at, "%Y-%m-%d %H:%M")) else "",
+      if (!is.na(raw$built_at)) {
+        paste0(", built ", format(raw$built_at, "%Y-%m-%d %H:%M"))
+      } else {
+        ""
+      },
       ". Every person in the skeleton, over every week, before any ",
       "eligibility, and blind to arm. A column with 0 persons is not in the ",
       "data delivery or is coded wrongly. An empty count is a column the ",

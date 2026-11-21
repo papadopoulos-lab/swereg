@@ -75,6 +75,17 @@
     plan$results_ett,
     c("ETT00001", "ETT00005")
   )
+  # `.xp_plan()` stores per-level records that hold the decision only. The
+  # subgroup rows of both sheets read the cut and the per-year table of each
+  # level record, so each level here takes the record of its ETT.
+  for (id in names(plan$results_ett)) {
+    res <- plan$results_ett[[id]]
+    for (slot in grep("^hsub_.+_(pp|itt)$", names(res), value = TRUE)) {
+      own <- res[[paste0("horizon_", sub("^.*_", "", slot))]]
+      res[[slot]] <- lapply(res[[slot]], function(x) own)
+    }
+    plan$results_ett[[id]] <- res
+  }
   return(plan)
 }
 
@@ -132,7 +143,10 @@ test_that("Longest reportable shows the per-protocol decision at the spec thresh
     .ff_grid_labels(g, "Outcome A"),
     paste("threshold", c(2, 5, 10, 20))
   )
-  expect_identical(g$id, c("01", "02"))
+  # The subgroup level rows of comparison 01 follow its row and have no ID.
+  # Comparison 02 has no subgroup level row.
+  expect_identical(g$id, c("01", "", "", "", "", "02"))
+  expect_match(g$comparison[2:5], " | ", fixed = TRUE)
   # ETT00001: per-protocol passes at the cut of 2, to its own 1 year.
   expect_identical(.ff_grid_cell(g, "01", "Outcome A", .HS_OWN), "1 year")
   # ETT00005: per-protocol fails in window 52-104, so years 2 and 3 fail

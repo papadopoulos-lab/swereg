@@ -464,10 +464,26 @@ test_that("(c) Minimum events and Longest reportable show the verdict of the rul
   # year 2, so both report 1 year. The exempt comparison shows the verdict
   # of the rule, never the reporting of s3.
   lr <- .ff_grid(fx$xlsx, "Longest reportable")
-  expect_identical(lr$comparison, c("Enrollment one", "Enrollment two (exempt)"))
+  # A subgroup level row has no ID and follows the row of its comparison.
+  cmp <- lr$id != ""
+  expect_identical(
+    lr$comparison[cmp],
+    c("Enrollment one", "Enrollment two (exempt)")
+  )
+  expect_identical(
+    lr$comparison,
+    c(
+      "Enrollment one",
+      "Enrollment one | Subgroup: a",
+      "Enrollment one | Subgroup: b",
+      "Enrollment two (exempt)",
+      "Enrollment two (exempt) | Subgroup: a",
+      "Enrollment two (exempt) | Subgroup: b"
+    )
+  )
   expect_identical(
     vapply(
-      lr$id,
+      lr$id[cmp],
       function(i) .ff_grid_cell(lr, i, "Outcome A", "threshold 5"),
       character(1),
       USE.NAMES = FALSE
@@ -489,7 +505,7 @@ test_that("(c) Minimum events and Longest reportable show the verdict of the rul
   expect_identical(cut$comparison, lr$comparison)
   expect_identical(
     vapply(
-      cut$id,
+      cut$id[cut$id != ""],
       function(i) .ff_grid_cell(cut, i, "Outcome A", "2 years"),
       character(1),
       USE.NAMES = FALSE
@@ -518,14 +534,21 @@ test_that("(c) Minimum events and Longest reportable show the verdict of the rul
   for (s2 in c("Minimum events", "Longest reportable")) {
     expect_identical(
       .ff_grid(none$xlsx, s2)$comparison,
-      c("Enrollment one", "Enrollment two"),
+      c(
+        "Enrollment one",
+        "Enrollment one | Subgroup: a",
+        "Enrollment one | Subgroup: b",
+        "Enrollment two",
+        "Enrollment two | Subgroup: a",
+        "Enrollment two | Subgroup: b"
+      ),
       info = s2
     )
   }
   lr0 <- .ff_grid(none$xlsx, "Longest reportable")
   expect_identical(
     vapply(
-      lr0$id,
+      lr0$id[lr0$id != ""],
       function(i) .ff_grid_cell(lr0, i, "Outcome A", "threshold 5"),
       character(1),
       USE.NAMES = FALSE

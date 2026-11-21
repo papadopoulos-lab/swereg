@@ -590,6 +590,20 @@
     )
   )
 
+  # The baseline person-trials per arm of each subgroup level, as
+  # `.s3_enrollment_worker()` stores them. Only enrollment 01 has subgroup
+  # variables. Each variable sums to its 300 intervention and 700 comparator
+  # baseline person-trials, and no value is missing. `rd_absent` is in no
+  # baseline row, so it has no counts.
+  if (subgroups) {
+    plan$results_enrollment[["01"]]$subgroup_counts <- data.table::data.table(
+      variable = rep(c("rd_age_band", "rd_bmi", "rd_parity"), each = 2L),
+      level = c("older", "younger", "high", "low", "0", "1+"),
+      n_intervention = c(160L, 140L, 130L, 170L, 120L, 180L),
+      n_comparator = c(390L, 310L, 280L, 420L, 300L, 400L)
+    )
+  }
+
   if (fill_summary) {
     plan$results_enrollment[["01"]]$fill_summary <- .xp_fill_summary(1L)
     plan$results_enrollment[["02"]]$fill_summary <- .xp_fill_summary(2L)
@@ -728,7 +742,24 @@
     )
   )
   # The stamps that the real s1, s2 and s3 set. The writers stop without them.
-  tte_stamp_stages(plan)
+  plan <- tte_stamp_stages(plan)
+  # A level record of s3 is a full horizon record. Each level takes the
+  # record of its ETT, with its own `withheld`, `exempt` and `status`. The
+  # subgroup rows of the Minimum events sheets read its `max_passing_cut`
+  # and `by_year`.
+  for (eid in names(plan$results_ett)) {
+    res <- plan$results_ett[[eid]]
+    for (slot in grep("^hsub_.+_(pp|itt)$", names(res), value = TRUE)) {
+      own <- res[[paste0("horizon_", sub("^.*_", "", slot))]]
+      if (is.list(own)) {
+        res[[slot]] <- lapply(res[[slot]], function(x) {
+          return(utils::modifyList(own, x))
+        })
+      }
+    }
+    plan$results_ett[[eid]] <- res
+  }
+  return(invisible(plan))
 }
 
 # --- the four project shapes -------------------------------------------------

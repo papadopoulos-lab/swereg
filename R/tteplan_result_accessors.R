@@ -1117,19 +1117,22 @@
 }
 
 
-#' The stored baseline confounder counts of each enrollment
+#' The stored baseline confounder or subgroup counts of each enrollment
 #'
-#' s3 stores them under `coverage` in each enrollment result, from
-#' `.tte_confounder_coverage()`. The Coverage (ETT) sheet reads them.
+#' s3 stores the confounder counts under `coverage` in each enrollment
+#' result, from `.tte_confounder_coverage()`. The Coverage (ETT) sheet reads
+#' them. It stores the counts of each subgroup level under `subgroup_counts`,
+#' from `.tte_subgroup_baseline_counts()`. The Arm sizes sheet reads them.
 #'
 #' @param plan A TTEPlan.
 #' @param enrollment_ids Character, the enrollments to read.
+#' @param slot Character(1), `"coverage"` or `"subgroup_counts"`.
 #' @return A named list by enrollment id. An element is `NULL` when the
 #'   stored result holds no counts.
 #' @noRd
-.acc_coverage <- function(plan, enrollment_ids) {
+.acc_coverage <- function(plan, enrollment_ids, slot = "coverage") {
   out <- lapply(enrollment_ids, function(eid) {
-    return(.acc_slot(plan$results_enrollment[[eid]], "coverage"))
+    return(.acc_slot(plan$results_enrollment[[eid]], slot))
   })
   names(out) <- enrollment_ids
   return(out)
@@ -1542,10 +1545,24 @@
 #'
 #' @param plan A TTEPlan.
 #' @param estimand Character(1), `"pp"` or `"itt"`.
+#' @param subgroups Logical(1). When `TRUE`, each record also holds
+#'   `subgroups`, as in `$s3_feasibility()`. It holds the records of the
+#'   `hsub_<variable>_<estimand>` slots, by variable and then by level. Each
+#'   one is stripped by `.tte_feasibility_strip()`.
 #' @return A list keyed by ETT id. Each element is the stored horizon record,
 #'   or `NULL` when the result holds none.
 #' @noRd
-.acc_horizon_records <- function(plan, estimand) {
+.acc_horizon_records <- function(plan, estimand, subgroups = FALSE) {
   slot <- paste0("horizon_", estimand)
-  return(lapply(plan$results_ett, function(res) .acc_slot(res, slot)))
+  return(lapply(plan$results_ett, function(res) {
+    rec <- .acc_slot(res, slot)
+    sv <- .tte_horizon_subgroup_vars(res)
+    if (isTRUE(subgroups) && is.list(rec) && length(sv) > 0L) {
+      rec$subgroups <- lapply(stats::setNames(nm = sv), function(v) {
+        recs <- res[[.tte_horizon_subgroup_slot(v, estimand)]]
+        return(lapply(recs, .tte_feasibility_strip))
+      })
+    }
+    return(rec)
+  }))
 }

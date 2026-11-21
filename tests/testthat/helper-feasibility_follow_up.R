@@ -15,6 +15,8 @@ FF_MIN_SHEETS <- c("Minimum events", "Longest reportable")
 FF_EXPORT_TIME <- as.POSIXct("2026-10-29 12:00:00", tz = "UTC")
 # The administrative censoring week that `.ff_plan()` writes into every spec.
 FF_ADMIN <- "2023-52"
+# The record fields that MUST NOT leave the feasibility worker.
+.FZ_STRIPPED <- c("events_weighted", "rate_pooled", "events_expected")
 
 # ---- the spec -----------------------------------------------------------------
 
@@ -118,7 +120,12 @@ FF_ADMIN <- "2023-52"
 # The analysis files of every ETT of `plan`: the panel cut at the follow-up
 # of the ETT, as s2 cuts it. Both enrollments read the same panel. The raw
 # file of an enrollment is its shortest analysis panel.
-.ff_write_files <- function(plan, dir, panel) {
+.ff_write_files <- function(
+  plan,
+  dir,
+  panel,
+  confounder_vars = "rd_age_continuous"
+) {
   for (i in seq_len(nrow(plan$ett))) {
     r <- plan$ett[i]
     fu <- as.integer(r$follow_up)
@@ -127,7 +134,7 @@ FF_ADMIN <- "2023-52"
       id_var = "enrollment_person_trial_id",
       treatment_var = "rd_intervention",
       outcome_vars = r$outcome_var,
-      confounder_vars = "rd_age_continuous",
+      confounder_vars = confounder_vars,
       follow_up_time = fu
     )
     enr <- swereg::TTEEnrollment$new(

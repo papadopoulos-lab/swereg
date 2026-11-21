@@ -398,16 +398,23 @@ writes \code{feasibility.xlsx} to the directory of the workbook, and it holds
 those sheets and no other.
 
 The \verb{Minimum events} and \verb{Longest reportable} sheets hold one row per
-comparison, for the per-protocol estimand. The first has one column per
-outcome and whole follow-up year. Each cell is the largest cut, of 1, 2,
-3, 4, 5, 10 and 20, at which the estimate still passes the
-minimum-events rule. The second has one column per outcome and threshold,
-and each cell is the longest horizon that the threshold reports. Its
+comparison, for the per-protocol estimand. One row per subgroup level
+follows the row of its comparison, and its cells come from the record of
+that level. A person-trial with no subgroup value belongs to no level.
+\verb{Minimum events} has one column per outcome and whole follow-up year.
+Each cell is the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the
+estimate still passes the minimum-events rule. \verb{Longest reportable} has
+one column per outcome and threshold, and each cell is the longest
+horizon that the threshold reports. Its
 column for the threshold of the spec reads the stored verdict of the
 rule. A failed estimate is withheld unless its comparison is exempt, and
 an exempt comparison ends with \code{ (exempt)}. The intention-to-treat
 estimand follows the per-protocol decision.
 \verb{$get_horizon_windows()} returns the year-by-year detail.
+
+The \verb{Arm sizes} sheet adds one row per subgroup level below each
+enrollment, with the enrolled person-trials of that level per arm at
+baseline. The level \code{missing} counts the person-trials with no value.
 
 The year columns run from 1 to the longest follow-up of all ETTs, in
 whole years of 52 weeks. A follow-up that is not a whole number of years
@@ -640,7 +647,11 @@ each arm, summed over trials, the comparator-to-intervention ratio
 they give, the ratio the spec asks for, and the person-trials the
 comparator draw took. \code{Flag} reads \verb{Comparator rarer than intervention: consider reversing the arms} when fewer person-trials are eligible for
 the comparator than for the intervention, and \verb{Comparator pool short of the target ratio} when the comparator pool is larger but cannot fill
-the ratio. The sheet holds no outcome.}
+the ratio. One row per subgroup level follows the row of its
+enrollment. It shows the enrolled person-trials of that level per arm
+at baseline in the s1 raw file. The level \code{missing} counts the
+person-trials with no value. The eligible and ratio cells of a level
+row read \code{n/a}. The sheet holds no outcome.}
 \item{Coverage (whole dataset)}{One row per skeleton column that the
 spec reads, with its role: outcome, inclusion, exclusion, confounder,
 rare-condition candidate or treatment level. The persons with the
@@ -665,7 +676,10 @@ spec has no \code{rare_condition_rule}.}
 \item{Minimum events}{One row per comparison, and one column per outcome
 and whole follow-up year. Each cell is the largest cut of 1, 2, 3, 4,
 5, 10 and 20 at which the per-protocol estimate passes the rule. The
-comparison of an exempt enrollment ends with \code{ (exempt)}.}
+comparison of an exempt enrollment ends with \code{ (exempt)}. One row per
+subgroup level follows the row of its comparison, labelled
+\verb{<comparison> | <subgroup name>: <level>}. Its cells come from the
+record of that level.}
 \item{Longest reportable}{The same rows, and one column per outcome and
 threshold, at 5, 10, 20 and the threshold of the spec. Each cell is the
 longest horizon up to which every year passes the threshold. The
@@ -699,7 +713,10 @@ no expected events. \code{exempt} is \code{TRUE} when the
 spec sets \code{minimum_events_rule_exempt: true} on the enrollment of the
 ETT. \code{withheld} then still holds the verdict of the rule, and \verb{$s3_analyze()}
 will withhold none of the estimates. The \code{itt} record also holds
-\code{decided_by = "pp"}.}
+\code{decided_by = "pp"}. When the ETT has subgroup variables, the \code{pp}
+record holds \code{subgroups}: a list by subgroup variable, then by
+level, of the record of that level. Rows with no subgroup value
+belong to no level.}
 \item{s1_run_id}{The s1 run of the analysis files.}
 \item{swereg_version}{The swereg version that ran the method.}
 \item{computed_at}{When the method ran.}

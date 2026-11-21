@@ -159,8 +159,14 @@
     plan,
     baselines = feas_baselines,
     adherence = .tte_adherence_by_enrollment(plan),
-    records = .acc_horizon_records(plan, "pp"),
-    coverage = .tte_coverage_by_enrollment(plan, feas_baselines)
+    records = .acc_horizon_records(plan, "pp", subgroups = TRUE),
+    coverage = .tte_coverage_by_enrollment(plan, feas_baselines),
+    subgroup_counts = .tte_coverage_by_enrollment(
+      plan,
+      feas_baselines,
+      slot = "subgroup_counts"
+    ),
+    rerun = "$s3_analyze()"
   )
   toc_names <- c(toc_names, names(feas))
   toc_desc <- c(toc_desc, unname(feas))

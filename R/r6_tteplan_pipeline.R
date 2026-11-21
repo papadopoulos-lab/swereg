@@ -1385,7 +1385,8 @@ TTEPlan$set(
 #' @param eid Character(1), the enrollment id.
 #' @param output_dir Character(1), from `.tte_s3_output_dir()`.
 #' @param n_threads Integer(1), the threads of one worker.
-#' @return A list: `item`, the arguments of `.s3_enrollment_worker()`, and
+#' @return A list: `item`, the arguments of `.s3_enrollment_worker()`, with
+#'   `subgroup_vars` the subgroup columns of the reported ETTs, and
 #'   `s2_run`, the s2 run id of the analysis file the item reads.
 #' @noRd
 .tte_s3_enrollment_item <- function(plan, eid, output_dir, n_threads) {
@@ -1400,7 +1401,13 @@ TTEPlan$set(
       raw_path = file.path(output_dir, enr_rows$file_raw[1]),
       enrollment_id = eid,
       n_threads = n_threads,
-      arm_labels = .lookup_arm_labels(plan$spec, eid)
+      arm_labels = .lookup_arm_labels(plan$spec, eid),
+      # The worker counts each level of these columns at baseline.
+      subgroup_vars = if ("subgroup_vars" %in% names(enr_rows)) {
+        unique(as.character(unlist(enr_rows$subgroup_vars)))
+      } else {
+        character(0)
+      }
     ),
     # Without a file size there is no smallest file. s2 stamps every ETT with
     # one id, so the first ETT then gives the same stamp.

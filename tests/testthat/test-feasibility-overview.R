@@ -15,7 +15,10 @@ test_that("an attrition step reads as the spec criterion it applies", {
     ))
   )
   f <- swereg:::.overview_step_label
-  expect_identical(f("before_exclusions", spec, "M01"), "Start: all person-trials")
+  expect_identical(
+    f("before_exclusions", spec, "M01"),
+    "Start: all person-trials"
+  )
   expect_identical(
     f("eligible_no_osd_z907_lifetime_before_baseline", spec, "M01"),
     "Excl. Absent genital organs"
@@ -45,7 +48,14 @@ test_that("a cut takes the fill of its band", {
     enrollment_id = rep(c("M01", "M02"), each = 3L),
     enrollment_period_id = NA_integer_,
     step_order = rep(1:3, 2L),
-    step_name = rep(c("before_exclusions", "eligible_no_osd_z907_lifetime", "eligible_no_osd_i26_lifetime"), 2L),
+    step_name = rep(
+      c(
+        "before_exclusions",
+        "eligible_no_osd_z907_lifetime",
+        "eligible_no_osd_i26_lifetime"
+      ),
+      2L
+    ),
     n_persons = c(100, 100, 90, 50, 50, 45),
     n_person_trials = c(100, 100, 90, 50, 50, 45),
     n_arm_intervention = c(20, 20, 18, 10, 10, 9),
@@ -61,15 +71,25 @@ test_that("a cut takes the fill of its band", {
   return(list(
     spec = list(
       exclusion_criteria = list(
-        list(name = "Absent genital organs", implementation = list(source_variable = "osd_z907")),
+        list(
+          name = "Absent genital organs",
+          implementation = list(source_variable = "osd_z907")
+        ),
         list(name = "VTE", implementation = list(source_variable = "osd_i26"))
       ),
       confounders = list(
         list(name = "Condition A", implementation = list(variable = "rd_a")),
         list(name = "Condition B", implementation = list(variable = "rd_b"))
       ),
-      rare_condition_rule = list(min_n = 100, decided_by = list("M01"), candidates = list("rd_a", "rd_b")),
-      enrollments = list(list(id = "M01", name = "One"), list(id = "M02", name = "Two"))
+      rare_condition_rule = list(
+        min_n = 100,
+        decided_by = list("M01"),
+        candidates = list("rd_a", "rd_b")
+      ),
+      enrollments = list(
+        list(id = "M01", name = "One"),
+        list(id = "M02", name = "Two")
+      )
     ),
     sparse_counts = counts,
     get_attrition = function() {
@@ -84,7 +104,12 @@ test_that("Attrition by arm writes each step once, with intervention and compara
   swereg:::.write_overview_attrition(wb, .ov_plan())
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  d <- openxlsx::read.xlsx(path, sheet = "Attrition by arm", colNames = FALSE, skipEmptyRows = FALSE)
+  d <- openxlsx::read.xlsx(
+    path,
+    sheet = "Attrition by arm",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  )
   expect_true("Excl. Absent genital organs" %in% d[[2]])
   expect_true(any(d == "M01 intervention", na.rm = TRUE))
   expect_true(any(d == "M02 comparator", na.rm = TRUE))
@@ -95,13 +120,22 @@ test_that("Attrition by arm writes each step once, with intervention and compara
   expect_true(swereg:::.write_overview_rare(wb, plan))
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  return(openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", startRow = 7L, check.names = FALSE, sep.names = " "))
+  return(openxlsx::read.xlsx(
+    path,
+    sheet = "Rare conditions by comparison",
+    startRow = 7L,
+    check.names = FALSE,
+    sep.names = " "
+  ))
 }
 
 test_that("Rare conditions by comparison shows the smaller arm, marks c and counts below min_n", {
   skip_if_not_installed("openxlsx")
   d <- .ov_rare(.ov_plan())
-  expect_identical(names(d)[1:4], c("Condition", "Decision", "M01 (decides)", "M02"))
+  expect_identical(
+    names(d)[1:4],
+    c("Condition", "Decision", "M01 (decides)", "M02")
+  )
   # M01, rd_a: intervention 300, comparator 500 -> 300.
   # M01, rd_b: intervention 3, comparator 90 -> <5.
   # M02, rd_a: intervention 150, comparator 120 -> 120 c.
@@ -140,7 +174,12 @@ test_that("Rare conditions by comparison keeps the s1b decision of a plan withou
   expect_true(swereg:::.write_overview_rare(wb, plan))
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  d <- openxlsx::read.xlsx(path, sheet = "Rare conditions by comparison", colNames = FALSE, skipEmptyRows = FALSE)
+  d <- openxlsx::read.xlsx(
+    path,
+    sheet = "Rare conditions by comparison",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  )
   i <- match("Condition", d[[1]])
   expect_false(is.na(i))
   expect_identical(d[[2]][i + 1:2], c("adjusted", "excluded"))
@@ -153,7 +192,7 @@ test_that("Longest reportable reads the specification threshold from the stored 
   # years: the expected events fall below 1. A threshold of 0 still passes
   # every year, and the stored verdict says so.
   testthat::local_mocked_bindings(
-    .overview_cuts = function(plan, records) {
+    .overview_cuts = function(plan, records, subgroup_counts = list()) {
       return(list(
         ids = "01",
         names = c(`01` = "Statin vs none"),
@@ -170,11 +209,22 @@ test_that("Longest reportable reads the specification threshold from the stored 
   swereg:::.write_overview_min_events(wb, plan, list())
   path <- tempfile(fileext = ".xlsx")
   openxlsx::saveWorkbook(wb, path)
-  d <- openxlsx::read.xlsx(path, sheet = "Longest reportable", colNames = FALSE, skipEmptyRows = FALSE)
+  d <- openxlsx::read.xlsx(
+    path,
+    sheet = "Longest reportable",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  )
   row <- d[which(d[[1]] == "01"), , drop = FALSE]
   hdr <- d[which(d[[1]] == "ID")[2L], , drop = FALSE]
-  expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 0")])), "2 years")
-  expect_identical(unname(unlist(row[1, which(hdr[1, ] == "threshold 5")])), "none")
+  expect_identical(
+    unname(unlist(row[1, which(hdr[1, ] == "threshold 0")])),
+    "2 years"
+  )
+  expect_identical(
+    unname(unlist(row[1, which(hdr[1, ] == "threshold 5")])),
+    "none"
+  )
 })
 
 test_that("The overview cuts mark an exempt comparison", {
@@ -199,19 +249,24 @@ test_that("The overview cuts mark an exempt comparison", {
   )
   plan <- list(
     ett = data.frame(enrollment_id = c("01", "02"), stringsAsFactors = FALSE),
-    spec = list(enrollments = list(
-      list(id = "01"),
-      list(id = "02", minimum_events_rule_exempt = TRUE)
-    ))
+    spec = list(
+      enrollments = list(
+        list(id = "01"),
+        list(id = "02", minimum_events_rule_exempt = TRUE)
+      )
+    )
   )
   x <- swereg:::.overview_cuts(plan, list())
-  expect_identical(unname(x$names), c("Comparison 01", "Comparison 02 (exempt)"))
+  expect_identical(
+    unname(x$names),
+    c("Comparison 01", "Comparison 02 (exempt)")
+  )
   expect_identical(x$yn$Death[, 1], c("Y", "-"))
 })
 
 .ov_nid_sheets <- function(nid) {
   testthat::local_mocked_bindings(
-    .overview_cuts = function(plan, records) {
+    .overview_cuts = function(plan, records, subgroup_counts = list()) {
       return(list(
         ids = c("01", "02"),
         names = c(`01` = "First", `02` = "Second"),
@@ -233,12 +288,22 @@ test_that("The overview cuts mark an exempt comparison", {
     .package = "swereg"
   )
   wb <- openxlsx::createWorkbook()
-  swereg:::.write_overview_min_events(wb, list(spec = list(min_expected_events_per_arm_per_year = 5)), list())
+  swereg:::.write_overview_min_events(
+    wb,
+    list(spec = list(min_expected_events_per_arm_per_year = 5)),
+    list()
+  )
   return(wb)
 }
 
 .ov_cell <- function(wb, sht, label, col) {
-  d <- openxlsx::readWorkbook(wb, sht, colNames = FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE)
+  d <- openxlsx::readWorkbook(
+    wb,
+    sht,
+    colNames = FALSE,
+    skipEmptyRows = FALSE,
+    skipEmptyCols = FALSE
+  )
   r <- which(d[[1]] == label)
   return(list(row = r, value = d[r, col]))
 }
@@ -266,7 +331,10 @@ test_that("an outcome not in the data gets empty black cells, and a <5 outcome i
     expect_match(.ov_fill_at(wb, sht, first$row, 3L), "000000$")
     rare <- .ov_cell(wb, sht, "01", rare_col[[sht]])
     expect_false(is.na(rare$value) || !nzchar(rare$value))
-    expect_false(isTRUE(grepl("000000$", .ov_fill_at(wb, sht, rare$row, rare_col[[sht]]))))
+    expect_false(isTRUE(grepl(
+      "000000$",
+      .ov_fill_at(wb, sht, rare$row, rare_col[[sht]])
+    )))
   }
   expect_identical(.ov_cell(wb, "Minimum events", "01", 5L)$value, "5")
 })

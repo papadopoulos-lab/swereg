@@ -96,7 +96,11 @@
 #'     consider reversing the arms` when fewer person-trials are eligible for
 #'     the comparator than for the intervention, and `Comparator pool short
 #'     of the target ratio` when the comparator pool is larger but cannot fill
-#'     the ratio. The sheet holds no outcome.}
+#'     the ratio. One row per subgroup level follows the row of its
+#'     enrollment. It shows the enrolled person-trials of that level per arm
+#'     at baseline in the s1 raw file. The level `missing` counts the
+#'     person-trials with no value. The eligible and ratio cells of a level
+#'     row read `n/a`. The sheet holds no outcome.}
 #'   \item{Coverage (whole dataset)}{One row per skeleton column that the
 #'     spec reads, with its role: outcome, inclusion, exclusion, confounder,
 #'     rare-condition candidate or treatment level. The persons with the
@@ -121,7 +125,10 @@
 #'   \item{Minimum events}{One row per comparison, and one column per outcome
 #'     and whole follow-up year. Each cell is the largest cut of 1, 2, 3, 4,
 #'     5, 10 and 20 at which the per-protocol estimate passes the rule. The
-#'     comparison of an exempt enrollment ends with ` (exempt)`.}
+#'     comparison of an exempt enrollment ends with ` (exempt)`. One row per
+#'     subgroup level follows the row of its comparison, labelled
+#'     `<comparison> | <subgroup name>: <level>`. Its cells come from the
+#'     record of that level.}
 #'   \item{Longest reportable}{The same rows, and one column per outcome and
 #'     threshold, at 5, 10, 20 and the threshold of the spec. Each cell is the
 #'     longest horizon up to which every year passes the threshold. The
@@ -162,7 +169,10 @@
 #'       spec sets `minimum_events_rule_exempt: true` on the enrollment of the
 #'       ETT. `withheld` then still holds the verdict of the rule, and `$s3_analyze()`
 #'       will withhold none of the estimates. The `itt` record also holds
-#'       `decided_by = "pp"`.}
+#'       `decided_by = "pp"`. When the ETT has subgroup variables, the `pp`
+#'       record holds `subgroups`: a list by subgroup variable, then by
+#'       level, of the record of that level. Rows with no subgroup value
+#'       belong to no level.}
 #'     \item{s1_run_id}{The s1 run of the analysis files.}
 #'     \item{swereg_version}{The swereg version that ran the method.}
 #'     \item{computed_at}{When the method ran.}
@@ -191,14 +201,22 @@ TTEPlan$set(
     item_map <- list()
     for (i in seq_len(nrow(ett))) {
       r <- .tte_s3_resolve_ett(ett, i, output_dir, horizon_rule, self$spec)
+      sg_vars <- if ("subgroup_vars" %in% names(ett)) {
+        as.character(unlist(ett$subgroup_vars[[i]]))
+      } else {
+        character(0)
+      }
       for (est in names(r$estimands)) {
+        # The per-protocol item also judges each subgroup level. The
+        # intention-to-treat estimate follows the per-protocol decision.
         items[[length(items) + 1L]] <- list(
           analysis_path = r$estimands[[est]]$path,
           ett_id = r$ett_id,
           n_threads = n_threads,
           weight_col = r$estimands[[est]]$weight,
           follow_up = r$follow_up,
-          horizon_rule = r$rule
+          horizon_rule = r$rule,
+          subgroup_vars = if (est == "pp") sg_vars else character(0)
         )
         item_map[[length(item_map) + 1L]] <- list(
           ett_id = r$ett_id,
@@ -281,6 +299,19 @@ TTEPlan$set(
           src,
           where
         )
+        # Each subgroup level takes the decision of the same level of the
+        # source, as in `$s3_analyze()`.
+        for (sv in names(records[[eid]]$pp$subgroups)) {
+          records[[eid]]$pp$subgroups[[sv]] <-
+            .tte_horizon_subgroup_from_source(
+              records[[eid]]$pp$subgroups[[sv]],
+              records[[src$ett_id]]$pp$subgroups[[sv]],
+              eid,
+              src,
+              sv,
+              where
+            )
+        }
       }
       records[[eid]]$itt <- .tte_horizon_follow_pp(
         records[[eid]]$pp,
@@ -313,7 +344,9 @@ TTEPlan$set(
 #' Reads one analysis file and builds the horizon record with
 #' `.tte_horizon_record()`, the function the s3 risk-difference item calls.
 #' It returns the record without `events_weighted`, `rate_pooled` and
-#' `events_expected`.
+#' `events_expected`. For each subgroup variable, it builds the record of
+#' each level with `.tte_horizon_subgroup_records()`, the function of s3, and
+#' strips each one the same way.
 #'
 #' @param analysis_path Path to the analysis `.qs2` file of the estimand.
 #' @param ett_id Character(1), the ETT id, for the item name.
@@ -321,7 +354,10 @@ TTEPlan$set(
 #' @param weight_col Character(1), the weight column of the estimand.
 #' @param follow_up Numeric(1), the follow-up of the ETT in weeks.
 #' @param horizon_rule The rule, a list holding `min_expected_events`.
-#' @return The stripped record, from `.tte_feasibility_strip()`.
+#' @param subgroup_vars Character, the subgroup columns to judge per level.
+#' @return The stripped record, from `.tte_feasibility_strip()`. When
+#'   `subgroup_vars` is not empty, `subgroups` holds a list by subgroup
+#'   variable, then by level, of the stripped per-level records.
 #' @noRd
 .s3_feasibility_worker <- function(
   analysis_path,
@@ -329,7 +365,8 @@ TTEPlan$set(
   n_threads,
   weight_col,
   follow_up,
-  horizon_rule
+  horizon_rule,
+  subgroup_vars = character(0)
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -343,7 +380,23 @@ TTEPlan$set(
     design$tstart_var,
     design$tstop_var
   )
-  return(.tte_feasibility_strip(rec))
+  out <- .tte_feasibility_strip(rec)
+  if (length(subgroup_vars) > 0L) {
+    out$subgroups <- lapply(stats::setNames(nm = subgroup_vars), function(sv) {
+      recs <- .tte_horizon_subgroup_records(
+        enrollment$data,
+        sv,
+        weight_col,
+        follow_up,
+        horizon_rule,
+        design$treatment_var,
+        design$tstart_var,
+        design$tstop_var
+      )
+      return(lapply(recs, .tte_feasibility_strip))
+    })
+  }
+  return(out)
 }
 
 
@@ -400,7 +453,9 @@ TTEPlan$set(
 #' workbook beside `tables.xlsx`. Both workbooks, and `$s3_feasibility()`,
 #' write the feasibility sheets through `.write_feasibility_sheets()`. The
 #' Minimum events sheets read the per-protocol horizon records that s3
-#' stored, feasibility-horizon ETTs included.
+#' stored, feasibility-horizon ETTs included, and the per-level records of
+#' each subgroup variable. The Arm sizes sheet reads the stored
+#' `subgroup_counts`.
 #'
 #' @param plan A `TTEPlan` with s3 results.
 #' @param path Character(1), the `.xlsx` path.
@@ -409,32 +464,46 @@ TTEPlan$set(
 #' @return `path`, invisibly.
 #' @noRd
 .plan_export_feasibility <- function(plan, path, enrollment_ids) {
+  baselines <- .tte_feasibility_baselines(plan, enrollment_ids)
   .write_feasibility_xlsx(
     plan,
-    .tte_feasibility_baselines(plan, enrollment_ids),
+    baselines,
     path,
     adherence = .tte_adherence_by_enrollment(plan),
-    records = .acc_horizon_records(plan, "pp")
+    records = .acc_horizon_records(plan, "pp", subgroups = TRUE),
+    subgroup_counts = .tte_coverage_by_enrollment(
+      plan,
+      baselines,
+      slot = "subgroup_counts"
+    ),
+    rerun = "$s3_analyze()"
   )
   return(invisible(path))
 }
 
 
-#' The baseline confounder counts of each enrollment
+#' The baseline confounder or subgroup counts of each enrollment
 #'
-#' Reads the `coverage` of each worker result in `baselines`, and otherwise
-#' the one s3 stored, through `.acc_coverage()`.
+#' Reads the `slot` of each worker result in `baselines`, and otherwise the
+#' one s3 stored, through `.acc_coverage()`.
 #'
 #' @param plan A TTEPlan.
 #' @param baselines Named list by enrollment id.
+#' @param enrollment_ids Character, the enrollments to read.
+#' @param slot Character(1), `"coverage"` or `"subgroup_counts"`.
 #' @return A named list by enrollment id.
 #' @noRd
-.tte_coverage_by_enrollment <- function(plan, baselines) {
-  stored <- .acc_coverage(plan, names(baselines))
-  out <- lapply(names(baselines), function(eid) {
-    return(baselines[[eid]][["coverage"]] %||% stored[[eid]])
+.tte_coverage_by_enrollment <- function(
+  plan,
+  baselines,
+  enrollment_ids = names(baselines),
+  slot = "coverage"
+) {
+  stored <- .acc_coverage(plan, enrollment_ids, slot)
+  out <- lapply(enrollment_ids, function(eid) {
+    return(baselines[[eid]][[slot]] %||% stored[[eid]])
   })
-  names(out) <- names(baselines)
+  names(out) <- enrollment_ids
   return(out)
 }
 
@@ -455,6 +524,10 @@ TTEPlan$set(
 #'   each ETT.
 #' @param coverage A named list by enrollment id: the baseline confounder
 #'   counts of `.tte_coverage_by_enrollment()`.
+#' @param subgroup_counts A named list by enrollment id: the baseline counts
+#'   of each subgroup level, from `.tte_subgroup_baseline_counts()`.
+#' @param rerun Character(1), the method that stores the counts, for the
+#'   message of `.tte_assert_subgroup_counts()`.
 #' @return A named character vector: the description of each sheet written,
 #'   named by the sheet, in order.
 #' @noRd
@@ -464,19 +537,22 @@ TTEPlan$set(
   baselines,
   adherence,
   records,
-  coverage
+  coverage,
+  subgroup_counts = list(),
+  rerun = "$s3_analyze()"
 ) {
+  .tte_assert_subgroup_counts(plan, subgroup_counts, rerun)
   header <- openxlsx::createStyle(
     textDecoration = "bold",
     fgFill = "#EFEFEF",
     border = "bottom"
   )
   .write_spec_summary(wb, plan)
-  .write_arm_sizes_sheet(wb, plan, header)
+  .write_arm_sizes_sheet(wb, plan, header, subgroup_counts)
   .write_coverage_sheets(wb, plan, coverage, records, header)
   .write_overview_attrition(wb, plan)
   .write_overview_rare(wb, plan)
-  .write_overview_min_events(wb, plan, records)
+  .write_overview_min_events(wb, plan, records, subgroup_counts)
   .write_overview_table1(wb, plan, baselines)
   adh <- .write_adherence_sheet(wb, plan, adherence)
   desc <- c(
@@ -510,6 +586,10 @@ TTEPlan$set(
 #'   each ETT. The default reads `plan$feasibility$records`.
 #' @param coverage A named list by enrollment id: the baseline confounder
 #'   counts.
+#' @param subgroup_counts A named list by enrollment id: the baseline counts
+#'   of each subgroup level.
+#' @param rerun Character(1), the method that stores the counts. The default
+#'   names the feasibility step.
 #' @return `path`, invisibly.
 #' @noRd
 .write_feasibility_xlsx <- function(
@@ -518,10 +598,25 @@ TTEPlan$set(
   path,
   adherence,
   records = lapply(plan$feasibility$records, function(r) r$pp),
-  coverage = .tte_coverage_by_enrollment(plan, baselines)
+  coverage = .tte_coverage_by_enrollment(plan, baselines),
+  subgroup_counts = .tte_coverage_by_enrollment(
+    plan,
+    baselines,
+    slot = "subgroup_counts"
+  ),
+  rerun = "$s3_feasibility()"
 ) {
   wb <- openxlsx::createWorkbook()
-  .write_feasibility_sheets(wb, plan, baselines, adherence, records, coverage)
+  .write_feasibility_sheets(
+    wb,
+    plan,
+    baselines,
+    adherence,
+    records,
+    coverage,
+    subgroup_counts,
+    rerun
+  )
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   return(invisible(path))
 }
