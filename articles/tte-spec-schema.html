@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -2274,12 +2274,79 @@ comparison and outcome. Section 1.8.6 of
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> states that rule.</p>
 </div>
 <div class="section level2">
+<h2 id="subgroups">Subgroups<a class="anchor" aria-label="anchor" href="#subgroups"></a>
+</h2>
+<div class="section level3">
+<h3 id="the-subgroups-key">The <code>subgroups</code> key<a class="anchor" aria-label="anchor" href="#the-subgroups-key"></a>
+</h3>
+<p>A spec MAY set the top-level key <code>subgroups</code>, a list. Each
+entry names one baseline variable whose levels can modify the treatment
+effect.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="fu">subgroups</span><span class="kw">:</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sex"</span></span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_sex</span></span></code></pre></div>
+<p><code>implementation$variable</code> is the skeleton column.
+<code>name</code> is the label of the variable in the workbooks.</p>
+<p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> refuses a subgroup variable that
+is not a skeleton column, or that is not also a confounder of the spec.
+The marginal weights are valid within a stratum only when the propensity
+score and IPCW models hold the subgroup variable.</p>
+<p>s3 analyses each subgroup variable for each ETT and both estimands.
+It computes the stratified rate ratios of
+<code>$irr_by_subgroup()</code> and the interaction test of
+<code>$effect_modification_test()</code>.
+<code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> explains both estimators. The
+Effect modification sheet and <code>$get_subgroups()</code> show the
+results, and <code>$get_subgroups()</code> has a
+<code>horizon_status</code> column. A variable with one level in an ETT
+gets no stratified rate ratio and no interaction test.</p>
+<p>From swereg 27.3.21, s3 applies the minimum-events rule to each
+subgroup level. It judges each non-missing subgroup level on its own
+rows, with its own pooled rate. The rule then has these effects:</p>
+<ul>
+<li>A subgroup level that fails loses its rate ratio. The other levels
+keep their estimates.</li>
+<li>The interaction test of a variable is withheld when any of its
+levels fails.</li>
+<li>The <code>all</code> row follows the decision of the whole ETT.</li>
+<li>An ETT that fails the rule withholds every subgroup result.</li>
+<li>The intention-to-treat estimand takes the per-protocol decision of
+each subgroup level.</li>
+<li>A part-year ETT takes the per-level decisions of its source
+ETT.</li>
+<li>An exempt enrollment withholds no subgroup result.</li>
+</ul>
+<p>The Arm sizes, Minimum events and Longest reportable sheets of the
+feasibility workbook show one row per subgroup level beneath each
+comparison. The row label is
+<code>&lt;comparison&gt; | &lt;subgroup name&gt;: &lt;level&gt;</code>.
+The Arm sizes row of a level shows the enrolled person-trials per arm at
+baseline. Its eligible and ratio columns read <code>n/a</code>. A
+missing subgroup value forms the level <code>missing</code>, which
+follows the other levels. The rule does not judge that level, so its
+cells in the two horizon sheets read <code>n/a</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="results-stored-before-27-3-21">Results stored before 27.3.21<a class="anchor" aria-label="anchor" href="#results-stored-before-27-3-21"></a>
+</h3>
+<p>Such results hold no per-level decision, and no baseline counts per
+level. <code>$export()</code>, <code>$export_tables()</code>,
+<code>$print_target_checklist()</code> and <code>$get_subgroups()</code>
+stop on a result with subgroups and no per-level decision. The message
+asks for a rerun of <code>$s3_analyze()</code>. The feasibility sheets
+stop on an enrollment with subgroups and no baseline counts per level.
+That message asks for a rerun of s3 or of
+<code>$s3_feasibility()</code>.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="what-you-see-when-a-key-is-refused">What you see when a key is refused<a class="anchor" aria-label="anchor" href="#what-you-see-when-a-key-is-refused"></a>
 </h2>
 <p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> reports every refused key in one
 message, and reads no data first. Each finding lists the keys its
 context accepts.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">spec_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"spec_v001.yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -2303,7 +2370,7 @@ context accepts.</p>
 because the schema declares no context below it. Move the entries into
 <code>criteria</code>, and swereg reads each one.</p>
 <p>A misspelt key gets the same message.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inclusion_criteria:"</span>, <span class="st">"  isoyear: 2010"</span><span class="op">)</span>,</span>
 <span>  <span class="va">spec_path</span></span>

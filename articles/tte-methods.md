@@ -824,6 +824,12 @@ are withheld. The IRR, the risk difference and the number needed to
 treat are reported as NE, not estimable. The subgroup IRRs and the
 effect-modification tests of 1.8.8 are withheld too. Events,
 person-time, rates and the stored survival curves are still reported.
+
+The rule also judges each subgroup level on its own rows, with its own
+pooled rate. A subgroup IRR is withheld when its own subgroup level
+fails the rule. The effect-modification test of a subgroup is withheld
+when any of its levels fails.
+
 The per-protocol decision uses the truncated product weight. It also
 covers the untruncated IRR, risk difference and number needed to treat
 of the same estimand (1.9). An untruncated weight makes no decision of

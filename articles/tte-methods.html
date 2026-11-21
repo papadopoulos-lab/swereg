@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1015,8 +1015,13 @@ verdict needs data to its end.</p>
 are withheld. The IRR, the risk difference and the number needed to
 treat are reported as NE, not estimable. The subgroup IRRs and the
 effect-modification tests of 1.8.8 are withheld too. Events,
-person-time, rates and the stored survival curves are still reported.
-The per-protocol decision uses the truncated product weight. It also
+person-time, rates and the stored survival curves are still
+reported.</p>
+<p>The rule also judges each subgroup level on its own rows, with its
+own pooled rate. A subgroup IRR is withheld when its own subgroup level
+fails the rule. The effect-modification test of a subgroup is withheld
+when any of its levels fails.</p>
+<p>The per-protocol decision uses the truncated product weight. It also
 covers the untruncated IRR, risk difference and number needed to treat
 of the same estimand (1.9). An untruncated weight makes no decision of
 its own.</p>

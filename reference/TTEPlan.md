@@ -510,16 +510,22 @@ writes `feasibility.xlsx` to the directory of the workbook, and it holds
 those sheets and no other.
 
 The `Minimum events` and `Longest reportable` sheets hold one row per
-comparison, for the per-protocol estimand. The first has one column per
-outcome and whole follow-up year. Each cell is the largest cut, of 1, 2,
-3, 4, 5, 10 and 20, at which the estimate still passes the
-minimum-events rule. The second has one column per outcome and
-threshold, and each cell is the longest horizon that the threshold
-reports. Its column for the threshold of the spec reads the stored
-verdict of the rule. A failed estimate is withheld unless its comparison
-is exempt, and an exempt comparison ends with ` (exempt)`. The
-intention-to-treat estimand follows the per-protocol decision.
-`$get_horizon_windows()` returns the year-by-year detail.
+comparison, for the per-protocol estimand. One row per subgroup level
+follows the row of its comparison, and its cells come from the record of
+that level. A person-trial with no subgroup value belongs to no level.
+`Minimum events` has one column per outcome and whole follow-up year.
+Each cell is the largest cut, of 1, 2, 3, 4, 5, 10 and 20, at which the
+estimate still passes the minimum-events rule. `Longest reportable` has
+one column per outcome and threshold, and each cell is the longest
+horizon that the threshold reports. Its column for the threshold of the
+spec reads the stored verdict of the rule. A failed estimate is withheld
+unless its comparison is exempt, and an exempt comparison ends with
+` (exempt)`. The intention-to-treat estimand follows the per-protocol
+decision. `$get_horizon_windows()` returns the year-by-year detail.
+
+The `Arm sizes` sheet adds one row per subgroup level below each
+enrollment, with the enrolled person-trials of that level per arm at
+baseline. The level `missing` counts the person-trials with no value.
 
 The year columns run from 1 to the longest follow-up of all ETTs, in
 whole years of 52 weeks. A follow-up that is not a whole number of years
@@ -812,8 +818,12 @@ sheets, in this order:
   `Comparator rarer than intervention: consider reversing the arms` when
   fewer person-trials are eligible for the comparator than for the
   intervention, and `Comparator pool short of the target ratio` when the
-  comparator pool is larger but cannot fill the ratio. The sheet holds
-  no outcome.
+  comparator pool is larger but cannot fill the ratio. One row per
+  subgroup level follows the row of its enrollment. It shows the
+  enrolled person-trials of that level per arm at baseline in the s1 raw
+  file. The level `missing` counts the person-trials with no value. The
+  eligible and ratio cells of a level row read `n/a`. The sheet holds no
+  outcome.
 
 - Coverage (whole dataset):
 
@@ -850,7 +860,10 @@ sheets, in this order:
   One row per comparison, and one column per outcome and whole follow-up
   year. Each cell is the largest cut of 1, 2, 3, 4, 5, 10 and 20 at
   which the per-protocol estimate passes the rule. The comparison of an
-  exempt enrollment ends with ` (exempt)`.
+  exempt enrollment ends with ` (exempt)`. One row per subgroup level
+  follows the row of its comparison, labelled
+  `<comparison> | <subgroup name>: <level>`. Its cells come from the
+  record of that level.
 
 - Longest reportable:
 
@@ -895,7 +908,10 @@ The plan, invisibly. `self$feasibility` is a list:
   `minimum_events_rule_exempt: true` on the enrollment of the ETT.
   `withheld` then still holds the verdict of the rule, and
   `$s3_analyze()` will withhold none of the estimates. The `itt` record
-  also holds `decided_by = "pp"`.
+  also holds `decided_by = "pp"`. When the ETT has subgroup variables,
+  the `pp` record holds `subgroups`: a list by subgroup variable, then
+  by level, of the record of that level. Rows with no subgroup value
+  belong to no level.
 
 - s1_run_id:
 
@@ -1618,6 +1634,28 @@ Four states occur.
 
 A skipped stratified result reads as absent.
 
+`$s3_analyze()` judges each subgroup level by the minimum-events rule on
+its own, with its own pooled rate. A level that fails has `NA` in `irr`,
+`irr_lo`, `irr_hi` and `irr_pvalue`. When any level fails, the four
+interaction columns are `NA` on every row of that result. The `"all"`
+row follows the rule of the whole emulated trial only.
+
+`horizon_status` is the status of the rule. A level row carries the
+status of its own level. The `"all"` row carries the status of the
+interaction test, which is one of these:
+
+- the status of the whole trial, when the trial is withheld;
+
+- a status that starts with "below minimum-events rule" and names the
+  failing levels, when a level fails;
+
+- "all windows pass", when no level fails;
+
+- "exempt from minimum-events rule", when the enrollment is exempt.
+
+The method stops when a stored result holds no per-level decision, as a
+result from before the per-level rule does. Rerun `$s3_analyze()`.
+
 Coverage. Study 002 runs no stratified analysis, so this method is
 tested against a fixture. Other studies in the fleet do configure
 subgroups, so treat the schema as production.
@@ -1628,9 +1666,10 @@ subgroups, so treat the schema as production.
 
 #### Returns
 
-A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
-`subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
-`irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
+A data.table with 15 columns: `ett_id`, `estimand`, `weights`,
+`subgroup_var`, `subgroup_level`, `strata_stored`, `irr`, `irr_lo`,
+`irr_hi`, `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo`,
+`ratio_hi` and `horizon_status`.
 
 ------------------------------------------------------------------------
 

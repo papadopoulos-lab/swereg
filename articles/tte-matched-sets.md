@@ -92,7 +92,7 @@ every week.
 
 ``` r
 library(swereg)
-#> swereg 27.3.20
+#> swereg 27.3.21
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 

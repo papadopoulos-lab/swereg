@@ -1,5 +1,36 @@
 # Changelog
 
+## swereg 27.3.21
+
+s3 now applies the minimum-events rule to each subgroup level of a spec
+with `subgroups:`. A spec with `subgroups:` MUST rerun `$s3_analyze()`,
+and `$s3_feasibility()` where the project uses it, before `$export()` or
+`$export_tables()`. No live spec of the MHT and GD projects sets
+`subgroups:` today, so no live project reruns.
+
+### New features
+
+- **s3 judges each subgroup level on its own rows, with its own pooled
+  rate.** A failing level loses its rate ratio, and the interaction test
+  of its variable is withheld. The `all` row follows the decision of the
+  whole ETT. `$get_subgroups()` gains a `horizon_status` column.
+- **The Arm sizes, Minimum events and Longest reportable sheets show one
+  row per subgroup level beneath each comparison.** Arm sizes shows the
+  enrolled person-trials per arm at baseline. A missing subgroup value
+  is its own row, `missing`.
+
+### Breaking changes
+
+- **Results with subgroups that s3 stored before 27.3.21 are refused.**
+  The message asks for a rerun of `$s3_analyze()`, or of the feasibility
+  step.
+
+### Documentation
+
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  documents the `subgroups:` key**: its keys, the confounder
+  requirement, the s3 and feasibility outputs and the per-level rule.
+
 ## swereg 27.3.20
 
 ### New features
