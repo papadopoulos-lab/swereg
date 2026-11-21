@@ -350,7 +350,7 @@ test_that("NAMESPACE exports the three fill functions", {
   # NAMESPACE is the file an installed build reads, so assert that file. A
   # namespace check alone passes on a build whose NAMESPACE was never
   # regenerated.
-  ns_path <- file.path(system.file(package = "swereg"), "NAMESPACE")
+  ns_path <- system.file("NAMESPACE", package = "swereg")
   expect_true(file.exists(ns_path))
   expect_true(all(
     paste0("export(", fns, ")") %in% readLines(ns_path, warn = FALSE)

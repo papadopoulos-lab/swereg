@@ -856,6 +856,10 @@
 #'   line. With a threshold of 0 that sentence also ends the line. Without an
 #'   exempt enrollment and with a threshold above 0, the line is the line of
 #'   swereg 27.3.0. Swereg 27.3.9 split the line of a threshold of 0 in two.
+#'   With a threshold above 0 and a non-empty `subgroups:`, three sentences
+#'   on the subgroup withholding follow the withholding sentence. Each of
+#'   them carries ", except in an exempt comparison" when the spec exempts an
+#'   enrollment. Without `subgroups:`, the line is the line of swereg 27.3.21.
 #' @noRd
 .protocol_horizon_rule_line <- function(spec) {
   .tte_assert_horizon_rule_present(spec, "the target trial protocol")
@@ -881,6 +885,22 @@
       if (!is.null(exempt)) paste0(". ", exempt)
     ))
   }
+  # The subgroup withholding that swereg 27.3.21 added. An exempt enrollment
+  # withholds nothing, so each of the three sentences carries the clause.
+  subgroup <- NULL
+  if (length(spec$subgroups %||% list()) > 0L) {
+    ex <- if (!is.null(exempt)) ", except in an exempt comparison"
+    subgroup <- paste0(
+      ". Its subgroup rate ratios and interaction tests read NE too",
+      ex,
+      ". A subgroup rate ratio also reads NE when its own subgroup level ",
+      "fails the rule",
+      ex,
+      ". The interaction test of a subgroup reads NE when any of its levels ",
+      "fails",
+      ex
+    )
+  }
   return(paste0(
     first,
     ". Follow-up years are ",
@@ -890,6 +910,7 @@
     "the rate ",
     "ratio, risk difference and number needed to treat of that estimand ",
     "read NE",
+    subgroup,
     if (!is.null(exempt)) paste0(". ", exempt)
   ))
 }

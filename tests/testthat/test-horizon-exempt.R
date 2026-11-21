@@ -809,6 +809,11 @@ HX_SG_LEVEL_OSF <- "A subgroup rate ratio is also withheld when its own subgroup
     fixed = TRUE
   ))
 }
+# swereg 27.3.22 adds the subgroup sentences to the protocol line of a spec
+# with subgroups, after its withholding sentence.
+HX_SG_PROTOCOL <- "Its subgroup rate ratios and interaction tests read NE too. A subgroup rate ratio also reads NE when its own subgroup level fails the rule. The interaction test of a subgroup reads NE when any of its levels fails"
+HX_SG_PROTOCOL_EXEMPT <- "Its subgroup rate ratios and interaction tests read NE too, except in an exempt comparison. A subgroup rate ratio also reads NE when its own subgroup level fails the rule, except in an exempt comparison. The interaction test of a subgroup reads NE when any of its levels fails, except in an exempt comparison"
+HX_PROTOCOL <- paste0(HX_PROTOCOL_27_3_0, ". ", HX_SG_PROTOCOL)
 HX_TARGET <- .hx_sg_level(.hx_2732(HX_TARGET_27_3_0))
 HX_TARGET_NO_SG <- .hx_2732(HX_TARGET_27_3_0_NO_SG)
 HX_OSF <- .hx_sg_level(.hx_2732(HX_OSF_27_3_0))
@@ -930,6 +935,8 @@ test_that("(e) the protocol table names the exempt enrollment and qualifies its 
     paste0(
       "Minimum-events rule: at least 5 expected events per arm in each year of follow-up, computed under the null as the pooled weighted event rate of both arms times the weighted person-years of the arm. Follow-up years are 52 weeks from time zero. ",
       "When any year up to the horizon fails, except in an exempt comparison, the rate ratio, risk difference and number needed to treat of that estimand read NE. ",
+      HX_SG_PROTOCOL_EXEMPT,
+      ". ",
       HX_ONE
     )
   )
@@ -971,7 +978,7 @@ test_that("(e) with no exempt enrollment each text equals its 27.3.0 string, but
       HX_TARGET_NO_SG,
       info = lab
     )
-    expect_identical(.hx_protocol_line(plan), HX_PROTOCOL_27_3_0, info = lab)
+    expect_identical(.hx_protocol_line(plan), HX_PROTOCOL, info = lab)
     expect_identical(.hx_osf(exempt), HX_OSF, info = lab)
     expect_identical(
       .hx_osf(exempt, subgroups = FALSE),

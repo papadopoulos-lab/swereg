@@ -1,3 +1,10 @@
+# swereg 27.3.22
+
+## Bug fixes
+
+* **The minimum-events line of the protocol table now states the subgroup withholding.** For a spec with `subgroups:` and a threshold above 0, it says that subgroup rate ratios and interaction tests read NE. A spec without `subgroups:` gets the 27.3.21 line unchanged.
+* **The NAMESPACE test of `test-tteenrollment-fill.R` now passes under `devtools::test()`.** It reads `system.file("NAMESPACE", package = "swereg")`, which finds the file under `pkgload` and in an installed build.
+
 # swereg 27.3.21
 
 s3 now applies the minimum-events rule to each subgroup level of a spec with `subgroups:`. A spec with `subgroups:` MUST rerun `$s3_analyze()`, and `$s3_feasibility()` where the project uses it, before `$export()` or `$export_tables()`. No live spec of the MHT and GD projects sets `subgroups:` today, so no live project reruns.
