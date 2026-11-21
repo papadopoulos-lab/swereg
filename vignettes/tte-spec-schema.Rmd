@@ -419,6 +419,67 @@ The 26-week horizon above is not a whole number of years. It takes the
 minimum-events decision of the 52-week horizon of the same comparison and
 outcome. Section 1.8.6 of `vignette("tte-methods")` states that rule.
 
+# Subgroups
+
+## The `subgroups` key
+
+A spec MAY set the top-level key `subgroups`, a list. Each entry names one
+baseline variable whose levels can modify the treatment effect.
+
+```yaml
+subgroups:
+  - name: "Sex"
+    implementation:
+      variable: rd_sex
+```
+
+`implementation$variable` is the skeleton column. `name` is the label of the
+variable in the workbooks.
+
+`tteplan_validate_spec()` refuses a subgroup variable that is not a skeleton
+column, or that is not also a confounder of the spec. The marginal weights are
+valid within a stratum only when the propensity score and IPCW models hold the
+subgroup variable.
+
+s3 analyses each subgroup variable for each ETT and both estimands. It
+computes the stratified rate ratios of `$irr_by_subgroup()` and the
+interaction test of `$effect_modification_test()`.
+`vignette("tte-workflow")` explains both estimators. The Effect modification
+sheet and `$get_subgroups()` show the results, and `$get_subgroups()` has a
+`horizon_status` column. A variable with one level in an ETT gets no
+stratified rate ratio and no interaction test.
+
+From swereg 27.3.21, s3 applies the minimum-events rule to each subgroup
+level. It judges each non-missing subgroup level on its own rows, with its own
+pooled rate. The rule then has these effects:
+
+- A subgroup level that fails loses its rate ratio. The other levels keep
+  their estimates.
+- The interaction test of a variable is withheld when any of its levels fails.
+- The `all` row follows the decision of the whole ETT.
+- An ETT that fails the rule withholds every subgroup result.
+- The intention-to-treat estimand takes the per-protocol decision of each
+  subgroup level.
+- A part-year ETT takes the per-level decisions of its source ETT.
+- An exempt enrollment withholds no subgroup result.
+
+The Arm sizes, Minimum events and Longest reportable sheets of the feasibility
+workbook show one row per subgroup level beneath each comparison. The row
+label is `<comparison> | <subgroup name>: <level>`. The Arm sizes row of a
+level shows the enrolled person-trials per arm at baseline. Its eligible and
+ratio columns read `n/a`. A missing subgroup value forms the level `missing`,
+which follows the other levels. The rule does not judge that level, so its
+cells in the two horizon sheets read `n/a`.
+
+## Results stored before 27.3.21
+
+Such results hold no per-level decision, and no baseline counts per level.
+`$export()`, `$export_tables()`, `$print_target_checklist()` and
+`$get_subgroups()` stop on a result with subgroups and no per-level decision. The message asks for a rerun of
+`$s3_analyze()`. The feasibility sheets stop on an enrollment with subgroups
+and no baseline counts per level. That message asks for a rerun of s3 or of
+`$s3_feasibility()`.
+
 # What you see when a key is refused
 
 `tteplan_read_spec()` reports every refused key in one message, and reads no
