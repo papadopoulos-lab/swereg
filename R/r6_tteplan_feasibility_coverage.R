@@ -796,9 +796,12 @@
 
 #' Baseline counts of each confounder per arm, from one enrollment
 #'
-#' Reads the baseline rows of an enrollment object. A logical confounder
-#' counts its `TRUE` rows, a character or factor confounder each level, and a
-#' numeric one its non-missing rows. Every count is of person-trials.
+#' Reads the baseline rows of an enrollment object. Each confounder is read
+#' from its entry-window snapshot `.tte_entry__<v>`, the baseline value that
+#' IPW and Table 1 use, when the baseline rows hold that column. A confounder
+#' without one is read from its own column. A logical confounder counts its
+#' `TRUE` rows, a character or factor confounder each level, and a numeric
+#' one its non-missing rows. Every count is of person-trials.
 #'
 #' @param enrollment A TTEEnrollment, from the raw s1 file.
 #' @return A data.table with `variable`, `level`, `n_intervention` and
