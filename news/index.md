@@ -1,5 +1,15 @@
 # Changelog
 
+## swereg 27.3.25
+
+### Bug fixes
+
+- **The baseline confounder rows of the Coverage (ETT) sheet now count
+  the entry-window snapshot.** IPW and Table 1 use that value. Before,
+  the rows read the first follow-up interval. A spec MUST rerun
+  `$s3_feasibility()`, or `$s3_analyze()` before `$export_tables()`, for
+  the sheet to change.
+
 ## swereg 27.3.24
 
 ### Bug fixes
