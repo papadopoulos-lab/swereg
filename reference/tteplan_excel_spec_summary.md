@@ -144,7 +144,7 @@ out <- tteplan_excel_spec_summary(
   path = file.path(spec_dir, "spec_v001.xlsx"),
   code_registry = study
 )
-#> Spec summary saved to: /tmp/Rtmpd9Bz6O/file1cb717b00bb1/spec_v001.xlsx
+#> Spec summary saved to: /tmp/Rtmp0M8bxn/file1e0b6af1df8e/spec_v001.xlsx
 openxlsx::getSheetNames(out)
 #> [1] "Study Specification"   "Target trial protocol"
 unlink(spec_dir, recursive = TRUE)

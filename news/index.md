@@ -1,5 +1,18 @@
 # Changelog
 
+## swereg 27.3.24
+
+### Bug fixes
+
+- **Subgroups now split each person-trial on the level of its
+  entry-window snapshot.** This applies to the subgroup rate ratios, the
+  effect-modification test, the minimum-events verdict of each subgroup
+  level and the Arm sizes counts. Before, they read the value of each
+  follow-up week. A confounder that changed during follow-up, such as a
+  lifetime diagnosis, moved later weeks into another level. An analysis
+  file without the entry snapshot keeps the old split. A spec with
+  `subgroups:` MUST rerun `$s3_analyze()` and `$s3_feasibility()`.
+
 ## swereg 27.3.23
 
 ### Documentation
