@@ -815,7 +815,9 @@
   tx[is.na(tx)] <- FALSE
   rows <- list()
   for (v in intersect(des$confounder_vars, names(base))) {
-    x <- base[[v]]
+    # Read the entry snapshot `.tte_entry__<v>`, the baseline value IPW
+    # and Table 1 use. A confounder without one reads its own column.
+    x <- base[[.tte_subgroup_col(base, v)]]
     if (is.logical(x)) {
       hit <- x %in% TRUE
       rows[[length(rows) + 1L]] <- data.table::data.table(
