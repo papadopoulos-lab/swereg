@@ -834,7 +834,8 @@
       call. = FALSE
     )
   }
-  x <- data[[subgroup_var]]
+  # Split on the baseline level. See .tte_subgroup_col().
+  x <- data[[.tte_subgroup_col(data, subgroup_var)]]
   keep <- !is.na(x)
   lv <- sort(unique(x[keep]))
   recs <- lapply(seq_along(lv), function(k) {

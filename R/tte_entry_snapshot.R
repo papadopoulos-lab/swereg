@@ -20,6 +20,24 @@
   return(paste0(.TTE_ENTRY_PREFIX, vars))
 }
 
+#' Name the column that holds the baseline level of a subgroup.
+#'
+#' A subgroup is a baseline characteristic. The function returns the
+#' entry-window snapshot column when `data` holds it, and `subgroup_var`
+#' when it does not.
+#'
+#' @param data A data.frame or data.table.
+#' @param subgroup_var Character(1), the subgroup name of the spec.
+#' @return Character(1), the column to read.
+#' @noRd
+.tte_subgroup_col <- function(data, subgroup_var) {
+  entry <- .tte_entry_col(subgroup_var)
+  if (length(entry) == 1L && entry %in% names(data)) {
+    return(entry)
+  }
+  return(subgroup_var)
+}
+
 #' Stop on a confounder name that takes the reserved prefix.
 #'
 #' @param vars Character vector of confounder names.

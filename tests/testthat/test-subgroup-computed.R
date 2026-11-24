@@ -144,11 +144,14 @@ SGC_EIDS <- c("01", "02")
 }
 
 # The enrolled person-trials per arm of each level, counted here from the
-# baseline rows of the raw file. A missing value counts as the level
-# `missing`, which follows the other levels.
+# baseline rows of the raw file. The count reads the entry-snapshot value
+# of the subgroup when the raw file holds that column, and SGC_VAR when it
+# does not. A missing value counts as the level `missing`, which follows
+# the other levels.
 .sgc_raw_counts <- function(fx, eid) {
   b <- .sgc_baseline(fx, eid)
-  x <- b$base[[SGC_VAR]]
+  entry <- swereg:::.tte_entry_col(SGC_VAR)
+  x <- b$base[[if (entry %in% names(b$base)) entry else SGC_VAR]]
   arm <- b$base[[b$treatment_var]]
   lv <- c("FALSE", "TRUE", if (anyNA(x)) "missing")
   hit <- function(l) {

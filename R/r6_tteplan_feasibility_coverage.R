@@ -146,7 +146,8 @@
   }
   tx <- base[[treatment_var]]
   rows <- lapply(subgroup_vars, function(v) {
-    x <- as.character(base[[v]])
+    # Count on the baseline level. See .tte_subgroup_col().
+    x <- as.character(base[[.tte_subgroup_col(base, v)]])
     lv <- sort(unique(x[!is.na(x)]))
     hit <- lapply(lv, function(l) x %in% l)
     if (anyNA(x)) {

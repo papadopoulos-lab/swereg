@@ -617,8 +617,10 @@ utils::globalVariables("..keep_cols")
     )
   }
 
-  d <- data[!is.na(get(subgroup_var))]
-  sg_levels <- sort(unique(d[[subgroup_var]]))
+  # Split on the baseline level. See .tte_subgroup_col().
+  sg_col <- .tte_subgroup_col(data, subgroup_var)
+  d <- data[!is.na(get(sg_col))]
+  sg_levels <- sort(unique(d[[sg_col]]))
   n_levels <- length(sg_levels)
   if (n_levels < 2L) {
     stop(
@@ -632,9 +634,16 @@ utils::globalVariables("..keep_cols")
   svy_data <- .tte_outcome_frame(
     d,
     design,
-    c(weight_col, subgroup_var, intersect("enrollment_period_id", names(d)))
+    c(
+      weight_col,
+      subgroup_var,
+      sg_col,
+      intersect("enrollment_period_id", names(d))
+    )
   )
-  svy_data[[subgroup_var]] <- factor(svy_data[[subgroup_var]])
+  # The formula names `subgroup_var`. `svy_data` is a new table, so this
+  # copy of the baseline level never reaches `self$data`.
+  svy_data[[subgroup_var]] <- factor(svy_data[[sg_col]])
   formula_int <- .tte_outcome_formula(c(
     paste0(design$treatment_var, " * factor(", subgroup_var, ")"),
     .tte_outcome_term(svy_data, design$tstart_var),
@@ -794,9 +803,11 @@ utils::globalVariables("..keep_cols")
   }
 
   treatment_var <- design$treatment_var
-  n_na <- data[is.na(get(subgroup_var)), .N]
-  d <- data[!is.na(get(subgroup_var))]
-  sg_levels <- sort(unique(d[[subgroup_var]]))
+  # Split on the baseline level. See .tte_subgroup_col().
+  sg_col <- .tte_subgroup_col(data, subgroup_var)
+  n_na <- data[is.na(get(sg_col)), .N]
+  d <- data[!is.na(get(sg_col))]
+  sg_levels <- sort(unique(d[[sg_col]]))
   if (length(sg_levels) < 2L) {
     stop(
       "subgroup_var '",
@@ -879,7 +890,7 @@ utils::globalVariables("..keep_cols")
   rows <- list(fit_one(data, "all"))
   for (lv in sg_levels) {
     rows[[length(rows) + 1L]] <- fit_one(
-      d[get(subgroup_var) == lv],
+      d[get(sg_col) == lv],
       as.character(lv)
     )
   }
