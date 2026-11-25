@@ -425,7 +425,8 @@ the shortest longer ETT. A year that no ETT of the row reaches is empty.
 The two sheets and the \code{Coverage (ETT)} sheet show a horizon-only ETT.
 The spec key \code{feasibility_follow_up_weeks} adds one, and a follow-up that
 is not a whole number of years adds one at its next whole year. Its years
-get columns. \code{results.qs2} and \verb{$get_horizon_windows()} leave it out.
+get columns. The \code{ett} field of \code{results.qs2} holds it. The other tables
+of \code{results.qs2} and \verb{$get_horizon_windows()} leave it out.
 
 The \verb{Protocol adherence} sheet follows \verb{Table 1 (filterable)}. It holds
 one row per comparison and arm, with \code{N (ITT)}, \code{N (PP)} and \verb{\%} from
@@ -439,7 +440,8 @@ risk differences and intervals. A forest image repeated a subset of those
 numbers. \verb{$export()} still draws one for a manuscript.
 
 The method also writes \code{results.qs2} to the directory of the workbook. A
-manuscript reads that file. It is a named list of aggregate results:
+manuscript reads that file, and needs no plan for these fields. It is a
+named list of 19 fields:
 \describe{
 \item{\code{estimates}}{\verb{$get_estimates()}.}
 \item{\code{curves}}{\verb{$get_curves()}.}
@@ -458,6 +460,17 @@ per-protocol person-trials of each arm, \code{n_baseline_intervention} and
 versions stamped on the stored results.}
 \item{\code{s1_run_id}, \code{s2_run_id}}{The s1 run id of the plan, and the
 distinct s2 run ids of its ETTs.}
+\item{\code{matching}}{\verb{$get_matching()}.}
+\item{\code{sparse_decision}}{\verb{$get_sparse_decision()}, NULL when the plan
+holds none.}
+\item{\code{spec}}{The parsed spec of the plan, \verb{$spec}.}
+\item{\code{ett}}{The ETT grid \verb{$ett} with its horizon-only ETTs, without the
+columns \code{file_raw}, \code{file_imp}, \code{file_analysis} and
+\code{file_analysis_itt}.}
+\item{\code{protocol_table}}{\verb{$get_protocol_table()}, NULL for a plan without
+a spec or without a reported ETT.}
+\item{\code{design}}{A list with the \code{period_width} and the
+\code{global_max_isoyearweek} of the plan.}
 }
 The file holds no person-level data. No table has a person or person-trial
 identifier, and no table has a row per person or per person-trial.

@@ -408,16 +408,34 @@ test_that("(d) only the minimum-events and Coverage (ETT) sheets show the 260-we
   expect_false(any(cov_b == "260 weeks", na.rm = TRUE))
 })
 
-test_that("(d) results.qs2, the TARGET checklist and the protocol tables are identical, and print() differs by the ETT count", {
+test_that("(d) the reported fields of results.qs2, the TARGET checklist and the protocol tables are identical, and print() differs by the ETT count", {
   .ff_skip()
   a <- .ff_fixture(TRUE)
   b <- .ff_fixture(FALSE)
   ra <- qs2::qs_read(file.path(dirname(a$xlsx), "results.qs2"))
   rb <- qs2::qs_read(file.path(dirname(b$xlsx), "results.qs2"))
   expect_identical(names(ra), names(rb))
-  for (nm in names(ra)) {
+  # A feasibility horizon changes no reported result. `spec` and `ett` are
+  # the plan's own spec and grid, so the key and the horizon-only rows
+  # reach them.
+  own <- c("spec", "ett")
+  expect_true(all(own %in% names(ra)))
+  for (nm in setdiff(names(ra), own)) {
     expect_identical(ra[[nm]], rb[[nm]], info = nm)
   }
+  file_cols <- c("file_raw", "file_imp", "file_analysis", "file_analysis_itt")
+  for (x in list(list(r = ra, p = a$plan), list(r = rb, p = b$plan))) {
+    expect_identical(x$r$spec, x$p$spec)
+    keep <- setdiff(names(x$p$ett), file_cols)
+    expect_identical(x$r$ett, x$p$ett[, keep, with = FALSE])
+  }
+  key <- "feasibility_follow_up_weeks"
+  expect_identical(setdiff(names(ra$spec), names(rb$spec)), key)
+  expect_identical(ra$spec[names(ra$spec) != key], rb$spec)
+  horizon <- ra$ett$feasibility_horizon %in% TRUE
+  expect_gt(sum(horizon), 0L)
+  expect_false(any(rb$ett$feasibility_horizon %in% TRUE))
+  expect_identical(ra$ett[!horizon], rb$ett)
   expect_identical(
     utils::capture.output(a$plan$print_target_checklist()),
     utils::capture.output(b$plan$print_target_checklist())
