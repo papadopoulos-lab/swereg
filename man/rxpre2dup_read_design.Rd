@@ -35,10 +35,11 @@ package. The columns are, in order:
 \item \code{produkt}: the product name, as LMED writes it.
 \item \code{lnmn}: the product name and strength, matched after
 \code{tolower(trimws())}.
-\item \code{pack_ddd}: the DDDs that one dispensing of this package holds, as
-LMED's \code{fddd}. It MUST be greater than 0.
+\item \code{pack_ddd}: the DDDs that one pack of this package holds. A
+dispensing of \code{antal} packs has \code{fddd = antal * pack_ddd}. It MUST be
+greater than 0.
 \item \code{form}: the dose form, as free text, for example \code{"tablet"}.
-\item \code{dur_min}, \code{dur_usual}, \code{dur_max}: durations of one dispensing, in
+\item \code{dur_min}, \code{dur_usual}, \code{dur_max}: durations of one pack, in
 days. Each MUST be greater than 0, and
 \verb{dur_min <= dur_usual <= dur_max} MUST hold.
 \item \code{status}: \code{"auto"} or \code{"approved"}.

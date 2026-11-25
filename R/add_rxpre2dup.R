@@ -75,10 +75,11 @@
 #'   \item `produkt`: the product name, as LMED writes it.
 #'   \item `lnmn`: the product name and strength, matched after
 #'     `tolower(trimws())`.
-#'   \item `pack_ddd`: the DDDs that one dispensing of this package holds, as
-#'     LMED's `fddd`. It MUST be greater than 0.
+#'   \item `pack_ddd`: the DDDs that one pack of this package holds. A
+#'     dispensing of `antal` packs has `fddd = antal * pack_ddd`. It MUST be
+#'     greater than 0.
 #'   \item `form`: the dose form, as free text, for example `"tablet"`.
-#'   \item `dur_min`, `dur_usual`, `dur_max`: durations of one dispensing, in
+#'   \item `dur_min`, `dur_usual`, `dur_max`: durations of one pack, in
 #'     days. Each MUST be greater than 0, and
 #'     `dur_min <= dur_usual <= dur_max` MUST hold.
 #'   \item `status`: `"auto"` or `"approved"`.
@@ -329,14 +330,17 @@ rxpre2dup_read_design <- function(path, as_of = NULL) {
 }
 
 # The package_id of the design row that each dispensing matches, or NA.
-.rxpre2dup_match_design <- function(atc, produkt, lnmn, fddd, design) {
+# fddd and antal MUST be greater than 0. add_rxpre2dup() drops the other rows
+# first.
+.rxpre2dup_match_design <- function(atc, produkt, lnmn, fddd, antal, design) {
   pack_ddd <- NULL
   d <- data.table(
     row = seq_along(atc),
     atc = atc,
     produkt = produkt,
     lnmn_key = .rxpre2dup_lnmn_key(lnmn),
-    fddd = fddd
+    fddd = fddd,
+    antal = antal
   )
   k <- data.table(
     package_id = as.integer(design$package_id),
@@ -351,9 +355,9 @@ rxpre2dup_read_design <- function(path, as_of = NULL) {
     nomatch = NULL,
     allow.cartesian = TRUE
   ]
-  # A dispensing with fddd = 0 matches no design row, even a row whose
-  # pack_ddd is less than 0.005.
-  m <- m[fddd > 0 & abs(fddd - pack_ddd) < 0.005]
+  # fddd is the DDD of the whole dispensing, and pack_ddd is the DDD of one
+  # pack, so one pack holds fddd / antal DDDs.
+  m <- m[abs(fddd / antal - pack_ddd) < 0.005]
   # A design from rxpre2dup_read_design() lets a dispensing match one row at
   # most. A hand-built design can break that, and then no row is chosen.
   if (anyDuplicated(m$row) > 0L) {
@@ -383,15 +387,19 @@ rxpre2dup_read_design <- function(path, as_of = NULL) {
 #' week or annual row that overlaps a drug use period, and FALSE elsewhere.
 #'
 #' @section Dispensings:
-#' A dispensing matches a design row when `atc`, `produkt` and
-#' `tolower(trimws(lnmn))` are equal and `abs(fddd - pack_ddd) < 0.005`. Every
-#' dispensing enters PRE2DUP with `ratio = 1` and `ddd = fddd`. A dispensing
-#' with no design row uses the ATC-level rule of PRE2DUP, with the parameters
-#' of `atc_parameters`.
+#' In LMED, `antal` is the number of packs of a dispensing, and `fddd` is the
+#' DDDs of all its packs. A dispensing matches a design row when `atc`,
+#' `produkt` and `tolower(trimws(lnmn))` are equal and
+#' `abs(fddd / antal - pack_ddd) < 0.005`. Every dispensing enters PRE2DUP
+#' with `ratio = antal` and `ddd = fddd`. PRE2DUP multiplies `dur_min`,
+#' `dur_usual` and `dur_max` of the design row, or the duration limits of the
+#' ATC-level rule, by `ratio`. A dispensing with no design row uses the
+#' ATC-level rule of PRE2DUP, with the parameters of `atc_parameters`.
 #'
-#' Rows of `lmed` whose `fddd` is missing, not finite or negative are dropped.
-#' A row with `fddd = 0` is kept and enters PRE2DUP with `ddd = 0`. Such a row
-#' matches no design row.
+#' The function drops the rows of `lmed` whose `fddd` or `antal` is missing,
+#' not finite, 0 or negative. One message line gives the number of dropped
+#' rows per reason. Each dropped row counts under one reason, and a reason
+#' of `fddd` comes before a reason of `antal`.
 #'
 #' @section Periods on the skeleton:
 #' Each code list gets its own PRE2DUP run, on the dispensings whose ATC code
@@ -402,7 +410,9 @@ rxpre2dup_read_design <- function(path, as_of = NULL) {
 #'
 #' @param skeleton A data.table created by [create_skeleton()].
 #' @param lmed A data.table of LMED dispensings, with the columns `id_name`,
-#'   `edatum` (Date), `atc`, `produkt`, `lnmn` and `fddd`.
+#'   `edatum` (Date), `atc`, `produkt`, `lnmn`, `antal` and `fddd`. `antal`
+#'   is LMED's `ANTAL`, the number of packs of the dispensing. A missing
+#'   `antal` column is an error.
 #' @param hosp A data.table of hospital stays, with the columns `id_name`,
 #'   `indatum` (Date) and `utdatum` (Date), or NULL. Stays with
 #'   `utdatum <= indatum` are dropped.
@@ -443,6 +453,7 @@ add_rxpre2dup <- function(
   # does not resolve from the namespace when swereg is loaded but not
   # attached, as in a call of swereg::add_rxpre2dup().
   fddd <- utdatum <- indatum <- atc <- produkt <- lnmn <- package_id <- NULL
+  antal <- NULL
   skeleton_expr <- substitute(skeleton)
   caller_env <- parent.frame()
 
@@ -450,7 +461,7 @@ add_rxpre2dup <- function(
   validate_id_column(lmed, id_name)
   .pre2dup_check_columns(
     lmed,
-    c(id_name, "edatum", "atc", "produkt", "lnmn", "fddd"),
+    c(id_name, "edatum", "atc", "produkt", "lnmn", "antal", "fddd"),
     "lmed"
   )
   validate_date_columns(lmed, "edatum", "lmed")
@@ -482,15 +493,62 @@ add_rxpre2dup <- function(
   codes <- expand_code_list(codes)
 
   work <- lmed[,
-    c(id_name, "edatum", "atc", "produkt", "lnmn", "fddd"),
+    c(id_name, "edatum", "atc", "produkt", "lnmn", "antal", "fddd"),
     with = FALSE
   ]
-  # The rows with a missing, non-finite or negative fddd go without a
-  # warning. A row with fddd = 0 stays.
-  work <- work[is.finite(fddd) & fddd >= 0]
+  # Each dropped row counts under the first reason of this list that applies
+  # to it, so the counts add up to the number of dropped rows. A return with
+  # a negative fddd and a negative antal counts as "fddd negative".
+  reason <- fcase(
+    !is.finite(work$fddd)         ,
+    "fddd missing or not finite"  ,
+    work$fddd == 0                ,
+    "fddd 0"                      ,
+    work$fddd < 0                 ,
+    "fddd negative"               ,
+    !is.finite(work$antal)        ,
+    "antal missing or not finite" ,
+    work$antal == 0               ,
+    "antal 0"                     ,
+    work$antal < 0                ,
+    "antal negative"              ,
+    default = NA_character_
+  )
+  if (any(!is.na(reason))) {
+    reasons <- c(
+      "fddd missing or not finite",
+      "fddd 0",
+      "fddd negative",
+      "antal missing or not finite",
+      "antal 0",
+      "antal negative"
+    )
+    n_reason <- vapply(reasons, function(r) sum(reason %in% r), integer(1))
+    message(
+      "add_rxpre2dup(): dropped ",
+      sum(!is.na(reason)),
+      " of ",
+      nrow(work),
+      " rows of lmed: ",
+      paste(
+        names(n_reason)[n_reason > 0L],
+        n_reason[n_reason > 0L],
+        collapse = "; "
+      ),
+      "."
+    )
+  }
+  work <- work[is.na(reason)]
   work[, atc := as.character(atc)]
   work[,
-    package_id := .rxpre2dup_match_design(atc, produkt, lnmn, fddd, design)
+    package_id := .rxpre2dup_match_design(
+      atc,
+      produkt,
+      lnmn,
+      fddd,
+      antal,
+      design
+    )
   ]
   # The port takes integer person ids. `ids` maps them back.
   ids <- unique(work[[id_name]])
@@ -549,7 +607,9 @@ add_rxpre2dup <- function(
         atc = sub$atc,
         package_id = sub$package_id,
         date = sub$edatum,
-        ratio = 1,
+        # ratio is the pack count, and ddd stays the DDD of the dispensing.
+        # The port multiplies the duration limits of one pack by ratio.
+        ratio = sub$antal,
         ddd = sub$fddd
       ),
       packages = packages,

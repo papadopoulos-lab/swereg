@@ -44,13 +44,14 @@ rxp_write_design <- function(rows) {
 # One person, 10 dispensings 150 days apart of the one designed package.
 rxp_dates <- as.Date("2018-06-01") + 150 * (0:9)
 
-rxp_lmed <- function(lnmn = "Simvastatin X 20 mg", fddd = 30) {
+rxp_lmed <- function(lnmn = "Simvastatin X 20 mg", fddd = 30, antal = 1L) {
   return(data.table::data.table(
     lopnr = 1L,
     edatum = rxp_dates,
     atc = "C10AA01",
     produkt = "Simvastatin X",
     lnmn = lnmn,
+    antal = antal,
     fddd = fddd
   ))
 }
@@ -365,7 +366,7 @@ test_that("7. hospital stays reach PRE2DUP, and a stay with a missing date or ut
   expect_false(identical(sk_hosp$rxpre2dup_statin, sk_none$rxpre2dup_statin))
 })
 
-test_that("8. fddd that is NA, not finite or negative is dropped, and fddd = 0 is kept", {
+test_that("8. fddd that is NA, not finite, 0 or negative is dropped and counted", {
   design <- rxpre2dup_read_design(rxp_write_design(rxp_design_rows()))
   sk_clean <- rxp_skeleton()
   suppressMessages(
@@ -374,53 +375,73 @@ test_that("8. fddd that is NA, not finite or negative is dropped, and fddd = 0 i
 
   bad <- data.table::data.table(
     lopnr = 1L,
-    edatum = as.Date(c("2020-04-01", "2020-05-01", "2020-06-01")),
+    edatum = as.Date(c("2020-04-01", "2020-05-01", "2020-06-01", "2020-07-01")),
     atc = "C10AA01",
     produkt = "Simvastatin X",
     lnmn = "Simvastatin X 20 mg",
-    fddd = c(NA_real_, Inf, -30)
+    antal = 1L,
+    fddd = c(NA_real_, Inf, -30, 0)
   )
   sk_bad <- rxp_skeleton()
-  suppressMessages(
+  expect_message(
     add_rxpre2dup(
       sk_bad,
       rbind(rxp_lmed(), bad),
       codes = rxp_codes,
       design = design
-    )
+    ),
+    paste0(
+      "add_rxpre2dup(): dropped 4 of 14 rows of lmed: ",
+      "fddd missing or not finite 2; fddd 0 1; fddd negative 1."
+    ),
+    fixed = TRUE
+  )
+  expect_identical(sk_bad$rxpre2dup_statin, sk_clean$rxpre2dup_statin)
+  expect_identical(attr(sk_bad, "package_coverage")$n_purchases, 10L)
+  expect_identical(attr(sk_bad, "package_coverage")$share_without_package, 0)
+})
+
+test_that("9. antal that is NA, not finite, 0 or negative is dropped and counted, and an fddd reason comes first", {
+  design <- rxpre2dup_read_design(rxp_write_design(rxp_design_rows()))
+  sk_clean <- rxp_skeleton()
+  suppressMessages(
+    add_rxpre2dup(sk_clean, rxp_lmed(), codes = rxp_codes, design = design)
+  )
+
+  # The last row is a return: fddd and antal are both negative, and the row
+  # counts once, as "fddd negative".
+  bad <- data.table::data.table(
+    lopnr = 1L,
+    edatum = as.Date("2020-04-01") + 30 * (0:4),
+    atc = "C10AA01",
+    produkt = "Simvastatin X",
+    lnmn = "Simvastatin X 20 mg",
+    antal = c(NA_real_, Inf, 0, -1, -1),
+    fddd = c(30, 30, 30, 30, -30)
+  )
+  sk_bad <- rxp_skeleton()
+  expect_message(
+    add_rxpre2dup(
+      sk_bad,
+      rbind(rxp_lmed(), bad),
+      codes = rxp_codes,
+      design = design
+    ),
+    paste0(
+      "add_rxpre2dup(): dropped 5 of 15 rows of lmed: fddd negative 1; ",
+      "antal missing or not finite 2; antal 0 1; antal negative 1."
+    ),
+    fixed = TRUE
   )
   expect_identical(sk_bad$rxpre2dup_statin, sk_clean$rxpre2dup_statin)
   expect_identical(attr(sk_bad, "package_coverage")$n_purchases, 10L)
 
-  zero <- bad[1L]
-  zero[, fddd := 0]
-  sk_zero <- rxp_skeleton()
-  expect_message(
-    add_rxpre2dup(
-      sk_zero,
-      rbind(rxp_lmed(), zero),
-      codes = rxp_codes,
-      design = design
-    ),
-    "rxpre2dup_statin C10AA01 9.1%.",
-    fixed = TRUE
+  # No message of dropped rows when no row is dropped.
+  sk_none <- rxp_skeleton()
+  msgs <- testthat::capture_messages(
+    add_rxpre2dup(sk_none, rxp_lmed(), codes = rxp_codes, design = design)
   )
-  cov <- attr(sk_zero, "package_coverage")
-  expect_identical(cov$n_purchases, 11L)
-  expect_equal(cov$share_without_package, 1 / 11)
-})
-
-test_that("9. a dispensing with fddd = 0 matches no design row, even one with pack_ddd < 0.005", {
-  design <- rxpre2dup_read_design(rxp_write_design(rxp_design_rows(
-    pack_ddd = 0.001
-  )))
-  sk <- rxp_skeleton()
-  suppressMessages(
-    add_rxpre2dup(sk, rxp_lmed(fddd = 0), codes = rxp_codes, design = design)
-  )
-  cov <- attr(sk, "package_coverage")
-  expect_identical(cov$n_purchases, 10L)
-  expect_identical(cov$share_without_package, 1)
+  expect_false(any(grepl("dropped", msgs, fixed = TRUE)))
 })
 
 test_that("10. a numeric design column with text cells names each text cell's sheet row", {

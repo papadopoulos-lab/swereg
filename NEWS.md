@@ -8,6 +8,7 @@
   * the MHT project 008, whose all-fracture and aftercare outcomes have no exclusion of their own;
   * the MHT project 009, which has no prior-outcome exclusion;
   * the `000-template` spec of both the MHT and the GD project.
+* **`add_rxpre2dup()` needs an `antal` column in `lmed`, and a design row describes one pack.** A dispensing matches a row when `abs(fddd / antal - pack_ddd) < 0.005`, and enters PRE2DUP with `ratio = antal`. Before, a dispensing of 2 or more packs fell back to the ATC-level rule or matched a larger pack. The function drops rows whose `fddd` or `antal` is missing, 0 or negative, and a message counts them per reason.
 
 # swereg 27.3.26
 

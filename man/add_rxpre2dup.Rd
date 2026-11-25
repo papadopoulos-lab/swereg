@@ -19,7 +19,9 @@ add_rxpre2dup(
 \item{skeleton}{A data.table created by \code{\link[=create_skeleton]{create_skeleton()}}.}
 
 \item{lmed}{A data.table of LMED dispensings, with the columns \code{id_name},
-\code{edatum} (Date), \code{atc}, \code{produkt}, \code{lnmn} and \code{fddd}.}
+\code{edatum} (Date), \code{atc}, \code{produkt}, \code{lnmn}, \code{antal} and \code{fddd}. \code{antal}
+is LMED's \code{ANTAL}, the number of packs of the dispensing. A missing
+\code{antal} column is an error.}
 
 \item{hosp}{A data.table of hospital stays, with the columns \code{id_name},
 \code{indatum} (Date) and \code{utdatum} (Date), or NULL. Stays with
@@ -60,15 +62,19 @@ week or annual row that overlaps a drug use period, and FALSE elsewhere.
 }
 \section{Dispensings}{
 
-A dispensing matches a design row when \code{atc}, \code{produkt} and
-\code{tolower(trimws(lnmn))} are equal and \code{abs(fddd - pack_ddd) < 0.005}. Every
-dispensing enters PRE2DUP with \code{ratio = 1} and \code{ddd = fddd}. A dispensing
-with no design row uses the ATC-level rule of PRE2DUP, with the parameters
-of \code{atc_parameters}.
+In LMED, \code{antal} is the number of packs of a dispensing, and \code{fddd} is the
+DDDs of all its packs. A dispensing matches a design row when \code{atc},
+\code{produkt} and \code{tolower(trimws(lnmn))} are equal and
+\code{abs(fddd / antal - pack_ddd) < 0.005}. Every dispensing enters PRE2DUP
+with \code{ratio = antal} and \code{ddd = fddd}. PRE2DUP multiplies \code{dur_min},
+\code{dur_usual} and \code{dur_max} of the design row, or the duration limits of the
+ATC-level rule, by \code{ratio}. A dispensing with no design row uses the
+ATC-level rule of PRE2DUP, with the parameters of \code{atc_parameters}.
 
-Rows of \code{lmed} whose \code{fddd} is missing, not finite or negative are dropped.
-A row with \code{fddd = 0} is kept and enters PRE2DUP with \code{ddd = 0}. Such a row
-matches no design row.
+The function drops the rows of \code{lmed} whose \code{fddd} or \code{antal} is missing,
+not finite, 0 or negative. One message line gives the number of dropped
+rows per reason. Each dropped row counts under one reason, and a reason
+of \code{fddd} comes before a reason of \code{antal}.
 }
 
 \section{Periods on the skeleton}{
