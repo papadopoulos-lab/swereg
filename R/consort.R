@@ -1066,9 +1066,10 @@
   #   * `landmark_observed` drops a candidate with no observed row at time
   #     zero. On a trimmed skeleton that is death, emigration or end of data.
   #     No censoring is involved.
-  #   * `landmark_event_free` drops a candidate with an outcome in any week
-  #     before time zero. An outcome in the time-zero week is a follow-up
-  #     event.
+  #   * `landmark_event_free` drops a candidate with an outcome in a week of
+  #     its enrollment period. An outcome before the enrollment period drops
+  #     it only through an eligibility criterion, which carries its own label.
+  #     An outcome in the time-zero week is a follow-up event.
   # The last three steps are counts, not exclusions. Their labels exist so
   # that `step_label` never repeats a raw step name.
   labels <- c(
@@ -1077,7 +1078,7 @@
     eligible_valid_treatment = "No week in either treatment arm",
     eligible_age = fmt_line("Outside of age range", age_range),
     landmark_observed = "Not under observation at time zero",
-    landmark_event_free = "Event before time zero",
+    landmark_event_free = "Event in the enrollment period",
     landmark_candidates = "Candidate person-trials, before the time-zero checks",
     enrolled_after_comparator_draw = "Enrolled after the comparator draw",
     analysis_dataset_itt = "Analysis dataset (intention-to-treat)",

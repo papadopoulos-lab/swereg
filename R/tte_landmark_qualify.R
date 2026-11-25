@@ -8,7 +8,9 @@
 .TTE_TIME_ZERO_DEFINITION <- paste(
   "Time zero is a landmark: the first week after the enrollment period closes.",
   "A person enters the trial only if they reach that week under observation",
-  "and free of every enrollment outcome."
+  "and have no enrollment outcome inside the enrollment period.",
+  "An outcome before the enrollment period excludes the person only where an",
+  "eligibility criterion says so."
 )
 
 #' Read the 0-indexed week index of each row.
@@ -24,11 +26,13 @@
 #'   calendar does not carry reads `NA`.
 #' @noRd
 .tte_week_index0 <- function(isoyearweek) {
-  return(data.table::chmatch(
-    as.character(isoyearweek),
-    cstime::dates_by_isoyearweek$isoyearweek
-  ) -
-    1L)
+  return(
+    data.table::chmatch(
+      as.character(isoyearweek),
+      cstime::dates_by_isoyearweek$isoyearweek
+    ) -
+      1L
+  )
 }
 
 
@@ -36,15 +40,18 @@
 #'
 #' Time zero is a landmark: the first week after the enrollment period closes.
 #' A person enters the trial only if they reach that week under observation
-#' and free of every enrollment outcome. Enrollment period `b` covers week
-#' indices `b * period_width` to `(b + 1) * period_width - 1`. Its time zero
-#' sits at week index `(b + 1) * period_width`. That week is the first week of
+#' and have no enrollment outcome inside the enrollment period. An outcome
+#' before the enrollment period excludes the person only where an eligibility
+#' criterion says so. Enrollment period `b` covers week indices
+#' `b * period_width` to `(b + 1) * period_width - 1`. Its time zero sits at
+#' week index `(b + 1) * period_width`. That week is the first week of
 #' enrollment period `b + 1`. `.tte_week_index0()` defines the scale.
 #'
 #' A candidate person-trial qualifies when both statements hold.
 #'
 #' 1. The person is under observation at time zero.
-#' 2. No outcome occurrence of the enrollment stops at or before time zero.
+#' 2. No outcome occurrence of the enrollment falls inside the enrollment
+#'    period.
 #'
 #' Statement 1 reads `design$observed_var`. The `row_presence` sentinel reads
 #' the row being there as the observation. A named column has to hold `TRUE`
@@ -55,10 +62,14 @@
 #' the intended behaviour: a trial whose time zero falls past the end of the
 #' data has no follow-up to contribute.
 #'
-#' A week is a half-open interval. An outcome occurrence in week index `w`
-#' therefore stops at `w + 1`. Statement 2 excludes the candidate when
-#' `w + 1 <= (b + 1) * period_width`. That covers every week of the enrollment
-#' period and every week before it.
+#' Statement 2 excludes the candidate when an occurrence in week index `w`
+#' has `w %/% period_width == b`. That is
+#' `b * period_width <= w < (b + 1) * period_width`. The check reads every
+#' occurrence of the person, and not only the first one. An occurrence before
+#' the enrollment period never excludes the candidate here. A spec excludes
+#' for an earlier outcome through an eligibility criterion on the outcome
+#' column. The window of that criterion sets how far back it reads. An
+#' occurrence at or after time zero is a follow-up event.
 #'
 #' A woman may have the event in her enrollment period and start treatment later
 #' in the same enrollment period. She is excluded. The earlier code enrolled her
@@ -68,7 +79,7 @@
 #' outcome a later step analyses. One enrollment serves several outcomes:
 #' `$enrollment_spec()` collects every ETT that shares an `enrollment_id`, and
 #' the s2 worker fans out over them. One enrolled set therefore has to be
-#' event-free for all of them.
+#' free of all of them in the enrollment period.
 #'
 #' @section Eligibility is a baseline property, and it is NOT re-read here:
 #' `design$eligible_var` is assessed on the enrollment period, by
@@ -81,10 +92,13 @@
 #' starts inside her enrollment period, and her time zero always falls after
 #' that week, so she is ineligible at her own time zero by construction.
 #'
-#' Measured on the `ttm_skeleton()` fixture that `test-s1a_declared_outputs.R`
-#' builds: 21 of 21 intervention candidate person-trials were ineligible at
-#' time zero. Of the 361 comparator candidates that reached time zero, 0 were
-#' ineligible there.
+#' Measured with swereg 27.3.26 on the first enrollment of the
+#' `ttm_skeleton()` fixture that `test-s1a_declared_outputs.R` builds. 21 of 21
+#' intervention candidate person-trials were ineligible at time zero. Of the
+#' 303 comparator candidates under observation at time zero, 6 were ineligible
+#' there. All 6 had an outcome inside the enrollment period, and the outcome
+#' check dropped them. After the outcome check, 20 of 20 intervention and 0 of
+#' 297 comparator person-trials were ineligible at time zero.
 #'
 #' The criterion that defines the intervention arm is therefore the same
 #' criterion that would delete it. Sequential-trial designs assess eligibility
@@ -127,8 +141,7 @@
   arm_col
 ) {
   lm_pid <- lm_enrollment_period <- lm_obs <- i.lm_obs <- NULL # nolint
-  fe_pid <- fe_w <- fe_week <- i.fe_week <- NULL # nolint
-  .tte_landmark <- enrollment_period_id <- NULL # nolint
+  ev_pid <- ev_enrollment_period <- ev_in_period <- NULL # nolint
 
   if (is.null(design$observed_var)) {
     return(list(candidates = candidates, attrition = NULL))
@@ -147,7 +160,7 @@
       "Time-zero qualification cannot read column(s): ",
       paste(missing_cols, collapse = ", "),
       ". Every outcome in the design MUST reach the enrollment data, or a ",
-      "person with the event before time zero enrolls unnoticed.",
+      "person with the event inside the enrollment period enrolls unnoticed.",
       call. = FALSE
     )
   }
@@ -180,30 +193,27 @@
     by = list(lm_pid, lm_enrollment_period)
   ]
 
-  # --- first outcome occurrence per person ---------------------------------
+  # --- enrollment periods that hold an outcome occurrence -----------------
+  # Every occurrence counts, and not only the first one of the person. An
+  # occurrence in week index `w` lies in enrollment period `w %/% period_width`,
+  # and it excludes the candidate of that enrollment period alone. An
+  # eligibility criterion of the spec on the outcome column handles an earlier
+  # occurrence. The window of that criterion sets how far back it reads.
   has_event <- rep(FALSE, nrow(data))
   for (oc in outcome_cols) {
     has_event <- has_event | .tte_is_true(data[[oc]])
   }
-  # data.table evaluates `j` once on an empty table to learn its types, so a
-  # cohort with no event at all would reach `min(integer(0))` and warn. Build
-  # the empty result directly instead.
   event_keep <- has_event & !is.na(week_index)
-  first_event <- if (any(event_keep)) {
-    data.table::data.table(
-      fe_pid = person[event_keep],
-      fe_w = week_index[event_keep]
-    )[, list(fe_week = min(fe_w)), by = fe_pid]
-  } else {
-    data.table::data.table(fe_pid = person[0L], fe_week = integer(0))
-  }
+  event_period <- unique(data.table::data.table(
+    ev_pid = person[event_keep],
+    ev_enrollment_period = week_index[event_keep] %/% period_width
+  ))
 
   # --- apply, in cascade order ---------------------------------------------
   # Update-joins, so the row order of `candidates` survives untouched. The `on`
   # names are columns of `qb` and the values are columns of the joined table,
   # so both mappings are built by name rather than written as literals.
   qb <- data.table::copy(candidates)
-  qb[, .tte_landmark := (as.integer(enrollment_period_id) + 1L) * period_width]
   # A candidate with no row at its landmark keeps the FALSE default and so fails
   # observation. That is the one place an absent landmark row is reported.
   qb[, lm_obs := FALSE]
@@ -212,25 +222,23 @@
     c(person_id_col, "enrollment_period_id")
   )
   qb[landmark, on = on_landmark, lm_obs := i.lm_obs]
-  qb[, fe_week := NA_integer_]
-  qb[
-    first_event,
-    on = stats::setNames("fe_pid", person_id_col),
-    fe_week := i.fe_week
-  ]
+  qb[, ev_in_period := FALSE]
+  on_event <- stats::setNames(
+    c("ev_pid", "ev_enrollment_period"),
+    c(person_id_col, "enrollment_period_id")
+  )
+  qb[event_period, on = on_event, ev_in_period := TRUE]
 
   # Both vectors are logical and never NA. A candidate whose `isoyearweek` is
   # outside the calendar has an NA `enrollment_period_id`, and so an NA
   # landmark. It fails observation, because no landmark row can carry an NA
   # enrollment period.
-  # Writing the event test so it cannot return NA either keeps the second
-  # vector clean: `candidates[NA]` returns a row of NAs rather than dropping
-  # it.
+  # The event test cannot return NA either, which keeps the second vector
+  # clean: `candidates[NA]` returns a row of NAs rather than dropping it. An NA
+  # `enrollment_period_id` matches no row of `event_period`, so its flag
+  # keeps the FALSE default.
   pass_observed <- qb$lm_obs
-  # `w + 1 <= landmark` for the first occurrence is `fe_week < landmark`.
-  event_free <- is.na(qb$fe_week) |
-    (!is.na(qb$.tte_landmark) & qb$fe_week >= qb$.tte_landmark)
-  pass_event_free <- pass_observed & event_free
+  pass_event_free <- pass_observed & !qb$ev_in_period
 
   arm <- .tte_is_true(candidates[[arm_col]])
   attrition <- data.table::rbindlist(

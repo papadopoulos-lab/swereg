@@ -29,11 +29,11 @@
   # Landmark qualification. `.s1c_worker()` draws comparators from the pooled
   # tuples and never sees a person-week again, so the drop MUST happen here,
   # while the weekly source data is still in hand. Every tuple that reaches
-  # `enrolled_ids <- all_tuples[...]` is therefore already observed, eligible
-  # and event-free at its landmark, and the draw refills the ratio from
-  # qualified comparators alone.
+  # `enrolled_ids <- all_tuples[...]` is therefore already under observation
+  # at its landmark and free of every outcome inside its enrollment period.
+  # The draw refills the ratio from qualified comparators alone.
   #
-  # The four cascade rows stack onto the exclusion cascade: same columns, same
+  # The three cascade rows stack onto the exclusion cascade: same columns, same
   # units, so `.s1c_worker()` sums them across skeletons unchanged and CONSORT
   # reads one continuous table.
   qualified <- .tte_qualify_candidates(

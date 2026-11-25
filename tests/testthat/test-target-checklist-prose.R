@@ -221,13 +221,29 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
   expect_false(grepl("sequential trial indicators", it6h, fixed = TRUE))
   expect_false(grepl("conditional on baseline covariates", it6h, fixed = TRUE))
   expect_false(grepl("marginal (population-average)", it6h, fixed = TRUE))
-  expect_match(it6h, "the most recently updated confounder values", fixed = TRUE)
-  expect_match(it6h, "second model that included only the time since time zero", fixed = TRUE)
-  expect_match(it6h, "the trial index, which numbers the enrollment period of each trial", fixed = TRUE)
+  expect_match(
+    it6h,
+    "the most recently updated confounder values",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "second model that included only the time since time zero",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "the trial index, which numbers the enrollment period of each trial",
+    fixed = TRUE
+  )
   # Truncation is not component-wise: the per-protocol weight truncates the
   # product of the untruncated treatment weight and the censoring weight.
   expect_false(grepl("after each weighting step", it6h, fixed = TRUE))
-  expect_match(it6h, "product of the untruncated treatment weight and the censoring weight", fixed = TRUE)
+  expect_match(
+    it6h,
+    "product of the untruncated treatment weight and the censoring weight",
+    fixed = TRUE
+  )
 
   # Item 6h itself names the methods literature where it names IPCW.
   it <- .tcp_item(lines, "6h", "7a-h")
@@ -243,28 +259,76 @@ test_that("checklist items 6d and 6h describe the three censoring models", {
 
   # One model per cause, in the order `s6_ipcw_pp()` fits them, each on its
   # own risk set.
-  expect_match(it6h, "The censoring weight was the product of three factors.", fixed = TRUE)
-  expect_match(it6h, "a model for loss to follow-up, fitted on the follow-up intervals without an outcome event", fixed = TRUE)
-  expect_match(it6h, "a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up", fixed = TRUE)
-  expect_match(it6h, "a logistic model for a deviation at time zero, conditional on the baseline confounders", fixed = TRUE)
-  expect_match(it6h, "including those whose deviation at time zero left them no follow-up", fixed = TRUE)
-  expect_match(it6h, "Its numerator was the proportion of those person-trials that deviated at time zero", fixed = TRUE)
+  expect_match(
+    it6h,
+    "The censoring weight was the product of three factors.",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "a model for loss to follow-up, fitted on the follow-up intervals without an outcome event",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "a model for protocol deviation, fitted on the intervals without an outcome event that were not lost to follow-up",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "a logistic model for a deviation at time zero, conditional on the baseline confounders",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "including those whose deviation at time zero left them no follow-up",
+    fixed = TRUE
+  )
+  expect_match(
+    it6h,
+    "Its numerator was the proportion of those person-trials that deviated at time zero",
+    fixed = TRUE
+  )
   # The checklist plan ran no s3, so 6h states no s2 setting, and it MUST NOT
   # name a default it cannot know (test-ipcw_pp_options.R pins the settings).
   expect_false(grepl("Under the default settings", it6h, fixed = TRUE))
-  expect_match(it6h, "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored.", fixed = TRUE)
+  expect_match(
+    it6h,
+    "The product of the three modelled uncensoring probabilities was therefore the joint probability of remaining uncensored.",
+    fixed = TRUE
+  )
   # The retired claim: one censoring model for both causes.
-  expect_false(grepl("censoring probabilities were modelled by a complementary log-log", it6h, fixed = TRUE))
+  expect_false(grepl(
+    "censoring probabilities were modelled by a complementary log-log",
+    it6h,
+    fixed = TRUE
+  ))
 
   it6d <- .tcp_item(lines, "6d", "6e")
-  expect_match(it6d, "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up.", fixed = TRUE)
-  expect_match(it6d, "at the start of the first week beyond the arm's tolerance", fixed = TRUE)
+  expect_match(
+    it6d,
+    "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up.",
+    fixed = TRUE
+  )
+  expect_match(
+    it6d,
+    "at the start of the first week beyond the arm's tolerance",
+    fixed = TRUE
+  )
 
   seg <- .tcp_seg(lines, "Analysis \\(6h\\):[^\n]*")
-  expect_match(seg, "one factor each for loss to follow-up, protocol deviation and deviation at time zero", fixed = TRUE)
+  expect_match(
+    seg,
+    "one factor each for loss to follow-up, protocol deviation and deviation at time zero",
+    fixed = TRUE
+  )
   expect_false(grepl("time-varying censoring weights", seg, fixed = TRUE))
   seg7d <- .tcp_seg(lines, "Follow-up \\(6d\\):.*?(?=Outcomes \\(6e\\):)")
-  expect_match(seg7d, "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up", fixed = TRUE)
+  expect_match(
+    seg7d,
+    "A person-trial whose deviation fell at time zero contributed no per-protocol follow-up",
+    fixed = TRUE
+  )
 })
 
 
@@ -275,10 +339,22 @@ test_that("checklist items 6h and 13 name the absolute scale", {
   it <- .tcp_item(lines, "6h", "7a-h")
   expect_false(is.na(it))
   expect_match(it, "cause-specific risk difference", fixed = TRUE)
-  expect_match(it, "not a cumulative incidence with death as a competing risk", fixed = TRUE)
+  expect_match(
+    it,
+    "not a cumulative incidence with death as a competing risk",
+    fixed = TRUE
+  )
   expect_match(it, "95% confidence interval", fixed = TRUE)
-  expect_match(it, "500 bootstrap replicates that resampled persons", fixed = TRUE)
-  expect_match(it, "number needed to treat for benefit or for harm", fixed = TRUE)
+  expect_match(
+    it,
+    "500 bootstrap replicates that resampled persons",
+    fixed = TRUE
+  )
+  expect_match(
+    it,
+    "number needed to treat for benefit or for harm",
+    fixed = TRUE
+  )
   # The NNT is -1/rd. "the reciprocal" alone states the wrong sign.
   expect_match(it, "negative reciprocal of the risk difference", fixed = TRUE)
 
@@ -408,7 +484,9 @@ test_that("the estimand set drives the s3 item list", {
 .tcp_time_zero <- paste(
   "Time zero is a landmark: the first week after the enrollment period closes.",
   "A person enters the trial only if they reach that week under observation",
-  "and free of every enrollment outcome."
+  "and have no enrollment outcome inside the enrollment period.",
+  "An outcome before the enrollment period excludes the person only where an",
+  "eligibility criterion says so."
 )
 
 test_that("item 6d states the time-zero definition verbatim", {

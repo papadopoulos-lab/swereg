@@ -1,3 +1,14 @@
+# swereg 27.3.27
+
+## Breaking changes
+
+* **An outcome excludes a person-trial at time zero only when it falls inside that trial's enrollment period.** Since 26.9.0, any outcome before time zero excluded it, which overrode the window of a spec's prior-outcome exclusion. An earlier outcome now excludes only through an eligibility criterion, with its window as written. Every occurrence counts, not only the first. The CONSORT label of `landmark_event_free` is now "Event in the enrollment period".
+* **The TTEEnrollment schema is 8, so `qs2_read()` refuses an s1 enrollment that an earlier swereg stored. Rerun s1, s2 and s3.** These projects change:
+  * the MHT projects 002, 004 and 006, whose 104-week or 52-week prior-outcome windows now apply as written;
+  * the MHT project 008, whose all-fracture and aftercare outcomes have no exclusion of their own;
+  * the MHT project 009, which has no prior-outcome exclusion;
+  * the `000-template` spec of both the MHT and the GD project.
+
 # swereg 27.3.26
 
 ## New features

@@ -757,12 +757,13 @@ edit, with no error.
 | `.REGISTRY_STUDY_SCHEMA_VERSION` | `7L` | `R/r6_registrystudy.R` |
 | `.SKELETON_SCHEMA_VERSION` | `1L` | `R/r6_skeleton.R` |
 | `.TTE_DESIGN_SCHEMA_VERSION` | `3L` | `R/r6_tteenrollment.R` |
-| `.TTE_ENROLLMENT_SCHEMA_VERSION` | `7L` | `R/r6_tteenrollment.R` |
+| `.TTE_ENROLLMENT_SCHEMA_VERSION` | `8L` | `R/r6_tteenrollment.R` |
 | `.TTE_PLAN_SCHEMA_VERSION` | `6L` | `R/r6_tteplan.R` |
 
-Bump only the constant whose stored shape changed. The study version and the skeleton version
-never merge. `.REGISTRY_STUDY_SCHEMA_VERSION` and `.TTE_ENROLLMENT_SCHEMA_VERSION` are both `7L`
-today. That is a coincidence, so never move two constants together.
+Bump only the constant whose stored shape or meaning changed. The study version and the
+skeleton version never merge. `.REGISTRY_STUDY_SCHEMA_VERSION` and
+`.TTE_ENROLLMENT_SCHEMA_VERSION` were both `7L` until 27.3.26 by coincidence, so never move two
+constants together.
 
 ### 6. `add_rx()` reads the skeleton's row set
 

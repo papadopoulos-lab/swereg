@@ -84,7 +84,9 @@ test_that("decided_by naming an enrollment the spec lacks stops", {
 test_that("a candidate that is not a computed confounder stops", {
   # An exclusion column, and a confounder that is not computed.
   expect_match(
-    spr_parse_error(spr_rule_yaml(candidates = "[eligible_no_rd_tx_everbefore]")),
+    spr_parse_error(spr_rule_yaml(
+      candidates = "[eligible_no_rd_tx_everbefore]"
+    )),
     "not a computed confounder of this spec: eligible_no_rd_tx_everbefore",
     fixed = TRUE
   )
@@ -307,7 +309,11 @@ spr_reload_change <- function(field, value, env = parent.frame()) {
     global_max_isoyearweek = "2019-26"
   )
   plan$spec <- swereg::tteplan_read_spec(path_old)
-  return(list(plan = plan, old = plan$spec$rare_condition_rule, path_new = path_new))
+  return(list(
+    plan = plan,
+    old = plan$spec$rare_condition_rule,
+    path_new = path_new
+  ))
 }
 
 for (spr_field in c("min_n", "decided_by", "candidates")) {
@@ -320,7 +326,11 @@ for (spr_field in c("min_n", "decided_by", "candidates")) {
       candidates = spr_var("osd_common")
     )
     test_that(
-      paste0("rare_condition_rule$", field, ": reload_spec refuses a change to it"),
+      paste0(
+        "rare_condition_rule$",
+        field,
+        ": reload_spec refuses a change to it"
+      ),
       {
         x <- spr_reload_change(field, value)
         expect_warning(
@@ -384,7 +394,7 @@ test_that("an enrollment stamped with the 27.2.0 schema is refused", {
   qs2::qs_save(spr_stamp(en, 6L), path)
   expect_error(
     swereg::qs2_read(path),
-    "TTEEnrollment at schema version 6, and this swereg requires version 7"
+    "TTEEnrollment at schema version 6, and this swereg requires version 8"
   )
 })
 

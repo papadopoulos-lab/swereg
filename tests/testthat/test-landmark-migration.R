@@ -92,9 +92,10 @@ test_that("a version-2 object is refused, not reinterpreted", {
   # The three schema constants moved to 3 together, so 2 is the last release
   # that could have written any of them. 26.15.0 moved the enrollment to 5
   # and the plan to 4. The `period_id` rename moved the enrollment to 6 and
-  # the plan to 5.
+  # the plan to 5. The enrollment-period outcome check moved the enrollment
+  # to 8.
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 7L)
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 8L)
   expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 6L)
 
   # --- TTEDesign ---
@@ -113,11 +114,11 @@ test_that("a version-2 object is refused, not reinterpreted", {
     "enrollment_v2.qs2"
   )
   expect_error(qs2_read(enrollment_path), "schema version 2")
-  # `TTEEnrollment` is on schema 7, and its message no longer names the
+  # `TTEEnrollment` is on schema 8, and its message no longer names the
   # landmark move. It refuses more than the 26.9.0 boundary did: it also
-  # refuses every schema up to 6. The message names the required version and
+  # refuses every schema up to 7. The message names the required version and
   # the remedy instead.
-  expect_error(qs2_read(enrollment_path), "requires version 7")
+  expect_error(qs2_read(enrollment_path), "requires version 8")
   expect_error(qs2_read(enrollment_path), "[Rr]e-run s1")
 
   # --- TTEPlan ---

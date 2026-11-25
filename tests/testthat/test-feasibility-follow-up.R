@@ -395,7 +395,10 @@ test_that("(d) only the minimum-events and Coverage (ETT) sheets show the 260-we
     expect_false(any(cb == yr, na.rm = TRUE), info = yr)
   }
   for (sh in FF_MIN_SHEETS) {
-    expect_false(any(.ff_cells(a$xlsx, sh) == "260 weeks", na.rm = TRUE), info = sh)
+    expect_false(
+      any(.ff_cells(a$xlsx, sh) == "260 weeks", na.rm = TRUE),
+      info = sh
+    )
   }
   # Coverage (ETT) lists each 260-week ETT on a row of its own.
   feas <- swereg:::.plan_ett_feasibility_ids(a$plan)
@@ -563,11 +566,12 @@ test_that("(d) the forest data and the survival figure input are identical", {
 # reaches s1. Here the real stages run on one skeleton, with and without the
 # key. With the key, s1 enrolls to 260 weeks. s1e MUST still truncate `ipw`
 # and count the fill over the rows the reported ETTs reach. One enrollment,
-# the Age confounder and follow-ups 52 and 104. Seed 5 is chosen because the
-# 1st percentile of `ipw` over every row of its 260-week panel (0.6277904771)
-# differs from the one over the rows up to week 104 (0.6257526794). Seeds 1
-# to 4 and 6 to 10 give the same bounds both ways, so they cannot show a
-# truncation over the wrong rows.
+# the Age confounder and follow-ups 52 and 104. Seed 14 is chosen because the
+# 1st percentile of `ipw` over every row of its 260-week panel (0.8304624821)
+# differs from the one over the rows up to week 104 (0.8299313034). Measured
+# with swereg 27.3.26, seeds 1 to 13 and 15 to 21 give the same bounds both
+# ways, so they cannot show a truncation over the wrong rows. Seed 5 served
+# until the outcome check of 27.3.26 changed the enrolled set.
 .ff_real_cache <- new.env()
 .ff_real <- function(key = TRUE) {
   name <- if (key) "key" else "none"
@@ -587,7 +591,7 @@ test_that("(d) the forest data and the survival figure input are identical", {
     date_min = "2017-01-05",
     date_max = "2022-06-30",
     n_init_periods = 32L,
-    seed = 5L
+    seed = 14L
   )
   skel_path <- file.path(dirs[2], SPR_SKELETON)
   qs2::qs_save(sk, skel_path)

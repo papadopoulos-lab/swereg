@@ -21,13 +21,15 @@ person-trial interval. Methods
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing \code{ratio} to the constructor.
 
-\code{.TTE_ENROLLMENT_SCHEMA_VERSION} is \code{7L}. It rises when a
+\code{.TTE_ENROLLMENT_SCHEMA_VERSION} is \code{8L}. It rises when a
 stored field changes meaning, or when a reader needs a new field.
 Schema 4 stores the fill summary in \code{fill_summary} and the
 propensity-model diagnostics in \code{ps_fit}. Schema 5 names the panel
 column \code{enrollment_period_id}. Schema 6 names the calendar period of
-each row \code{period_id}. Schema 7 carries the rare-condition rule.
-\code{\link[=qs2_read]{qs2_read()}} refuses every enrollment below schema 7 before this check
+each row \code{period_id}. Schema 7 carries the rare-condition rule. In
+schema 8, an outcome excludes a candidate person-trial only when it
+falls inside the enrollment period.
+\code{\link[=qs2_read]{qs2_read()}} refuses every enrollment below schema 8 before this check
 runs. The check refuses the same objects.
 }
 \section{Baseline treatment}{
@@ -101,7 +103,9 @@ power.
 
 Time zero is a landmark: the first week after the enrollment period closes.
 A person enters the trial only if they reach that week under observation
-and free of every enrollment outcome. Follow-up starts there.
+and have no enrollment outcome inside the enrollment period. An outcome
+before the enrollment period excludes the person only where an eligibility
+criterion says so. Follow-up starts there.
 
 Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
 leaves the risk set at \code{tstop}, and the row holds no part of that week.
@@ -186,9 +190,11 @@ time-zero qualification dropped each candidate person-trial, by
 criterion and by arm. Its columns are \code{enrollment_period_id},
 \code{criterion}, \code{n_persons}, \code{n_person_trials}, \code{n_intervention} and
 \code{n_comparator}. The row with \code{enrollment_period_id = NA} covers the
-whole cohort. The three
-criteria are \code{landmark_candidates}, \code{landmark_observed} and
-\code{landmark_event_free}, and each count is cumulative. It stays \code{NULL}
+whole cohort. The three criteria are \code{landmark_candidates},
+\code{landmark_observed} and \code{landmark_event_free}, and each count is
+cumulative. \code{landmark_event_free} keeps a candidate with no outcome
+inside its enrollment period. An earlier outcome does not drop it
+there. It stays \code{NULL}
 when the design declares no \code{observed_var}, and when the caller
 supplies \code{enrolled_ids} from the two-pass pipeline.}
 

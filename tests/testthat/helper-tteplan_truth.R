@@ -95,7 +95,10 @@ ttm_skeleton <- function(
   is_init <- stats::rbinom(n_persons, 1L, p_init)
   init_period <- min_period +
     (sample.int(n_init_periods, n_persons, replace = TRUE) - 1L)
-  init_rank <- period_start$start_rank[match(init_period, period_start$period_id)]
+  init_rank <- period_start$start_rank[match(
+    init_period,
+    period_start$period_id
+  )]
   # dur is numeric so that Inf (never discontinue) survives `.ir + .dur`
   # without integer overflow
   dur <- if (disc_hazard > 0) {
@@ -226,6 +229,18 @@ ttm_write_spec <- function(
           window = "lifetime_before_baseline",
           computed = TRUE
         )
+      ),
+      # The planted truths describe a first-event estimand in a population
+      # that is event-free at entry. Since 27.3.26, swereg excludes only an
+      # outcome inside the enrollment period, so the fixture declares its own
+      # event-free-at-entry rule here. Without it, scenario B loses the
+      # first-event depletion that its truth of 1.9818 assumes.
+      list(
+        name = "No earlier outcome A",
+        implementation = list(
+          source_variable = "osd_a",
+          window = "lifetime_before_baseline"
+        )
       )
     ),
     confounders = confs,
@@ -333,7 +348,9 @@ ttm_run_cell <- function(sk, cell_name, confounder_vars) {
     {
       plan$s1_generate_enrollments_and_ipw(
         n_workers = 1L,
-        swereg_dev_path = dev_path, check_skeletons = FALSE)
+        swereg_dev_path = dev_path,
+        check_skeletons = FALSE
+      )
       plan$s2_generate_analysis_files_and_ipcw_pp(
         n_workers = 1L,
         swereg_dev_path = dev_path

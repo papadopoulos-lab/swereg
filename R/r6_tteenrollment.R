@@ -3,7 +3,7 @@
 # =============================================================================
 
 .TTE_DESIGN_SCHEMA_VERSION <- 3L
-.TTE_ENROLLMENT_SCHEMA_VERSION <- 7L
+.TTE_ENROLLMENT_SCHEMA_VERSION <- 8L
 
 # =============================================================================
 # TTEEnrollment: Enrollment data with design and state (R6 class)
@@ -178,9 +178,11 @@ TTEEnrollment <- R6::R6Class(
     #'   criterion and by arm. Its columns are `enrollment_period_id`,
     #'   `criterion`, `n_persons`, `n_person_trials`, `n_intervention` and
     #'   `n_comparator`. The row with `enrollment_period_id = NA` covers the
-    #'   whole cohort. The three
-    #'   criteria are `landmark_candidates`, `landmark_observed` and
-    #'   `landmark_event_free`, and each count is cumulative. It stays `NULL`
+    #'   whole cohort. The three criteria are `landmark_candidates`,
+    #'   `landmark_observed` and `landmark_event_free`, and each count is
+    #'   cumulative. `landmark_event_free` keeps a candidate with no outcome
+    #'   inside its enrollment period. An earlier outcome does not drop it
+    #'   there. It stays `NULL`
     #'   when the design declares no `observed_var`, and when the caller
     #'   supplies `enrolled_ids` from the two-pass pipeline.
     landmark_attrition = NULL,
@@ -387,13 +389,15 @@ TTEEnrollment <- R6::R6Class(
 
     #' @description Check this object's schema version against the current
     #' class version. It stops when the object carries an older schema.
-    #' @details `.TTE_ENROLLMENT_SCHEMA_VERSION` is `7L`. It rises when a
+    #' @details `.TTE_ENROLLMENT_SCHEMA_VERSION` is `8L`. It rises when a
     #' stored field changes meaning, or when a reader needs a new field.
     #' Schema 4 stores the fill summary in `fill_summary` and the
     #' propensity-model diagnostics in `ps_fit`. Schema 5 names the panel
     #' column `enrollment_period_id`. Schema 6 names the calendar period of
-    #' each row `period_id`. Schema 7 carries the rare-condition rule.
-    #' [qs2_read()] refuses every enrollment below schema 7 before this check
+    #' each row `period_id`. Schema 7 carries the rare-condition rule. In
+    #' schema 8, an outcome excludes a candidate person-trial only when it
+    #' falls inside the enrollment period.
+    #' [qs2_read()] refuses every enrollment below schema 8 before this check
     #' runs. The check refuses the same objects.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
@@ -733,7 +737,8 @@ TTEEnrollment <- R6::R6Class(
         )
 
         # C-qualify: drop every candidate person-trial that does not reach
-        # time zero under observation and event-free. This runs BETWEEN the arm
+        # time zero under observation, or that has an outcome inside its
+        # enrollment period. This runs BETWEEN the arm
         # classification and the comparator draw, and the position is part of
         # the rule. After the classification, so the attrition table can
         # report both arms. Before the draw, so `sample()` below refills the
@@ -968,9 +973,9 @@ TTEEnrollment <- R6::R6Class(
 
       # Follow-up starts at TIME ZERO, which is the first week after the
       # enrollment period closes. `.tte_qualify_candidates()` has already
-      # dropped every candidate person-trial that is not observed and
-      # event-free there, so follow-up starts at the instant qualification is
-      # established. Expanding from `enrollment_period_id` instead would give
+      # dropped every candidate person-trial that is not observed there, or
+      # that has an outcome inside its enrollment period. Follow-up therefore
+      # starts at the instant qualification is established. Expanding from `enrollment_period_id` instead would give
       # back immortal time inside the enrollment period of up to
       # `period_width - 1` weeks.
       expanded <- entry_dt[,

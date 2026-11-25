@@ -9,7 +9,8 @@
 #   - `landmark_candidates`: every candidate person-trial reaches this step.
 #     Its mask is `rep(TRUE, nrow(candidates))`, so the step excludes nobody.
 #   - `landmark_observed`: the person must hold a row at the time-zero week.
-#   - `landmark_event_free`: the person must not already have had the outcome.
+#   - `landmark_event_free`: the person must have no outcome inside the
+#     enrollment period.
 #
 # Each label states what the step drops. `landmark_observed` drops a person
 # with no observed row at time zero, which on a trimmed skeleton is death,
@@ -190,7 +191,7 @@ test_that("the lookup labels both time-zero exclusions when the spec is NULL", {
   )
   expect_identical(
     unname(labels["landmark_event_free"]),
-    "Event before time zero"
+    "Event in the enrollment period"
   )
 })
 
@@ -207,7 +208,7 @@ test_that("the lookup labels both time-zero exclusions from a populated spec", {
   )
   expect_identical(
     unname(labels["landmark_event_free"]),
-    "Event before time zero"
+    "Event in the enrollment period"
   )
 })
 
@@ -239,7 +240,11 @@ test_that("the Excluded box shows both time-zero labels and no raw column name",
     lines,
     fixed = TRUE
   )))
-  expect_true(any(grepl("- Event before time zero (n = ", lines, fixed = TRUE)))
+  expect_true(any(grepl(
+    "- Event in the enrollment period (n = ",
+    lines,
+    fixed = TRUE
+  )))
   expect_false(any(grepl("landmark", lines, fixed = TRUE)))
 })
 
@@ -247,12 +252,23 @@ test_that("the Excluded box lists no landmark_candidates line", {
   lines <- .cll_box()
   expect_length(grep("landmark_candidates", lines, fixed = TRUE), 0L)
   expect_length(
-    grep("Candidate person-trials, before the time-zero checks", lines, fixed = TRUE),
+    grep(
+      "Candidate person-trials, before the time-zero checks",
+      lines,
+      fixed = TRUE
+    ),
     0L
   )
   # The filter drops one row, not all three. Both real time-zero exclusions
-  # keep their bullet.
-  expect_length(grep("time zero", lines, fixed = TRUE), 2L)
+  # keep their bullet, once each.
+  expect_length(
+    grep("- Not under observation at time zero (n = ", lines, fixed = TRUE),
+    1L
+  )
+  expect_length(
+    grep("- Event in the enrollment period (n = ", lines, fixed = TRUE),
+    1L
+  )
 })
 
 test_that("landmark_candidates excludes nobody on the production path", {
@@ -337,6 +353,10 @@ test_that("the production render path carries both time-zero labels into the box
     lines,
     fixed = TRUE
   )))
-  expect_true(any(grepl("- Event before time zero (n = ", lines, fixed = TRUE)))
+  expect_true(any(grepl(
+    "- Event in the enrollment period (n = ",
+    lines,
+    fixed = TRUE
+  )))
   expect_false(any(grepl("landmark", lines, fixed = TRUE)))
 })

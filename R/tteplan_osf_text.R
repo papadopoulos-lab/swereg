@@ -466,7 +466,9 @@ tteplan_osf_text <- function(
     paste0(
       "Time zero is the first week after the enrollment period closes, in both arms. Only ",
       ctx$many,
-      " who reach time zero under observation and free of every outcome listed under 'Measured variables/Outcomes' enter the trial."
+      " who reach time zero under observation, and who have no outcome listed under 'Measured variables/Outcomes' inside the enrollment period, enter the trial. An outcome before the enrollment period excludes a ",
+      ctx$one,
+      " only where an eligibility criterion says so."
     ),
     paste0(
       "Follow-up starts at time zero. It stops at the first of: the outcome; loss of observation, which is the first week after time zero without observation; ",

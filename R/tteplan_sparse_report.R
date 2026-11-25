@@ -11,9 +11,10 @@
 
 #' The basis of the rule, as every output states it
 #'
-#' The decision reads no follow-up outcome. Eligibility already removes a
-#' person-trial with an outcome before time zero, so the text MUST NOT claim
-#' that no outcome was examined.
+#' The decision reads no follow-up outcome. Qualification already removes a
+#' person-trial with an outcome inside its enrollment period, and an
+#' eligibility criterion MAY remove one for an earlier outcome. So the text
+#' MUST NOT claim that no outcome was examined.
 #' @noRd
 .TTE_SPARSE_BASIS <- paste(
   "decided from baseline counts in the eligible population, before the",

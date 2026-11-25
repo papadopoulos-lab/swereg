@@ -121,8 +121,8 @@ test_that("a changed top-level constant changes the hash", {
   val_hash_edit(
     root,
     "R/r6_tteenrollment.R",
-    ".TTE_ENROLLMENT_SCHEMA_VERSION <- 7L",
-    ".TTE_ENROLLMENT_SCHEMA_VERSION <- 8L"
+    ".TTE_ENROLLMENT_SCHEMA_VERSION <- 8L",
+    ".TTE_ENROLLMENT_SCHEMA_VERSION <- 9L"
   )
   expect_false(identical(val_estimator_hash(root), h0))
 })

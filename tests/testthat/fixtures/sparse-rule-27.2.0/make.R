@@ -12,9 +12,24 @@
 # Run it from the repository root, so the two helper files below are the
 # current ones. Its one output, reference.rds, holds plain data.frames, so a
 # test compares it with identical() and no data.table attribute interferes.
+#
+# swereg 27.3.26 changed the outcome check at time zero, which moves the
+# `landmark_event_free` counts and the comparator draw. The current reference
+# comes from the 4a9889c0 tree with one file replaced: R/tte_landmark_qualify.R
+# of 27.3.26. The current helpers write spec keys that 4a9889c0 refuses, so
+# the run used the two helper files of commit b241e749, which created the
+# reference. That pair reproduces the earlier reference.rds, by identical(), on
+# the unchanged 4a9889c0 tree:
+#
+#   git archive 4a9889c0 | tar -x -C /tmp/swereg-head
+#   cp R/tte_landmark_qualify.R /tmp/swereg-head/R/
+#   # in a directory whose tests/testthat holds the b241e749 helper files:
+#   Rscript make.R /tmp/swereg-head
 
 args <- commandArgs(trailingOnly = TRUE)
-stopifnot("make.R needs the path of the 27.2.0 source tree" = length(args) == 1L)
+stopifnot(
+  "make.R needs the path of the 27.2.0 source tree" = length(args) == 1L
+)
 pkgload::load_all(args[[1L]], quiet = TRUE)
 library(testthat)
 library(data.table)

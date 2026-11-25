@@ -487,7 +487,10 @@ test_that("the scout path drops the same candidate person-trials as the direct p
     person_id_col = "id",
     arm_col = "candidate_treatment"
   )
-  expect_equal(sort(direct$candidates[enrollment_period_id == period0]$id), scout)
+  expect_equal(
+    sort(direct$candidates[enrollment_period_id == period0]$id),
+    scout
+  )
 })
 
 test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
@@ -516,7 +519,10 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
     cache_path = NULL
   )
 
-  expect_equal(sort(res$tuples[enrollment_period_id == period0]$id), c("C1", "I1"))
+  expect_equal(
+    sort(res$tuples[enrollment_period_id == period0]$id),
+    c("C1", "I1")
+  )
   # The three landmark rows stack onto the exclusion cascade, and each one
   # carries a global row for CONSORT.
   crit <- unique(res$attrition$criterion)
@@ -534,7 +540,11 @@ test_that(".s1a_finalize_on_skeleton() qualifies the tuples it writes", {
   # `.s1c_worker()`, then `enrolled_ids` on disk, then s1d.
   expect_true("recruit_week_index" %in% names(res$tuples))
   expect_equal(
-    unname(res$tuples[enrollment_period_id == period0 & id == "I1"]$recruit_week_index),
+    unname(
+      res$tuples[
+        enrollment_period_id == period0 & id == "I1"
+      ]$recruit_week_index
+    ),
     .lme_week_index(weeks, 1L)
   )
 })
@@ -582,4 +592,224 @@ test_that("qualification stops on an outcome column the data does not carry", {
     .lme_enroll(d, design),
     "never_measured"
   )
+})
+
+
+# ---------------------------------------------------------------------------
+# The prior-outcome rule covers the enrollment period only
+# ---------------------------------------------------------------------------
+#
+# `.lme_weeks(12L)` gives three enrollment periods. The period-1 trial covers
+# fixture weeks 5 to 8, and its time zero is week 9. An outcome in week 2 lies
+# in period 0, before the enrollment period of that trial. Only a spec
+# criterion excludes a person for it. An outcome in weeks 5 to 8 excludes the
+# person from the period-1 trial. An outcome in week 9 is a follow-up event.
+
+# The qualified ids of one trial, on the scout path and on the direct path.
+# Both paths MUST agree, so the function asserts that and returns one set.
+.lme_qualified_both_paths <- function(d, design, period) {
+  sk <- data.table::copy(d)
+  sk[, rd_intervention := exposed]
+  scout <- swereg:::.tte_qualify_candidates(
+    candidates = swereg:::.s1_eligible_tuples(sk, design),
+    data = sk,
+    design = design,
+    person_id_col = "id",
+    arm_col = "intervention"
+  )
+  dd <- data.table::copy(d)
+  swereg:::.assign_period_ids(dd, .lme_period_width)
+  direct <- swereg:::.tte_qualify_candidates(
+    candidates = swereg:::.enrollment_period_baseline_treatment(
+      data = dd,
+      person_id_col = "id",
+      treatment_col = "exposed",
+      eligible_col = "eligible",
+      out_col = "candidate_treatment"
+    ),
+    data = dd,
+    design = design,
+    person_id_col = "id",
+    arm_col = "candidate_treatment"
+  )
+  ids_scout <- sort(scout$candidates[enrollment_period_id == period]$id)
+  ids_direct <- sort(direct$candidates[enrollment_period_id == period]$id)
+  expect_identical(ids_direct, ids_scout)
+  return(ids_scout)
+}
+
+# The count of candidate person-trials that the outcome check drops in one
+# trial.
+.lme_dropped_by_outcome <- function(trial, period) {
+  att <- trial$landmark_attrition[enrollment_period_id == period]
+  n <- stats::setNames(att$n_person_trials, att$criterion)
+  return(unname(n["landmark_observed"] - n["landmark_event_free"]))
+}
+
+test_that("an outcome before the enrollment period does not exclude the trial", {
+  weeks <- .lme_weeks(12L)
+  period1 <- .lme_period0(weeks) + 1L
+  # All three start treatment in week 8, the last week of the period-1
+  # enrollment period. They are intervention candidates, so no random draw
+  # decides whether they enrol.
+  p <- .lme_person("P", weeks, tx = 8L, events = list(died = 2L))
+  q <- .lme_person("Q", weeks, tx = 8L, events = list(died = 8L))
+  r <- .lme_person("R", weeks, tx = 8L, events = list(died = 9L))
+  d <- data.table::rbindlist(list(p, q, r, .lme_filler(weeks)))
+  design <- .lme_design()
+
+  qualified <- .lme_qualified_both_paths(d, design, period1)
+  expect_true("P" %in% qualified)
+  expect_false("Q" %in% qualified)
+  expect_true("R" %in% qualified)
+
+  trial <- .lme_enroll(d, design)
+  enrolled <- .lme_enrolled(trial, period1)
+  expect_true("P" %in% enrolled$intervention)
+  expect_false("Q" %in% enrolled$intervention)
+  expect_false("Q" %in% enrolled$comparator)
+  expect_true("R" %in% enrolled$intervention)
+
+  # R has the event in the time-zero week, so it is a follow-up event in the
+  # interval [0, 1).
+  r_row <- trial$data[enrollment_period_id == period1 & id == "R"]
+  expect_identical(nrow(r_row), 1L)
+  expect_identical(r_row$tstart, 0L)
+  expect_identical(r_row$weeks_to_event_died, 1L)
+
+  # Q is the one person-trial the outcome check drops.
+  expect_identical(.lme_dropped_by_outcome(trial, period1), 1L)
+})
+
+test_that("every outcome occurrence in the enrollment period excludes, not only the first", {
+  weeks <- .lme_weeks(12L)
+  period1 <- .lme_period0(weeks) + 1L
+  # P2 has the outcome in week 2 AND in week 8. Her first occurrence lies
+  # before the enrollment period of the period-1 trial, and her second lies
+  # inside it. A check that reads only the first occurrence enrols her.
+  p <- .lme_person("P", weeks, tx = 8L, events = list(died = 2L))
+  p2 <- .lme_person("P2", weeks, tx = 8L, events = list(died = c(2L, 8L)))
+  d <- data.table::rbindlist(list(p, p2, .lme_filler(weeks)))
+  design <- .lme_design()
+
+  qualified <- .lme_qualified_both_paths(d, design, period1)
+  expect_false("P2" %in% qualified)
+  expect_true("P" %in% qualified)
+
+  trial <- .lme_enroll(d, design)
+  enrolled <- .lme_enrolled(trial, period1)
+  expect_false("P2" %in% enrolled$intervention)
+  expect_false("P2" %in% enrolled$comparator)
+  expect_true("P" %in% enrolled$intervention)
+  expect_identical(.lme_dropped_by_outcome(trial, period1), 1L)
+})
+
+
+# The spec path. A global exclusion criterion on the outcome column sets how
+# far back an earlier outcome excludes. Person E has the outcome in fixture
+# week 1 and starts treatment in week 121, so the outcome lies 120 weeks before
+# her enrollment period. Six controls fill the comparator pool.
+.lme_spec_weeks <- 136L
+.lme_spec_tx_week <- 121L
+
+.lme_spec_skeleton <- function() {
+  weeks <- .lme_weeks(.lme_spec_weeks)
+  one <- function(id, rd_tx, osd_a = integer(0)) {
+    return(data.table::data.table(
+      id = id,
+      isoyearweek = weeks,
+      isoyear = as.integer(substr(weeks, 1L, 4L)),
+      rd_tx = rd_tx,
+      osd_a = seq_along(weeks) %in% osd_a,
+      rd_age_continuous = 50
+    ))
+  }
+  e_tx <- rep("none", length(weeks))
+  e_tx[.lme_spec_tx_week] <- "treated"
+  people <- c(
+    list(one(1L, e_tx, osd_a = 1L)),
+    lapply(2:7, function(i) one(i, rep("control", length(weeks))))
+  )
+  sk <- data.table::rbindlist(people)
+  data.table::setkey(sk, id, isoyearweek)
+  return(sk)
+}
+
+# The qualified tuples of the spec path. `.s1_prepare_loaded()` applies the
+# spec's criteria, and `.s1a_finalize_on_skeleton()` is the frame that
+# `.s1a_worker_multi()` calls.
+.lme_spec_tuples <- function(window) {
+  skip_if_not_installed("yaml")
+  skip_if_not_installed("withr")
+  root <- withr::local_tempdir()
+  dirs <- file.path(root, c("spec", "tteplan", "results", "meta"))
+  for (dir in dirs) {
+    dir.create(dir)
+  }
+  sk <- .lme_spec_skeleton()
+  spec_path <- file.path(dirs[[1]], "spec_v001.yaml")
+  ttm_write_spec(
+    spec_path,
+    "lmespec",
+    "rd_age_continuous",
+    admin = max(sk$isoyearweek)
+  )
+  spec <- yaml::read_yaml(spec_path)
+  spec$inclusion_criteria$isoyears <- c(2019L, 2023L)
+  # `ttm_write_spec()` already declares the outcome exclusion, with a
+  # lifetime window. Set its window to the one under test.
+  is_osd_a <- vapply(
+    spec$exclusion_criteria,
+    function(ec) identical(ec$implementation$source_variable, "osd_a"),
+    logical(1)
+  )
+  stopifnot(sum(is_osd_a) == 1L)
+  spec$exclusion_criteria[[which(is_osd_a)]]$implementation$window <- window
+  yaml::write_yaml(spec, spec_path)
+
+  plan <- suppressMessages(swereg::tteplan_from_spec_and_registrystudy(
+    study = list(
+      skeleton_files = file.path(dirs[[2]], "skel.qs2"),
+      data_meta_dir = dirs[[4]]
+    ),
+    candidate_dir_spec = dirs[[1]],
+    candidate_dir_tteplan = dirs[[2]],
+    candidate_dir_results = dirs[[3]],
+    spec_version = "v001",
+    check_skeletons = FALSE
+  ))
+  es <- plan$enrollment_spec(1)
+  es$n_threads <- 1L
+  prepared <- swereg:::.s1_prepare_loaded(
+    sk,
+    es,
+    plan$spec,
+    derive_confounders = FALSE
+  )
+  res <- swereg:::.s1a_finalize_on_skeleton(
+    skeleton = prepared,
+    enrollment_spec = es,
+    spec = plan$spec,
+    cache_path = NULL
+  )
+  # The trial of E's treatment week.
+  e_period <- swereg:::.tte_week_index0(
+    .lme_weeks(.lme_spec_weeks)[.lme_spec_tx_week]
+  ) %/%
+    .lme_period_width
+  return(list(tuples = res$tuples, e_period = e_period))
+}
+
+test_that("a spec window of 104 weeks lets an older outcome enrol", {
+  x <- .lme_spec_tuples(104)
+  e <- x$tuples[id == 1L & enrollment_period_id == x$e_period]
+  expect_identical(nrow(e), 1L)
+  expect_true(e$intervention)
+})
+
+test_that("a lifetime spec window excludes the same person", {
+  x <- .lme_spec_tuples("lifetime_before_baseline")
+  # The comparators of E's trial qualify, so the trial itself opens.
+  expect_gt(nrow(x$tuples[enrollment_period_id == x$e_period]), 0L)
+  expect_identical(nrow(x$tuples[id == 1L]), 0L)
 })

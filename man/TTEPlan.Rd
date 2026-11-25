@@ -41,7 +41,9 @@ Returns \code{NA} when no ETTs have been added.}
 
 Time zero is a landmark: the first week after the enrollment period closes.
 A person enters the trial only if they reach that week under observation
-and free of every enrollment outcome. Follow-up starts there.
+and have no enrollment outcome inside the enrollment period. An outcome
+before the enrollment period excludes the person only where an eligibility
+criterion says so. Follow-up starts there.
 
 Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
 leaves the risk set at \code{tstop}, and the row holds no part of that week.

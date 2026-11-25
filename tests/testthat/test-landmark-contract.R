@@ -81,7 +81,10 @@ lc_enrollment <- function(id = "01", ..., drop = character()) {
   enr
 }
 
-lc_write_spec <- function(enrollments = list(lc_enrollment()), env = parent.frame()) {
+lc_write_spec <- function(
+  enrollments = list(lc_enrollment()),
+  env = parent.frame()
+) {
   spec <- list(
     study = list(
       title = "Landmark contract fixture",
@@ -626,8 +629,8 @@ test_that("the TTEDesign schema version is 3L", {
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
 })
 
-test_that("the TTEEnrollment schema version is 7L", {
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 7L)
+test_that("the TTEEnrollment schema version is 8L", {
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 8L)
 })
 
 test_that("the TTEPlan schema version is 6L", {
