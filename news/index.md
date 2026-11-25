@@ -1,5 +1,18 @@
 # Changelog
 
+## swereg 27.3.26
+
+### New features
+
+- **`results.qs2` now holds `matching`, `sparse_decision`, `spec`,
+  `ett`, `protocol_table` and `design`.** A manuscript step can
+  therefore read the results, the spec, the ETT grid and the protocol
+  table from `results.qs2`, without the plan. `ett` is `plan$ett`
+  without its four file columns, and `design` holds `period_width` and
+  `global_max_isoyearweek`. `protocol_table` is NULL for a plan without
+  a spec or without a reported ETT. The 13 older fields are computed as
+  before.
+
 ## swereg 27.3.25
 
 ### Bug fixes

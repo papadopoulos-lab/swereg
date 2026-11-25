@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,6 +63,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.26" id="swereg-27326">swereg 27.3.26<a class="anchor" aria-label="anchor" href="#swereg-27326"></a></h2>
+<div class="section level3">
+<h3 id="new-features-27-3-26">New features<a class="anchor" aria-label="anchor" href="#new-features-27-3-26"></a></h3>
+<ul><li>
+<strong><code>results.qs2</code> now holds <code>matching</code>, <code>sparse_decision</code>, <code>spec</code>, <code>ett</code>, <code>protocol_table</code> and <code>design</code>.</strong> A manuscript step can therefore read the results, the spec, the ETT grid and the protocol table from <code>results.qs2</code>, without the plan. <code>ett</code> is <code>plan$ett</code> without its four file columns, and <code>design</code> holds <code>period_width</code> and <code>global_max_isoyearweek</code>. <code>protocol_table</code> is NULL for a plan without a spec or without a reported ETT. The 13 older fields are computed as before.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.25" id="swereg-27325">swereg 27.3.25<a class="anchor" aria-label="anchor" href="#swereg-27325"></a></h2>
 <div class="section level3">

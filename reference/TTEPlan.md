@@ -536,8 +536,8 @@ the shortest longer ETT. A year that no ETT of the row reaches is empty.
 The two sheets and the `Coverage (ETT)` sheet show a horizon-only ETT.
 The spec key `feasibility_follow_up_weeks` adds one, and a follow-up
 that is not a whole number of years adds one at its next whole year. Its
-years get columns. `results.qs2` and `$get_horizon_windows()` leave it
-out.
+years get columns. The `ett` field of `results.qs2` holds it. The other
+tables of `results.qs2` and `$get_horizon_windows()` leave it out.
 
 The `Protocol adherence` sheet follows `Table 1 (filterable)`. It holds
 one row per comparison and arm, with `N (ITT)`, `N (PP)` and `%` from
@@ -551,7 +551,8 @@ risk differences and intervals. A forest image repeated a subset of
 those numbers. `$export()` still draws one for a manuscript.
 
 The method also writes `results.qs2` to the directory of the workbook. A
-manuscript reads that file. It is a named list of aggregate results:
+manuscript reads that file, and needs no plan for these fields. It is a
+named list of 19 fields:
 
 - `estimates`:
 
@@ -604,6 +605,33 @@ manuscript reads that file. It is a named list of aggregate results:
 - `s1_run_id`, `s2_run_id`:
 
   The s1 run id of the plan, and the distinct s2 run ids of its ETTs.
+
+- `matching`:
+
+  `$get_matching()`.
+
+- `sparse_decision`:
+
+  `$get_sparse_decision()`, NULL when the plan holds none.
+
+- `spec`:
+
+  The parsed spec of the plan, `$spec`.
+
+- `ett`:
+
+  The ETT grid `$ett` with its horizon-only ETTs, without the columns
+  `file_raw`, `file_imp`, `file_analysis` and `file_analysis_itt`.
+
+- `protocol_table`:
+
+  `$get_protocol_table()`, NULL for a plan without a spec or without a
+  reported ETT.
+
+- `design`:
+
+  A list with the `period_width` and the `global_max_isoyearweek` of the
+  plan.
 
 The file holds no person-level data. No table has a person or
 person-trial identifier, and no table has a row per person or per

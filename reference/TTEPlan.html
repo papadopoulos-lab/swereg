@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -559,7 +559,8 @@ the shortest longer ETT. A year that no ETT of the row reaches is empty.</p>
 <p>The two sheets and the <code>Coverage (ETT)</code> sheet show a horizon-only ETT.
 The spec key <code>feasibility_follow_up_weeks</code> adds one, and a follow-up that
 is not a whole number of years adds one at its next whole year. Its years
-get columns. <code>results.qs2</code> and <code>$get_horizon_windows()</code> leave it out.</p>
+get columns. The <code>ett</code> field of <code>results.qs2</code> holds it. The other tables
+of <code>results.qs2</code> and <code>$get_horizon_windows()</code> leave it out.</p>
 <p>The <code>Protocol adherence</code> sheet follows <code>Table 1 (filterable)</code>. It holds
 one row per comparison and arm, with <code>N (ITT)</code>, <code>N (PP)</code> and <code>%</code> from
 <code>$get_adherence()</code>. It shows weeks 13 and 26 and every multiple of 52 up
@@ -570,7 +571,8 @@ sheets already report every emulated trial with counts, rates, ratios,
 risk differences and intervals. A forest image repeated a subset of those
 numbers. <code>$export()</code> still draws one for a manuscript.</p>
 <p>The method also writes <code>results.qs2</code> to the directory of the workbook. A
-manuscript reads that file. It is a named list of aggregate results:</p><dl><dt><code>estimates</code></dt>
+manuscript reads that file, and needs no plan for these fields. It is a
+named list of 19 fields:</p><dl><dt><code>estimates</code></dt>
 <dd><p><code>$get_estimates()</code>.</p></dd>
 
 <dt><code>curves</code></dt>
@@ -610,6 +612,29 @@ versions stamped on the stored results.</p></dd>
 <dt><code>s1_run_id</code>, <code>s2_run_id</code></dt>
 <dd><p>The s1 run id of the plan, and the
 distinct s2 run ids of its ETTs.</p></dd>
+
+<dt><code>matching</code></dt>
+<dd><p><code>$get_matching()</code>.</p></dd>
+
+<dt><code>sparse_decision</code></dt>
+<dd><p><code>$get_sparse_decision()</code>, NULL when the plan
+holds none.</p></dd>
+
+<dt><code>spec</code></dt>
+<dd><p>The parsed spec of the plan, <code>$spec</code>.</p></dd>
+
+<dt><code>ett</code></dt>
+<dd><p>The ETT grid <code>$ett</code> with its horizon-only ETTs, without the
+columns <code>file_raw</code>, <code>file_imp</code>, <code>file_analysis</code> and
+<code>file_analysis_itt</code>.</p></dd>
+
+<dt><code>protocol_table</code></dt>
+<dd><p><code>$get_protocol_table()</code>, NULL for a plan without
+a spec or without a reported ETT.</p></dd>
+
+<dt><code>design</code></dt>
+<dd><p>A list with the <code>period_width</code> and the
+<code>global_max_isoyearweek</code> of the plan.</p></dd>
 
 
 </dl><p>The file holds no person-level data. No table has a person or person-trial
