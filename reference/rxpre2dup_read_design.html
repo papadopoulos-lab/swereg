@@ -11,7 +11,7 @@ to the rows it returns."><meta property="og:image" content="https://papadopoulos
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -111,10 +111,11 @@ package. The columns are, in order:</p><ul><li><p><code>atc</code>: the full ATC
 <li><p><code>produkt</code>: the product name, as LMED writes it.</p></li>
 <li><p><code>lnmn</code>: the product name and strength, matched after
 <code>tolower(trimws())</code>.</p></li>
-<li><p><code>pack_ddd</code>: the DDDs that one dispensing of this package holds, as
-LMED's <code>fddd</code>. It MUST be greater than 0.</p></li>
+<li><p><code>pack_ddd</code>: the DDDs that one pack of this package holds. A
+dispensing of <code>antal</code> packs has <code>fddd = antal * pack_ddd</code>. It MUST be
+greater than 0.</p></li>
 <li><p><code>form</code>: the dose form, as free text, for example <code>"tablet"</code>.</p></li>
-<li><p><code>dur_min</code>, <code>dur_usual</code>, <code>dur_max</code>: durations of one dispensing, in
+<li><p><code>dur_min</code>, <code>dur_usual</code>, <code>dur_max</code>: durations of one pack, in
 days. Each MUST be greater than 0, and
 <code>dur_min &lt;= dur_usual &lt;= dur_max</code> MUST hold.</p></li>
 <li><p><code>status</code>: <code>"auto"</code> or <code>"approved"</code>.</p></li>

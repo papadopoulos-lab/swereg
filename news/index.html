@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,6 +63,23 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="27.3.27" id="swereg-27327">swereg 27.3.27<a class="anchor" aria-label="anchor" href="#swereg-27327"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-27-3-27">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-27-3-27"></a></h3>
+<ul><li>
+<strong>An outcome excludes a person-trial at time zero only when it falls inside that trial’s enrollment period.</strong> Since 26.9.0, any outcome before time zero excluded it, which overrode the window of a spec’s prior-outcome exclusion. An earlier outcome now excludes only through an eligibility criterion, with its window as written. Every occurrence counts, not only the first. The CONSORT label of <code>landmark_event_free</code> is now “Event in the enrollment period”.</li>
+<li>
+<strong>The TTEEnrollment schema is 8, so <code><a href="../reference/qs2_read.html">qs2_read()</a></code> refuses an s1 enrollment that an earlier swereg stored. Rerun s1, s2 and s3.</strong> These projects change:
+<ul><li>the MHT projects 002, 004 and 006, whose 104-week or 52-week prior-outcome windows now apply as written;</li>
+<li>the MHT project 008, whose all-fracture and aftercare outcomes have no exclusion of their own;</li>
+<li>the MHT project 009, which has no prior-outcome exclusion;</li>
+<li>the <code>000-template</code> spec of both the MHT and the GD project.</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/add_rxpre2dup.html">add_rxpre2dup()</a></code> needs an <code>antal</code> column in <code>lmed</code>, and a design row describes one pack.</strong> A dispensing matches a row when <code>abs(fddd / antal - pack_ddd) &lt; 0.005</code>, and enters PRE2DUP with <code>ratio = antal</code>. Before, a dispensing of 2 or more packs fell back to the ATC-level rule or matched a larger pack. The function drops rows whose <code>fddd</code> or <code>antal</code> is missing, 0 or negative, and a message counts them per reason.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="27.3.26" id="swereg-27326">swereg 27.3.26<a class="anchor" aria-label="anchor" href="#swereg-27326"></a></h2>
 <div class="section level3">

@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -371,7 +371,9 @@ the arm. It contributes no follow-up.</li>
 </ol>
 <p>Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome.</p>
+observation and have no enrollment outcome inside the enrollment period.
+An outcome before the enrollment period excludes the person only where
+an eligibility criterion says so.</p>
 <p>Enrollment period <code>b</code> covers week indices
 <code>b * period_width</code> to
 <code>(b + 1) * period_width - 1</code>. Its time zero sits at week
@@ -460,15 +462,19 @@ first enrollment period holds two weeks rather than four.</p>
 its time zero.</p>
 <ol style="list-style-type: decimal">
 <li>The person is under observation at time zero.</li>
-<li>No outcome occurrence stops at or before time zero.</li>
+<li>No outcome occurrence falls inside the enrollment period.</li>
 </ol>
-<p>A week is a half-open interval, so an occurrence in week
-<code>w</code> stops at <code>w + 1</code>. Statement 2 therefore covers
-every week of the enrollment period, and every week before it.</p>
+<p>Statement 2 excludes the candidate of enrollment period
+<code>b</code> when an occurrence in week index <code>w</code> has
+<code>w %/% period_width == b</code>. It reads every occurrence, and not
+only the first one. An occurrence before the enrollment period does not
+exclude the candidate. An eligibility criterion on the outcome column
+handles an earlier outcome, and its window sets how far back it reads.
+An occurrence in the time-zero week, or later, is a follow-up event.</p>
 <p>Statement 2 reads <strong>every</strong> column in
 <code>design$outcome_vars</code>, and not the one outcome a later step
 analyses. One enrollment serves several outcomes, so one enrolled set
-has to be event-free for all of them.</p>
+has to be free of all of them in the enrollment period.</p>
 <p>Statement 2 reads the weekly history only. The check places each row
 on the weekly calendar by its <code>isoyearweek</code>. An annual row of
 the skeleton, the <code>YYYY-**</code> row of an ISO year before
@@ -536,7 +542,8 @@ qualification step exists to remove it.</p>
 <p>The cascade names the reason. Three criteria join the CONSORT
 attrition table: <code>landmark_candidates</code>,
 <code>landmark_observed</code> and <code>landmark_event_free</code>.
-Each count is cumulative, and each row splits into the two arms.</p>
+Each count is cumulative, and each row splits into the two arms. The
+CONSORT box labels the last one “Event in the enrollment period”.</p>
 </div>
 <div class="section level3">
 <h3 id="the-comparator-draw-happens-after-qualification">The comparator draw happens after qualification<a class="anchor" aria-label="anchor" href="#the-comparator-draw-happens-after-qualification"></a>
@@ -821,21 +828,22 @@ week six, including for a woman with four-week follow-up intervals.</p>
 <h3 id="the-qualified-population-1">The qualified population<a class="anchor" aria-label="anchor" href="#the-qualified-population-1"></a>
 </h3>
 <p>The population is every candidate person-trial that reaches its time
-zero <code>L</code> under observation and free of every enrollment
-outcome before <code>L</code>. The whole enrollment period must also
-classify it into an arm. When the spec has a
-<code>rare_condition_rule</code>, s1 also drops each person-trial that
-holds an excluded condition at its recruiting week.</p>
+zero <code>L</code> under observation, with no enrollment outcome inside
+its enrollment period. The whole enrollment period must also classify it
+into an arm. When the spec has a <code>rare_condition_rule</code>, s1
+also drops each person-trial that holds an excluded condition at its
+recruiting week.</p>
 <p>The comparator draw happens after that, so the ratio counts qualified
 people.</p>
 </div>
 <div class="section level3">
 <h3 id="intention-to-treat">Intention-to-treat<a class="anchor" aria-label="anchor" href="#intention-to-treat"></a>
 </h3>
-<p>Among people who reach <code>L</code> alive, event-free and under
-observation, compare those the enrollment period classified as
-initiators against those it classified as comparators. Follow-up runs
-from <code>L</code>. Later treatment changes do not enter.</p>
+<p>Take the people who reach <code>L</code> alive and under observation,
+with no outcome inside the enrollment period. Compare those the
+enrollment period classified as initiators against those it classified
+as comparators. Follow-up runs from <code>L</code>. Later treatment
+changes do not enter.</p>
 </div>
 <div class="section level3">
 <h3 id="per-protocol">Per-protocol<a class="anchor" aria-label="anchor" href="#per-protocol"></a>

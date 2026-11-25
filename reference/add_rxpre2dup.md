@@ -30,7 +30,9 @@ add_rxpre2dup(
 - lmed:
 
   A data.table of LMED dispensings, with the columns `id_name`, `edatum`
-  (Date), `atc`, `produkt`, `lnmn` and `fddd`.
+  (Date), `atc`, `produkt`, `lnmn`, `antal` and `fddd`. `antal` is
+  LMED's `ANTAL`, the number of packs of the dispensing. A missing
+  `antal` column is an error.
 
 - hosp:
 
@@ -83,15 +85,19 @@ package on one day together. One message line shows each share.
 
 ## Dispensings
 
-A dispensing matches a design row when `atc`, `produkt` and
-`tolower(trimws(lnmn))` are equal and `abs(fddd - pack_ddd) < 0.005`.
-Every dispensing enters PRE2DUP with `ratio = 1` and `ddd = fddd`. A
-dispensing with no design row uses the ATC-level rule of PRE2DUP, with
-the parameters of `atc_parameters`.
+In LMED, `antal` is the number of packs of a dispensing, and `fddd` is
+the DDDs of all its packs. A dispensing matches a design row when `atc`,
+`produkt` and `tolower(trimws(lnmn))` are equal and
+`abs(fddd / antal - pack_ddd) < 0.005`. Every dispensing enters PRE2DUP
+with `ratio = antal` and `ddd = fddd`. PRE2DUP multiplies `dur_min`,
+`dur_usual` and `dur_max` of the design row, or the duration limits of
+the ATC-level rule, by `ratio`. A dispensing with no design row uses the
+ATC-level rule of PRE2DUP, with the parameters of `atc_parameters`.
 
-Rows of `lmed` whose `fddd` is missing, not finite or negative are
-dropped. A row with `fddd = 0` is kept and enters PRE2DUP with
-`ddd = 0`. Such a row matches no design row.
+The function drops the rows of `lmed` whose `fddd` or `antal` is
+missing, not finite, 0 or negative. One message line gives the number of
+dropped rows per reason. Each dropped row counts under one reason, and a
+reason of `fddd` comes before a reason of `antal`.
 
 ## Periods on the skeleton
 

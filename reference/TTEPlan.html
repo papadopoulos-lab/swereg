@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -133,7 +133,9 @@ Returns <code>NA</code> when no ETTs have been added.</p></dd>
 
 <p>Time zero is a landmark: the first week after the enrollment period closes.
 A person enters the trial only if they reach that week under observation
-and free of every enrollment outcome. Follow-up starts there.</p>
+and have no enrollment outcome inside the enrollment period. An outcome
+before the enrollment period excludes the person only where an eligibility
+criterion says so. Follow-up starts there.</p>
 <p>Every interval is <code>[tstart, tstop)</code>. The stop is exclusive. The person
 leaves the risk set at <code>tstop</code>, and the row holds no part of that week.</p>
 <p>Every duration is <code>tstop - tstart</code>. It never adds one. Three complete

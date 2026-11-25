@@ -45,14 +45,15 @@ per package. The columns are, in order:
 - `lnmn`: the product name and strength, matched after
   `tolower(trimws())`.
 
-- `pack_ddd`: the DDDs that one dispensing of this package holds, as
-  LMED's `fddd`. It MUST be greater than 0.
+- `pack_ddd`: the DDDs that one pack of this package holds. A dispensing
+  of `antal` packs has `fddd = antal * pack_ddd`. It MUST be greater
+  than 0.
 
 - `form`: the dose form, as free text, for example `"tablet"`.
 
-- `dur_min`, `dur_usual`, `dur_max`: durations of one dispensing, in
-  days. Each MUST be greater than 0, and
-  `dur_min <= dur_usual <= dur_max` MUST hold.
+- `dur_min`, `dur_usual`, `dur_max`: durations of one pack, in days.
+  Each MUST be greater than 0, and `dur_min <= dur_usual <= dur_max`
+  MUST hold.
 
 - `status`: `"auto"` or `"approved"`.
 

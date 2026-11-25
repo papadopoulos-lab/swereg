@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -590,10 +590,11 @@ With <code>period_width = 4</code>, one trial opens every four weeks,
 and not one trial per week.</p>
 <p>Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome. The enrollment period
-therefore carries no follow-up and no immortal time.
-<code>period_width</code> trades the number of trials against how long a
-newly eligible person waits:</p>
+observation and have no enrollment outcome inside the enrollment period.
+The enrollment period therefore carries no follow-up and no immortal
+time. An outcome before the enrollment period excludes the person only
+where an eligibility criterion says so. <code>period_width</code> trades
+the number of trials against how long a newly eligible person waits:</p>
 <ul>
 <li>
 <strong>Narrower enrollment periods</strong> (e.g.,

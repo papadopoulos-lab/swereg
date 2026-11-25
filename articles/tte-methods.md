@@ -209,15 +209,18 @@ TARGET items 6d and 7d.
 
 Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome.
+observation and have no enrollment outcome inside the enrollment period.
 
 swereg checks both conditions on each candidate person-trial before the
 comparator draw. The outcome check reads every outcome of the
-enrollment, over the whole earlier history of the person. An outcome in
-the time-zero week is a follow-up event. The enrollment period therefore
-contributes no follow-up and no immortal time (Caniglia et al. 2023).
-Its width sets how long a newly eligible person waits for the next time
-zero.
+enrollment, in every week of the enrollment period. It reads every
+occurrence, and not only the first one. An outcome before the enrollment
+period excludes the person only through an eligibility criterion on the
+outcome column. The window of that criterion sets how far back it reads.
+An outcome in the time-zero week is a follow-up event. The enrollment
+period therefore contributes no follow-up and no immortal time (Caniglia
+et al. 2023). Its width sets how long a newly eligible person waits for
+the next time zero.
 
 Each enrolled person-trial is split into follow-up intervals of the same
 width as the enrollment period. Their number is the horizon divided by
@@ -316,12 +319,14 @@ follow-up, and no competing-risk model is fitted (1.6).
 
 TARGET items 6f and 7f.
 
-Both estimands condition on reaching time zero under observation and
-free of every enrollment outcome. The target of inference is therefore a
-landmark-survivor estimand. It says nothing about people who die, or
-have an outcome, before time zero (Dafni 2011). Both estimands are
-marginal: the weights standardize them over the baseline confounder
-distribution of the enrolled person-trials.
+Both estimands condition on reaching time zero under observation, with
+no enrollment outcome inside the enrollment period. The target of
+inference is therefore a landmark-survivor estimand. It says nothing
+about people who die before time zero, or who have an outcome inside the
+enrollment period (Dafni 2011). A person with an earlier outcome stays
+in the estimand unless an eligibility criterion removes them. Both
+estimands are marginal: the weights standardize them over the baseline
+confounder distribution of the enrolled person-trials.
 
 - The intention-to-treat analogue is the effect of the intervention
   versus the comparator strategy as assigned in the enrollment period,
@@ -857,8 +862,8 @@ weights are estimated, before any outcome model is fitted. It reports
 which estimands pass and the reportable horizon of each. It reports no
 event count, rate or expected events after time zero, and no effect
 estimate. It reports the eligibility counts by arm, including people
-excluded for an outcome event before time zero. Its decision still
-depends on the observed events, through the pooled rate.
+excluded for an outcome event inside the enrollment period. Its decision
+still depends on the observed events, through the pooled rate.
 
 #### 1.8.7 Missing data
 
@@ -1134,7 +1139,8 @@ TARGET item 16 and RECORD item 19.1 (Benchimol et al. 2015).
 - No grace periods and no cloning. Deviation censors at the start of the
   first discordant week beyond the tolerance of the arm (1.4).
 - The estimand conditions on reaching time zero. It says nothing about
-  people who die, or have an outcome, before time zero (1.6).
+  people who die before time zero, or who have an outcome inside the
+  enrollment period (1.6).
 - Trials open once per enrollment period, so a person who becomes
   eligible inside an enrollment period waits for the next time zero.
 - The censoring models carry no lagged treatment term, so they hold no
@@ -1217,9 +1223,10 @@ and no later step conditioned on one.
 
 Time zero was a landmark: the first week after the enrollment period
 closed. A person entered the trial only if they reached that week under
-observation and free of every enrollment outcome. The enrollment period
-therefore contributed no follow-up and no immortal time (Hernán and
-Robins 2016; Caniglia et al. 2023).
+observation and had no enrollment outcome inside the enrollment period.
+The enrollment period therefore contributed no follow-up and no immortal
+time (Hernán and Robins 2016; Caniglia et al. 2023). An earlier outcome
+excluded a person only where an eligibility criterion said so.
 
 Follow-up ended at the earliest of `[outcome]`, loss of observation, the
 administrative end of study at `[end]` and the horizon of `[horizon]`.
@@ -1240,11 +1247,11 @@ al. 2013). A deviation did not end intention-to-treat follow-up.
 ### Causal contrasts and identifying assumptions
 
 We estimated two estimands (Danaei et al. 2013). Both conditioned on
-reaching the time zero of each trial under observation and free of the
-study outcomes. The observational analogue of the intention-to-treat
-effect compared the arms as assigned, ignoring later changes in
-treatment. The per-protocol effect compared sustained `[intervention]`
-with sustained `[comparator]`.
+reaching the time zero of each trial under observation, with no study
+outcome inside the enrollment period. The observational analogue of the
+intention-to-treat effect compared the arms as assigned, ignoring later
+changes in treatment. The per-protocol effect compared sustained
+`[intervention]` with sustained `[comparator]`.
 
 We reported both estimands as marginal incidence rate ratios (IRRs),
 with weighted event counts and rates per 100,000 person-years by arm. We
@@ -1355,7 +1362,7 @@ that the package’s test suite enforces in continuous integration.
 Section 4.2 maps each layer to its test file and describes how to
 regenerate the artifact.
 
-Provenance: generated 2026-11-24 10:58:02 UTC with swereg 27.3.24,
+Provenance: generated 2026-11-25 01:45:47 UTC with swereg 27.3.26,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).
 
 ### 3.1 Design of the validation battery
@@ -2241,7 +2248,7 @@ source of the validation evidence.
 | 1.2, 1.4 | Arm values and the weekly status | `treatment.implementation`: `variable`, `intervention_value` and `comparator_value`. The pipeline writes `rd_intervention`: `TRUE` at the intervention value, `FALSE` at the comparator value, `NA` otherwise. It also writes `eligible_valid_treatment`, which is `TRUE` where `rd_intervention` is not `NA` |
 | 1.3 | Arm classification, recruiting week | `R/tte_enrollment_periods.R`. Each confounder reaches the panel as `.tte_entry__<v>`, its value at the recruiting week. The panel column `enrollment_period_id` names the trial, and `period_id` names the calendar period of each follow-up interval |
 | 1.3 | Comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`. `comparator_to_intervention_ratio` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) and `seed` (required; [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) stops without it) come from the YAML spec’s `treatment.implementation`. The draw takes `round(ratio * n)` comparators, `by = enrollment_period_id` |
-| 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` (“Candidate person-trials, before the time-zero checks”), `landmark_observed` (“Not under observation at time zero”) and `landmark_event_free` (“Event before time zero”). The observation contract is `observed_var` on each enrollment |
+| 1.4 | Time-zero checks | `R/tte_landmark_qualify.R`. The attrition steps are `landmark_candidates` (“Candidate person-trials, before the time-zero checks”), `landmark_observed` (“Not under observation at time zero”) and `landmark_event_free` (“Event in the enrollment period”). The observation contract is `observed_var` on each enrollment |
 | 1.4 | Arm tolerance | `intervention_tolerance_weeks` and `comparator_tolerance_weeks` on each enrollment, each a whole number of at least 0, default 0 |
 | 1.4 | Follow-up stop events, ties | The private `TTEEnrollment` method `s5_prepare_outcome()`, which `$s4_prepare_for_analysis()` calls. `.tte_deviation_boundary()` writes `weeks_to_protocol_deviation`, the left edge of the first discordant week beyond tolerance. A panel built outside `enroll()` reads the `tstart` of the first discordant interval instead. `.deviation_clip` is `NA` when the deviation is not strictly before every other stop. The horizon comes from `follow_up`. The administrative end comes from the required spec key `admin_censoring_isoyearweek`, stored on the plan as `global_max_isoyearweek` and passed to `TTEDesign` as `admin_censor_isoyearweek`. TrialEmulation applies the same deviation rule in `expand_until_switch()` |
 | 1.4 | Loss of observation | `.tte_record_end_boundary()` writes `weeks_to_record_end`, and `.tte_observation_gap_boundary()` writes `weeks_to_observation_gap`, the first absent week after time zero (`.tte_first_gap_week()`). Under both estimands `.tte_gap_record_end()` moves the record end to that week, so the stop row gets `weeks_to_loss`, `censor_loss = 1` and `censor_this_period = 1`. A gap on the same week as a deviation is labelled loss. `.tte_deviation_boundary()` holds discordant runs only, and ITT sets `weeks_to_protocol_deviation` to `NA`. A panel that `enroll()` built with `observed_var` can lack `weeks_to_observation_gap`. Its weekly rows are gone, so the gap cannot be recomputed. swereg then warns once. The warning says that gaps in observation cannot be detected in the panel, and that an outcome after such a gap may be counted. A re-run of s1 removes the limitation. `.tte_gap_record_end()` gives the warning for such a panel in memory. [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md) refuses a stored enrollment below schema 7, and a stored enrollment that lacks the column is below schema 7, so such a file cannot be read. Rebuild the plan with s0 and re-run s1 |

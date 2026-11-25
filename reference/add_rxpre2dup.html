@@ -11,7 +11,7 @@ week or annual row that overlaps a drug use period, and FALSE elsewhere."><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,7 +98,9 @@ week or annual row that overlaps a drug use period, and FALSE elsewhere.</p>
 
 <dt id="arg-lmed">lmed<a class="anchor" aria-label="anchor" href="#arg-lmed"></a></dt>
 <dd><p>A data.table of LMED dispensings, with the columns <code>id_name</code>,
-<code>edatum</code> (Date), <code>atc</code>, <code>produkt</code>, <code>lnmn</code> and <code>fddd</code>.</p></dd>
+<code>edatum</code> (Date), <code>atc</code>, <code>produkt</code>, <code>lnmn</code>, <code>antal</code> and <code>fddd</code>. <code>antal</code>
+is LMED's <code>ANTAL</code>, the number of packs of the dispensing. A missing
+<code>antal</code> column is an error.</p></dd>
 
 
 <dt id="arg-hosp">hosp<a class="anchor" aria-label="anchor" href="#arg-hosp"></a></dt>
@@ -149,14 +151,18 @@ package on one day together. One message line shows each share.</p>
     <h2 id="dispensings">Dispensings<a class="anchor" aria-label="anchor" href="#dispensings"></a></h2>
 
 
-<p>A dispensing matches a design row when <code>atc</code>, <code>produkt</code> and
-<code>tolower(trimws(lnmn))</code> are equal and <code>abs(fddd - pack_ddd) &lt; 0.005</code>. Every
-dispensing enters PRE2DUP with <code>ratio = 1</code> and <code>ddd = fddd</code>. A dispensing
-with no design row uses the ATC-level rule of PRE2DUP, with the parameters
-of <code>atc_parameters</code>.</p>
-<p>Rows of <code>lmed</code> whose <code>fddd</code> is missing, not finite or negative are dropped.
-A row with <code>fddd = 0</code> is kept and enters PRE2DUP with <code>ddd = 0</code>. Such a row
-matches no design row.</p>
+<p>In LMED, <code>antal</code> is the number of packs of a dispensing, and <code>fddd</code> is the
+DDDs of all its packs. A dispensing matches a design row when <code>atc</code>,
+<code>produkt</code> and <code>tolower(trimws(lnmn))</code> are equal and
+<code>abs(fddd / antal - pack_ddd) &lt; 0.005</code>. Every dispensing enters PRE2DUP
+with <code>ratio = antal</code> and <code>ddd = fddd</code>. PRE2DUP multiplies <code>dur_min</code>,
+<code>dur_usual</code> and <code>dur_max</code> of the design row, or the duration limits of the
+ATC-level rule, by <code>ratio</code>. A dispensing with no design row uses the
+ATC-level rule of PRE2DUP, with the parameters of <code>atc_parameters</code>.</p>
+<p>The function drops the rows of <code>lmed</code> whose <code>fddd</code> or <code>antal</code> is missing,
+not finite, 0 or negative. One message line gives the number of dropped
+rows per reason. Each dropped row counts under one reason, and a reason
+of <code>fddd</code> comes before a reason of <code>antal</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="periods-on-the-skeleton">Periods on the skeleton<a class="anchor" aria-label="anchor" href="#periods-on-the-skeleton"></a></h2>

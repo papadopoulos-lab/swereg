@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,8 +151,9 @@ such moment, so you have to define one. swereg uses <em>enrollment
 periods</em>: each enrollment period of <code>period_width</code> weeks
 opens one trial, and it classifies the arm. Time zero is a landmark: the
 first week after the enrollment period closes. A person enters the trial
-only if they reach that week under observation and free of every
-enrollment outcome. See <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
+only if they reach that week under observation and have no enrollment
+outcome inside the enrollment period. See
+<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
 <li><p><strong>Follow-up is informatively truncated.</strong> People
 drop out of observation (emigration, death, end of data) in ways that
 depend on their baseline or time-varying characteristics. The correction
@@ -820,8 +821,8 @@ present.</p>
 <p>Neither output holds an event count, a rate or expected events after
 time zero, and neither holds an effect estimate. The Attrition by arm
 sheet keeps the eligibility counts by arm, including people excluded for
-an outcome event before time zero. The decision still depends on the
-observed events, through the pooled rate.</p>
+an outcome event inside the enrollment period. The decision still
+depends on the observed events, through the pooled rate.</p>
 <p><code><a href="../reference/tte_s0_flags.html">tte_s0_flags()</a></code> reads the two flags of a project’s
 <code>s0_init.R</code>, <code>--check</code> and
 <code>--feasibility</code>. It stops on any other argument, and when

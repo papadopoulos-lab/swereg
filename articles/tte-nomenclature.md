@@ -158,10 +158,11 @@ four weeks, and not one trial per week.
 
 Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome. The enrollment period
-therefore carries no follow-up and no immortal time. `period_width`
-trades the number of trials against how long a newly eligible person
-waits:
+observation and have no enrollment outcome inside the enrollment period.
+The enrollment period therefore carries no follow-up and no immortal
+time. An outcome before the enrollment period excludes the person only
+where an eligibility criterion says so. `period_width` trades the number
+of trials against how long a newly eligible person waits:
 
 - **Narrower enrollment periods** (e.g., `period_width = 1`): a person
   waits at most one week for a trial. The cost is more trials and a

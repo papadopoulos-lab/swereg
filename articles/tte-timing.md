@@ -194,7 +194,9 @@ The table shows the first two enrollment periods of the worked skeleton.
 
 Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome.
+observation and have no enrollment outcome inside the enrollment period.
+An outcome before the enrollment period excludes the person only where
+an eligibility criterion says so.
 
 Enrollment period `b` covers week indices `b * period_width` to
 `(b + 1) * period_width - 1`. Its time zero sits at week index
@@ -283,15 +285,20 @@ A candidate person-trial qualifies only when both statements hold at its
 time zero.
 
 1.  The person is under observation at time zero.
-2.  No outcome occurrence stops at or before time zero.
+2.  No outcome occurrence falls inside the enrollment period.
 
-A week is a half-open interval, so an occurrence in week `w` stops at
-`w + 1`. Statement 2 therefore covers every week of the enrollment
-period, and every week before it.
+Statement 2 excludes the candidate of enrollment period `b` when an
+occurrence in week index `w` has `w %/% period_width == b`. It reads
+every occurrence, and not only the first one. An occurrence before the
+enrollment period does not exclude the candidate. An eligibility
+criterion on the outcome column handles an earlier outcome, and its
+window sets how far back it reads. An occurrence in the time-zero week,
+or later, is a follow-up event.
 
 Statement 2 reads **every** column in `design$outcome_vars`, and not the
 one outcome a later step analyses. One enrollment serves several
-outcomes, so one enrolled set has to be event-free for all of them.
+outcomes, so one enrolled set has to be free of all of them in the
+enrollment period.
 
 Statement 2 reads the weekly history only. The check places each row on
 the weekly calendar by its `isoyearweek`. An annual row of the skeleton,
@@ -364,7 +371,8 @@ it.
 The cascade names the reason. Three criteria join the CONSORT attrition
 table: `landmark_candidates`, `landmark_observed` and
 `landmark_event_free`. Each count is cumulative, and each row splits
-into the two arms.
+into the two arms. The CONSORT box labels the last one “Event in the
+enrollment period”.
 
 ### The comparator draw happens after qualification
 
@@ -658,20 +666,22 @@ week six, including for a woman with four-week follow-up intervals.
 ### The qualified population
 
 The population is every candidate person-trial that reaches its time
-zero `L` under observation and free of every enrollment outcome before
-`L`. The whole enrollment period must also classify it into an arm. When
-the spec has a `rare_condition_rule`, s1 also drops each person-trial
-that holds an excluded condition at its recruiting week.
+zero `L` under observation, with no enrollment outcome inside its
+enrollment period. The whole enrollment period must also classify it
+into an arm. When the spec has a `rare_condition_rule`, s1 also drops
+each person-trial that holds an excluded condition at its recruiting
+week.
 
 The comparator draw happens after that, so the ratio counts qualified
 people.
 
 ### Intention-to-treat
 
-Among people who reach `L` alive, event-free and under observation,
-compare those the enrollment period classified as initiators against
-those it classified as comparators. Follow-up runs from `L`. Later
-treatment changes do not enter.
+Take the people who reach `L` alive and under observation, with no
+outcome inside the enrollment period. Compare those the enrollment
+period classified as initiators against those it classified as
+comparators. Follow-up runs from `L`. Later treatment changes do not
+enter.
 
 ### Per-protocol
 

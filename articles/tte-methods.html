@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -325,14 +325,18 @@ confounding adjustment (1.8.1). The draw bounds computation.</p>
 <p>TARGET items 6d and 7d.</p>
 <p>Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome.</p>
+observation and have no enrollment outcome inside the enrollment
+period.</p>
 <p>swereg checks both conditions on each candidate person-trial before
 the comparator draw. The outcome check reads every outcome of the
-enrollment, over the whole earlier history of the person. An outcome in
-the time-zero week is a follow-up event. The enrollment period therefore
-contributes no follow-up and no immortal time (Caniglia et al. 2023).
-Its width sets how long a newly eligible person waits for the next time
-zero.</p>
+enrollment, in every week of the enrollment period. It reads every
+occurrence, and not only the first one. An outcome before the enrollment
+period excludes the person only through an eligibility criterion on the
+outcome column. The window of that criterion sets how far back it reads.
+An outcome in the time-zero week is a follow-up event. The enrollment
+period therefore contributes no follow-up and no immortal time (Caniglia
+et al. 2023). Its width sets how long a newly eligible person waits for
+the next time zero.</p>
 <p>Each enrolled person-trial is split into follow-up intervals of the
 same width as the enrollment period. Their number is the horizon divided
 by the width, rounded up. The first interval opens at time zero, and the
@@ -425,12 +429,14 @@ follow-up, and no competing-risk model is fitted (1.6).</p>
 <h3 id="causal-contrasts">1.6 Causal contrasts<a class="anchor" aria-label="anchor" href="#causal-contrasts"></a>
 </h3>
 <p>TARGET items 6f and 7f.</p>
-<p>Both estimands condition on reaching time zero under observation and
-free of every enrollment outcome. The target of inference is therefore a
-landmark-survivor estimand. It says nothing about people who die, or
-have an outcome, before time zero (Dafni 2011). Both estimands are
-marginal: the weights standardize them over the baseline confounder
-distribution of the enrolled person-trials.</p>
+<p>Both estimands condition on reaching time zero under observation,
+with no enrollment outcome inside the enrollment period. The target of
+inference is therefore a landmark-survivor estimand. It says nothing
+about people who die before time zero, or who have an outcome inside the
+enrollment period (Dafni 2011). A person with an earlier outcome stays
+in the estimand unless an eligibility criterion removes them. Both
+estimands are marginal: the weights standardize them over the baseline
+confounder distribution of the enrolled person-trials.</p>
 <ul>
 <li>The intention-to-treat analogue is the effect of the intervention
 versus the comparator strategy as assigned in the enrollment period,
@@ -1044,8 +1050,8 @@ weights are estimated, before any outcome model is fitted. It reports
 which estimands pass and the reportable horizon of each. It reports no
 event count, rate or expected events after time zero, and no effect
 estimate. It reports the eligibility counts by arm, including people
-excluded for an outcome event before time zero. Its decision still
-depends on the observed events, through the pooled rate.</p>
+excluded for an outcome event inside the enrollment period. Its decision
+still depends on the observed events, through the pooled rate.</p>
 </div>
 </div>
 <div class="section level4">
@@ -1438,7 +1444,8 @@ a logistic regression under both settings.</p>
 <li>No grace periods and no cloning. Deviation censors at the start of
 the first discordant week beyond the tolerance of the arm (1.4).</li>
 <li>The estimand conditions on reaching time zero. It says nothing about
-people who die, or have an outcome, before time zero (1.6).</li>
+people who die before time zero, or who have an outcome inside the
+enrollment period (1.6).</li>
 <li>Trials open once per enrollment period, so a person who becomes
 eligible inside an enrollment period waits for the next time zero.</li>
 <li>The censoring models carry no lagged treatment term, so they hold no
@@ -1570,9 +1577,10 @@ formed no matched sets, and no later step conditioned on one.</p>
 </h3>
 <p>Time zero was a landmark: the first week after the enrollment period
 closed. A person entered the trial only if they reached that week under
-observation and free of every enrollment outcome. The enrollment period
-therefore contributed no follow-up and no immortal time (Hernán and
-Robins 2016; Caniglia et al. 2023).</p>
+observation and had no enrollment outcome inside the enrollment period.
+The enrollment period therefore contributed no follow-up and no immortal
+time (Hernán and Robins 2016; Caniglia et al. 2023). An earlier outcome
+excluded a person only where an eligibility criterion said so.</p>
 <p>Follow-up ended at the earliest of <code>[outcome]</code>, loss of
 observation, the administrative end of study at <code>[end]</code> and
 the horizon of <code>[horizon]</code>. Loss of observation was the first
@@ -1593,10 +1601,10 @@ intention-to-treat follow-up.</p>
 <h3 id="causal-contrasts-and-identifying-assumptions">Causal contrasts and identifying assumptions<a class="anchor" aria-label="anchor" href="#causal-contrasts-and-identifying-assumptions"></a>
 </h3>
 <p>We estimated two estimands (Danaei et al. 2013). Both conditioned on
-reaching the time zero of each trial under observation and free of the
-study outcomes. The observational analogue of the intention-to-treat
-effect compared the arms as assigned, ignoring later changes in
-treatment. The per-protocol effect compared sustained
+reaching the time zero of each trial under observation, with no study
+outcome inside the enrollment period. The observational analogue of the
+intention-to-treat effect compared the arms as assigned, ignoring later
+changes in treatment. The per-protocol effect compared sustained
 <code>[intervention]</code> with sustained
 <code>[comparator]</code>.</p>
 <p>We reported both estimands as marginal incidence rate ratios (IRRs),
@@ -1709,7 +1717,7 @@ rerun uses the same data-generating processes, truth calculations and
 fit wrappers that the package’s test suite enforces in continuous
 integration. Section 4.2 maps each layer to its test file and describes
 how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-11-24 10:58:02 UTC with swereg 27.3.24,
+<p>Provenance: generated 2026-11-25 01:45:47 UTC with swereg 27.3.26,
 TrialEmulation 0.0.4.11, under R version 4.5.2 (2025-10-31).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
@@ -3816,7 +3824,7 @@ the YAML spec’s <code>treatment.implementation</code>. The draw takes
 steps are <code>landmark_candidates</code> (“Candidate person-trials,
 before the time-zero checks”), <code>landmark_observed</code> (“Not
 under observation at time zero”) and <code>landmark_event_free</code>
-(“Event before time zero”). The observation contract is
+(“Event in the enrollment period”). The observation contract is
 <code>observed_var</code> on each enrollment</td>
 </tr>
 <tr class="even">

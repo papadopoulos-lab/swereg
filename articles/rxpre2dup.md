@@ -144,6 +144,7 @@ lmed <- data.table(
   atc = "C10AA01",
   produkt = "Simvastatin Example",
   lnmn = "Simvastatin Example 20 mg",
+  antal = 1L,
   fddd = 30
 )
 hosp <- data.table(lopnr = 1L, indatum = d0 + 495, utdatum = d0 + 554)
@@ -154,7 +155,7 @@ purchases <- data.table(
   atc = lmed$atc,
   package_id = 1L,
   date = lmed$edatum,
-  ratio = 1,
+  ratio = lmed$antal,
   ddd = lmed$fddd
 )
 packages <- design[, .(package_id, atc, dur_min, dur_usual, dur_max, ddd_low, ddd_usual)]
@@ -296,7 +297,7 @@ weeks[isoyearweek %in% c("2020-10", "2021-02", "2022-02"), .(isoyearweek, curren
 
 ## The design file
 
-A design file says how long one dispensing of each package lasts.
+A design file says how long one pack of each package lasts.
 [`rxpre2dup_read_design()`](https://papadopoulos-lab.github.io/swereg/reference/rxpre2dup_read_design.md)
 reads it and checks every row. The format is an `.xlsx` workbook with
 one sheet, `packages`, and one row per package. The columns are, in
@@ -305,8 +306,7 @@ order:
 - `atc` (character, the full ATC code)
 - `produkt` (character, as LMED writes it)
 - `lnmn` (character; matched after `tolower(trimws())`)
-- `pack_ddd` (numeric \> 0: the DDDs one dispensing of this package
-  holds, as LMED’s `fddd`)
+- `pack_ddd` (numeric \> 0: the DDDs that one pack holds)
 - `form` (character, free text, e.g. “tablet”)
 - `dur_min`, `dur_usual`, `dur_max` (numeric \> 0, days;
   `dur_min <= dur_usual <= dur_max`)
@@ -329,19 +329,32 @@ the rows of its own latest date. The value rules and the duplicate-key
 rule apply only to the kept rows, so two dates of one package never form
 a duplicate key.
 
-LMED’s `fddd` is the total DDDs of one dispensing. A design row
-therefore describes one dispensing amount, and every dispensing enters
-PRE2DUP with `ratio = 1`. Suppose a pharmacy hands out 200 tablets as 2
-× 100. That dispensing is its own row, with its own `pack_ddd`.
+A design row describes one pack. In LMED, `antal` is the number of packs
+of a dispensing, and `fddd` is the DDDs of all its packs.
+[`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
+therefore needs the column `antal` in `lmed`, and it stops when `lmed`
+has no such column.
+
+Every dispensing enters PRE2DUP with `ratio = antal` and `ddd = fddd`.
+PRE2DUP multiplies `dur_min`, `dur_usual` and `dur_max` of the design
+row, or the duration limits of the ATC-level rule, by `ratio`. Suppose a
+pharmacy hands out 2 packs of 100 tablets. That dispensing matches the
+row of the 100-tablet pack, with twice the durations of that row.
 
 A dispensing matches a row when `atc`, `produkt` and
-`tolower(trimws(lnmn))` are equal and `abs(fddd - pack_ddd) < 0.005`.
-Two rows can have the same `atc`, `produkt` and normalised `lnmn`. Their
-values of `pack_ddd` MUST then differ by 0.01 or more, else the file is
-refused. A dispensing therefore matches at most one row. A dispensing
-with no row uses the ATC-level rule.
+`tolower(trimws(lnmn))` are equal and
+`abs(fddd / antal - pack_ddd) < 0.005`. Two rows can have the same
+`atc`, `produkt` and normalised `lnmn`. Their values of `pack_ddd` MUST
+then differ by 0.01 or more, else the file is refused. A dispensing
+therefore matches at most one row. A dispensing with no row uses the
+ATC-level rule.
 [`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
 reports the share of such purchases per ATC code in one message line.
+
+[`add_rxpre2dup()`](https://papadopoulos-lab.github.io/swereg/reference/add_rxpre2dup.md)
+drops each row of `lmed` whose `fddd` or `antal` is missing, not finite,
+0 or negative. One message line gives the number of dropped rows per
+reason.
 
 ## Calling add_rxpre2dup() from a phase-3 step
 

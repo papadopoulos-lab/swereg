@@ -13,13 +13,15 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from &quot;person_week&quot;
 to &quot;trial&quot; level and is triggered by passing ratio to the constructor.
-.TTE_ENROLLMENT_SCHEMA_VERSION is 7L. It rises when a
+.TTE_ENROLLMENT_SCHEMA_VERSION is 8L. It rises when a
 stored field changes meaning, or when a reader needs a new field.
 Schema 4 stores the fill summary in fill_summary and the
 propensity-model diagnostics in ps_fit. Schema 5 names the panel
 column enrollment_period_id. Schema 6 names the calendar period of
-each row period_id. Schema 7 carries the rare-condition rule.
-qs2_read() refuses every enrollment below schema 7 before this check
+each row period_id. Schema 7 carries the rare-condition rule. In
+schema 8, an outcome excludes a candidate person-trial only when it
+falls inside the enrollment period.
+qs2_read() refuses every enrollment below schema 8 before this check
 runs. The check refuses the same objects."><meta property="og:description" content="Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return invisible(self) for $-chaining.
 R6 reference semantics mean trial$data[, := ...] modifies the data.table
@@ -34,13 +36,15 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from &quot;person_week&quot;
 to &quot;trial&quot; level and is triggered by passing ratio to the constructor.
-.TTE_ENROLLMENT_SCHEMA_VERSION is 7L. It rises when a
+.TTE_ENROLLMENT_SCHEMA_VERSION is 8L. It rises when a
 stored field changes meaning, or when a reader needs a new field.
 Schema 4 stores the fill summary in fill_summary and the
 propensity-model diagnostics in ps_fit. Schema 5 names the panel
 column enrollment_period_id. Schema 6 names the calendar period of
-each row period_id. Schema 7 carries the rare-condition rule.
-qs2_read() refuses every enrollment below schema 7 before this check
+each row period_id. Schema 7 carries the rare-condition rule. In
+schema 8, an outcome excludes a candidate person-trial only when it
+falls inside the enrollment period.
+qs2_read() refuses every enrollment below schema 8 before this check
 runs. The check refuses the same objects."><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
@@ -49,7 +53,7 @@ runs. The check refuses the same objects."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -118,13 +122,15 @@ person-trial interval. Methods
 <code>$s2_ipw()</code>, <code>$s4_prepare_for_analysis()</code>, and <code>$s3_truncate_weights()</code> require this level.</p></li>
 </ul><p>Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing <code>ratio</code> to the constructor.</p>
-<p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> is <code>7L</code>. It rises when a
+<p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> is <code>8L</code>. It rises when a
 stored field changes meaning, or when a reader needs a new field.
 Schema 4 stores the fill summary in <code>fill_summary</code> and the
 propensity-model diagnostics in <code>ps_fit</code>. Schema 5 names the panel
 column <code>enrollment_period_id</code>. Schema 6 names the calendar period of
-each row <code>period_id</code>. Schema 7 carries the rare-condition rule.
-<code><a href="qs2_read.html">qs2_read()</a></code> refuses every enrollment below schema 7 before this check
+each row <code>period_id</code>. Schema 7 carries the rare-condition rule. In
+schema 8, an outcome excludes a candidate person-trial only when it
+falls inside the enrollment period.
+<code><a href="qs2_read.html">qs2_read()</a></code> refuses every enrollment below schema 8 before this check
 runs. The check refuses the same objects.</p>
     </div>
 
@@ -217,7 +223,9 @@ power.</p>
 
 <p>Time zero is a landmark: the first week after the enrollment period closes.
 A person enters the trial only if they reach that week under observation
-and free of every enrollment outcome. Follow-up starts there.</p>
+and have no enrollment outcome inside the enrollment period. An outcome
+before the enrollment period excludes the person only where an eligibility
+criterion says so. Follow-up starts there.</p>
 <p>Every interval is <code>[tstart, tstop)</code>. The stop is exclusive. The person
 leaves the risk set at <code>tstop</code>, and the row holds no part of that week.</p>
 <p>Every duration is <code>tstop - tstart</code>. It never adds one. Three complete
@@ -287,9 +295,11 @@ time-zero qualification dropped each candidate person-trial, by
 criterion and by arm. Its columns are <code>enrollment_period_id</code>,
 <code>criterion</code>, <code>n_persons</code>, <code>n_person_trials</code>, <code>n_intervention</code> and
 <code>n_comparator</code>. The row with <code>enrollment_period_id = NA</code> covers the
-whole cohort. The three
-criteria are <code>landmark_candidates</code>, <code>landmark_observed</code> and
-<code>landmark_event_free</code>, and each count is cumulative. It stays <code>NULL</code>
+whole cohort. The three criteria are <code>landmark_candidates</code>,
+<code>landmark_observed</code> and <code>landmark_event_free</code>, and each count is
+cumulative. <code>landmark_event_free</code> keeps a candidate with no outcome
+inside its enrollment period. An earlier outcome does not drop it
+there. It stays <code>NULL</code>
 when the design declares no <code>observed_var</code>, and when the caller
 supplies <code>enrolled_ids</code> from the two-pass pipeline.</p></dd>
 

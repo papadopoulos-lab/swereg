@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.26</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">27.3.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -507,13 +507,15 @@ each threshold, the spec’s own included, would report.</p>
 <p>At registration the authors ran s0 only, and s0 reads no outcome
 value. State that under “Explanation of foreknowledge”.</p>
 <p>After registration, s1 reads outcome data. A person enters a trial
-only if they reach time zero free of every outcome of the enrollment. So
-every s1 count from the attrition step “Event before time zero” onwards
-depends on outcome events before time zero. The s1 panel files,
-<code>file_raw</code> and <code>file_imp</code>, also hold the follow-up
-outcomes. Do not open those files before the analysis. If an author sees
-an outcome-dependent result before the analysis, record it in the
-deviations log.</p>
+only if they have no outcome of the enrollment inside the enrollment
+period. So every s1 count from the attrition step “Event in the
+enrollment period” onwards depends on outcome events inside the
+enrollment period. An eligibility criterion on an outcome column also
+reads outcome events, so every count from that criterion onwards depends
+on them too. The s1 panel files, <code>file_raw</code> and
+<code>file_imp</code>, also hold the follow-up outcomes. Do not open
+those files before the analysis. If an author sees an outcome-dependent
+result before the analysis, record it in the deviations log.</p>
 </div>
 <div class="section level2">
 <h2 id="deviations-after-registration">Deviations after registration<a class="anchor" aria-label="anchor" href="#deviations-after-registration"></a>

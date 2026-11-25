@@ -19,14 +19,15 @@ Enrollment (the comparator draw + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing `ratio` to
 the constructor.
 
-`.TTE_ENROLLMENT_SCHEMA_VERSION` is `7L`. It rises when a stored field
+`.TTE_ENROLLMENT_SCHEMA_VERSION` is `8L`. It rises when a stored field
 changes meaning, or when a reader needs a new field. Schema 4 stores the
 fill summary in `fill_summary` and the propensity-model diagnostics in
 `ps_fit`. Schema 5 names the panel column `enrollment_period_id`. Schema
 6 names the calendar period of each row `period_id`. Schema 7 carries
-the rare-condition rule.
+the rare-condition rule. In schema 8, an outcome excludes a candidate
+person-trial only when it falls inside the enrollment period.
 [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
-refuses every enrollment below schema 7 before this check runs. The
+refuses every enrollment below schema 8 before this check runs. The
 check refuses the same objects.
 
 ## Baseline treatment
@@ -140,8 +141,9 @@ execution order):**
 
 Time zero is a landmark: the first week after the enrollment period
 closes. A person enters the trial only if they reach that week under
-observation and free of every enrollment outcome. Follow-up starts
-there.
+observation and have no enrollment outcome inside the enrollment period.
+An outcome before the enrollment period excludes the person only where
+an eligibility criterion says so. Follow-up starts there.
 
 Every interval is `[tstart, tstop)`. The stop is exclusive. The person
 leaves the risk set at `tstop`, and the row holds no part of that week.
@@ -223,8 +225,10 @@ Other tte_classes:
   `n_person_trials`, `n_intervention` and `n_comparator`. The row with
   `enrollment_period_id = NA` covers the whole cohort. The three
   criteria are `landmark_candidates`, `landmark_observed` and
-  `landmark_event_free`, and each count is cumulative. It stays `NULL`
-  when the design declares no `observed_var`, and when the caller
+  `landmark_event_free`, and each count is cumulative.
+  `landmark_event_free` keeps a candidate with no outcome inside its
+  enrollment period. An earlier outcome does not drop it there. It stays
+  `NULL` when the design declares no `observed_var`, and when the caller
   supplies `enrolled_ids` from the two-pass pipeline.
 
 - `fill_summary`:

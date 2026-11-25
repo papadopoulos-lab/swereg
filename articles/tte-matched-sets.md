@@ -92,7 +92,7 @@ every week.
 
 ``` r
 library(swereg)
-#> swereg 27.3.26
+#> swereg 27.3.27
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
@@ -288,7 +288,6 @@ trials[id == 5L]
 #>       id enrollment_period_id enrollment_person_trial_id baseline_intervention
 #>    <int>                <int>                     <char>                <lgcl>
 #> 1:     5                 1555                  01.5.1555                 FALSE
-#> 2:     5                 1559                  01.5.1559                 FALSE
 ```
 
 Clustering on `id` gives one cluster per person, so the number of
@@ -298,7 +297,7 @@ clusters is the number of enrolled persons:
 trials[, .(person_trials = .N, clusters = uniqueN(id))]
 #>    person_trials clusters
 #>            <int>    <int>
-#> 1:            12       11
+#> 1:            12       12
 ```
 
 Person 1 starts the intervention once, and is enrolled once as an

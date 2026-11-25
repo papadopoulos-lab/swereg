@@ -52,8 +52,8 @@ observational analyses suffer which randomized trials do not:
     each enrollment period of `period_width` weeks opens one trial, and
     it classifies the arm. Time zero is a landmark: the first week after
     the enrollment period closes. A person enters the trial only if they
-    reach that week under observation and free of every enrollment
-    outcome. See
+    reach that week under observation and have no enrollment outcome
+    inside the enrollment period. See
     [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md).
 
 3.  **Follow-up is informatively truncated.** People drop out of
@@ -719,8 +719,8 @@ holds 0 persons has a grey name. A count of 1 to 4 counts as present.
 Neither output holds an event count, a rate or expected events after
 time zero, and neither holds an effect estimate. The Attrition by arm
 sheet keeps the eligibility counts by arm, including people excluded for
-an outcome event before time zero. The decision still depends on the
-observed events, through the pooled rate.
+an outcome event inside the enrollment period. The decision still
+depends on the observed events, through the pooled rate.
 
 [`tte_s0_flags()`](https://papadopoulos-lab.github.io/swereg/reference/tte_s0_flags.md)
 reads the two flags of a project’s `s0_init.R`, `--check` and

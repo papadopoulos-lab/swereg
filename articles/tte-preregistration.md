@@ -269,12 +269,15 @@ At registration the authors ran s0 only, and s0 reads no outcome value.
 State that under “Explanation of foreknowledge”.
 
 After registration, s1 reads outcome data. A person enters a trial only
-if they reach time zero free of every outcome of the enrollment. So
-every s1 count from the attrition step “Event before time zero” onwards
-depends on outcome events before time zero. The s1 panel files,
-`file_raw` and `file_imp`, also hold the follow-up outcomes. Do not open
-those files before the analysis. If an author sees an outcome-dependent
-result before the analysis, record it in the deviations log.
+if they have no outcome of the enrollment inside the enrollment period.
+So every s1 count from the attrition step “Event in the enrollment
+period” onwards depends on outcome events inside the enrollment period.
+An eligibility criterion on an outcome column also reads outcome events,
+so every count from that criterion onwards depends on them too. The s1
+panel files, `file_raw` and `file_imp`, also hold the follow-up
+outcomes. Do not open those files before the analysis. If an author sees
+an outcome-dependent result before the analysis, record it in the
+deviations log.
 
 ## Deviations after registration
 
